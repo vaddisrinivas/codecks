@@ -1,0 +1,31 @@
+name: Feature request
+description: Propose a focused improvement to the core product.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Product area
+      options:
+        - Deck
+        - Trackpad
+        - Automations
+        - Customization / AI
+        - Connection setup
+        - DeX / adaptive layout
+        - Accessibility
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+    validations:
+      required: true

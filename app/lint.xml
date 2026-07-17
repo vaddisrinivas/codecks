@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- App-only SSH credential storage. Add real assetlinks include when a public release domain exists. -->
+    <issue id="CredManMissingDal" severity="ignore" />
+</lint>

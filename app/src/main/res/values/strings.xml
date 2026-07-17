@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Codecks</string>
+    <string name="asset_statements" translatable="false">[]</string>
+    <string name="tile_label">Codecks</string>
+    <string name="tile_subtitle">Open Deck</string>
+    <string name="spen_air_touch_actionset">Codecks Air Touch</string>
+    <string name="spen_air_touch_left">Air touch left</string>
+    <string name="spen_air_touch_right">Air touch right</string>
+    <string name="spen_air_touch_up">Air touch up</string>
+    <string name="spen_air_touch_down">Air touch down</string>
+    <string name="spen_air_touch_click">Air touch click</string>
+    <string name="spen_air_touch_right_click">Air touch right click</string>
+    <string name="spen_air_touch_recenter">Air touch recenter</string>
+</resources>

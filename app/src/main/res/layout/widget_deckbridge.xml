@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:orientation="vertical"
+    android:padding="16dp">
+    <TextView
+        android:id="@+id/widget_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/app_name"
+        android:textColor="#F2F0F4"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+    <TextView
+        android:id="@+id/widget_subtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="Deck shortcuts"
+        android:textColor="#C9C5CC"
+        android:textSize="12sp" />
+    <LinearLayout
+        android:id="@+id/widget_app_grid"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="10dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+            <LinearLayout android:id="@+id/widget_app_1" style="@style/WidgetAppSlot">
+                <ImageView android:id="@+id/widget_app_icon_1" style="@style/WidgetAppIcon" />
+                <TextView android:id="@+id/widget_app_label_1" style="@style/WidgetAppLabel" android:text="Deck" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/widget_app_2" style="@style/WidgetAppSlot">
+                <ImageView android:id="@+id/widget_app_icon_2" style="@style/WidgetAppIcon" />
+                <TextView android:id="@+id/widget_app_label_2" style="@style/WidgetAppLabel" android:text="Trackpad" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/widget_app_3" style="@style/WidgetAppSlot">
+                <ImageView android:id="@+id/widget_app_icon_3" style="@style/WidgetAppIcon" />
+                <TextView android:id="@+id/widget_app_label_3" style="@style/WidgetAppLabel" android:text="AI" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/widget_app_4" style="@style/WidgetAppSlot">
+                <ImageView android:id="@+id/widget_app_icon_4" style="@style/WidgetAppIcon" />
+                <TextView android:id="@+id/widget_app_label_4" style="@style/WidgetAppLabel" android:text="Auto" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+            <LinearLayout android:id="@+id/widget_app_5" style="@style/WidgetAppSlot">
+                <ImageView android:id="@+id/widget_app_icon_5" style="@style/WidgetAppIcon" />
+                <TextView android:id="@+id/widget_app_label_5" style="@style/WidgetAppLabel" android:text="App" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/widget_app_6" style="@style/WidgetAppSlot">
+                <ImageView android:id="@+id/widget_app_icon_6" style="@style/WidgetAppIcon" />
+                <TextView android:id="@+id/widget_app_label_6" style="@style/WidgetAppLabel" android:text="App" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/widget_app_7" style="@style/WidgetAppSlot">
+                <ImageView android:id="@+id/widget_app_icon_7" style="@style/WidgetAppIcon" />
+                <TextView android:id="@+id/widget_app_label_7" style="@style/WidgetAppLabel" android:text="App" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/widget_app_8" style="@style/WidgetAppSlot">
+                <ImageView android:id="@+id/widget_app_icon_8" style="@style/WidgetAppIcon" />
+                <TextView android:id="@+id/widget_app_label_8" style="@style/WidgetAppLabel" android:text="App" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+            <LinearLayout android:id="@+id/widget_app_9" style="@style/WidgetAppSlot">
+                <ImageView android:id="@+id/widget_app_icon_9" style="@style/WidgetAppIcon" />
+                <TextView android:id="@+id/widget_app_label_9" style="@style/WidgetAppLabel" android:text="App" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/widget_app_10" style="@style/WidgetAppSlot">
+                <ImageView android:id="@+id/widget_app_icon_10" style="@style/WidgetAppIcon" />
+                <TextView android:id="@+id/widget_app_label_10" style="@style/WidgetAppLabel" android:text="App" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/widget_app_11" style="@style/WidgetAppSlot">
+                <ImageView android:id="@+id/widget_app_icon_11" style="@style/WidgetAppIcon" />
+                <TextView android:id="@+id/widget_app_label_11" style="@style/WidgetAppLabel" android:text="App" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/widget_app_12" style="@style/WidgetAppSlot">
+                <ImageView android:id="@+id/widget_app_icon_12" style="@style/WidgetAppIcon" />
+                <TextView android:id="@+id/widget_app_label_12" style="@style/WidgetAppLabel" android:text="App" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+            <LinearLayout android:id="@+id/widget_app_13" style="@style/WidgetAppSlot">
+                <ImageView android:id="@+id/widget_app_icon_13" style="@style/WidgetAppIcon" />
+                <TextView android:id="@+id/widget_app_label_13" style="@style/WidgetAppLabel" android:text="App" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/widget_app_14" style="@style/WidgetAppSlot">
+                <ImageView android:id="@+id/widget_app_icon_14" style="@style/WidgetAppIcon" />
+                <TextView android:id="@+id/widget_app_label_14" style="@style/WidgetAppLabel" android:text="App" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/widget_app_15" style="@style/WidgetAppSlot">
+                <ImageView android:id="@+id/widget_app_icon_15" style="@style/WidgetAppIcon" />
+                <TextView android:id="@+id/widget_app_label_15" style="@style/WidgetAppLabel" android:text="App" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/widget_app_16" style="@style/WidgetAppSlot">
+                <ImageView android:id="@+id/widget_app_icon_16" style="@style/WidgetAppIcon" />
+                <TextView android:id="@+id/widget_app_label_16" style="@style/WidgetAppLabel" android:text="App" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+    <TextView
+        android:id="@+id/widget_empty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="14dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="No clear app match yet"
+        android:textColor="#C9C5CC"
+        android:textSize="13sp" />
+</LinearLayout>

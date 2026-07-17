@@ -1,0 +1,40 @@
+.gradle/
+.kotlin/
+build/
+**/build/
+local.properties
+*.iml
+.idea/
+.DS_Store
+hs_err_pid*.log
+replay_pid*.log
+
+# Node / Cloudflare Worker
+backend/node_modules/
+backend/.wrangler/
+backend/dist/
+
+# Android signing and local secrets
+*.jks
+*.keystore
+*.p12
+*.pem
+*.env
+*.env.*
+!*.env.example
+
+# Test and visual artifacts generated locally
+test-artifacts/
+device-shots/
+screenshots/
+qa/
+
+# Release artifacts and local signing material
+release-artifacts/
+*.apk
+*.aab
+*.idsig
+
+# Local editor and OS state
+.vscode/
+*.swp

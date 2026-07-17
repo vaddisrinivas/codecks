@@ -1,0 +1,40 @@
+name: Bug report
+description: Report a reproducible Codecks problem without private data.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials, SSH keys, API keys, device serials, hostnames, IP addresses, notification contents, or private screenshots. Security issues belong in a private security advisory.
+  - type: input
+    id: version
+    attributes:
+      label: Codecks version
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Android device and version
+      placeholder: Phone model, Android version, DeX yes/no
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true

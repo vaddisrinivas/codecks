@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<remote-actions
+    version="1.2"
+    actionset_label="@string/spen_air_touch_actionset">
+
+    <action
+        id="air_touch_click"
+        label="@string/spen_air_touch_click"
+        priority="1"
+        trigger_key="DPAD_CENTER">
+        <preference name="gesture" value="click" />
+        <preference name="button_only" value="true" />
+    </action>
+
+    <action
+        id="air_touch_right_click"
+        label="@string/spen_air_touch_right_click"
+        priority="2"
+        trigger_key="PAGE_DOWN">
+        <preference name="gesture" value="double_click" />
+        <preference name="button_only" value="true" />
+    </action>
+
+    <action
+        id="air_touch_left"
+        label="@string/spen_air_touch_left"
+        priority="3"
+        trigger_key="DPAD_LEFT"
+        repeatable="true"
+        repeatable_interval="short">
+        <preference name="gesture" value="swipe_left" />
+        <preference name="motion_only" value="true" />
+    </action>
+
+    <action
+        id="air_touch_right"
+        label="@string/spen_air_touch_right"
+        priority="4"
+        trigger_key="DPAD_RIGHT"
+        repeatable="true"
+        repeatable_interval="short">
+        <preference name="gesture" value="swipe_right" />
+        <preference name="motion_only" value="true" />
+    </action>
+
+    <action
+        id="air_touch_up"
+        label="@string/spen_air_touch_up"
+        priority="5"
+        trigger_key="DPAD_UP"
+        repeatable="true"
+        repeatable_interval="short">
+        <preference name="gesture" value="swipe_up" />
+        <preference name="motion_only" value="true" />
+    </action>
+
+    <action
+        id="air_touch_down"
+        label="@string/spen_air_touch_down"
+        priority="6"
+        trigger_key="DPAD_DOWN"
+        repeatable="true"
+        repeatable_interval="short">
+        <preference name="gesture" value="swipe_down" />
+        <preference name="motion_only" value="true" />
+    </action>
+
+    <action
+        id="air_touch_recenter"
+        label="@string/spen_air_touch_recenter"
+        priority="7"
+        trigger_key="PAGE_UP">
+        <preference name="gesture" value="circle_cw" />
+        <preference name="motion_only" value="true" />
+    </action>
+</remote-actions>
