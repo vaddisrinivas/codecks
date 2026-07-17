@@ -25,6 +25,11 @@ class ActionDraftValidatorTest {
             validDefinition().copy(steps = listOf(ActionStep("retry", ActionStepTypes.Delay, retry = RetryPolicy(99, 0)))),
             validDefinition().copy(steps = listOf(ActionStep("shell", ActionStepTypes.Shell, value = "rm -rf /"))),
             validDefinition().copy(safety = SafetyMetadata(SafetyLevel.Dangerous), steps = listOf(ActionStep("x", ActionStepTypes.Delay))),
+            validDefinition().copy(steps = listOf(ActionStep("open", ActionStepTypes.OpenUrl))),
+            validDefinition().copy(steps = listOf(ActionStep("delay", ActionStepTypes.Delay))),
+            validDefinition().copy(steps = listOf(ActionStep("clip", ActionStepTypes.ClipboardText))),
+            validDefinition().copy(variables = listOf(ActionVariable("name", "Name"), ActionVariable("name", "Other"))),
+            validDefinition().copy(templates = listOf(ActionTemplate("t", "one"), ActionTemplate("t", "two"))),
         )
 
         malformed.forEach { definition ->
@@ -56,4 +61,3 @@ class ActionDraftValidatorTest {
             steps = listOf(ActionStep("open", ActionStepTypes.OpenUrl, url = "https://example.com")),
         )
 }
-

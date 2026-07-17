@@ -21,6 +21,8 @@ class ActionDraftValidator(
         if (definition.id.isBlank()) errors += ValidationError("id", "Action id is required")
         if (definition.title.isBlank()) errors += ValidationError("title", "Action title is required")
         if (definition.steps.isEmpty()) errors += ValidationError("steps", "At least one step is required")
+        rejectDuplicateVariables(definition.variables, errors)
+        rejectDuplicateTemplates(definition.templates, errors)
 
         rejectMissingCapabilities("requiredCapabilities", definition.requiredCapabilities, errors)
         rejectUnsupportedTarget(definition.target, errors)
@@ -35,6 +37,7 @@ class ActionDraftValidator(
                 errors += ValidationError("$path.type", "Unsupported step type ${step.type}")
             }
             rejectMissingCapabilities("$path.requiredCapabilities", step.requiredCapabilities, errors)
+            rejectMissingStepPayload(path, step, errors)
             rejectUnboundedDelay(path, step, errors)
             rejectUnboundedRetry(path, step.retry, errors)
             rejectInvalidUrl(path, step, errors)
@@ -79,6 +82,30 @@ class ActionDraftValidator(
         }
     }
 
+    private fun rejectDuplicateVariables(
+        variables: List<ActionVariable>,
+        errors: MutableList<ValidationError>,
+    ) {
+        val names = mutableSetOf<String>()
+        variables.forEachIndexed { index, variable ->
+            val path = "variables[$index].name"
+            if (variable.name.isBlank()) errors += ValidationError(path, "Variable name is required")
+            if (!names.add(variable.name)) errors += ValidationError(path, "Variable name must be unique")
+        }
+    }
+
+    private fun rejectDuplicateTemplates(
+        templates: List<ActionTemplate>,
+        errors: MutableList<ValidationError>,
+    ) {
+        val ids = mutableSetOf<String>()
+        templates.forEachIndexed { index, template ->
+            val path = "templates[$index].id"
+            if (template.id.isBlank()) errors += ValidationError(path, "Template id is required")
+            if (!ids.add(template.id)) errors += ValidationError(path, "Template id must be unique")
+        }
+    }
+
     private fun rejectDangerousWithoutConfirmation(
         safety: SafetyMetadata,
         errors: MutableList<ValidationError>,
@@ -99,6 +126,29 @@ class ActionDraftValidator(
         val delay = step.delayMs ?: return
         if (delay < 0 || delay > maxDelayMs) {
             errors += ValidationError("$path.delayMs", "Delay must be between 0 and $maxDelayMs")
+        }
+    }
+
+    private fun rejectMissingStepPayload(
+        path: String,
+        step: ActionStep,
+        errors: MutableList<ValidationError>,
+    ) {
+        when (step.type) {
+            ActionStepTypes.OpenUrl -> {
+                if (step.url.isNullOrBlank()) errors += ValidationError("$path.url", "URL is required")
+            }
+            ActionStepTypes.Delay -> {
+                if (step.delayMs == null) errors += ValidationError("$path.delayMs", "Delay is required")
+            }
+            ActionStepTypes.ClipboardText -> {
+                if (step.value.isNullOrBlank()) errors += ValidationError("$path.value", "Clipboard text is required")
+            }
+            ActionStepTypes.Shell,
+            ActionStepTypes.SshAction,
+            -> {
+                if (step.value.isNullOrBlank()) errors += ValidationError("$path.value", "Command value is required")
+            }
         }
     }
 
@@ -174,4 +224,3 @@ data class ValidationError(
     val path: String,
     val message: String,
 )
-

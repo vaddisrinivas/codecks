@@ -24,6 +24,7 @@ data class ActionDraft(
     val prompt: String,
     val definition: ActionDefinition,
     val providerModel: String? = null,
+    val metadata: DraftReviewMetadata = DraftReviewMetadata(),
 )
 
 @Serializable
@@ -34,6 +35,13 @@ data class DeckDraft(
     val title: String,
     val description: String = "",
     val actions: List<ActionDefinition>,
+    val metadata: DraftReviewMetadata = DraftReviewMetadata(),
+)
+
+@Serializable
+data class DraftReviewMetadata(
+    val message: String = "",
+    val assumptions: List<String> = emptyList(),
 )
 
 @Serializable

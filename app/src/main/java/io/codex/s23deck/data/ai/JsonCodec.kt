@@ -28,6 +28,8 @@ internal fun jsonArray(values: List<Any?>): JsonValue.Arr = JsonValue.Arr(values
 
 internal fun jsonArrayString(values: List<Any?>): String = stringifyJson(jsonArray(values))
 
+internal fun jsonValueString(value: JsonValue): String = stringifyJson(value)
+
 internal class JsonObject(private val fields: Map<String, JsonValue>) {
     fun string(name: String): String = optString(name) ?: error("Missing string field $name")
 

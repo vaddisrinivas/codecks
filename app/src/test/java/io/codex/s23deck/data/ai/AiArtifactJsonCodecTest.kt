@@ -3,6 +3,10 @@ package io.codex.s23deck.data.ai
 import io.codex.s23deck.domain.ai.AiArtifact
 import io.codex.s23deck.domain.ai.AiArtifactAction
 import io.codex.s23deck.domain.ai.AiArtifactKind
+import io.codex.s23deck.domain.ai.AiArtifactParameter
+import io.codex.s23deck.domain.ai.AiArtifactReview
+import io.codex.s23deck.domain.ai.AiArtifactRiskLevel
+import io.codex.s23deck.domain.ai.AiArtifactStepReview
 import io.codex.s23deck.domain.ai.AiArtifactTest
 import io.codex.s23deck.domain.ai.AiArtifactTestStatus
 import org.junit.Assert.assertEquals
@@ -26,6 +30,31 @@ class AiArtifactJsonCodecTest {
                         title = "Open Docs",
                         command = "open https://example.com",
                         dangerous = false,
+                    ),
+                ),
+                review = AiArtifactReview(
+                    assumptions = listOf("Use browser workspace"),
+                    riskLevel = AiArtifactRiskLevel.Dangerous,
+                    requiresConfirmation = true,
+                    target = "Active Mac",
+                    trigger = "Manual trigger until explicitly enabled",
+                    requiredCapabilities = listOf("Advanced", "Clipboard"),
+                    parameters = listOf(
+                        AiArtifactParameter(
+                            name = "workspace",
+                            label = "Workspace",
+                            required = true,
+                            defaultValue = "docs",
+                        ),
+                    ),
+                    steps = listOf(
+                        AiArtifactStepReview(
+                            id = "open_step",
+                            label = "Open Docs",
+                            type = "Open URL",
+                            summary = "https://example.com",
+                            requiresConfirmation = false,
+                        ),
                     ),
                 ),
                 lastTest = AiArtifactTest(

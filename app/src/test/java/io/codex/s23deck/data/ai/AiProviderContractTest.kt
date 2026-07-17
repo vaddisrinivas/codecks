@@ -43,7 +43,7 @@ class AiProviderContractTest {
                         AiHttpResponse(200, """{"data":[{"id":"gpt-5-mini"}]}"""),
                         AiHttpResponse(
                             200,
-                            """{"choices":[{"message":{"content":"{\"prompt\":\"make action\",\"definition\":{\"id\":\"draft.open\",\"title\":\"Open Docs\",\"steps\":[{\"id\":\"step-1\",\"type\":\"open_url\",\"url\":\"https://example.com\"}]}}"}}]}""",
+                            """{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"{\"schemaVersion\":2,\"status\":\"ready\",\"message\":\"Ready\",\"questions\":[],\"assumptions\":[],\"proposal\":{\"id\":\"draft.open\",\"title\":\"Open Docs\",\"description\":\"Open documentation\",\"requiredCapabilities\":[],\"target\":{\"type\":\"AnyConnected\",\"id\":null},\"safety\":{\"level\":\"Normal\",\"requiresConfirmation\":false,\"confirmationTitle\":null,\"confirmationBody\":null},\"steps\":[{\"id\":\"step-1\",\"type\":\"open_url\",\"label\":\"Open docs\",\"url\":\"https://example.com\",\"text\":null,\"delayMs\":null,\"templateId\":null,\"requiresConfirmation\":false}]}}"}]}]}""",
                         ),
                     ),
             )
@@ -63,10 +63,13 @@ class AiProviderContractTest {
         assertTrue(json.contains("Open Docs"))
 
         val payload = httpClient.requests.last().body.orEmpty()
-        assertTrue(payload.contains("\"response_format\""))
+        assertEquals("https://api.openai.com/v1/responses", httpClient.requests.last().url)
+        assertTrue(payload.contains("\"text\""))
         assertTrue(payload.contains("\"json_schema\""))
         assertTrue(payload.contains("\"minItems\":1"))
         assertTrue(payload.contains("Bundled Codecks AI Agent test context"))
+        assertTrue(payload.contains("\"schemaVersion\""))
+        assertTrue(payload.contains("\"proposal\""))
         assertFalse(payload.contains("secret"))
     }
 
@@ -84,6 +87,79 @@ class AiProviderContractTest {
     }
 
     @Test
+    fun openAiProvider_surfacesRefusalAndIncompleteResponses() = runTest {
+        val keyStore = InMemorySecureApiKeyStore()
+        keyStore.saveKey("openai", SecretValue.of("secret"))
+        val provider = OpenAiProvider(
+            keyStore,
+            FakeAiHttpClient(
+                mutableListOf(
+                    AiHttpResponse(
+                        200,
+                        """{"status":"completed","output":[{"type":"message","content":[{"type":"refusal","refusal":"Cannot help with that"}]}]}""",
+                    ),
+                    AiHttpResponse(200, """{"status":"incomplete","output":[]}"""),
+                ),
+            ),
+        )
+
+        assertTrue(provider.draftAction(DraftRequest("bad request", "gpt-5.5")).exceptionOrNull() is AiProviderException.Refused)
+        assertTrue(provider.draftAction(DraftRequest("long request", "gpt-5.5")).exceptionOrNull() is AiProviderException.Incomplete)
+    }
+
+    @Test
+    fun openAiProvider_mapsProviderFailureFixtures() = runTest {
+        val keyStore = InMemorySecureApiKeyStore()
+        keyStore.saveKey("openai", SecretValue.of("secret"))
+        val provider = OpenAiProvider(
+            keyStore,
+            FakeAiHttpClient(
+                mutableListOf(
+                    AiHttpResponse(429, """{"error":"rate"}"""),
+                    AiHttpResponse(408, """{"error":"timeout"}"""),
+                    AiHttpResponse(500, """{"error":"server"}"""),
+                    AiHttpResponse(200, """{"status":"completed","output":[]}"""),
+                ),
+            ),
+        )
+
+        assertTrue(provider.draftAction(DraftRequest("rate", "gpt-5.5")).exceptionOrNull() is AiProviderException.RateLimited)
+        assertTrue(provider.draftAction(DraftRequest("timeout", "gpt-5.5")).exceptionOrNull() is AiProviderException.Timeout)
+        assertTrue(provider.draftAction(DraftRequest("server", "gpt-5.5")).exceptionOrNull() is AiProviderException.RemoteFailure)
+        assertTrue(provider.draftAction(DraftRequest("malformed", "gpt-5.5")).exceptionOrNull() is AiProviderException.MalformedJson)
+    }
+
+    @Test
+    fun openAiProvider_includesRepairInstructionsWithoutSecrets() = runTest {
+        val keyStore = InMemorySecureApiKeyStore()
+        keyStore.saveKey("openai", SecretValue.of("secret"))
+        val httpClient =
+            FakeAiHttpClient(
+                responses =
+                    mutableListOf(
+                        AiHttpResponse(
+                            200,
+                            """{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"{\"schemaVersion\":2,\"status\":\"needs_input\",\"message\":\"Need detail\",\"questions\":[\"Which app?\"],\"assumptions\":[],\"proposal\":null}"}]}]}""",
+                        ),
+                    ),
+            )
+        val provider = OpenAiProvider(keyStore, httpClient)
+
+        provider.draftAction(
+            DraftRequest(
+                prompt = "repair",
+                modelId = "gpt-5.5",
+                repairInstructions = "steps[0].url: URL must be absolute http or https",
+            ),
+        ).getOrThrow()
+
+        val payload = httpClient.requests.single().body.orEmpty()
+        assertTrue(payload.contains("Repair instructions"))
+        assertTrue(payload.contains("steps[0].url"))
+        assertFalse(payload.contains("secret"))
+    }
+
+    @Test
     fun liteLlmProvider_usesConfiguredOpenAiCompatibleBaseUrl() = runTest {
         val keyStore = InMemorySecureApiKeyStore()
         keyStore.saveKey("litellm", SecretValue.of("secret"))
@@ -94,7 +170,7 @@ class AiProviderContractTest {
                         AiHttpResponse(200, """{"data":[{"id":"gpt-5-mini"}]}"""),
                         AiHttpResponse(
                             200,
-                            """{"choices":[{"message":{"content":"{\"prompt\":\"make deck\",\"id\":\"deck\",\"title\":\"Deck\",\"actions\":[{\"id\":\"open\",\"title\":\"Open\",\"steps\":[{\"id\":\"step-1\",\"type\":\"open_url\",\"url\":\"https://example.com\"}]}]}"}}]}""",
+                            """{"choices":[{"message":{"content":"{\"schemaVersion\":2,\"status\":\"ready\",\"message\":\"Ready\",\"questions\":[],\"assumptions\":[],\"proposal\":{\"id\":\"deck\",\"title\":\"Deck\",\"description\":\"Docs deck\",\"actions\":[{\"id\":\"open\",\"title\":\"Open\",\"description\":\"Open docs\",\"requiredCapabilities\":[],\"target\":{\"type\":\"AnyConnected\",\"id\":null},\"safety\":{\"level\":\"Normal\",\"requiresConfirmation\":false,\"confirmationTitle\":null,\"confirmationBody\":null},\"steps\":[{\"id\":\"step-1\",\"type\":\"open_url\",\"label\":\"Open docs\",\"url\":\"https://example.com\",\"text\":null,\"delayMs\":null,\"templateId\":null,\"requiresConfirmation\":false}]}}}"}}]}""",
                         ),
                     ),
             )
@@ -106,6 +182,95 @@ class AiProviderContractTest {
         assertEquals("http://127.0.0.1:4000/v1/models", httpClient.requests.first().url)
         assertEquals("http://127.0.0.1:4000/v1/chat/completions", httpClient.requests.last().url)
         assertFalse(httpClient.requests.last().body.orEmpty().contains("secret"))
+    }
+
+    @Test
+    fun anthropicProvider_usesForcedStructuredToolResult() = runTest {
+        val keyStore = InMemorySecureApiKeyStore()
+        keyStore.saveKey("anthropic", SecretValue.of("secret"))
+        val httpClient =
+            FakeAiHttpClient(
+                responses =
+                    mutableListOf(
+                        AiHttpResponse(200, """{"data":[{"id":"claude-sonnet-4-6"}]}"""),
+                        AiHttpResponse(
+                            200,
+                            """{"content":[{"type":"tool_use","id":"toolu_1","name":"emit_ai_creator_v2_draft","input":{"schemaVersion":2,"status":"ready","message":"Ready","questions":[],"assumptions":[],"proposal":{"id":"draft.open","title":"Open Docs","description":"Open documentation","requiredCapabilities":[],"target":{"type":"AnyConnected","id":null},"safety":{"level":"Normal","requiresConfirmation":false,"confirmationTitle":null,"confirmationBody":null},"steps":[{"id":"step-1","type":"open_url","label":"Open docs","url":"https://example.com","text":null,"delayMs":null,"templateId":null,"requiresConfirmation":false}]}}}]}""",
+                        ),
+                    ),
+            )
+        val provider = AnthropicProvider(keyStore, httpClient)
+
+        provider.test().getOrThrow()
+        val json = provider.draftAction(DraftRequest("make action", "claude-sonnet-4-6")).getOrThrow().json
+
+        assertTrue(json.contains("\"schemaVersion\":2"))
+        val payload = httpClient.requests.last().body.orEmpty()
+        assertTrue(payload.contains("\"tools\""))
+        assertTrue(payload.contains("\"input_schema\""))
+        assertTrue(payload.contains("\"tool_choice\""))
+        assertTrue(payload.contains("emit_ai_creator_v2_draft"))
+        assertFalse(payload.contains("secret"))
+    }
+
+    @Test
+    fun anthropicProvider_rejectsMissingDraftToolResult() = runTest {
+        val keyStore = InMemorySecureApiKeyStore()
+        keyStore.saveKey("anthropic", SecretValue.of("secret"))
+        val provider = AnthropicProvider(
+            keyStore,
+            FakeAiHttpClient(
+                mutableListOf(
+                    AiHttpResponse(200, """{"content":[{"type":"text","text":"not a tool call"}]}"""),
+                ),
+            ),
+        )
+
+        assertTrue(provider.draftAction(DraftRequest("make action", "claude-sonnet-4-6")).exceptionOrNull() is AiProviderException.MalformedJson)
+    }
+
+    @Test
+    fun geminiProvider_usesNativeResponseJsonSchemaForV2Drafts() = runTest {
+        val keyStore = InMemorySecureApiKeyStore()
+        keyStore.saveKey("gemini", SecretValue.of("secret"))
+        val httpClient =
+            FakeAiHttpClient(
+                responses =
+                    mutableListOf(
+                        AiHttpResponse(200, """{"models":[{"name":"models/gemini-2.5-flash"}]}"""),
+                        AiHttpResponse(
+                            200,
+                            """{"candidates":[{"finishReason":"STOP","content":{"parts":[{"text":"{\"schemaVersion\":2,\"status\":\"ready\",\"message\":\"Ready\",\"questions\":[],\"assumptions\":[],\"proposal\":{\"id\":\"draft.open\",\"title\":\"Open Docs\",\"description\":\"Open documentation\",\"requiredCapabilities\":[],\"target\":{\"type\":\"AnyConnected\",\"id\":null},\"safety\":{\"level\":\"Normal\",\"requiresConfirmation\":false,\"confirmationTitle\":null,\"confirmationBody\":null},\"steps\":[{\"id\":\"step-1\",\"type\":\"open_url\",\"label\":\"Open docs\",\"url\":\"https://example.com\",\"text\":null,\"delayMs\":null,\"templateId\":null,\"requiresConfirmation\":false}]}}"}]}}]}""",
+                        ),
+                    ),
+            )
+        val provider = GeminiProvider(keyStore, httpClient)
+
+        provider.test().getOrThrow()
+        val json = provider.draftAction(DraftRequest("make action", "gemini-2.5-flash")).getOrThrow().json
+
+        assertTrue(json.contains("Open Docs"))
+        val payload = httpClient.requests.last().body.orEmpty()
+        assertTrue(payload.contains("\"responseMimeType\":\"application/json\""))
+        assertTrue(payload.contains("\"responseJsonSchema\""))
+        assertTrue(payload.contains("\"anyOf\""))
+        assertFalse(payload.contains("secret"))
+    }
+
+    @Test
+    fun geminiProvider_surfacesTruncatedResponses() = runTest {
+        val keyStore = InMemorySecureApiKeyStore()
+        keyStore.saveKey("gemini", SecretValue.of("secret"))
+        val provider = GeminiProvider(
+            keyStore,
+            FakeAiHttpClient(
+                mutableListOf(
+                    AiHttpResponse(200, """{"candidates":[{"finishReason":"MAX_TOKENS","content":{"parts":[]}}]}"""),
+                ),
+            ),
+        )
+
+        assertTrue(provider.draftAction(DraftRequest("make action", "gemini-2.5-flash")).exceptionOrNull() is AiProviderException.Incomplete)
     }
 
     @Test
@@ -126,7 +291,7 @@ class AiProviderContractTest {
         val provider = GeminiProvider(keyStore, httpClient)
 
         provider.test().getOrThrow()
-        provider.draftAction(DraftRequest("make action", "gemini-2.5-flash")).getOrThrow()
+        provider.draftAction(DraftRequest("rank apps", "gemini-2.5-flash", DraftKind.ContextApps)).getOrThrow()
 
         assertFalse(httpClient.requests.first().url.contains("key="))
         assertEquals("secret", httpClient.requests.first().headers["x-goog-api-key"])

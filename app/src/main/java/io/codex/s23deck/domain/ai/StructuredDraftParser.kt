@@ -9,6 +9,9 @@ class StructuredDraftParser {
     fun parse(request: DraftRequest, payload: ActionDraftJson): Result<GeneratedDraft> =
         runCatching {
             val root = parseJsonObject(extractJsonObject(payload.json))
+            if (root.int("schemaVersion", CURRENT_ACTION_SCHEMA_VERSION) == CURRENT_DRAFT_ENVELOPE_VERSION) {
+                return@runCatching parseV2Envelope(request, root)
+            }
             when (request.draftKind) {
                 DraftKind.Action -> GeneratedDraft.Action(parseActionDraft(root))
                 DraftKind.Automation -> GeneratedDraft.Automation(parseAutomationDraft(root))
@@ -16,7 +19,11 @@ class StructuredDraftParser {
                 DraftKind.ContextApps -> throw IllegalArgumentException("Context app suggestions are parsed by ContextAppSuggestionParser")
             }
         }.recoverCatching { error ->
-            throw AiProviderException.MalformedJson(error.message ?: "Could not parse draft JSON")
+            when (error) {
+                is AiDraftProposalUnavailable -> throw error
+                is AiProviderException -> throw error
+                else -> throw AiProviderException.MalformedJson(error.message ?: "Could not parse draft JSON")
+            }
         }
 
     private fun parseActionDraft(root: io.codex.s23deck.data.ai.JsonObject): ActionDraft =
@@ -110,6 +117,176 @@ class StructuredDraftParser {
             maxAttempts = root?.int("maxAttempts", 1) ?: 1,
             delayMs = root?.long("delayMs", 0L) ?: 0L,
         )
+
+    private fun parseV2Envelope(
+        request: DraftRequest,
+        root: io.codex.s23deck.data.ai.JsonObject,
+    ): GeneratedDraft {
+        val status = parseEnvelopeStatus(root.string("status"))
+        val message = root.string("message")
+        val questions = root.array("questions").mapNotNull { (it as? JsonValue.Str)?.value }
+        val metadata = DraftReviewMetadata(
+            message = message,
+            assumptions = root.array("assumptions").mapNotNull { (it as? JsonValue.Str)?.value },
+        )
+        if (status != DraftEnvelopeStatus.Ready) {
+            throw AiDraftProposalUnavailable(status, message, questions)
+        }
+        val proposal = root.optObj("proposal")
+            ?: throw IllegalArgumentException("Ready V2 draft requires a proposal")
+        return when (request.draftKind) {
+            DraftKind.Action -> GeneratedDraft.Action(
+                ActionDraft(
+                    schemaVersion = CURRENT_ACTION_SCHEMA_VERSION,
+                    prompt = request.prompt,
+                    providerModel = request.modelId,
+                    definition = parseV2Definition(proposal),
+                    metadata = metadata,
+                ),
+            )
+            DraftKind.Automation -> GeneratedDraft.Automation(parseV2Automation(request, proposal, metadata))
+            DraftKind.Deck -> GeneratedDraft.Deck(parseV2Deck(request, proposal, metadata))
+            DraftKind.ContextApps -> throw IllegalArgumentException("Context app suggestions are parsed by ContextAppSuggestionParser")
+        }
+    }
+
+    private fun parseEnvelopeStatus(value: String): DraftEnvelopeStatus =
+        DraftEnvelopeStatus.entries.firstOrNull { it.wireName == value }
+            ?: throw IllegalArgumentException("Unsupported V2 status $value")
+
+    private fun parseV2Automation(
+        request: DraftRequest,
+        root: io.codex.s23deck.data.ai.JsonObject,
+        metadata: DraftReviewMetadata,
+    ): AutomationDraft =
+        AutomationDraft(
+            schemaVersion = CURRENT_AUTOMATION_SCHEMA_VERSION,
+            prompt = request.prompt,
+            id = root.string("id"),
+            label = root.string("label"),
+            description = root.string("description"),
+            category = root.string("category"),
+            dangerous = root.bool("dangerous"),
+            definition = parseV2Definition(root.obj("definition")),
+            metadata = metadata,
+        )
+
+    private fun parseV2Deck(
+        request: DraftRequest,
+        root: io.codex.s23deck.data.ai.JsonObject,
+        metadata: DraftReviewMetadata,
+    ): DeckDraft =
+        DeckDraft(
+            schemaVersion = CURRENT_ACTION_SCHEMA_VERSION,
+            prompt = request.prompt,
+            id = root.string("id"),
+            title = root.string("title"),
+            description = root.string("description"),
+            actions = root.array("actions").map { parseV2Definition(it.asObject()) },
+            metadata = metadata,
+        )
+
+    private fun parseV2Definition(root: io.codex.s23deck.data.ai.JsonObject): ActionDefinition =
+        ActionDefinition(
+            schemaVersion = CURRENT_ACTION_SCHEMA_VERSION,
+            id = root.string("id"),
+            title = root.string("title"),
+            description = root.string("description"),
+            variables = emptyList(),
+            templates = emptyList(),
+            requiredCapabilities = parseCapabilities(root.array("requiredCapabilities")),
+            target = parseV2Target(root.obj("target")),
+            safety = parseV2Safety(root.obj("safety")),
+            steps = root.array("steps").map { parseV2Step(it.asObject()) },
+        )
+
+    private fun parseCapabilities(values: List<JsonValue>): List<ActionCapability> =
+        values.mapNotNull { value ->
+            val raw = (value as? JsonValue.Str)?.value ?: return@mapNotNull null
+            parseCapability(raw)
+        }.distinct()
+
+    private fun parseCapability(raw: String): ActionCapability? {
+        val normalized = raw.trim()
+            .replace('-', '_')
+            .replace(' ', '_')
+            .lowercase()
+        return when (normalized) {
+            "advanced", "admin", "dangerous" -> ActionCapability.Advanced
+            "browser", "open_url", "url_opener", "url", "web", "website", "link" -> ActionCapability.Browser
+            "clipboard", "copy", "paste", "copy_paste" -> ActionCapability.Clipboard
+            "hidkeyboard", "hid_keyboard", "keyboard", "key", "hotkey", "shortcut", "mac", "mac_shortcut" ->
+                ActionCapability.HidKeyboard
+            "hidmouse", "hid_mouse", "mouse", "trackpad", "pointer" -> ActionCapability.HidMouse
+            "media", "audio", "playback" -> ActionCapability.Media
+            "shell", "terminal", "command_line" -> ActionCapability.Shell
+            "ssh", "remote_shell" -> ActionCapability.Ssh
+            else -> ActionCapability.entries.firstOrNull { it.name.equals(raw.trim(), ignoreCase = true) }
+        }
+    }
+
+    private fun parseV2Target(root: io.codex.s23deck.data.ai.JsonObject): TargetSelector =
+        when (root.string("type")) {
+            "AnyConnected" -> TargetSelector.AnyConnected
+            "ActiveDevice" -> TargetSelector.ActiveDevice
+            "DeviceId" -> TargetSelector.DeviceId(root.optString("id").orEmpty())
+            "GroupId" -> TargetSelector.GroupId(root.optString("id").orEmpty())
+            else -> TargetSelector.AnyConnected
+        }
+
+    private fun parseV2Safety(root: io.codex.s23deck.data.ai.JsonObject): SafetyMetadata =
+        SafetyMetadata(
+            level = SafetyLevel.valueOf(root.string("level")),
+            requiresConfirmation = root.bool("requiresConfirmation"),
+            confirmationTitle = root.optString("confirmationTitle")?.ifBlank { null },
+            confirmationBody = root.optString("confirmationBody")?.ifBlank { null },
+        )
+
+    private fun parseV2Step(root: io.codex.s23deck.data.ai.JsonObject): ActionStep {
+        val id = root.string("id")
+        val label = root.string("label")
+        val requiresConfirmation = root.bool("requiresConfirmation")
+        return when (val type = root.string("type")) {
+            V2StepTypes.OpenUrl -> ActionStep(
+                id = id,
+                type = ActionStepTypes.OpenUrl,
+                label = label,
+                url = root.optString("url")?.ifBlank { null }
+                    ?: throw IllegalArgumentException("open_url step requires url"),
+                confirmedDangerous = requiresConfirmation,
+            )
+            V2StepTypes.ClipboardText -> ActionStep(
+                id = id,
+                type = ActionStepTypes.ClipboardText,
+                label = label,
+                value = root.optString("text").orEmpty(),
+                confirmedDangerous = requiresConfirmation,
+            )
+            V2StepTypes.Delay -> ActionStep(
+                id = id,
+                type = ActionStepTypes.Delay,
+                label = label,
+                delayMs = root.long("delayMs", -1L).takeIf { it >= 0L }
+                    ?: throw IllegalArgumentException("delay step requires delayMs"),
+                confirmedDangerous = requiresConfirmation,
+            )
+            V2StepTypes.Template -> {
+                val templateId = root.optString("templateId")?.ifBlank { null }
+                    ?: throw IllegalArgumentException("template step requires templateId")
+                val command = ApprovedAiActionCatalog.commandFor(templateId)
+                    ?: throw IllegalArgumentException("Unsupported approved template $templateId")
+                ActionStep(
+                    id = id,
+                    type = ActionStepTypes.Shell,
+                    label = label.ifBlank { templateId },
+                    value = command,
+                    requiredCapabilities = listOf(ActionCapability.Advanced),
+                    confirmedDangerous = requiresConfirmation,
+                )
+            }
+            else -> throw IllegalArgumentException("Unsupported V2 step type $type")
+        }
+    }
 
     private fun extractJsonObject(raw: String): String {
         val trimmed = raw.trim()
