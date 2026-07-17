@@ -81,7 +81,7 @@ class AiCreatorV2AdversarialTest {
                         "id": "open",
                         "type": "open_url",
                         "label": "Open file",
-                        "url": "file:///Users/srinivasvaddi/.ssh/id_ed25519",
+                        "url": "file:///Users/example/.ssh/id_ed25519",
                         "text": null,
                         "delayMs": null,
                         "templateId": null,

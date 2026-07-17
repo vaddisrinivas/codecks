@@ -4,7 +4,7 @@ Updated: July 17, 2026
 
 ## Release decision
 
-Launch `v0.1.1` as a public local-only GitHub beta. Do not deploy a backend or public database. Keep account, billing, context intelligence, widget, clipboard, and advanced surfaces disabled. Promote to GA only after the field gates below pass.
+Launch `v0.1.2` as a public local-only GitHub beta. Do not deploy a backend or public database. Keep account, billing, context intelligence, widget, clipboard, and advanced surfaces disabled. Promote to GA only after the field gates below pass.
 
 ## Completed for public beta
 
@@ -34,7 +34,7 @@ Launch `v0.1.1` as a public local-only GitHub beta. Do not deploy a backend or p
 | GA-07 | DeX QA | Resize, rotate, keyboard, mouse, focus, and window restore pass at 1280×720 and 1920×1080. |
 | GA-08 | Release operations | Key backup verified, rollback procedure rehearsed, security-advisory intake tested, release checksum verified on a clean machine. |
 | GA-09 | Store decision | Either remain GitHub-only with documented sideload support, or complete Play listing, Data Safety, screenshots, policy review, and staged rollout. |
-| GA-10 | AI draft reliability | Versioned strict schemas pass every provider contract test; at least 100 representative prompts achieve 99% parse success, 95% safe semantic-validity, and zero generated actions bypass review or deterministic policy checks. OpenAI and Gemini meet the v0.1.1 live gate; Anthropic live verification is pending account credits. |
+| GA-10 | AI draft reliability | Versioned strict schemas pass every provider contract test; at least 100 representative prompts achieve 99% parse success, 95% safe semantic-validity, and zero generated actions bypass review or deterministic policy checks. OpenAI and Gemini meet the v0.1.2 live gate; Anthropic live verification is pending account credits. |
 
 ## Post-beta priorities
 

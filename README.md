@@ -44,7 +44,7 @@ Release signing instructions: [docs/release/RELEASING.md](docs/release/RELEASING
 
 ## Project status
 
-`v0.1.1` is a public beta with the AI Creator V2 structured-output pipeline and release workflow in place. Core flows work; broader device coverage, TalkBack validation, and longer crash-free field testing remain GA gates. See the [production launch plan](docs/release/PRODUCTION_LAUNCH_PLAN.md).
+`v0.1.2` is a public beta with the AI Creator V2 structured-output pipeline and release workflow in place. Core flows work; broader device coverage, TalkBack validation, and longer crash-free field testing remain GA gates. See the [production launch plan](docs/release/PRODUCTION_LAUNCH_PLAN.md).
 
 ## License and attribution
 

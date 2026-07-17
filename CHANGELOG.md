@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.1 — 2026-07-17
+## 0.1.2 — 2026-07-17
 
 AI Creator V2 and release automation beta.
 
