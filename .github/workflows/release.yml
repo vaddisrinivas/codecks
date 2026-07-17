@@ -17,12 +17,12 @@ jobs:
       CODECKS_RELEASE_STORE_PASSWORD: ${{ secrets.CODECKS_RELEASE_STORE_PASSWORD }}
       CODECKS_RELEASE_KEY_PASSWORD: ${{ secrets.CODECKS_RELEASE_KEY_PASSWORD }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
       - name: Restore release keystore
         env:
           CODECKS_RELEASE_KEYSTORE_BASE64: ${{ secrets.CODECKS_RELEASE_KEYSTORE_BASE64 }}
