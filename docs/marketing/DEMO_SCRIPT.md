@@ -25,7 +25,7 @@ Open source, local-first, and ready to try.
 ## Render Commands
 
 ```bash
-python3 /Users/srinivasvaddi/Projects/framecraft/framecraft.py render docs/marketing/framecraft-demo.json --output docs/images/codecks-demo.mp4 --auto-duration
+python3 /path/to/framecraft/framecraft.py render docs/marketing/framecraft-demo.json --output docs/images/codecks-demo.mp4 --auto-duration
 ffmpeg -y -i docs/images/codecks-demo.mp4 -vf "fps=12,scale=640:360:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" docs/images/codecks-demo.gif
 ```
 
