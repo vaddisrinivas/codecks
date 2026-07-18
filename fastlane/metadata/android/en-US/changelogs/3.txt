@@ -1,0 +1,1 @@
+Public beta with command deck, Bluetooth HID trackpad, local automation recipes, AI-assisted draft review, DeX/adaptive layouts, and release workflow.

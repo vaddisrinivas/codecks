@@ -1,0 +1,68 @@
+{
+  "scenes": [
+    {
+      "title": "Codecks",
+      "subtitle": "Your Android command deck for Mac.",
+      "screenshot": "docs/images/screenshots/codecks-home.png",
+      "narration": "Meet Codecks. Turn an Android phone into a command deck, trackpad, and automation surface for your Mac.",
+      "bullets": ["Local-first", "No account", "Open source"],
+      "duration": 0,
+      "animation": "slide-up",
+      "screenshot_animation": "scale"
+    },
+    {
+      "title": "Commands you can actually hit",
+      "screenshot": "docs/images/screenshots/codecks-home.png",
+      "narration": "Tap big controls for Finder, Terminal, Spaces, media, screenshots, and browser tabs.",
+      "bullets": ["Finder", "Spaces", "Media", "Browser tabs"],
+      "callouts": [
+        {"text": "Large command keys", "x": 36, "y": 49, "color": "#4ade80", "delay": 1.0},
+        {"text": "Mac actions", "x": 62, "y": 62, "color": "#fbbf24", "delay": 1.5}
+      ],
+      "duration": 0,
+      "animation": "fade",
+      "screenshot_animation": "scale"
+    },
+    {
+      "title": "A trackpad in your hand",
+      "screenshot": "docs/images/screenshots/codecks-trackpad.png",
+      "narration": "Switch to a Bluetooth trackpad when the Mac is across the room.",
+      "bullets": ["HID pointer", "Gestures", "Haptics"],
+      "callouts": [
+        {"text": "Scroll and gesture", "x": 49, "y": 50, "color": "#c5d5ff", "delay": 1.1}
+      ],
+      "duration": 0,
+      "animation": "slide-up",
+      "screenshot_animation": "scale"
+    },
+    {
+      "title": "Automation stays reviewable",
+      "screenshot": "docs/images/screenshots/codecks-automations.png",
+      "narration": "Draft automations locally. Test them before they ever run.",
+      "bullets": ["Safe templates", "Test first", "Run history"],
+      "callouts": [
+        {"text": "Review before enable", "x": 50, "y": 67, "color": "#4ade80", "delay": 1.2}
+      ],
+      "duration": 0,
+      "animation": "fade",
+      "screenshot_animation": "scale"
+    },
+    {
+      "title": "Open source. Local-first.",
+      "subtitle": "github.com/vaddisrinivas/codecks",
+      "screenshot": "docs/images/social-preview.png",
+      "narration": "Open source, local-first, and ready to try.",
+      "bullets": ["Apache-2.0", "Android 9+", "Star on GitHub"],
+      "duration": 0,
+      "animation": "slide-up",
+      "screenshot_animation": "fade"
+    }
+  ],
+  "output": "docs/images/codecks-demo.mp4",
+  "width": 1920,
+  "height": 1080,
+  "fps": 24,
+  "voice": "andrew",
+  "transition": "crossfade",
+  "transition_duration": 0.4
+}

@@ -1,0 +1,7 @@
+Codecks turns an Android phone, tablet, or Samsung DeX window into a local-first control surface for your Mac.
+
+Use it as a command deck for Finder, Terminal, Spaces, media, screenshots, browser tabs, and custom actions. Switch to Trackpad mode for Bluetooth HID pointer controls, gestures, scrolling, haptics, rotation, and optional Android screen pinning. Build local automations with safe templates, test-before-enable review, and run history.
+
+Codecks is built for cautious automation. Built-in templates use an allowlist, dangerous shell patterns are blocked, generated automations stay disabled until reviewed, SSH host keys are pinned, and optional AI API keys are encrypted with Android Keystore.
+
+This public beta has no Codecks account, hosted backend, public database, advertising SDK, analytics SDK, or cloud sync. Optional AI requests go directly to the provider selected by the user.
