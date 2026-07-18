@@ -3,6 +3,7 @@ package io.codex.s23deck.data.context
 import android.app.AppOpsManager
 import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import android.os.Process
@@ -12,6 +13,7 @@ import io.codex.s23deck.domain.context.RecentContextApp
 class UsageStatsContextSource(
     private val context: Context,
 ) {
+    @SuppressLint("MissingPermission")
     fun hasUsageAccess(): Boolean {
         val appOps = context.getSystemService(AppOpsManager::class.java) ?: return false
         val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -31,6 +33,7 @@ class UsageStatsContextSource(
         return mode == AppOpsManager.MODE_ALLOWED
     }
 
+    @SuppressLint("MissingPermission")
     fun recentApps(
         availableApps: List<ContextApp>,
         lookbackMillis: Long = DEFAULT_LOOKBACK_MS,
