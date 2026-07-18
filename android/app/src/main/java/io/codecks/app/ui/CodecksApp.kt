@@ -267,9 +267,9 @@ private fun ConnectionSetupRoute(
     var draft by remember {
         mutableStateOf(
             TargetSetupDraft(
-                targetName = "Srinivas MacBook",
+                targetName = "MacBook",
                 host = "192.168.1.42",
-                username = "srinivas",
+                username = "user",
                 fingerprintSha256 = "SHA256:6E9140AC7729",
             ),
         )
