@@ -6,13 +6,13 @@ Updated: July 17, 2026
 | --- | --- |
 | Product | Codecks |
 | Application ID | `app.codecks` |
-| Version | `0.1.0` (`versionCode` 1) |
+| Version | `0.1.3` (`versionCode` 4) |
 | Minimum Android | 9 / API 28 |
 | Target Android | API 36 |
 | Default mode | Local-only; no account, billing, hosted backend, database, analytics, or cloud sync |
-| Core surfaces | Deck, Trackpad, Automations, Settings, Deck editor |
+| Core surfaces | Deck, Trackpad, Keyboard/Text, Clipboard bridge, Automations, Settings, Deck editor |
 | Optional core tool | AI-assisted drafting through a user-selected provider |
-| Disabled incubators | Context Deck, Widget, Clipboard, Activity, Devices, Premium, Paywall, Advanced, Appearance, Labs |
+| Disabled incubators | Context Deck, Widget, Activity, Devices, Premium, Paywall, Advanced, Appearance, Labs |
 
 ## Release invariants
 
@@ -30,6 +30,7 @@ Updated: July 17, 2026
 | Component | Exposure | Protection |
 | --- | --- | --- |
 | `MainActivity` | Exported | Launcher only; internal destination extras require an app-private token |
+| `HidSessionService` | Not exported | Foreground connected-device service; starts only after Bluetooth permission |
 | `DeckWidgetProvider` | Exported when optional feature is compiled on | Receives protected AppWidget system broadcasts; off by default |
 | `DeckTileService` | Exported when feature is compiled on | `android.permission.BIND_QUICK_SETTINGS_TILE`; off by default |
 | `DeckBridgeNotificationListenerService` | Exported when optional feature is compiled on | `android.permission.BIND_NOTIFICATION_LISTENER_SERVICE`; off by default |

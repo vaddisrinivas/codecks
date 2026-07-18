@@ -3,7 +3,9 @@ package io.codex.s23deck.ui.app
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.Mouse
+import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation3.runtime.NavKey
@@ -38,6 +40,8 @@ data class AppDestination(
 fun mainDestinations(flags: Map<FeatureFlag, Boolean>): List<AppDestination> = buildList {
     if (routeEnabled(HomeRoute, flags)) add(AppDestination(HomeRoute, "Deck", "Run your command keys", Icons.Outlined.Home))
     if (routeEnabled(MouseRoute, flags)) add(AppDestination(MouseRoute, "Trackpad", "Control the Mac pointer", Icons.Outlined.Mouse))
+    if (routeEnabled(KeyboardRoute, flags)) add(AppDestination(KeyboardRoute, "Text", "Type or paste into Mac", Icons.Outlined.Keyboard))
+    if (routeEnabled(ClipboardRoute, flags)) add(AppDestination(ClipboardRoute, "Clipboard", "Send clipboard both ways", Icons.Outlined.ContentPaste))
     if (routeEnabled(AutomationsRoute, flags)) add(AppDestination(AutomationsRoute, "Automations", "Safe local workflows", Icons.Outlined.Edit))
     if (flags.enabled(FeatureFlag.Settings)) add(AppDestination(SettingsRoute, "Settings", "Controls, theme, setup", Icons.Outlined.Settings))
 }.ifEmpty {
@@ -64,8 +68,8 @@ fun routeEnabled(
     WidgetRoute -> flags.enabled(FeatureFlag.Widget)
     AppearanceRoute -> flags.enabled(FeatureFlag.Appearance)
     AdvancedRoute -> flags.enabled(FeatureFlag.Advanced)
-    KeyboardRoute -> false
-    ClipboardRoute -> false
+    KeyboardRoute -> flags.enabled(FeatureFlag.Keyboard)
+    ClipboardRoute -> flags.enabled(FeatureFlag.Clipboard)
     else -> false
 }
 
@@ -86,9 +90,10 @@ fun destinationRequestToRoute(
     route = when (destinationRequest) {
         null -> HomeRoute
         "home" -> HomeRoute
-        "mouse", "trackpad", "keyboard" -> MouseRoute
+        "mouse", "trackpad" -> MouseRoute
+        "keyboard", "text" -> KeyboardRoute
         "bluetooth" -> BluetoothRoute
-        "clipboard" -> SettingsRoute
+        "clipboard" -> ClipboardRoute
         "automations" -> AutomationsRoute
         "activity" -> ActivityRoute
         "connection" -> ConnectionRoute

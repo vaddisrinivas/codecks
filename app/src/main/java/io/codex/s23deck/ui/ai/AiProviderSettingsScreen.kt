@@ -51,16 +51,20 @@ import io.codex.s23deck.core.trackpad.TrackpadSettings
 import io.codex.s23deck.core.actions.RawCommandPolicy
 import io.codex.s23deck.data.ai.AiCredentialImporter
 import io.codex.s23deck.data.ai.AiArtifactRepository
+import io.codex.s23deck.data.ai.AiGenerationHistoryRepository
+import io.codex.s23deck.data.ai.AiProviderException
 import io.codex.s23deck.data.ai.AiProviderFactory
 import io.codex.s23deck.data.ai.AndroidSecureApiKeyStore
 import io.codex.s23deck.data.ai.DeckBridgeAiAgentPack
 import io.codex.s23deck.data.ai.DefaultAiArtifactRepository
+import io.codex.s23deck.data.ai.DefaultAiGenerationHistoryRepository
 import io.codex.s23deck.data.ai.ImportedAiCredential
 import io.codex.s23deck.data.ai.SecretValue
 import io.codex.s23deck.data.ai.SecureApiKeyStore
 import io.codex.s23deck.domain.ai.AiModel
 import io.codex.s23deck.domain.ai.ActionCapability
 import io.codex.s23deck.domain.ai.ActionDraftValidator
+import io.codex.s23deck.domain.ai.AiDraftProposalUnavailable
 import io.codex.s23deck.domain.ai.AiBuilder
 import io.codex.s23deck.domain.ai.DraftKind
 import io.codex.s23deck.domain.ai.DraftRequest
@@ -72,7 +76,11 @@ import io.codex.s23deck.domain.ai.AiArtifactTest
 import io.codex.s23deck.domain.ai.AiArtifactTestStatus
 import io.codex.s23deck.domain.ai.AiChatMessage
 import io.codex.s23deck.domain.ai.AiChatRole
+import io.codex.s23deck.domain.ai.AiGenerationRecord
+import io.codex.s23deck.domain.ai.AiGenerationStatus
+import io.codex.s23deck.domain.ai.DraftEnvelopeStatus
 import io.codex.s23deck.domain.ai.FeatureGate
+import io.codex.s23deck.domain.ai.SemanticDraftValidationException
 import io.codex.s23deck.domain.commerce.Entitlement
 import io.codex.s23deck.domain.commerce.EntitlementRepository
 import io.codex.s23deck.domain.commerce.EntitlementStatus
@@ -149,6 +157,10 @@ data class AiProviderSettingsState(
     val generatedDraft: GeneratedDraft? = null,
     val generatedArtifactId: String? = null,
     val artifacts: List<AiArtifact> = emptyList(),
+    val generationHistory: List<AiGenerationRecord> = emptyList(),
+    val refiningArtifact: AiArtifact? = null,
+    val lastRefinedFromArtifact: AiArtifact? = null,
+    val lastRefinedArtifactId: String? = null,
     val messages: List<AiChatMessage> = listOf(
         AiChatMessage(
             id = "welcome",
@@ -170,6 +182,7 @@ class AiProviderSettingsController(
     private val entitlementRepository: EntitlementRepository,
     private val scope: CoroutineScope,
     private val artifactRepository: AiArtifactRepository? = null,
+    private val generationHistoryRepository: AiGenerationHistoryRepository? = null,
     private val actionRunner: ActionRunner? = null,
     private val macCredentialImporter: AiCredentialImporter? = null,
     private val agentContext: String = "",
@@ -189,6 +202,13 @@ class AiProviderSettingsController(
             jobs += scope.launch {
                 repository.artifacts.collect { artifacts ->
                     _uiState.update { it.copy(artifacts = artifacts) }
+                }
+            }
+        }
+        generationHistoryRepository?.let { repository ->
+            jobs += scope.launch {
+                repository.records.collect { records ->
+                    _uiState.update { it.copy(generationHistory = records) }
                 }
             }
         }
@@ -240,21 +260,46 @@ class AiProviderSettingsController(
     }
 
     fun setDraftKind(value: DraftKind) {
-        _uiState.update { it.copy(draftKind = value, message = null) }
+        _uiState.update { it.copy(draftKind = value, refiningArtifact = null, message = null) }
+    }
+
+    fun startRefinement(artifactId: String) {
+        val artifact = _uiState.value.artifacts.firstOrNull { it.id == artifactId } ?: return
+        _uiState.update {
+            it.copy(
+                draftKind = artifact.kind.toDraftKind(),
+                refiningArtifact = artifact,
+                prompt = "",
+                message = "Describe what to change in ${artifact.title}",
+            )
+        }
+    }
+
+    fun cancelRefinement() {
+        _uiState.update { it.copy(refiningArtifact = null, message = "Refinement discarded") }
     }
 
     fun generateDraft() {
         val state = _uiState.value
         val prompt = state.prompt.trim()
+        val refinementSource = state.refiningArtifact
         if (prompt.isBlank()) {
-            _uiState.update { it.copy(message = "Describe what the control should do") }
+            _uiState.update {
+                it.copy(
+                    message = if (refinementSource == null) {
+                        "Describe what the control should do"
+                    } else {
+                        "Describe what should change"
+                    },
+                )
+            }
             return
         }
         scope.launch {
             val userMessage = AiChatMessage(
                 id = "user_${System.currentTimeMillis()}",
                 role = AiChatRole.User,
-                text = prompt,
+                text = refinementSource?.let { "Change ${it.title}: $prompt" } ?: prompt,
             )
             _uiState.update {
                 it.copy(
@@ -292,6 +337,12 @@ class AiProviderSettingsController(
                 _uiState.update { it.copy(message = "Save an API key before generating") }
                 return@launch
             }
+            if (state.draftKind != DraftKind.ContextApps && !state.selectedModel.supportsStructuredDrafts) {
+                _uiState.update {
+                    it.copy(message = "${state.selectedModel.label} is not enabled for strict AI Creator V2 drafts")
+                }
+                return@launch
+            }
             _uiState.update {
                 it.copy(
                     isGenerating = true,
@@ -303,7 +354,7 @@ class AiProviderSettingsController(
             val provider = createProvider(state)
             val builder = AiBuilder(provider, ActionDraftValidator(), entitlementRepository = entitlementRepository)
             val request = DraftRequest(
-                prompt = prompt,
+                prompt = refinementSource?.toRefinementPrompt(prompt) ?: prompt,
                 modelId = state.selectedModelId,
                 draftKind = state.draftKind,
                 availableCapabilities = ActionCapability.entries.toSet(),
@@ -313,11 +364,20 @@ class AiProviderSettingsController(
                 onSuccess = { draft ->
                     draft.toAiArtifact(prompt).fold(
                         onSuccess = { artifact ->
-                            artifactRepository?.save(artifact)
+                            recordGeneration(
+                                state = state,
+                                status = AiGenerationStatus.Ready,
+                                message = "Ready; dry run required before save",
+                                artifactId = artifact.id,
+                            )
                             val assistantMessage = AiChatMessage(
                                 id = "assistant_${System.currentTimeMillis()}",
                                 role = AiChatRole.Assistant,
-                                text = "${artifact.title} is ready. Review it, test it, then save it.",
+                                text = if (refinementSource == null) {
+                                    "${artifact.title} is ready. Review it, test it, then save it."
+                                } else {
+                                    "${artifact.title} is ready. Compare it with ${refinementSource.title}, test it, then save it."
+                                },
                                 artifactId = artifact.id,
                             )
                             _uiState.update {
@@ -325,14 +385,23 @@ class AiProviderSettingsController(
                                     isGenerating = false,
                                     generatedDraft = draft,
                                     generatedArtifactId = artifact.id,
-                                    artifacts = if (artifactRepository == null) listOf(artifact) + it.artifacts else it.artifacts,
+                                    artifacts = listOf(artifact) + it.artifacts.filterNot { item -> item.id == artifact.id },
+                                    refiningArtifact = null,
+                                    lastRefinedFromArtifact = refinementSource,
+                                    lastRefinedArtifactId = artifact.id.takeIf { refinementSource != null },
                                     messages = it.messages + assistantMessage,
-                                    message = "Artifact ready to test",
+                                    message = if (refinementSource == null) "Artifact ready to test" else "Refined artifact ready to compare",
                                 )
                             }
                         },
                         onFailure = { error ->
                             val message = error.message ?: "Draft could not be converted into a runnable artifact"
+                            recordGeneration(
+                                state = state,
+                                status = AiGenerationStatus.Failed,
+                                message = message,
+                                validationErrors = listOf(message),
+                            )
                             _uiState.update {
                                 it.copy(
                                     isGenerating = false,
@@ -349,6 +418,15 @@ class AiProviderSettingsController(
                 },
                 onFailure = { error ->
                     val message = error.message ?: "Generation failed"
+                    recordGeneration(
+                        state = state,
+                        status = error.generationStatus(),
+                        message = message,
+                        validationErrors = (error as? SemanticDraftValidationException)
+                            ?.errors
+                            ?.map { "${it.path}: ${it.message}" }
+                            .orEmpty(),
+                    )
                     _uiState.update {
                         it.copy(
                             isGenerating = false,
@@ -383,15 +461,11 @@ class AiProviderSettingsController(
                 }
             }
             val test = AiArtifactTest(finalStatus, finalMessage)
-            artifactRepository?.recordTest(artifactId, test)
+            artifactRepository?.save(artifact.copy(lastTest = test))
             _uiState.update {
                 it.copy(
                     testingArtifactId = null,
-                    artifacts = if (artifactRepository == null) {
-                        it.artifacts.map { item -> if (item.id == artifactId) item.copy(lastTest = test) else item }
-                    } else {
-                        it.artifacts
-                    },
+                    artifacts = it.artifacts.map { item -> if (item.id == artifactId) item.copy(lastTest = test) else item },
                     messages = it.messages + AiChatMessage(
                         id = "assistant_${System.currentTimeMillis()}",
                         role = AiChatRole.Assistant,
@@ -409,7 +483,7 @@ class AiProviderSettingsController(
             artifactRepository?.delete(artifactId)
             _uiState.update { state ->
                 state.copy(
-                    artifacts = if (artifactRepository == null) state.artifacts.filterNot { it.id == artifactId } else state.artifacts,
+                    artifacts = state.artifacts.filterNot { it.id == artifactId },
                     message = "Artifact removed",
                 )
             }
@@ -559,6 +633,31 @@ class AiProviderSettingsController(
             state.savedBaseUrl.takeIf { state.selectedProvider == AiProviderChoice.LiteLLM && it.isNotBlank() },
         )
 
+    private suspend fun recordGeneration(
+        state: AiProviderSettingsState,
+        status: AiGenerationStatus,
+        message: String,
+        validationErrors: List<String> = emptyList(),
+        artifactId: String? = null,
+    ) {
+        val record = AiGenerationRecord(
+            id = "generation_${System.currentTimeMillis()}",
+            providerId = state.selectedProvider.providerId,
+            providerLabel = state.selectedProvider.label,
+            modelId = state.selectedModel.id,
+            modelLabel = state.selectedModel.label,
+            draftKind = state.draftKind,
+            status = status,
+            message = message.take(MAX_GENERATION_MESSAGE_LENGTH),
+            validationErrors = validationErrors.map { it.take(MAX_GENERATION_MESSAGE_LENGTH) },
+            artifactId = artifactId,
+        )
+        generationHistoryRepository?.save(record)
+        if (generationHistoryRepository == null) {
+            _uiState.update { it.copy(generationHistory = (listOf(record) + it.generationHistory).take(MAX_LOCAL_HISTORY)) }
+        }
+    }
+
     private suspend fun saveBaseUrlIfNeeded(state: AiProviderSettingsState) {
         if (state.selectedProvider != AiProviderChoice.LiteLLM) return
         val baseUrl = state.baseUrlInput.trim()
@@ -568,6 +667,48 @@ class AiProviderSettingsController(
 }
 
 private fun baseUrlKey(providerId: String): String = "base_url_$providerId"
+
+private const val MAX_GENERATION_MESSAGE_LENGTH = 800
+private const val MAX_LOCAL_HISTORY = 120
+
+private fun io.codex.s23deck.domain.ai.AiArtifactKind.toDraftKind(): DraftKind =
+    when (this) {
+        io.codex.s23deck.domain.ai.AiArtifactKind.Button,
+        io.codex.s23deck.domain.ai.AiArtifactKind.Clock,
+        -> DraftKind.Action
+        io.codex.s23deck.domain.ai.AiArtifactKind.Deck -> DraftKind.Deck
+        io.codex.s23deck.domain.ai.AiArtifactKind.Automation -> DraftKind.Automation
+    }
+
+private fun AiArtifact.toRefinementPrompt(changeRequest: String): String =
+    buildString {
+        appendLine("Refine this existing Codecks ${kind.label.lowercase()} draft.")
+        appendLine("Requested change: $changeRequest")
+        appendLine()
+        appendLine("Existing artifact:")
+        appendLine("Title: $title")
+        appendLine("Description: ${description.ifBlank { "None" }}")
+        appendLine("Kind: ${kind.label}")
+        appendLine("Actions:")
+        actions.take(12).forEachIndexed { index, action ->
+            appendLine("${index + 1}. ${action.title} | dangerous=${action.dangerous} | command=${action.command.take(200)}")
+        }
+        appendLine()
+        appendLine("Return a complete replacement V2 proposal. Do not mutate the saved artifact.")
+    }
+
+private fun Throwable.generationStatus(): AiGenerationStatus =
+    when (this) {
+        is AiDraftProposalUnavailable -> when (status) {
+            DraftEnvelopeStatus.Ready -> AiGenerationStatus.Ready
+            DraftEnvelopeStatus.NeedsInput -> AiGenerationStatus.NeedsInput
+            DraftEnvelopeStatus.Unsupported -> AiGenerationStatus.Unsupported
+            DraftEnvelopeStatus.Refused -> AiGenerationStatus.Refused
+        }
+        is AiProviderException.Refused -> AiGenerationStatus.Refused
+        is AiProviderException.UnsupportedModel -> AiGenerationStatus.Unsupported
+        else -> AiGenerationStatus.Failed
+    }
 
 private suspend fun handleLocalAiCommand(
     prompt: String,
@@ -793,6 +934,7 @@ fun AiProviderSettingsRoute(
         AiProviderFactory(resolvedKeyStore, liteLlmBaseUrl = BuildConfig.LITELLM_BASE_URL)
     }
     val artifactRepository = remember(context) { DefaultAiArtifactRepository(context.applicationContext) }
+    val generationHistoryRepository = remember(context) { DefaultAiGenerationHistoryRepository(context.applicationContext) }
     val agentPack = remember(context) { DeckBridgeAiAgentPack.load(context.applicationContext) }
     val currentActions by rememberUpdatedState(availableActions)
     val currentTrackpadSettings by rememberUpdatedState(trackpadSettings)
@@ -828,13 +970,22 @@ fun AiProviderSettingsRoute(
             )
         }
     }
-    val controller = remember(resolvedKeyStore, entitlementRepository, artifactRepository, actionRunner, agentPack, localCommandHandler) {
+    val controller = remember(
+        resolvedKeyStore,
+        entitlementRepository,
+        artifactRepository,
+        generationHistoryRepository,
+        actionRunner,
+        agentPack,
+        localCommandHandler,
+    ) {
         AiProviderSettingsController(
             keyStore = resolvedKeyStore,
             providerFactory = providerFactory,
             entitlementRepository = entitlementRepository,
             scope = scope,
             artifactRepository = artifactRepository,
+            generationHistoryRepository = generationHistoryRepository,
             actionRunner = actionRunner,
             agentContext = agentPack.prompt,
             localCommandHandler = localCommandHandler,
@@ -857,6 +1008,8 @@ fun AiProviderSettingsRoute(
         onPromptChanged = controller::setPrompt,
         onDraftKindChanged = controller::setDraftKind,
         onGenerate = controller::generateDraft,
+        onRefineArtifact = controller::startRefinement,
+        onCancelRefinement = controller::cancelRefinement,
         onSaveDraft = { draft ->
             onSaveDraft(draft)
             controller.markDraftSaved()
@@ -890,6 +1043,8 @@ fun AiProviderSettingsScreen(
     onPromptChanged: (String) -> Unit,
     onDraftKindChanged: (DraftKind) -> Unit,
     onGenerate: () -> Unit,
+    onRefineArtifact: (String) -> Unit,
+    onCancelRefinement: () -> Unit,
     onSaveDraft: (GeneratedDraft) -> Unit,
     onSaveArtifact: (AiArtifact) -> Unit,
     onTestArtifact: (String) -> Unit,
@@ -958,11 +1113,18 @@ fun AiProviderSettingsScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Text(
-                            text = state.prompt.ifBlank { "Nothing is sent until you enter a request and tap Send." },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
+                Text(
+                    text = state.prompt.ifBlank { "Nothing is sent until you enter a request and tap Send." },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                state.refiningArtifact?.let { artifact ->
+                    Text(
+                        text = "Refining: ${artifact.title}. Previous title, description, action titles, and generated command previews will be sent so the provider can produce a complete replacement proposal.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
                         Text(
                             text = "The saved API key is used only as the selected provider's HTTPS authentication header; it is never inserted into the prompt.",
                             style = MaterialTheme.typography.labelSmall,
@@ -971,12 +1133,21 @@ fun AiProviderSettingsScreen(
                     }
                 }
                 DeckActionButton(
-                    label = if (state.isGenerating) "Generating" else "Send",
+                    label = if (state.isGenerating) "Generating" else if (state.refiningArtifact == null) "Send" else "Refine",
                     onClick = onGenerate,
                     enabled = state.prompt.isNotBlank() && !state.isGenerating,
                     icon = Icons.Outlined.AutoAwesome,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                 )
+                if (state.refiningArtifact != null) {
+                    DeckActionButton(
+                        label = "Discard refinement",
+                        onClick = onCancelRefinement,
+                        enabled = !state.isGenerating,
+                        icon = Icons.Outlined.ErrorOutline,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    )
+                }
                 if (state.isGenerating) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
         }
@@ -1002,15 +1173,43 @@ fun AiProviderSettingsScreen(
         if (mode == AiWorkspaceMode.Chat) state.artifacts.take(10).forEach { artifact ->
             item {
                 val draftToSave = state.generatedDraft.takeIf { state.generatedArtifactId == artifact.id }
+                val canSave = artifact.lastTest?.status in setOf(
+                    AiArtifactTestStatus.Succeeded,
+                    AiArtifactTestStatus.RequiresConfirmation,
+                )
                 AiArtifactCard(
                     artifact = artifact,
+                    refinementSource = state.lastRefinedFromArtifact.takeIf { state.lastRefinedArtifactId == artifact.id },
                     isTesting = state.testingArtifactId == artifact.id,
                     onTest = { onTestArtifact(artifact.id) },
-                    onSave = {
-                        if (draftToSave != null) onSaveDraft(draftToSave) else onSaveArtifact(artifact)
+                    onSave = if (canSave) {
+                        {
+                            if (draftToSave != null) onSaveDraft(draftToSave) else onSaveArtifact(artifact)
+                        }
+                    } else {
+                        null
                     },
+                    onRefine = { onRefineArtifact(artifact.id) },
                     onDelete = { onDeleteArtifact(artifact.id) },
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 6.dp),
+                )
+            }
+        }
+        if (mode == AiWorkspaceMode.Chat && state.generationHistory.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Generation history",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                )
+            }
+        }
+        if (mode == AiWorkspaceMode.Chat) state.generationHistory.take(8).forEach { record ->
+            item {
+                AiGenerationRecordCard(
+                    record = record,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 5.dp),
                 )
             }
         }
@@ -1048,10 +1247,12 @@ fun AiProviderSettingsScreen(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                 ) {
                     state.selectedProvider.models.forEach { model ->
+                        val modelEnabled = state.draftKind == DraftKind.ContextApps || model.supportsStructuredDrafts
                         DeckFilterPill(
-                            label = model.label,
+                            label = if (modelEnabled) model.label else "${model.label} · not V2",
                             selected = state.selectedModelId == model.id,
                             onClick = { onModelSelected(model.id) },
+                            enabled = modelEnabled,
                             modifier = Modifier.heightIn(min = 48.dp),
                         )
                     }
@@ -1279,9 +1480,11 @@ private fun AiChatBubble(
 @Composable
 private fun AiArtifactCard(
     artifact: AiArtifact,
+    refinementSource: AiArtifact?,
     isTesting: Boolean,
     onTest: () -> Unit,
     onSave: (() -> Unit)?,
+    onRefine: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1316,7 +1519,11 @@ private fun AiArtifactCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            artifact.actions.take(4).forEachIndexed { index, action ->
+            refinementSource?.let { source ->
+                AiRefinementDiffCard(before = source, after = artifact)
+            }
+            AiArtifactReviewPanel(artifact = artifact)
+            artifact.actions.forEachIndexed { index, action ->
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     shape = MaterialTheme.shapes.small,
@@ -1368,6 +1575,12 @@ private fun AiArtifactCard(
                     )
                 }
                 DeckActionButton(
+                    label = "Refine",
+                    onClick = onRefine,
+                    icon = Icons.Outlined.AutoAwesome,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                )
+                DeckActionButton(
                     label = "Remove",
                     onClick = onDelete,
                     icon = Icons.Outlined.ErrorOutline,
@@ -1378,12 +1591,198 @@ private fun AiArtifactCard(
     }
 }
 
+@Composable
+private fun AiArtifactReviewPanel(
+    artifact: AiArtifact,
+    modifier: Modifier = Modifier,
+) {
+    val review = artifact.review
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(
+            1.dp,
+            if (review.requiresConfirmation) {
+                MaterialTheme.colorScheme.error.copy(alpha = 0.42f)
+            } else {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+            },
+        ),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(12.dp)) {
+            Text("Proposal review", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            AiReviewLine(
+                label = "Risk",
+                value = if (review.requiresConfirmation) {
+                    "${review.riskLevel.name} · confirmation required"
+                } else {
+                    review.riskLevel.name
+                },
+            )
+            AiReviewLine(label = "Target", value = review.target)
+            review.trigger?.let { trigger -> AiReviewLine(label = "Trigger", value = trigger) }
+            AiReviewList(
+                label = "Assumptions",
+                values = review.assumptions.ifEmpty { listOf("No extra assumptions supplied") },
+            )
+            AiReviewList(
+                label = "Capabilities",
+                values = review.requiredCapabilities.ifEmpty { listOf("No special capability requested") },
+            )
+            AiReviewList(
+                label = "Parameters",
+                values = review.parameters.map { parameter ->
+                    buildString {
+                        append(parameter.label.ifBlank { parameter.name })
+                        append(if (parameter.required) " · required" else " · optional")
+                        parameter.defaultValue?.takeIf { it.isNotBlank() }?.let { append(" · default: $it") }
+                    }
+                }.ifEmpty { listOf("No runtime parameters") },
+            )
+            AiReviewList(
+                label = "Compiled steps",
+                values = review.steps.mapIndexed { index, step ->
+                    "${index + 1}. ${step.label} · ${step.type} · ${step.summary}" +
+                        if (step.requiresConfirmation) " · confirms" else ""
+                }.ifEmpty { listOf("No compiled steps") },
+            )
+        }
+    }
+}
+
+@Composable
+private fun AiReviewLine(
+    label: String,
+    value: String,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
+    }
+}
+
+@Composable
+private fun AiReviewList(
+    label: String,
+    values: List<String>,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        values.forEach { value ->
+            Text("• $value", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
+        }
+    }
+}
+
 private val io.codex.s23deck.domain.ai.AiArtifactKind.label: String
     get() = when (this) {
         io.codex.s23deck.domain.ai.AiArtifactKind.Button -> "Button"
         io.codex.s23deck.domain.ai.AiArtifactKind.Deck -> "Deck"
         io.codex.s23deck.domain.ai.AiArtifactKind.Automation -> "Automation"
         io.codex.s23deck.domain.ai.AiArtifactKind.Clock -> "Clock"
+    }
+
+@Composable
+private fun AiRefinementDiffCard(
+    before: AiArtifact,
+    after: AiArtifact,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.36f)),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(12.dp)) {
+            Text("Refinement compare", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Text(
+                text = "Before: ${before.title} · ${before.actions.size} action${if (before.actions.size == 1) "" else "s"}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = "After: ${after.title} · ${after.actions.size} action${if (after.actions.size == 1) "" else "s"}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = after.changedActionSummary(before),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private fun AiArtifact.changedActionSummary(before: AiArtifact): String {
+    val beforeCommands = before.actions.associateBy { it.id }
+    val changed = actions.filter { action -> beforeCommands[action.id]?.command != action.command }
+    return when {
+        changed.isEmpty() && actions.size == before.actions.size -> "No command-level changes detected; review labels and descriptions."
+        changed.isEmpty() -> "Action count changed from ${before.actions.size} to ${actions.size}."
+        else -> "Changed: ${changed.take(3).joinToString { it.title }}${if (changed.size > 3) " +${changed.size - 3}" else ""}"
+    }
+}
+
+@Composable
+private fun AiGenerationRecordCard(
+    record: AiGenerationRecord,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = MaterialTheme.shapes.medium,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = record.status.label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = record.status.color(),
+                )
+                Text(
+                    text = "${record.draftKind.label} · ${record.providerLabel} · ${record.modelLabel}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Text(
+                text = record.message.ifBlank { "No message" },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            if (record.validationErrors.isNotEmpty()) {
+                Text(
+                    text = record.validationErrors.take(2).joinToString(" · "),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+    }
+}
+
+private val AiGenerationStatus.label: String
+    get() = when (this) {
+        AiGenerationStatus.Ready -> "Ready"
+        AiGenerationStatus.NeedsInput -> "Needs input"
+        AiGenerationStatus.Unsupported -> "Unsupported"
+        AiGenerationStatus.Refused -> "Refused"
+        AiGenerationStatus.Failed -> "Failed"
+    }
+
+@Composable
+private fun AiGenerationStatus.color() =
+    when (this) {
+        AiGenerationStatus.Ready -> MaterialTheme.colorScheme.primary
+        AiGenerationStatus.NeedsInput -> MaterialTheme.colorScheme.secondary
+        AiGenerationStatus.Unsupported -> MaterialTheme.colorScheme.onSurfaceVariant
+        AiGenerationStatus.Refused -> MaterialTheme.colorScheme.error
+        AiGenerationStatus.Failed -> MaterialTheme.colorScheme.error
     }
 
 @Composable

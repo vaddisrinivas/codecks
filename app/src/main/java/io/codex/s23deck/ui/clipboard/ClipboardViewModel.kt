@@ -11,6 +11,7 @@ import io.codex.s23deck.data.ConnectionRepository
 import io.codex.s23deck.data.clipboard.ClipboardSettingsRepository
 import io.codex.s23deck.domain.clipboard.ClipboardEndpoint
 import io.codex.s23deck.domain.clipboard.ClipboardHash
+import io.codex.s23deck.domain.clipboard.ClipboardContentGuard
 import io.codex.s23deck.domain.clipboard.ClipboardRevision
 import io.codex.s23deck.domain.clipboard.ClipboardSourceId
 import io.codex.s23deck.domain.clipboard.ClipboardSyncAction
@@ -42,6 +43,9 @@ data class ClipboardUiState(
     val hasConflict: Boolean = false,
     val isRemoteOffline: Boolean = false,
     val staleEndpoints: Set<ClipboardEndpoint> = emptySet(),
+    val phonePreview: String = "Empty",
+    val macPreview: String = "Empty",
+    val lastSafetyWarning: String? = null,
 )
 
 @HiltViewModel
@@ -87,6 +91,8 @@ class ClipboardViewModel @Inject constructor(
             it.copy(
                 phoneText = value,
                 phoneHash = observation.revision.hash.shortHash(),
+                phonePreview = ClipboardContentGuard.safePreview(value),
+                lastSafetyWarning = null,
                 status = "Edited on phone",
             ).withSnapshot(observation.snapshot)
         }
@@ -145,7 +151,11 @@ class ClipboardViewModel @Inject constructor(
             .orEmpty()
         val observation = syncEngine.observe(ClipboardEndpoint.Phone, text, phoneSource, nowMillis())
         _uiState.update {
-            it.copy(phoneText = text, phoneHash = observation.revision.hash.shortHash())
+            it.copy(
+                phoneText = text,
+                phoneHash = observation.revision.hash.shortHash(),
+                phonePreview = ClipboardContentGuard.safePreview(text),
+            )
                 .withSnapshot(observation.snapshot)
         }
     }
@@ -155,6 +165,7 @@ class ClipboardViewModel @Inject constructor(
     }
 
     fun pushToMac() {
+        refreshPhone()
         val text = _uiState.value.phoneText
         runClipboard("Sending to Mac") { pushToMacSync(text) }
     }
@@ -180,10 +191,28 @@ class ClipboardViewModel @Inject constructor(
                 _uiState.update { it.copy(hasConflict = true, status = "Conflict") }
             }
             is ClipboardSyncAction.WriteToMac -> {
+                ClipboardContentGuard.riskFor(_uiState.value.phoneText)?.let { risk ->
+                    _uiState.update {
+                        it.copy(
+                            status = "Auto sync skipped",
+                            lastSafetyWarning = "${risk.label}: ${risk.reason}",
+                        )
+                    }
+                    return
+                }
                 syncEngine.markApplied(action)
                 pushToMacSync(_uiState.value.phoneText)
             }
             is ClipboardSyncAction.WriteToPhone -> {
+                ClipboardContentGuard.riskFor(_uiState.value.macText)?.let { risk ->
+                    _uiState.update {
+                        it.copy(
+                            status = "Auto sync skipped",
+                            lastSafetyWarning = "${risk.label}: ${risk.reason}",
+                        )
+                    }
+                    return
+                }
                 syncEngine.markApplied(action)
                 writePhoneClipboard(_uiState.value.macText)
             }
@@ -198,7 +227,7 @@ class ClipboardViewModel @Inject constructor(
 
     private suspend fun pushToMacSync(text: String): Result<String> {
         syncEngine.markApplied(ClipboardSyncAction.WriteToMac(ClipboardHash.of(text)))
-        return connectionRepository.runCommand("printf %s ${shellQuote(text)} | pbcopy")
+        return connectionRepository.writeMacClipboard(text)
             .onSuccess {
                 val observation = syncEngine.observe(ClipboardEndpoint.Mac, text, macSource, nowMillis())
                 _uiState.update {
@@ -206,6 +235,8 @@ class ClipboardViewModel @Inject constructor(
                         macText = text,
                         macHash = observation.revision.hash.shortHash(),
                         isRemoteOffline = false,
+                        macPreview = ClipboardContentGuard.safePreview(text),
+                        lastSafetyWarning = null,
                         status = "Phone to Mac",
                     ).withSnapshot(observation.snapshot)
                 }
@@ -220,6 +251,7 @@ class ClipboardViewModel @Inject constructor(
                     macText = value,
                     macHash = observation.revision.hash.shortHash(),
                     isRemoteOffline = false,
+                    macPreview = ClipboardContentGuard.safePreview(value),
                 ).withSnapshot(observation.snapshot)
             }
         }
@@ -231,6 +263,8 @@ class ClipboardViewModel @Inject constructor(
             it.copy(
                 phoneText = text,
                 phoneHash = observation.revision.hash.shortHash(),
+                phonePreview = ClipboardContentGuard.safePreview(text),
+                lastSafetyWarning = null,
                 status = status,
             ).withSnapshot(observation.snapshot)
         }
@@ -271,5 +305,4 @@ class ClipboardViewModel @Inject constructor(
 
     private fun String.shortHash(): String = take(12)
     private fun nowMillis(): Long = System.currentTimeMillis()
-    private fun shellQuote(value: String): String = "'${value.replace("'", "'\"'\"'")}'"
 }

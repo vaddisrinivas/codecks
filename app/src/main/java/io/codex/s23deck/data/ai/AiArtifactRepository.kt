@@ -8,6 +8,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.codex.s23deck.domain.ai.AiArtifact
 import io.codex.s23deck.domain.ai.AiArtifactAction
 import io.codex.s23deck.domain.ai.AiArtifactKind
+import io.codex.s23deck.domain.ai.AiArtifactParameter
+import io.codex.s23deck.domain.ai.AiArtifactReview
+import io.codex.s23deck.domain.ai.AiArtifactRiskLevel
+import io.codex.s23deck.domain.ai.AiArtifactStepReview
 import io.codex.s23deck.domain.ai.AiArtifactTest
 import io.codex.s23deck.domain.ai.AiArtifactTestStatus
 import javax.inject.Inject
@@ -115,6 +119,34 @@ internal object AiArtifactJsonCodec {
             put("prompt", artifact.prompt)
             put("createdAtMillis", artifact.createdAtMillis)
             put(
+                "review",
+                mapOf(
+                    "assumptions" to artifact.review.assumptions,
+                    "riskLevel" to artifact.review.riskLevel.name,
+                    "requiresConfirmation" to artifact.review.requiresConfirmation,
+                    "target" to artifact.review.target,
+                    "trigger" to artifact.review.trigger,
+                    "requiredCapabilities" to artifact.review.requiredCapabilities,
+                    "parameters" to artifact.review.parameters.map { parameter ->
+                        mapOf(
+                            "name" to parameter.name,
+                            "label" to parameter.label,
+                            "required" to parameter.required,
+                            "defaultValue" to parameter.defaultValue,
+                        )
+                    },
+                    "steps" to artifact.review.steps.map { step ->
+                        mapOf(
+                            "id" to step.id,
+                            "label" to step.label,
+                            "type" to step.type,
+                            "summary" to step.summary,
+                            "requiresConfirmation" to step.requiresConfirmation,
+                        )
+                    },
+                ),
+            )
+            put(
                 "actions",
                 artifact.actions.map { action ->
                     mapOf(
@@ -158,6 +190,7 @@ internal object AiArtifactJsonCodec {
                 prompt = item.optString("prompt").orEmpty(),
                 createdAtMillis = item.long("createdAtMillis", System.currentTimeMillis()),
                 actions = item.array("actions").mapIndexedNotNull(::parseAction),
+                review = item.optObj("review")?.let(::parseReview) ?: AiArtifactReview(),
                 lastTest = item.optObj("lastTest")?.let(::parseTest),
             )
         }.getOrNull()
@@ -175,6 +208,41 @@ internal object AiArtifactJsonCodec {
             )
         }.getOrNull()
 
+    private fun parseReview(review: JsonObject): AiArtifactReview =
+        AiArtifactReview(
+            assumptions = review.array("assumptions").mapNotNull { (it as? JsonValue.Str)?.value },
+            riskLevel = review.optString("riskLevel").orEmpty().toRiskLevel(),
+            requiresConfirmation = review.bool("requiresConfirmation", false),
+            target = review.optString("target").orEmpty().ifBlank { "Any connected Mac" },
+            trigger = review.optString("trigger")?.ifBlank { null },
+            requiredCapabilities = review.array("requiredCapabilities").mapNotNull { (it as? JsonValue.Str)?.value },
+            parameters = review.array("parameters").mapNotNull(::parseReviewParameter),
+            steps = review.array("steps").mapNotNull(::parseReviewStep),
+        )
+
+    private fun parseReviewParameter(value: JsonValue): AiArtifactParameter? =
+        runCatching {
+            val item = value.asObject()
+            AiArtifactParameter(
+                name = item.optString("name").orEmpty(),
+                label = item.optString("label").orEmpty(),
+                required = item.bool("required", false),
+                defaultValue = item.optString("defaultValue")?.ifBlank { null },
+            )
+        }.getOrNull()
+
+    private fun parseReviewStep(value: JsonValue): AiArtifactStepReview? =
+        runCatching {
+            val item = value.asObject()
+            AiArtifactStepReview(
+                id = item.optString("id").orEmpty(),
+                label = item.optString("label").orEmpty(),
+                type = item.optString("type").orEmpty(),
+                summary = item.optString("summary").orEmpty(),
+                requiresConfirmation = item.bool("requiresConfirmation", false),
+            )
+        }.getOrNull()
+
     private fun parseTest(test: JsonObject): AiArtifactTest =
         AiArtifactTest(
             status = test.optString("status").orEmpty().toTestStatus(),
@@ -188,3 +256,6 @@ private fun String.toArtifactKind(): AiArtifactKind =
 
 private fun String.toTestStatus(): AiArtifactTestStatus =
     AiArtifactTestStatus.entries.firstOrNull { it.name == this } ?: AiArtifactTestStatus.Failed
+
+private fun String.toRiskLevel(): AiArtifactRiskLevel =
+    AiArtifactRiskLevel.entries.firstOrNull { it.name == this } ?: AiArtifactRiskLevel.Normal

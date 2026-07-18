@@ -9,6 +9,7 @@ class RawCommandPolicyTest {
     @Test
     fun allowsExpectedDeckBridgeCommands() {
         val commands = listOf(
+            "pbcopy",
             "pbpaste",
             "printf %s 'hello' | pbcopy",
             "open 'https://example.com'",
@@ -26,6 +27,7 @@ class RawCommandPolicyTest {
     @Test
     fun safeTemplateAllowlist_acceptsExpectedGeneratedCommands() {
         val commands = listOf(
+            "pbcopy",
             "pbpaste",
             "printf %s 'hello' | pbcopy",
             "open 'https://example.com'",

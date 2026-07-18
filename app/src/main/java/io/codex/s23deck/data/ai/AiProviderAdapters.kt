@@ -2,6 +2,7 @@ package io.codex.s23deck.data.ai
 
 import io.codex.s23deck.domain.ai.ActionCapability
 import io.codex.s23deck.domain.ai.ActionDraftJson
+import io.codex.s23deck.domain.ai.ApprovedAiActionCatalog
 import io.codex.s23deck.domain.ai.AiModel
 import io.codex.s23deck.domain.ai.AiProvider
 import io.codex.s23deck.domain.ai.AiProviderCatalog
@@ -100,8 +101,12 @@ abstract class LiveAiProvider(
     }.mapError()
 
     override suspend fun draftAction(request: DraftRequest): Result<ActionDraftJson> = runCatching {
-        if (spec.models.none { it.id == request.modelId }) {
+        val model = spec.models.firstOrNull { it.id == request.modelId }
+        if (model == null) {
             throw AiProviderException.UnsupportedModel("Unsupported model ${request.modelId} for ${spec.label}")
+        }
+        if (request.draftKind != DraftKind.ContextApps && !model.supportsStructuredDrafts) {
+            throw AiProviderException.UnsupportedModel("${model.label} is not enabled for strict AI Creator V2 drafts")
         }
         val key = requireKey()
         val response =
@@ -113,16 +118,16 @@ abstract class LiveAiProvider(
                 AiProviderId.Gemini -> callGemini(request, key)
             }
         ensureSuccess(response)
-        ActionDraftJson(extractResponseText(response.body))
+        ActionDraftJson(extractResponseText(response.body, request))
     }.mapError()
 
     private suspend fun callOpenAi(request: DraftRequest, key: SecretValue): AiHttpResponse =
         httpClient.execute(
             AiHttpRequest(
                 method = "POST",
-                url = "https://api.openai.com/v1/chat/completions",
+                url = "https://api.openai.com/v1/responses",
                 headers = mapOf("Authorization" to "Bearer ${key.revealForProviderCall()}"),
-                body = buildOpenAiCompatibleRequest(request),
+                body = buildOpenAiResponsesRequest(request),
             ),
         )
 
@@ -183,6 +188,21 @@ abstract class LiveAiProvider(
             "response_format" to mapOf("type" to "json_schema", "json_schema" to jsonSchemaConfig(request)),
         )
 
+    private fun buildOpenAiResponsesRequest(request: DraftRequest): String =
+        jsonObject(
+            "model" to request.modelId,
+            "store" to false,
+            "input" to listOf(systemMessage(request), userMessage(request.prompt)),
+            "text" to mapOf(
+                "format" to mapOf(
+                    "type" to "json_schema",
+                    "name" to schemaName(request),
+                    "strict" to true,
+                    "schema" to schemaFor(request),
+                ),
+            ),
+        )
+
     private fun buildAnthropicRequest(request: DraftRequest): String =
         jsonObject(
             "model" to request.modelId,
@@ -190,6 +210,23 @@ abstract class LiveAiProvider(
             "temperature" to 0.2,
             "system" to systemPrompt(request),
             "messages" to listOf(mapOf("role" to "user", "content" to request.prompt)),
+            "tools" to if (request.draftKind == DraftKind.ContextApps) {
+                emptyList<Map<String, Any>>()
+            } else {
+                listOf(
+                    mapOf(
+                        "name" to ANTHROPIC_DRAFT_TOOL_NAME,
+                        "description" to "Return one AI Creator V2 draft envelope. Do not execute anything.",
+                        "input_schema" to StrictJsonSchemaAdapter.expandNullableTypeArrays(schemaFor(request)),
+                        "strict" to true,
+                    ),
+                )
+            },
+            "tool_choice" to if (request.draftKind == DraftKind.ContextApps) {
+                mapOf("type" to "auto")
+            } else {
+                mapOf("type" to "tool", "name" to ANTHROPIC_DRAFT_TOOL_NAME)
+            },
         )
 
     private fun buildGeminiRequest(request: DraftRequest): String =
@@ -205,6 +242,10 @@ abstract class LiveAiProvider(
             "generationConfig" to mapOf(
                 "temperature" to 0.2,
                 "responseMimeType" to "application/json",
+                "responseJsonSchema" to GeminiSchemaAdapter.toResponseJsonSchema(
+                    schemaFor(request),
+                    relaxServingState = request.draftKind == DraftKind.Deck,
+                ),
             ),
         )
 
@@ -218,7 +259,7 @@ abstract class LiveAiProvider(
         buildString {
             appendLine("Return only valid JSON for the requested draft.")
             appendLine("Do not use markdown fences.")
-            appendLine("Use the exact schema shape.")
+            appendLine("Use the exact schema shape. Every field is required; use null only where the schema allows null.")
             if (request.availableCapabilities.isNotEmpty()) {
                 appendLine(
                     "Supported capabilities: ${
@@ -228,6 +269,23 @@ abstract class LiveAiProvider(
             }
             appendLine("Target selector: ${request.target}.")
             appendLine("Draft type: ${request.draftKind.name.lowercase()}.")
+            if (request.repairInstructions.isNotBlank()) {
+                appendLine()
+                appendLine("Repair instructions:")
+                appendLine(request.repairInstructions)
+            }
+            if (request.draftKind != DraftKind.ContextApps) {
+                appendLine("AI Creator V2 contract: status must be ready, needs_input, unsupported, or refused.")
+                appendLine("If request is ambiguous, return needs_input with short questions and proposal null.")
+                appendLine("Never create runtime shell, SSH, script, or AppleScript command steps.")
+                appendLine("If the user explicitly asks to copy command-looking text, put it only in a clipboard_text step as inert text.")
+                appendLine("Capability enum values: ${ActionCapability.entries.joinToString { it.name }}.")
+                appendLine("Target type enum values: AnyConnected, ActiveDevice, DeviceId, GroupId.")
+                appendLine("Safety level enum values: Normal, Dangerous.")
+                appendLine("Use only typed steps: ${ApprovedAiActionCatalog.stepTypes.sorted().joinToString()}.")
+                appendLine("For template steps, use only template IDs: ${ApprovedAiActionCatalog.templateIds.sorted().joinToString()}.")
+                appendLine("Codecks compiles typed steps into runtime actions after validation and dry run.")
+            }
             if (request.agentContext.isNotBlank()) {
                 appendLine()
                 appendLine("Bundled Codecks agent pack:")
@@ -237,9 +295,9 @@ abstract class LiveAiProvider(
 
     private fun schemaName(request: DraftRequest): String =
         when (request.draftKind) {
-            DraftKind.Action -> "action_draft"
-            DraftKind.Automation -> "automation_draft"
-            DraftKind.Deck -> "deck_draft"
+            DraftKind.Action -> "action_draft_v2"
+            DraftKind.Automation -> "automation_draft_v2"
+            DraftKind.Deck -> "deck_draft_v2"
             DraftKind.ContextApps -> "context_app_suggestions"
         }
 
@@ -248,9 +306,10 @@ abstract class LiveAiProvider(
 
     private fun schemaFor(request: DraftRequest): Map<String, Any> =
         when (request.draftKind) {
-            DraftKind.Action -> actionSchema()
-            DraftKind.Automation -> automationSchema()
-            DraftKind.Deck -> deckSchema()
+            DraftKind.Action,
+            DraftKind.Automation,
+            DraftKind.Deck,
+            -> AiDraftSchemaV2.schemaFor(request.draftKind)
             DraftKind.ContextApps -> contextAppsSchema()
         }
 
@@ -434,21 +493,37 @@ abstract class LiveAiProvider(
         mapOf("type" to "array", "items" to mapOf("type" to "string", "enum" to values))
 
     private fun ensureSuccess(response: AiHttpResponse) {
+        val detail = response.providerErrorDetail()
         when (response.statusCode) {
             in 200..299 -> return
-            401, 403 -> throw AiProviderException.AuthFailure("Authentication failed for ${spec.label}")
-            408 -> throw AiProviderException.Timeout("${spec.label} request timed out")
-            429 -> throw AiProviderException.RateLimited("${spec.label} rate limited the request")
-            else -> throw AiProviderException.RemoteFailure("${spec.label} request failed with ${response.statusCode}")
+            401, 403 -> throw AiProviderException.AuthFailure("Authentication failed for ${spec.label}$detail")
+            408 -> throw AiProviderException.Timeout("${spec.label} request timed out$detail")
+            429 -> throw AiProviderException.RateLimited("${spec.label} rate limited the request$detail")
+            else -> throw AiProviderException.RemoteFailure("${spec.label} request failed with ${response.statusCode}$detail")
         }
     }
 
-    private fun extractResponseText(body: String): String {
+    private fun AiHttpResponse.providerErrorDetail(): String =
+        parseProviderErrorDetail(body).takeIf { it.isNotBlank() }?.let { ": ${it.take(MAX_PROVIDER_ERROR_DETAIL)}" }.orEmpty()
+
+    private fun parseProviderErrorDetail(body: String): String =
+        runCatching {
+            val root = parseJsonObject(body)
+            root.optObj("error")?.let { error ->
+                error.optString("message") ?: error.optString("type")
+            } ?: root.optString("message").orEmpty()
+        }.getOrDefault("")
+
+    private fun extractResponseText(body: String, request: DraftRequest): String {
         val root = parseJsonObject(body)
         return when (spec.id) {
             AiProviderId.OpenAI, AiProviderId.OpenRouter, AiProviderId.LiteLLM -> {
+                if (spec.id == AiProviderId.OpenAI && root.has("output")) {
+                    return extractOpenAiResponsesText(root)
+                }
                 val choice = root.array("choices").first().asObject()
                 val contentValue = choice.obj("message").let { message ->
+                    message.optString("refusal")?.let { throw AiProviderException.Refused(it) }
                     message.optString("content")?.let { return@let JsonValue.Str(it) }
                         ?: JsonValue.Arr(message.array("content"))
                 }
@@ -471,15 +546,31 @@ abstract class LiveAiProvider(
                 val content = root.array("content")
                 val chunks = mutableListOf<String>()
                 content.forEach { item ->
-                    val textItem = item.asObject()
-                    if (textItem.optString("type") == "text") {
-                        chunks += textItem.string("text")
+                    val value = item as? JsonValue.Obj ?: return@forEach
+                    val textItem = value.asObject()
+                    when (textItem.optString("type")) {
+                        "text" -> chunks += textItem.string("text")
+                        "tool_use" -> {
+                            if (textItem.optString("name") == ANTHROPIC_DRAFT_TOOL_NAME) {
+                                val input = value.fields["input"]
+                                    ?: throw AiProviderException.MalformedJson("Anthropic tool call missing input")
+                                return jsonValueString(input)
+                            }
+                        }
                     }
                 }
-                chunks.joinToString("")
+                if (request.draftKind != DraftKind.ContextApps) {
+                    throw AiProviderException.MalformedJson("Anthropic response did not include a draft tool result")
+                }
+                chunks.joinToString("").ifBlank {
+                    throw AiProviderException.MalformedJson("Anthropic response did not include a draft tool result")
+                }
             }
             AiProviderId.Gemini -> {
                 val candidate = root.array("candidates").first().asObject()
+                if (candidate.optString("finishReason") == "MAX_TOKENS") {
+                    throw AiProviderException.Incomplete("Gemini response was incomplete")
+                }
                 val parts = candidate.obj("content").array("parts")
                 val chunks = mutableListOf<String>()
                 parts.forEach { item ->
@@ -490,6 +581,95 @@ abstract class LiveAiProvider(
             }
         }
     }
+
+    private fun extractOpenAiResponsesText(root: io.codex.s23deck.data.ai.JsonObject): String {
+        val status = root.optString("status").orEmpty()
+        if (status == "incomplete") {
+            throw AiProviderException.Incomplete("OpenAI response was incomplete")
+        }
+        val chunks = mutableListOf<String>()
+        root.array("output").forEach { output ->
+            val outputObject = output.asObject()
+            if (outputObject.optString("type") != "message") return@forEach
+            outputObject.array("content").forEach { content ->
+                val contentObject = content.asObject()
+                when (contentObject.optString("type")) {
+                    "output_text" -> chunks += contentObject.string("text")
+                    "refusal" -> throw AiProviderException.Refused(contentObject.string("refusal"))
+                }
+            }
+        }
+        return chunks.joinToString("").ifBlank {
+            throw AiProviderException.MalformedJson("OpenAI response did not include output text")
+        }
+    }
+
+    private companion object {
+        const val ANTHROPIC_DRAFT_TOOL_NAME = "emit_ai_creator_v2_draft"
+        const val MAX_PROVIDER_ERROR_DETAIL = 240
+    }
+}
+
+private object StrictJsonSchemaAdapter {
+    fun expandNullableTypeArrays(schema: Map<String, Any>): Map<String, Any> =
+        schema.mapValues { (_, value) -> adapt(value) }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun adapt(value: Any): Any =
+        when (value) {
+            is Map<*, *> -> {
+                val source = value as Map<String, Any>
+                val types = source["type"] as? List<*>
+                if (types != null && types.any { it == "null" }) {
+                    val adaptedBase = (source - "type").mapValues { (_, child) -> adapt(child) }
+                    val nonNullTypes = types.filterIsInstance<String>().filterNot { it == "null" }
+                    mapOf(
+                        "anyOf" to nonNullTypes.map { type ->
+                            mapOf("type" to type) + adaptedBase.withoutNullEnum()
+                        } + mapOf("type" to "null"),
+                    )
+                } else {
+                    source.mapValues { (_, child) -> adapt(child) }
+                }
+            }
+            is List<*> -> value.mapNotNull { item -> item?.let(::adapt) }
+            else -> value
+        }
+
+    private fun Map<String, Any>.withoutNullEnum(): Map<String, Any> {
+        val values = this["enum"] as? List<*> ?: return this
+        return this + ("enum" to values.filterNotNull())
+    }
+}
+
+private object GeminiSchemaAdapter {
+    fun toResponseJsonSchema(
+        schema: Map<String, Any>,
+        relaxServingState: Boolean,
+    ): Map<String, Any> {
+        val expanded = StrictJsonSchemaAdapter.expandNullableTypeArrays(schema)
+        @Suppress("UNCHECKED_CAST")
+        return if (relaxServingState) relaxStateHeavyConstraints(expanded) as Map<String, Any> else expanded
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun relaxStateHeavyConstraints(value: Any): Any =
+        when (value) {
+            is Map<*, *> -> buildMap {
+                (value as Map<String, Any>).forEach { (key, child) ->
+                    val enumSize = (child as? List<*>)?.size ?: 0
+                    when {
+                        key == "minItems" || key == "maxItems" -> Unit
+                        key == "enum" && enumSize > MAX_GEMINI_SERVING_ENUM -> Unit
+                        else -> put(key, relaxStateHeavyConstraints(child))
+                    }
+                }
+            }
+            is List<*> -> value.mapNotNull { item -> item?.let(::relaxStateHeavyConstraints) }
+            else -> value
+        }
+
+    private const val MAX_GEMINI_SERVING_ENUM = 4
 }
 
 sealed class AiProviderException(message: String) : Exception(message) {
@@ -498,6 +678,8 @@ sealed class AiProviderException(message: String) : Exception(message) {
     class Timeout(message: String) : AiProviderException(message)
     class UnsupportedModel(message: String) : AiProviderException(message)
     class MalformedJson(message: String) : AiProviderException(message)
+    class Refused(message: String) : AiProviderException(message)
+    class Incomplete(message: String) : AiProviderException(message)
     class RemoteFailure(message: String) : AiProviderException(message)
 }
 

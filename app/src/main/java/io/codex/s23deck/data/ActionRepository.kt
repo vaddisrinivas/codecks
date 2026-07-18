@@ -72,7 +72,7 @@ class DefaultActionRepository @Inject constructor(
 
     override fun observeLayout(): Flow<DeckLayout> =
         context.deckDataStore.data.map { preferences ->
-            preferences[FAVORITES]
+            val storedLayout = preferences[FAVORITES]
                 ?.let { raw ->
                     decodeLayout(raw) ?: run {
                         reportFavoriteDecodeFailure(raw)
@@ -81,6 +81,7 @@ class DefaultActionRepository @Inject constructor(
                 }
                 ?.takeIf { it.slots.isNotEmpty() }
                 ?: defaultLayout
+            withNextWaveUtilitySlots(storedLayout)
         }
 
     override fun allActions(): List<DeckAction> = actions
@@ -109,6 +110,18 @@ class DefaultActionRepository @Inject constructor(
             }
             preferences[FAVORITES] = encodeLayout(normalized)
         }
+    }
+
+    private fun withNextWaveUtilitySlots(layout: DeckLayout): DeckLayout {
+        val ids = layout.actions.map(DeckAction::id)
+        if ("keyboard" in ids || "clipboard" in ids) return layout
+        if (ids != OLD_DEFAULT_ACTION_IDS) return layout
+        val nextSlots = layout.slots +
+            listOfNotNull(
+                byId["keyboard"]?.let { DeckSlot(id = "slot-keyboard", action = it, columnSpan = 2) },
+                byId["clipboard"]?.let { DeckSlot(id = "slot-clipboard", action = it, columnSpan = 2) },
+            )
+        return layout.copy(slots = nextSlots).normalized()
     }
 
     override suspend fun exportLayout(): Result<String> = runCatching {
@@ -241,7 +254,15 @@ class DefaultActionRepository @Inject constructor(
             DefaultSlotSpec("mission"), DefaultSlotSpec("space_left"), DefaultSlotSpec("space_right"), DefaultSlotSpec("full_screen"),
             DefaultSlotSpec("prev_app"), DefaultSlotSpec("next_app"), DefaultSlotSpec("new_tab"), DefaultSlotSpec("play_pause"),
             DefaultSlotSpec("mute"), DefaultSlotSpec("vol_down"), DefaultSlotSpec("vol_up"), DefaultSlotSpec("lock_mac"),
+            DefaultSlotSpec("keyboard", columnSpan = 2), DefaultSlotSpec("clipboard", columnSpan = 2),
             DefaultSlotSpec("trackpad", columnSpan = 3), DefaultSlotSpec("automations"),
+        )
+        val OLD_DEFAULT_ACTION_IDS = listOf(
+            "finder", "terminal", "spotlight", "screenshot",
+            "mission", "space_left", "space_right", "full_screen",
+            "prev_app", "next_app", "new_tab", "play_pause",
+            "mute", "vol_down", "vol_up", "lock_mac",
+            "trackpad", "automations",
         )
         val FAVORITES = stringPreferencesKey("favorite_action_ids")
         val FAVORITES_QUARANTINE = stringPreferencesKey("favorite_action_ids_quarantine")

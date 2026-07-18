@@ -100,6 +100,9 @@ interface ConnectionRepository {
     suspend fun runCommand(command: String): Result<String> =
         Result.failure(UnsupportedOperationException("Raw commands are unavailable"))
     suspend fun runCommandRaw(command: String): Result<String> = runCommand(command)
+    suspend fun runCommandWithInput(command: String, stdin: String): Result<String> =
+        Result.failure(UnsupportedOperationException("Command stdin is unavailable"))
+    suspend fun writeMacClipboard(text: String): Result<String> = runCommandWithInput("pbcopy", text)
     suspend fun runCommandSecret(command: String): Result<String> =
         Result.failure(UnsupportedOperationException("Secret commands are unavailable"))
     suspend fun savedTargets(): List<ConnectionTarget> = emptyList()
@@ -367,6 +370,18 @@ class DefaultConnectionRepository @Inject constructor(
         }
     }
 
+    override suspend fun runCommandWithInput(command: String, stdin: String): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val current = currentConfig()
+            require(current.isReady) { "Connect your Mac first" }
+            require(command.isNotBlank()) { "Command is empty" }
+            RawCommandPolicy.requireSafeTemplate(command)
+            val result = runSsh(current, null, readPrivateKey(), command, stdin)
+            check(result.isSuccess) { result.summary }
+            result.summary
+        }
+    }
+
     override suspend fun runCommandSecret(command: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val current = currentConfig()
@@ -406,6 +421,7 @@ class DefaultConnectionRepository @Inject constructor(
         password: String?,
         privateKey: String?,
         command: String,
+        stdin: String? = null,
     ): SshResult {
         require(config.hostKey.isNotBlank()) { "Verify the Mac fingerprint first" }
         var session: Session? = null
@@ -433,6 +449,9 @@ class DefaultConnectionRepository @Inject constructor(
             val hostKeyLine = "$hostKeyName ${session.hostKey.type} ${session.hostKey.key}"
             channel = (session.openChannel("exec") as ChannelExec).apply {
                 setCommand(command)
+                if (stdin != null) {
+                    setInputStream(ByteArrayInputStream(stdin.toByteArray(Charsets.UTF_8)))
+                }
             }
             val standardOutput = channel.inputStream
             val errorStream = channel.errStream

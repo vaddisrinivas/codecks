@@ -44,8 +44,8 @@ object AiProviderCatalog {
             providerId = "openrouter",
             label = "OpenRouter",
             models = listOf(
-                AiModel("openrouter/auto", "OpenRouter Auto"),
-                AiModel("anthropic/claude-sonnet-4.6", "Claude Sonnet via OpenRouter"),
+                AiModel("openrouter/auto", "OpenRouter Auto", supportsStructuredDrafts = false),
+                AiModel("anthropic/claude-sonnet-4.6", "Claude Sonnet via OpenRouter", supportsStructuredDrafts = false),
             ),
         )
 
@@ -60,7 +60,7 @@ object AiProviderCatalog {
                 AiModel("gpt-5-mini", "GPT-5 Mini"),
                 AiModel("gpt-5", "GPT-5"),
                 AiModel("openai/gpt-5-mini", "OpenAI GPT-5 Mini"),
-                AiModel("azure/gpt-4.1-mini", "Azure GPT-4.1 Mini"),
+                AiModel("azure/gpt-4.1-mini", "Azure GPT-4.1 Mini", supportsStructuredDrafts = false),
             ),
         )
 

@@ -13,10 +13,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 private val Context.clipboardDataStore by preferencesDataStore(name = "clipboard_sync")
+private const val DEFAULT_CLIPBOARD_INTERVAL_MINUTES = 15
 
 data class ClipboardSyncSettings(
     val mode: ClipboardSyncMode = ClipboardSyncMode.Off,
-    val intervalMinutes: Int = 5,
+    val intervalMinutes: Int = DEFAULT_CLIPBOARD_INTERVAL_MINUTES,
 )
 
 @Singleton
@@ -28,7 +29,7 @@ class ClipboardSettingsRepository @Inject constructor(
             mode = preferences[MODE]
                 ?.let { runCatching { ClipboardSyncMode.valueOf(it) }.getOrNull() }
                 ?: ClipboardSyncMode.Off,
-            intervalMinutes = (preferences[INTERVAL_MINUTES] ?: 5).coerceIn(1, 240),
+            intervalMinutes = (preferences[INTERVAL_MINUTES] ?: DEFAULT_CLIPBOARD_INTERVAL_MINUTES).coerceIn(1, 240),
         )
     }
 

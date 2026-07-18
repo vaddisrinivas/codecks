@@ -89,6 +89,7 @@ import io.codex.s23deck.navigation.AdvancedRoute
 import io.codex.s23deck.navigation.AppearanceRoute
 import io.codex.s23deck.navigation.AutomationsRoute
 import io.codex.s23deck.navigation.BluetoothRoute
+import io.codex.s23deck.navigation.ClipboardRoute
 import io.codex.s23deck.navigation.ConnectionRoute
 import io.codex.s23deck.navigation.ContextDeckRoute
 import io.codex.s23deck.navigation.AiBuilderRoute
@@ -96,6 +97,7 @@ import io.codex.s23deck.navigation.AiProviderRoute
 import io.codex.s23deck.navigation.DevicesRoute
 import io.codex.s23deck.navigation.EditorRoute
 import io.codex.s23deck.navigation.HomeRoute
+import io.codex.s23deck.navigation.KeyboardRoute
 import io.codex.s23deck.navigation.MouseRoute
 import io.codex.s23deck.navigation.PremiumRoute
 import io.codex.s23deck.navigation.SettingsRoute
@@ -124,9 +126,13 @@ import io.codex.s23deck.ui.app.mainDestinations
 import io.codex.s23deck.ui.ai.AiWorkspaceMode
 import io.codex.s23deck.ui.ai.AiProviderSettingsRoute
 import io.codex.s23deck.ui.commerce.PremiumRoute as PremiumScreenRoute
+import io.codex.s23deck.ui.clipboard.ClipboardScreen
+import io.codex.s23deck.ui.clipboard.ClipboardViewModel
 import io.codex.s23deck.ui.editor.DeckEditorScreen
 import io.codex.s23deck.ui.home.HomeScreen
 import io.codex.s23deck.ui.home.HomeViewModel
+import io.codex.s23deck.ui.keyboard.KeyboardScreen
+import io.codex.s23deck.ui.keyboard.KeyboardViewModel
 import io.codex.s23deck.ui.mouse.MouseScreen
 import io.codex.s23deck.ui.mouse.MouseViewModel
 import io.codex.s23deck.ui.settings.BluetoothSetupScreen
@@ -266,6 +272,7 @@ class MainActivity : ComponentActivity() {
             ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
         ) {
             hidRepository.start()
+            HidSessionService.start(this)
         }
     }
 
@@ -287,8 +294,8 @@ private fun DeckAction.visibleForFlags(flags: Map<FeatureFlag, Boolean>): Boolea
     ActionKind.Ssh -> true
     ActionKind.Local -> id in setOf("add_button", "blank") ||
         route in setOf("trackpad", "automations", "ai", "button_picker", "empty_slot", "layout_builder", "drawer") ||
-        id == "keyboard" ||
-        (route == "text" && flags.focusedEnabled(FeatureFlag.Keyboard)) ||
+        (route in setOf("keyboard", "text") && flags.focusedEnabled(FeatureFlag.Keyboard)) ||
+        (route == "clipboard" && flags.focusedEnabled(FeatureFlag.Clipboard)) ||
         (id == "clipboard" && flags.focusedEnabled(FeatureFlag.Clipboard)) ||
         (route == "settings" && flags.focusedEnabled(FeatureFlag.Settings)) ||
         (route == "setup_scan" && flags.focusedEnabled(FeatureFlag.Connection)) ||
@@ -716,13 +723,9 @@ private fun DeckBridgeApp(
         if (action.kind == ActionKind.Local) {
             when (action.route) {
                 "trackpad" -> navigate(MouseRoute)
+                "keyboard", "text" -> navigate(KeyboardRoute)
                 "automations" -> navigate(AutomationsRoute)
-                "text" -> if (action.id == "clipboard") {
-                    navigate(SettingsRoute)
-                } else {
-                    navigate(MouseRoute)
-                }
-                "clipboard" -> navigate(SettingsRoute)
+                "clipboard" -> navigate(ClipboardRoute)
                 "settings" -> navigate(SettingsRoute)
                 "drawer" -> scope.launch { drawerState.open() }
                 "button_picker", "empty_slot", "layout_builder" -> navigate(EditorRoute)
@@ -922,6 +925,27 @@ private fun DeckBridgeApp(
                             onExitTrackpad = { navigate(HomeRoute, topLevel = true) },
                         )
                     }
+                    entry<KeyboardRoute> {
+                        KeyboardDestination(
+                            contentPadding = contentPadding,
+                            customActions = customRowActions,
+                            onCustomAction = ::handleAction,
+                            selectedActionId = (homeState.actionStatus as? ActionStatus.Running)?.actionId,
+                        )
+                    }
+                    entry<ClipboardRoute> {
+                        val clipboardViewModel: ClipboardViewModel = viewModel()
+                        val clipboardState by clipboardViewModel.uiState.collectAsStateWithLifecycle()
+                        ClipboardScreen(
+                            state = clipboardState,
+                            contentPadding = contentPadding,
+                            onRefreshPhone = clipboardViewModel::refreshPhone,
+                            onPullFromMac = clipboardViewModel::pullFromMac,
+                            onPushToMac = clipboardViewModel::pushToMac,
+                            onModeChange = clipboardViewModel::setMode,
+                            onIntervalChange = clipboardViewModel::setSyncIntervalMinutes,
+                        )
+                    }
                     entry<AutomationsRoute> {
                         AutomationsScreen(
                             state = automationsState,
@@ -984,6 +1008,8 @@ private fun DeckBridgeApp(
                             onAutomations = { navigate(AutomationsRoute) },
                             onDevices = { navigate(DevicesRoute) },
                             onDeck = { navigate(EditorRoute) },
+                            onKeyboard = { navigate(KeyboardRoute) },
+                            onClipboard = { navigate(ClipboardRoute) },
                             onExportBackup = {
                                 scope.launch {
                                     backupRepository.export()
@@ -1048,7 +1074,7 @@ private fun DeckBridgeApp(
                         DeckEditorScreen(
                             slots = homeState.deckLayout.slots.map { it.action.takeUnless { action -> action.id == "blank" } },
                             slotSpans = homeState.deckLayout.slots.map { it.columnSpan },
-                            allActions = homeState.allActions.filter { it.id !in setOf("blank", "clipboard") },
+                            allActions = homeState.allActions.filter { it.id != "blank" },
                             selectedSlot = selectedDeckSlot,
                             contentPadding = contentPadding,
                             onSelectSlot = { selectedDeckSlot = it },
@@ -1264,6 +1290,8 @@ private fun DeckBridgeApp(
                                 onAutomations = { navigate(AutomationsRoute) },
                                 onDevices = { navigate(DevicesRoute) },
                                 onDeck = { navigate(EditorRoute) },
+                                onKeyboard = { navigate(KeyboardRoute) },
+                                onClipboard = { navigate(ClipboardRoute) },
                                 onClipboardModeChange = { mode ->
                                     scope.launch { clipboardSettingsRepository.saveMode(mode) }
                                 },
@@ -1353,6 +1381,64 @@ private fun BluetoothDestination(
         onRefreshHosts = viewModel::refreshHosts,
         onConnect = viewModel::connect,
         onOpenTrackpad = onOpenTrackpad,
+    )
+}
+
+@Composable
+private fun KeyboardDestination(
+    contentPadding: androidx.compose.foundation.layout.PaddingValues,
+    customActions: List<DeckAction>,
+    onCustomAction: (DeckAction) -> Unit,
+    selectedActionId: String? = null,
+    viewModel: KeyboardViewModel = viewModel(),
+) {
+    val context = LocalContext.current
+    val state by viewModel.hidState.collectAsStateWithLifecycle()
+    val keyboardState by viewModel.uiState.collectAsStateWithLifecycle()
+    var permissionGranted by remember {
+        mutableStateOf(
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                ) == PackageManager.PERMISSION_GRANTED,
+        )
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted -> permissionGranted = granted }
+
+    LaunchedEffect(permissionGranted) {
+        if (permissionGranted) viewModel.start()
+    }
+
+    KeyboardScreen(
+        state = state,
+        text = keyboardState.text,
+        contentPadding = contentPadding,
+        permissionGranted = permissionGranted,
+        deliveryMode = keyboardState.deliveryMode,
+        isSending = keyboardState.isSending,
+        sendStatus = keyboardState.status,
+        recentSends = keyboardState.recentSends,
+        snippets = keyboardState.snippets,
+        onRequestPermission = {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                permissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
+            }
+        },
+        onStart = viewModel::start,
+        onRefreshHosts = viewModel::refreshHosts,
+        onConnect = viewModel::connect,
+        onTextChange = viewModel::setText,
+        onDeliveryModeChange = viewModel::setDeliveryMode,
+        onTypeText = viewModel::typeText,
+        onClearText = viewModel::clearText,
+        onUseSnippet = viewModel::useSnippet,
+        onCommand = viewModel::send,
+        customActions = customActions,
+        onCustomAction = onCustomAction,
+        selectedActionId = selectedActionId,
     )
 }
 

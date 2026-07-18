@@ -148,7 +148,7 @@ class AiProviderSettingsControllerTest {
             responses = mutableListOf(
                 AiHttpResponse(
                     200,
-                    """{"choices":[{"message":{"content":"{\"prompt\":\"open docs\",\"definition\":{\"id\":\"draft.open\",\"title\":\"Open Docs\",\"description\":\"Open the docs workspace\",\"requiredCapabilities\":[\"Advanced\"],\"steps\":[{\"id\":\"step-1\",\"type\":\"shell\",\"label\":\"Open docs\",\"value\":\"open https://docs.example.com\",\"requiredCapabilities\":[\"Advanced\"]}]}}"}}]}""",
+                    """{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"{\"schemaVersion\":2,\"status\":\"ready\",\"message\":\"Ready\",\"questions\":[],\"assumptions\":[],\"proposal\":{\"id\":\"draft.open\",\"title\":\"Open Docs\",\"description\":\"Open the docs workspace\",\"requiredCapabilities\":[],\"target\":{\"type\":\"AnyConnected\",\"id\":null},\"safety\":{\"level\":\"Normal\",\"requiresConfirmation\":false,\"confirmationTitle\":null,\"confirmationBody\":null},\"steps\":[{\"id\":\"step-1\",\"type\":\"open_url\",\"label\":\"Open docs\",\"url\":\"https://docs.example.com\",\"text\":null,\"delayMs\":null,\"templateId\":null,\"requiresConfirmation\":false}]}}"}]}]}""",
                 ),
             ),
         )
@@ -162,8 +162,13 @@ class AiProviderSettingsControllerTest {
 
         val artifact = controller.uiState.value.artifacts.single()
         assertEquals("Open Docs", artifact.title)
-        assertEquals("open https://docs.example.com", artifact.actions.single().command)
+        assertEquals("open 'https://docs.example.com'", artifact.actions.single().command)
         assertTrue(controller.uiState.value.messages.any { it.artifactId == artifact.id })
+        val history = controller.uiState.value.generationHistory.single()
+        assertEquals("openai", history.providerId)
+        assertEquals("gpt-5.5", history.modelId)
+        assertEquals(artifact.id, history.artifactId)
+        assertFalse(history.message.contains("sk-test-secret"))
 
         controller.testArtifact(artifact.id)
         runCurrent()
@@ -171,6 +176,62 @@ class AiProviderSettingsControllerTest {
         assertEquals(emptyList<String>(), runner.commands)
         assertEquals(AiArtifactTestStatus.Succeeded, controller.uiState.value.artifacts.single().lastTest?.status)
         assertTrue(controller.uiState.value.artifacts.single().lastTest?.message.orEmpty().contains("dry run passed"))
+    }
+
+    @Test
+    fun refineDraftCreatesReplacementWithoutMutatingSourceArtifact() = runTest {
+        val controller = controllerIn(
+            scope = this,
+            responses = mutableListOf(
+                openAiReadyActionResponse("draft.open", "Open Docs", "https://docs.example.com"),
+                openAiReadyActionResponse("draft.open_new", "Open New Docs", "https://new-docs.example.com"),
+            ),
+        )
+
+        controller.setApiKey("sk-test-secret")
+        controller.saveApiKey()
+        runCurrent()
+        controller.setPrompt("open docs")
+        controller.generateDraft()
+        runCurrent()
+        val original = controller.uiState.value.artifacts.single()
+
+        controller.startRefinement(original.id)
+        assertEquals(original.id, controller.uiState.value.refiningArtifact?.id)
+        controller.setPrompt("use the new docs site")
+        controller.generateDraft()
+        runCurrent()
+
+        val state = controller.uiState.value
+        assertEquals(null, state.refiningArtifact)
+        assertEquals(original.id, state.lastRefinedFromArtifact?.id)
+        assertEquals(2, state.artifacts.size)
+        assertEquals("Open New Docs", state.artifacts.first().title)
+        assertEquals("Open Docs", state.artifacts.last().title)
+        assertEquals("open 'https://docs.example.com'", state.artifacts.last().actions.single().command)
+        assertEquals("open 'https://new-docs.example.com'", state.artifacts.first().actions.single().command)
+    }
+
+    @Test
+    fun cancelRefinementClearsRefinementWithoutDeletingArtifact() = runTest {
+        val controller = controllerIn(
+            scope = this,
+            responses = mutableListOf(openAiReadyActionResponse("draft.open", "Open Docs", "https://docs.example.com")),
+        )
+
+        controller.setApiKey("sk-test-secret")
+        controller.saveApiKey()
+        runCurrent()
+        controller.setPrompt("open docs")
+        controller.generateDraft()
+        runCurrent()
+        val artifact = controller.uiState.value.artifacts.single()
+
+        controller.startRefinement(artifact.id)
+        controller.cancelRefinement()
+
+        assertEquals(null, controller.uiState.value.refiningArtifact)
+        assertEquals(listOf(artifact), controller.uiState.value.artifacts)
     }
 
     @Test
@@ -244,6 +305,12 @@ class AiProviderSettingsControllerTest {
         )
     }
 }
+
+private fun openAiReadyActionResponse(id: String, title: String, url: String): AiHttpResponse =
+    AiHttpResponse(
+        200,
+        """{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"{\"schemaVersion\":2,\"status\":\"ready\",\"message\":\"Ready\",\"questions\":[],\"assumptions\":[],\"proposal\":{\"id\":\"$id\",\"title\":\"$title\",\"description\":\"Open the docs workspace\",\"requiredCapabilities\":[],\"target\":{\"type\":\"AnyConnected\",\"id\":null},\"safety\":{\"level\":\"Normal\",\"requiresConfirmation\":false,\"confirmationTitle\":null,\"confirmationBody\":null},\"steps\":[{\"id\":\"step-1\",\"type\":\"open_url\",\"label\":\"Open docs\",\"url\":\"$url\",\"text\":null,\"delayMs\":null,\"templateId\":null,\"requiresConfirmation\":false}]}}"}]}]}""",
+    )
 
 private class FakeAiCredentialImporter(
     private val credential: ImportedAiCredential,

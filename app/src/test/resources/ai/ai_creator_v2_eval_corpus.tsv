@@ -1,0 +1,120 @@
+Action	Create one action named Open Docs that opens https://docs.codecks.local/start.
+Action	Create one action named Open Gmail that opens https://mail.google.com/mail/u/0/#inbox.
+Action	Create one action named Open Calendar that opens https://calendar.google.com/calendar/u/0/r.
+Action	Create one action named Copy Meeting Link that copies this text to clipboard: https://meet.google.com/abc-defg-hij.
+Action	Create one action named Wait Five that waits 5 seconds.
+Action	Create one action named GitHub Notifications that opens https://github.com/notifications.
+Action	Create one action named Linear Project that opens https://linear.app/codecks/project/mobile-v1.
+Action	Create one action named Google Drive that opens https://drive.google.com/drive/my-drive.
+Action	Create one action named Team Dashboard that opens https://dash.codecks.local/team.
+Action	Create one action named Focus Ping using approved template mac.focus_ping_30.
+Action	Create one action named Finder using approved template mac.open_finder.
+Action	Create one action named Terminal using approved template mac.open_terminal.
+Action	Create one action named Spotlight using approved template mac.open_spotlight.
+Action	Create one action named Mission Control using approved template mac.mission_control.
+Action	Create one action named Screenshot using approved template mac.screenshot.
+Action	Create one action named Full Screen using approved template mac.full_screen.
+Action	Create one action named New Tab using approved template mac.new_tab.
+Action	Create one action named Play Pause using approved template mac.play_pause.
+Action	Create one action named Volume Up using approved template mac.volume_up.
+Action	Create one action named Volume Down using approved template mac.volume_down.
+Action	Create one action named Mute using approved template mac.mute.
+Action	Create one action named OpenAI Docs that opens https://platform.openai.com/docs.
+Action	Create one action named Copy Support Email that copies this text to clipboard: support@example.com.
+Action	Create one action named Copy Standup Note that copies this text to clipboard: Yesterday: shipped fixes. Today: test Codecks. Blockers: none.
+Action	Create one action named Staging Site that opens https://staging.codecks.local.
+Action	Create one action named Booking Page that opens https://cal.com/codecks/demo.
+Action	Create one action named Bug Tracker that opens https://github.com/example/codecks/issues.
+Action	Create one action named Design Docs that opens https://design.codecks.local/system.
+Action	Create one action named API Reference that opens https://api.codecks.local/reference.
+Action	Create one action named Production Dashboard that opens https://dash.codecks.local/prod.
+Action	Create one action named Incident Channel that opens https://chat.example.com/rooms/incidents.
+Action	Create one action named Copy Deploy Checklist that copies this text to clipboard: tests green; version bumped; changelog updated; release signed.
+Action	Create one action named Pull Requests that opens https://github.com/example/codecks/pulls.
+Action	Create one action named Release Notes that opens https://github.com/example/codecks/releases.
+Action	Create one action named Wait Thirty that waits 30 seconds.
+Action	Create one action named Docs Then Focus that opens https://docs.codecks.local/start and then uses approved template mac.focus_ping_30.
+Action	Create one action named GitHub Then New Tab that opens https://github.com/example/codecks and then uses approved template mac.new_tab.
+Action	Create one action named Calendar Agenda that opens https://calendar.google.com/calendar/u/0/r and copies this text to clipboard: Agenda: goals, blockers, decisions.
+Action	Create one action named Terminal Then Wait that uses approved template mac.open_terminal and then waits 2 seconds.
+Action	Create one action named Safe Screen Capture using approved template mac.screenshot.
+Deck	Create a deck named Daily Startup with actions: open https://mail.google.com, open https://calendar.google.com, open https://github.com/notifications, and template mac.focus_ping_30.
+Deck	Create a deck named Meeting Mode with actions: open https://calendar.google.com, copy text https://meet.google.com/abc-defg-hij, template mac.mute, and template mac.full_screen.
+Deck	Create a deck named Coding Mode with actions: template mac.open_terminal, template mac.open_finder, open https://github.com/example/codecks/pulls, and template mac.new_tab.
+Deck	Create a deck named Release Work with actions: open https://github.com/example/codecks/releases, open https://dash.codecks.local/prod, copy text release checklist ready, and template mac.screenshot.
+Deck	Create a deck named Support Triage with actions: open https://mail.google.com, open https://github.com/example/codecks/issues, copy text Support reply draft, and wait 3 seconds.
+Deck	Create a deck named Debugging with actions: template mac.open_terminal, open https://dash.codecks.local/logs, copy text adb logcat, and template mac.screenshot.
+Deck	Create a deck named Writing Docs with actions: open https://docs.codecks.local/editor, open https://platform.openai.com/docs, copy text Draft outline, and template mac.focus_ping_30.
+Deck	Create a deck named Browser Research with actions: open https://google.com/search?q=android+compose, template mac.new_tab, copy text research notes, and wait 5 seconds.
+Deck	Create a deck named Design Review with actions: open https://design.codecks.local/system, template mac.full_screen, template mac.screenshot, and copy text Design notes.
+Deck	Create a deck named Incident Response with actions: open https://dash.codecks.local/incidents, open https://chat.example.com/rooms/incidents, copy text Incident started, and template mac.focus_ping_30.
+Deck	Create a deck named Workspace URLs with actions: open https://mail.google.com, open https://calendar.google.com, open https://drive.google.com, and open https://github.com.
+Deck	Create a deck named Mac Basics with actions: template mac.open_finder, template mac.open_terminal, template mac.open_spotlight, and template mac.screenshot.
+Deck	Create a deck named Window Media with actions: template mac.mission_control, template mac.full_screen, template mac.new_tab, and template mac.play_pause.
+Deck	Create a deck named Dashboards with actions: open https://dash.codecks.local/prod, open https://dash.codecks.local/staging, open https://dash.codecks.local/errors, and open https://dash.codecks.local/usage.
+Deck	Create a deck named Product Planning with actions: open https://linear.app/codecks, open https://docs.codecks.local/roadmap, copy text Decision log, and template mac.new_tab.
+Deck	Create a deck named Customer Calls with actions: open https://calendar.google.com, copy text https://meet.google.com/abc-defg-hij, copy text Customer notes template, and template mac.mute.
+Deck	Create a deck named Weekly Review with actions: open https://dash.codecks.local/week, open https://github.com/example/codecks/pulls, copy text Wins, risks, next, and wait 10 seconds.
+Deck	Create a deck named AI Settings Docs with actions: open https://platform.openai.com/api-keys, open https://platform.openai.com/docs, copy text Check model and provider, and template mac.new_tab.
+Deck	Create a deck named Source Control with actions: open https://github.com/example/codecks, open https://github.com/example/codecks/actions, open https://github.com/example/codecks/pulls, and copy text git status.
+Deck	Create a deck named QA Testing with actions: open https://dash.codecks.local/qa, copy text Test smoke path, template mac.screenshot, and wait 5 seconds.
+Deck	Create a deck named Release Notes with actions: open https://github.com/example/codecks/releases/new, copy text Release notes draft, open https://dash.codecks.local/prod, and template mac.screenshot.
+Deck	Create a deck named Internal Links with actions: open https://docs.codecks.local, open https://dash.codecks.local, open https://api.codecks.local/reference, and open https://design.codecks.local.
+Deck	Create a deck named Snippets with actions: copy text LGTM, copy text Re-run tests please, copy text Shipping after smoke, and copy text Needs reproduction steps.
+Deck	Create a deck named Presentation with actions: template mac.full_screen, template mac.mute, template mac.play_pause, and template mac.screenshot.
+Deck	Create a deck named Quiet Focus with actions: template mac.mute, template mac.focus_ping_30, open https://docs.codecks.local/focus, and wait 30 seconds.
+Deck	Create a deck named Pair Programming with actions: open https://meet.google.com/abc-defg-hij, copy text Pairing notes, template mac.open_terminal, and template mac.new_tab.
+Deck	Create a deck named Automation Debug with actions: open https://docs.codecks.local/automations, open https://dash.codecks.local/logs, copy text automation dry run, and template mac.screenshot.
+Deck	Create a deck named Play Store Launch with actions: open https://play.google.com/console, open https://github.com/example/codecks/releases, copy text rollout checklist, and template mac.screenshot.
+Deck	Create a deck named Mac Window Control with actions: template mac.mission_control, template mac.full_screen, template mac.open_spotlight, and template mac.open_finder.
+Deck	Create a deck named Browser Tabs Screens with actions: template mac.new_tab, open https://github.com/example/codecks, open https://platform.openai.com/docs, and template mac.screenshot.
+Deck	Create a compact deck named Meeting Four with actions: open https://calendar.google.com, copy text https://meet.google.com/abc-defg-hij, template mac.mute, and wait 5 seconds.
+Deck	Create a large deck named Twelve Safe Controls with exactly twelve actions using these templates or URLs: mac.open_finder, mac.open_terminal, mac.open_spotlight, mac.mission_control, mac.screenshot, mac.full_screen, mac.new_tab, mac.play_pause, mac.volume_up, mac.volume_down, mac.mute, and https://github.com/notifications.
+Deck	Create a deck named Calendar Notes Docs Email with actions: open https://calendar.google.com, open https://docs.codecks.local/notes, open https://docs.codecks.local, and open https://mail.google.com.
+Deck	Create a deck named Project Tools with actions: open https://linear.app/codecks, open https://github.com/example/codecks, open https://docs.codecks.local/roadmap, and copy text Project update.
+Deck	Create a deck named Security Review with actions: open https://docs.codecks.local/security, open https://github.com/example/codecks/security, copy text Security checklist, and template mac.screenshot.
+Deck	Create a deck named Analytics Review with actions: open https://dash.codecks.local/analytics, open https://dash.codecks.local/usage, copy text Metrics notes, and template mac.new_tab.
+Deck	Create a deck named App Testing with actions: open https://dash.codecks.local/test, copy text Test case draft, template mac.screenshot, and wait 2 seconds.
+Deck	Create a deck named Local Development with actions: template mac.open_terminal, template mac.open_finder, copy text ./gradlew check, and wait 5 seconds.
+Deck	Create a deck named Publish Release with actions: open https://github.com/example/codecks/releases/new, copy text publish checklist, open https://play.google.com/console, and template mac.screenshot.
+Deck	Create a deck named Morning Planning with actions: open https://calendar.google.com, open https://mail.google.com, copy text Top 3 priorities, and template mac.focus_ping_30.
+Automation	Create a manual automation named Open Docs that opens https://docs.codecks.local/start.
+Automation	Create a manual automation named Meeting Prep that opens https://calendar.google.com and copies this text: https://meet.google.com/abc-defg-hij.
+Automation	Create a manual automation named Release Prep that opens https://github.com/example/codecks/releases and copies this text: release checklist ready.
+Automation	Create a manual automation named Focus Mode using approved template mac.focus_ping_30.
+Automation	Create a manual automation named Open Calendar that opens https://calendar.google.com/calendar/u/0/r.
+Automation	Create a manual automation named Copy Checklist that copies this text: tests green; changelog done; release signed.
+Automation	Create a manual automation named QA Setup that opens https://dash.codecks.local/qa and waits 5 seconds.
+Automation	Create a manual automation named Support Triage that opens https://mail.google.com and opens https://github.com/example/codecks/issues.
+Automation	Create a manual automation named Browser Research that opens https://google.com/search?q=android+compose and uses approved template mac.new_tab.
+Automation	Create a manual automation named Incident Response that opens https://dash.codecks.local/incidents and copies this text: incident started.
+Automation	Create a manual automation named GitHub Wait that opens https://github.com/example/codecks and waits 5 seconds.
+Automation	Create a manual automation named Drive Notes that opens https://drive.google.com and copies this text: Meeting notes.
+Automation	Create a manual automation named Finder using approved template mac.open_finder.
+Automation	Create a manual automation named Terminal using approved template mac.open_terminal.
+Automation	Create a manual automation named Spotlight using approved template mac.open_spotlight.
+Automation	Create a manual automation named Screenshot using approved template mac.screenshot.
+Automation	Create a manual automation named Release Dashboard that opens https://dash.codecks.local/release.
+Automation	Create a manual automation named Standup Template that copies this text: Yesterday: . Today: . Blockers: .
+Automation	Create a manual automation named Review Pull Requests that opens https://github.com/example/codecks/pulls.
+Automation	Create a manual automation named API Docs that opens https://api.codecks.local/reference.
+Automation	Create a manual automation named Bug Bash that opens https://github.com/example/codecks/issues and copies this text: Bug bash notes.
+Automation	Create a manual automation named Customer Notes that opens https://docs.codecks.local/customers.
+Automation	Create a manual automation named Production Status that opens https://dash.codecks.local/prod.
+Automation	Create a manual automation named Changelog that copies this text: Added, Changed, Fixed.
+Automation	Create a manual automation named Demo Prep that opens https://docs.codecks.local/demo and uses approved template mac.full_screen.
+Automation	Create a manual automation named Design QA that opens https://design.codecks.local/system and uses approved template mac.screenshot.
+Automation	Create a manual automation named Local Build Prep that uses approved template mac.open_terminal and copies this text: ./gradlew check.
+Automation	Create a manual automation named Pairing that opens https://meet.google.com/abc-defg-hij and copies this text: Pairing notes.
+Automation	Create a manual automation named Documentation Review that opens https://docs.codecks.local/review.
+Automation	Create a manual automation named Roadmap Review that opens https://docs.codecks.local/roadmap.
+Automation	Create a manual automation named Safe Delay that waits 10 seconds.
+Automation	Create a manual automation named Copy Status that copies this text: Status: green.
+Automation	Create a manual automation named Copy Release Command that copies this text: ./gradlew assembleRelease.
+Automation	Create a manual automation named OpenAI Docs that opens https://platform.openai.com/docs.
+Automation	Create a manual automation named Staging Dashboard that opens https://dash.codecks.local/staging.
+Automation	Create a manual automation named Deploy Command Text that copies this text: ./scripts/deploy --dry-run.
+Automation	Create a manual automation named Wait Ten that waits 10 seconds.
+Automation	Create a manual automation named Quick Screenshot using approved template mac.screenshot.
+Automation	Create a manual automation named End Of Day Notes that copies this text: Done today: . Follow up tomorrow: .
+Automation	Create a manual automation named New Browser Tab using approved template mac.new_tab.

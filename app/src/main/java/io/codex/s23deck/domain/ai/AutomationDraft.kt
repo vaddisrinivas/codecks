@@ -11,6 +11,7 @@ data class AutomationDraft(
     val category: String,
     val dangerous: Boolean = false,
     val definition: ActionDefinition,
+    val metadata: DraftReviewMetadata = DraftReviewMetadata(),
 )
 
 class AutomationDraftValidator(

@@ -28,6 +28,7 @@ object RawCommandPolicy {
     )
 
     private val safeTemplatePatterns = listOf(
+        Regex("""(?is)^\s*pbcopy\s*$"""),
         Regex("""(?is)^\s*pbpaste\s*$"""),
         Regex("""(?is)^\s*pbpaste\s+2>/dev/null\s*\|\s*head\s+-c\s+[0-9]{1,5}\s*$"""),
         Regex("""(?is)^\s*printf(\s+%s)?\s+.+\|\s*pbcopy\s*$"""),

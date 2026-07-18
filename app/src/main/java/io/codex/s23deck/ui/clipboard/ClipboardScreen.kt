@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +46,7 @@ fun ClipboardScreen(
         modifier = modifier,
     ) {
         item { ClipboardStatusSummary(state, modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) }
+        item { ClipboardPreviewPanel(state) }
         item {
             ClipboardSettingsPanel(
                 state = state,
@@ -61,14 +63,14 @@ fun ClipboardScreen(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                     DeckActionButton(
-                        label = "Send to Mac",
+                        label = if (state.hasConflict) "Use phone copy" else "Send to Mac",
                         onClick = onPushToMac,
                         enabled = state.connectionReady && !state.isRunning,
                         icon = Icons.Outlined.Upload,
                         modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                     )
                     DeckActionButton(
-                        label = "Get from Mac",
+                        label = if (state.hasConflict) "Use Mac copy" else "Get from Mac",
                         onClick = onPullFromMac,
                         enabled = state.connectionReady && !state.isRunning,
                         icon = Icons.Outlined.Download,
@@ -82,6 +84,76 @@ fun ClipboardScreen(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                 )
             }
+        }
+        if (state.history.isNotEmpty()) {
+            item { ClipboardHistoryPanel(state) }
+        }
+    }
+}
+
+@Composable
+private fun ClipboardPreviewPanel(state: ClipboardUiState) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        state.lastSafetyWarning?.let { warning ->
+            Surface(
+                color = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(14.dp),
+                ) {
+                    Icon(Icons.Outlined.Security, contentDescription = null)
+                    Column {
+                        Text("Safety guard", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text(warning, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            ClipboardPreviewCard(
+                title = "Phone",
+                preview = state.phonePreview,
+                hash = state.phoneHash,
+                modifier = Modifier.weight(1f),
+            )
+            ClipboardPreviewCard(
+                title = "Mac",
+                preview = state.macPreview,
+                hash = state.macHash,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ClipboardPreviewCard(
+    title: String,
+    preview: String,
+    hash: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = MaterialTheme.shapes.medium,
+        modifier = modifier.heightIn(min = 112.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(14.dp)) {
+            Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Text(preview, style = MaterialTheme.typography.bodyMedium, maxLines = 3)
+            Text(
+                text = if (hash.isBlank()) "No hash yet" else "sha ${hash.take(8)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -198,6 +270,35 @@ private fun ClipboardStatusSummary(state: ClipboardUiState, modifier: Modifier =
                     },
                     style = MaterialTheme.typography.bodyMedium,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClipboardHistoryPanel(state: ClipboardUiState) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(14.dp)) {
+            Text("Recent sync observations", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            state.history.takeLast(5).asReversed().forEach { revision ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = revision.endpoint.name,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(0.35f),
+                    )
+                    Text(
+                        text = "rev ${revision.revision} · ${revision.hash.take(10)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
     }

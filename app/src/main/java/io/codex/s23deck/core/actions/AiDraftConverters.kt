@@ -8,7 +8,12 @@ import io.codex.s23deck.domain.ai.ActionStepTypes
 import io.codex.s23deck.domain.ai.AiArtifact
 import io.codex.s23deck.domain.ai.AiArtifactAction
 import io.codex.s23deck.domain.ai.AiArtifactKind
+import io.codex.s23deck.domain.ai.AiArtifactParameter
+import io.codex.s23deck.domain.ai.AiArtifactReview
+import io.codex.s23deck.domain.ai.AiArtifactRiskLevel
+import io.codex.s23deck.domain.ai.AiArtifactStepReview
 import io.codex.s23deck.domain.ai.GeneratedDraft
+import io.codex.s23deck.domain.ai.SafetyLevel
 import io.codex.s23deck.domain.automation.AutomationRecipe
 import io.codex.s23deck.domain.automation.AutomationSafety
 import io.codex.s23deck.domain.automation.AutomationTrigger
@@ -42,6 +47,7 @@ fun GeneratedDraft.toAiArtifact(promptOverride: String? = null): Result<AiArtifa
         description = description(),
         prompt = promptOverride ?: prompt(),
         actions = actions,
+        review = toAiArtifactReview(),
     )
 }
 
@@ -138,6 +144,93 @@ private fun GeneratedDraft.artifactKind(): AiArtifactKind =
         is GeneratedDraft.Action -> AiArtifactKind.Button
         is GeneratedDraft.Automation -> AiArtifactKind.Automation
         is GeneratedDraft.Deck -> AiArtifactKind.Deck
+    }
+
+private fun GeneratedDraft.toAiArtifactReview(): AiArtifactReview {
+    val definitions = actionDefinitions()
+    val requiresConfirmation = definitions.any { definition ->
+        definition.safety.requiresConfirmation ||
+            definition.safety.level == SafetyLevel.Dangerous ||
+            definition.steps.any { it.confirmedDangerous }
+    }
+    val capabilities = definitions
+        .flatMap { definition -> definition.requiredCapabilities + definition.steps.flatMap { it.requiredCapabilities } }
+        .map { it.name }
+        .distinct()
+        .sorted()
+    return AiArtifactReview(
+        assumptions = metadata().assumptions,
+        riskLevel = if (requiresConfirmation) AiArtifactRiskLevel.Dangerous else AiArtifactRiskLevel.Normal,
+        requiresConfirmation = requiresConfirmation,
+        target = definitions.map { it.target.reviewLabel() }.distinct().joinToString().ifBlank { "Any connected Mac" },
+        trigger = when (this) {
+            is GeneratedDraft.Automation -> "Manual trigger until explicitly enabled"
+            else -> null
+        },
+        requiredCapabilities = capabilities,
+        parameters = definitions
+            .flatMap { it.variables }
+            .distinctBy { it.name }
+            .map {
+                AiArtifactParameter(
+                    name = it.name,
+                    label = it.label,
+                    required = it.required,
+                    defaultValue = it.defaultValue,
+                )
+            },
+        steps = definitions.flatMapIndexed { actionIndex, definition ->
+            definition.steps.mapIndexed { stepIndex, step ->
+                AiArtifactStepReview(
+                    id = "${definition.id}_${step.id}".slug(),
+                    label = step.label.ifBlank { "${definition.title} step ${stepIndex + 1}" },
+                    type = step.type.reviewTypeLabel(),
+                    summary = step.reviewSummary(),
+                    requiresConfirmation = definition.safety.requiresConfirmation ||
+                        definition.safety.level == SafetyLevel.Dangerous ||
+                        step.confirmedDangerous,
+                )
+            }
+        },
+    )
+}
+
+private fun GeneratedDraft.metadata(): io.codex.s23deck.domain.ai.DraftReviewMetadata =
+    when (this) {
+        is GeneratedDraft.Action -> draft.metadata
+        is GeneratedDraft.Automation -> draft.metadata
+        is GeneratedDraft.Deck -> draft.metadata
+    }
+
+private fun io.codex.s23deck.domain.ai.TargetSelector.reviewLabel(): String =
+    when (this) {
+        io.codex.s23deck.domain.ai.TargetSelector.ActiveDevice -> "Active Mac"
+        io.codex.s23deck.domain.ai.TargetSelector.AnyConnected -> "Any connected Mac"
+        is io.codex.s23deck.domain.ai.TargetSelector.DeviceId -> "Device: ${id.ifBlank { "unspecified" }}"
+        is io.codex.s23deck.domain.ai.TargetSelector.GroupId -> "Group: ${id.ifBlank { "unspecified" }}"
+    }
+
+private fun String.reviewTypeLabel(): String =
+    when (this) {
+        ActionStepTypes.OpenUrl -> "Open URL"
+        ActionStepTypes.Delay -> "Delay"
+        ActionStepTypes.ClipboardText -> "Clipboard"
+        ActionStepTypes.Shell -> "Approved template"
+        ActionStepTypes.SshAction -> "SSH action"
+        ActionStepTypes.HidKey -> "HID key"
+        else -> this
+    }
+
+private fun io.codex.s23deck.domain.ai.ActionStep.reviewSummary(): String =
+    when (type) {
+        ActionStepTypes.OpenUrl -> url.orEmpty().ifBlank { "Open URL" }
+        ActionStepTypes.Delay -> "Wait ${(delayMs ?: 0L).coerceAtLeast(0L)} ms"
+        ActionStepTypes.ClipboardText -> "Copy ${value.orEmpty().take(80).ifBlank { "text" }} to clipboard"
+        ActionStepTypes.Shell,
+        ActionStepTypes.SshAction,
+        -> value.orEmpty().lineSequence().firstOrNull().orEmpty().ifBlank { "Approved command" }
+        ActionStepTypes.HidKey -> value.orEmpty().ifBlank { "Keyboard shortcut" }
+        else -> value ?: url ?: "Typed step"
     }
 
 private fun io.codex.s23deck.domain.ai.ActionStep.toCommandFragment(): String =

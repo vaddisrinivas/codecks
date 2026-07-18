@@ -1,18 +1,43 @@
 # Codecks
 
-Codecks turns an Android phone, tablet, or Samsung DeX window into a customizable Mac control surface.
+Turn an Android phone, tablet, or Samsung DeX window into a local-first command deck, trackpad, and automation surface for your Mac.
 
-![Codecks screens](docs/images/codecks-overview.png)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Android](https://img.shields.io/badge/Android-9%2B-3ddc84.svg)](app/build.gradle.kts)
+[![Kotlin](https://img.shields.io/badge/Kotlin-Compose-f18e33.svg)](app/build.gradle.kts)
+[![Local-first](https://img.shields.io/badge/local--first-no%20account-2fdf84.svg)](PRIVACY.md)
 
-## Core product
+![Codecks screenshot gallery](docs/images/screenshot-gallery.png)
 
-- **Deck:** full-screen command keys for Finder, Terminal, Spaces, media, screenshots, and custom actions.
-- **Trackpad:** Bluetooth HID pointer controls, gestures, scrolling, haptics, rotation, and optional Android screen pinning.
+## Demo
+
+![Codecks demo](docs/images/codecks-demo.gif)
+
+## Why It Exists
+
+Mac shortcuts are fast until you need the command you never remember. Codecks gives you a second-screen control surface: big command keys, a Bluetooth trackpad, and reviewable automations that stay local by default.
+
+## Highlights
+
+- **Command deck:** Finder, Terminal, Spaces, media, screenshots, browser tabs, and custom Mac commands.
+- **Trackpad:** Bluetooth HID pointer controls with gestures, scrolling, haptics, rotation, and optional screen pinning.
 - **Automations:** local When / If / Then recipes with safe templates, test-before-enable, and run history.
-- **Customization:** edit and reorder deck keys manually, or use an optional AI provider to draft buttons and automations.
-- **DeX:** adaptive phone, tablet, landscape, freeform, and desktop layouts.
+- **AI-assisted drafting:** optional provider calls can draft buttons and automations; generated actions stay disabled until reviewed.
+- **DeX-ready layouts:** phone, tablet, landscape, freeform, and desktop windows.
+- **No hosted account:** no Codecks backend, analytics SDK, advertising SDK, public database, or cloud sync.
 
-This first public release is **local-only**. Codecks has no account, hosted backend, public database, analytics SDK, or cloud sync. Optional AI requests go directly to the provider selected by the user. API keys are encrypted with Android Keystore and are never committed to this repository.
+## Safety Model
+
+Codecks can run commands on a Mac you configure, so the app is built around review and restraint:
+
+- built-in templates use an allowlist;
+- dangerous shell patterns are blocked;
+- generated automations are disabled until the user tests and enables them;
+- SSH host keys are pinned;
+- optional AI API keys are encrypted with Android Keystore;
+- diagnostic text is redacted before display.
+
+Use a non-admin Mac account and review every custom command before enabling it. See [Security](SECURITY.md) and [Privacy](PRIVACY.md).
 
 ## Install
 
@@ -24,12 +49,6 @@ Requirements:
 - macOS with Remote Login enabled for Deck and Automations.
 - A compatible paired Bluetooth host for HID Trackpad controls.
 
-## Safety model
-
-Codecks can run commands on a configured Mac. Built-in templates use an allowlist, dangerous shell patterns are blocked, generated automations stay disabled until reviewed and tested, and SSH host keys are pinned. Review every custom command before enabling it.
-
-Local data can be deleted from **Android Settings → Apps → Codecks → Storage → Clear storage**, or by uninstalling the app. See [Privacy](PRIVACY.md) and [Security](SECURITY.md).
-
 ## Build
 
 ```bash
@@ -38,15 +57,27 @@ cd codecks
 ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 ```
 
-Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
+Debug APK:
 
-Release signing instructions: [docs/release/RELEASING.md](docs/release/RELEASING.md).
+```text
+app/build/outputs/apk/debug/app-debug.apk
+```
 
-## Project status
+Release signing instructions live in [docs/release/RELEASING.md](docs/release/RELEASING.md).
 
-`v0.1.0` is a public beta and the first production-shaped local-only build. Core flows work; broader device coverage, TalkBack validation, and longer crash-free field testing remain GA gates. See the [production launch plan](docs/release/PRODUCTION_LAUNCH_PLAN.md).
+## Project Status
 
-## License and attribution
+`v0.1.3` is a public beta. Core deck, trackpad, and automation flows are implemented. Broader device coverage, TalkBack validation, and longer crash-free field testing remain GA gates. See the [production launch plan](docs/release/PRODUCTION_LAUNCH_PLAN.md).
+
+## FOSS Distribution
+
+Codecks is Apache-2.0, source-available, account-free, and prepared for FOSS directory review. Distribution notes and anti-feature disclosures are tracked in [docs/distribution/FOSS_READINESS.md](docs/distribution/FOSS_READINESS.md). Fastlane/IzzyOnDroid metadata lives in [fastlane/metadata/android/en-US](fastlane/metadata/android/en-US).
+
+## Contributing
+
+Bug reports, device compatibility notes, accessibility findings, and safe automation templates are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
 
 Codecks is available under the [Apache License 2.0](LICENSE). Third-party Android libraries retain their own licenses; in-app notices are generated from `app/src/main/assets/open_source_notices.txt`.
 
