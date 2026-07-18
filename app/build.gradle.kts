@@ -171,12 +171,12 @@ val validateReleaseSurface by tasks.registering {
 
 android {
     namespace = "io.codex.s23deck"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "app.codecks"
         minSdk = 28
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 4
         versionName = "0.1.3"
 
