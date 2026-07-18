@@ -109,6 +109,8 @@ fun SettingsScreen(
     onAutomations: () -> Unit,
     onDevices: () -> Unit,
     onDeck: () -> Unit,
+    onKeyboard: () -> Unit = {},
+    onClipboard: () -> Unit = {},
     onExportBackup: () -> Unit = {},
     onImportBackup: () -> Unit = {},
     onClipboardModeChange: (ClipboardSyncMode) -> Unit = {},
@@ -274,6 +276,26 @@ fun SettingsScreen(
                         summary = "Reorder, resize, replace, test, and style the live Deck",
                         onClick = onDeck,
                     )
+                }
+                if (featureFlags.isOn(FeatureFlag.Keyboard)) {
+                    item {
+                        SettingsRow(
+                            icon = Icons.Outlined.Keyboard,
+                            title = "Text to Mac",
+                            summary = "Type short text over Bluetooth or paste long/unicode text through the Mac clipboard",
+                            onClick = onKeyboard,
+                        )
+                    }
+                }
+                if (featureFlags.isOn(FeatureFlag.Clipboard)) {
+                    item {
+                        SettingsRow(
+                            icon = Icons.Outlined.ContentPaste,
+                            title = "Clipboard bridge",
+                            summary = "Manually send/pull clipboard text with optional visible auto sync",
+                            onClick = onClipboard,
+                        )
+                    }
                 }
                 if (featureFlags.isOn(FeatureFlag.ContextDeck) || featureFlags.isOn(FeatureFlag.Widget)) {
                     item { SectionLabel("Notification privacy") }

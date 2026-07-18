@@ -30,18 +30,16 @@ class AppNavigatorTest {
     fun defaultMainDestinations_focusOnCoreCodecksPillars() {
         val labels = mainDestinations(DEFAULT_FEATURE_FLAGS).map { it.label }
 
-        assertEquals(listOf("Deck", "Trackpad", "Automations", "Settings"), labels)
+        assertEquals(listOf("Deck", "Trackpad", "Text", "Clipboard", "Automations", "Settings"), labels)
         assertFalse(labels.contains("Context"))
         assertFalse(labels.contains("AI"))
-        assertFalse(labels.contains("Keyboard"))
-        assertFalse(labels.contains("Clipboard"))
     }
 
     @Test
     fun hiddenDestinationRequests_fallBackToSettingsUnlessFlagged() {
-        assertEquals(MouseRoute, destinationRequestToRoute("keyboard", DEFAULT_FEATURE_FLAGS))
+        assertEquals(KeyboardRoute, destinationRequestToRoute("keyboard", DEFAULT_FEATURE_FLAGS))
         assertEquals(BluetoothRoute, destinationRequestToRoute("bluetooth", DEFAULT_FEATURE_FLAGS))
-        assertEquals(SettingsRoute, destinationRequestToRoute("clipboard", DEFAULT_FEATURE_FLAGS))
+        assertEquals(ClipboardRoute, destinationRequestToRoute("clipboard", DEFAULT_FEATURE_FLAGS))
         assertEquals(AutomationsRoute, destinationRequestToRoute("automations", DEFAULT_FEATURE_FLAGS))
         assertEquals(AiBuilderRoute, destinationRequestToRoute("ai", DEFAULT_FEATURE_FLAGS))
         assertEquals(SettingsRoute, destinationRequestToRoute("context", DEFAULT_FEATURE_FLAGS))
@@ -52,6 +50,8 @@ class AppNavigatorTest {
             FeatureFlag.Ai to false,
             FeatureFlag.AiBuilder to false,
             FeatureFlag.ContextDeck to false,
+            FeatureFlag.Keyboard to false,
+            FeatureFlag.Clipboard to false,
         )
         assertEquals(SettingsRoute, destinationRequestToRoute("keyboard", disabled))
         assertEquals(SettingsRoute, destinationRequestToRoute("automations", disabled))
@@ -87,8 +87,10 @@ class AppNavigatorTest {
         assertEquals(SettingsRoute, guardRoute(PremiumRoute, DEFAULT_FEATURE_FLAGS))
         assertEquals(SettingsRoute, guardRoute(AdvancedRoute, DEFAULT_FEATURE_FLAGS))
         assertEquals(SettingsRoute, guardRoute(EditorRoute, DEFAULT_FEATURE_FLAGS + (FeatureFlag.DeckEditor to false)))
-        assertEquals(SettingsRoute, guardRoute(KeyboardRoute, DEFAULT_FEATURE_FLAGS + (FeatureFlag.Keyboard to true)))
-        assertEquals(SettingsRoute, guardRoute(ClipboardRoute, DEFAULT_FEATURE_FLAGS + (FeatureFlag.Clipboard to true)))
+        assertEquals(KeyboardRoute, guardRoute(KeyboardRoute, DEFAULT_FEATURE_FLAGS))
+        assertEquals(ClipboardRoute, guardRoute(ClipboardRoute, DEFAULT_FEATURE_FLAGS))
+        assertEquals(SettingsRoute, guardRoute(KeyboardRoute, DEFAULT_FEATURE_FLAGS + (FeatureFlag.Keyboard to false)))
+        assertEquals(SettingsRoute, guardRoute(ClipboardRoute, DEFAULT_FEATURE_FLAGS + (FeatureFlag.Clipboard to false)))
     }
 
     @Test
@@ -96,7 +98,6 @@ class AppNavigatorTest {
         listOf(
             FeatureFlag.ContextDeck,
             FeatureFlag.Widget,
-            FeatureFlag.Clipboard,
             FeatureFlag.Premium,
             FeatureFlag.Paywall,
             FeatureFlag.Advanced,
@@ -115,6 +116,8 @@ class AppNavigatorTest {
             FeatureFlag.Settings,
             FeatureFlag.Ai,
             FeatureFlag.AiBuilder,
+            FeatureFlag.Keyboard,
+            FeatureFlag.Clipboard,
         ).forEach { flag ->
             assertTrue("$flag should stay enabled for local-only v1", DEFAULT_FEATURE_FLAGS[flag] == true)
         }

@@ -5,10 +5,17 @@ import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 data class HidHost(
     val address: String,
@@ -32,6 +39,9 @@ data class HidState(
     val isConnected: Boolean = false,
     val hosts: List<HidHost> = emptyList(),
     val selectedHostAddress: String? = null,
+    val autoReconnectEnabled: Boolean = true,
+    val reconnectAttempt: Int = 0,
+    val nextReconnectAtMillis: Long = 0L,
 )
 
 enum class HidCommand {
@@ -99,6 +109,9 @@ interface HidRepository {
     fun send(command: HidCommand)
 }
 
+private const val RECONNECT_TICK_MS = 8_000L
+private val RECONNECT_BACKOFF_MS = longArrayOf(2_000L, 5_000L, 10_000L, 20_000L, 30_000L)
+
 @Singleton
 class DefaultHidRepository @Inject constructor(
     @ApplicationContext context: Context,
@@ -107,7 +120,9 @@ class DefaultHidRepository @Inject constructor(
     private val _state = MutableStateFlow(HidState())
     override val state: StateFlow<HidState> = _state.asStateFlow()
     private var devices: List<BluetoothDevice> = emptyList()
-    private var lastConnectAttemptAddress: String? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var reconnectJob: Job? = null
+    private var userDisconnected = false
     private val controller = HidController(context) { status ->
         refreshState(status)
     }
@@ -119,6 +134,7 @@ class DefaultHidRepository @Inject constructor(
     override fun start() {
         controller.openProfile()
         refreshHosts()
+        ensureReconnectLoop()
     }
 
     override fun refreshHosts() {
@@ -149,13 +165,18 @@ class DefaultHidRepository @Inject constructor(
     }
 
     override fun connect(address: String) {
+        userDisconnected = false
         saveSelectedHost(address)
-        lastConnectAttemptAddress = address
+        _state.update { it.copy(reconnectAttempt = 0, nextReconnectAtMillis = 0L, autoReconnectEnabled = true) }
         devices.firstOrNull { runCatching { it.address == address }.getOrDefault(false) }
             ?.let(controller::connect)
     }
 
-    override fun disconnect() = controller.disconnect()
+    override fun disconnect() {
+        userDisconnected = true
+        _state.update { it.copy(autoReconnectEnabled = false, reconnectAttempt = 0, nextReconnectAtMillis = 0L) }
+        controller.disconnect()
+    }
     override fun move(dx: Int, dy: Int) = controller.sendMouse(dx, dy, 0, 0)
     override fun scroll(vertical: Int, horizontal: Int) = controller.sendMouse(0, 0, vertical, horizontal)
     override fun click(buttonMask: Int) = controller.click(buttonMask)
@@ -236,12 +257,21 @@ class DefaultHidRepository @Inject constructor(
                 lifecycle = lifecycleFor(status),
                 isReady = controller.isReady,
                 isConnected = controller.isConnected,
+                autoReconnectEnabled = !userDisconnected,
             )
         }
         if (controller.isConnected) {
-            lastConnectAttemptAddress = null
+            _state.update { it.copy(reconnectAttempt = 0, nextReconnectAtMillis = 0L, autoReconnectEnabled = true) }
+        } else if (status.equals("Disconnected", ignoreCase = true) && !userDisconnected) {
+            scheduleNextReconnectAttempt()
+        } else if (status.equals("HID profile closed", ignoreCase = true) && !userDisconnected) {
+            scheduleNextReconnectAttempt()
+        } else if (status.equals("HID unregistered", ignoreCase = true) && !userDisconnected) {
+            scheduleNextReconnectAttempt()
+        } else if (status.equals("Connect request failed", ignoreCase = true) && !userDisconnected) {
+            scheduleNextReconnectAttempt()
         } else if (status.equals("Disconnected", ignoreCase = true)) {
-            lastConnectAttemptAddress = null
+            _state.update { it.copy(reconnectAttempt = 0, nextReconnectAtMillis = 0L) }
         }
         attemptAutoReconnect()
     }
@@ -258,16 +288,60 @@ class DefaultHidRepository @Inject constructor(
     }
 
     private fun attemptAutoReconnect() {
+        if (userDisconnected) return
         val current = _state.value
         val selectedAddress = current.selectedHostAddress ?: return
-        if (!controller.isReady || controller.isConnected || lastConnectAttemptAddress == selectedAddress) {
+        val now = System.currentTimeMillis()
+        if (!controller.isReady || controller.isConnected || now < current.nextReconnectAtMillis) {
             return
         }
         devices.firstOrNull { runCatching { it.address == selectedAddress }.getOrDefault(false) }
             ?.let { device ->
-                lastConnectAttemptAddress = selectedAddress
+                val attempt = current.reconnectAttempt + 1
+                val nextDelayMillis = reconnectBackoffMillis(attempt)
+                _state.update {
+                    it.copy(
+                        reconnectAttempt = attempt,
+                        nextReconnectAtMillis = now + nextDelayMillis,
+                        status = if (attempt == 1) {
+                            "Reconnecting ${HidController.deviceLabel(device)}"
+                        } else {
+                            "Reconnecting ${HidController.deviceLabel(device)} (try $attempt)"
+                        },
+                        autoReconnectEnabled = true,
+                    )
+                }
                 controller.connect(device)
             }
+    }
+
+    private fun ensureReconnectLoop() {
+        if (reconnectJob?.isActive == true) return
+        reconnectJob = scope.launch {
+            while (isActive) {
+                if (!userDisconnected) {
+                    controller.openProfile()
+                    refreshHosts()
+                    attemptAutoReconnect()
+                }
+                delay(RECONNECT_TICK_MS)
+            }
+        }
+    }
+
+    private fun scheduleNextReconnectAttempt() {
+        val now = System.currentTimeMillis()
+        _state.update { state ->
+            val attempt = state.reconnectAttempt.coerceAtLeast(1)
+            state.copy(
+                nextReconnectAtMillis = if (state.nextReconnectAtMillis <= now) {
+                    now + reconnectBackoffMillis(attempt)
+                } else {
+                    state.nextReconnectAtMillis
+                },
+                autoReconnectEnabled = true,
+            )
+        }
     }
 
     private fun saveSelectedHost(address: String) {
@@ -279,6 +353,9 @@ class DefaultHidRepository @Inject constructor(
         const val PREF_SELECTED_HOST = "selected_host_address"
     }
 }
+
+private fun reconnectBackoffMillis(attempt: Int): Long =
+    RECONNECT_BACKOFF_MS[(attempt - 1).coerceIn(0, RECONNECT_BACKOFF_MS.lastIndex)]
 
 internal fun prioritizeHosts(hosts: List<HidHost>, selectedAddress: String?): List<HidHost> {
     if (hosts.isEmpty()) return emptyList()

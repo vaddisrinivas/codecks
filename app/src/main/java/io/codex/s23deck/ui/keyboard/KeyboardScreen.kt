@@ -126,13 +126,20 @@ fun KeyboardScreen(
     text: String,
     contentPadding: PaddingValues,
     permissionGranted: Boolean,
+    deliveryMode: KeyboardDeliveryMode = KeyboardDeliveryMode.Auto,
+    isSending: Boolean = false,
+    sendStatus: String = "Ready",
+    recentSends: List<String> = emptyList(),
+    snippets: List<String> = emptyList(),
     onRequestPermission: () -> Unit,
     onStart: () -> Unit,
     onRefreshHosts: () -> Unit,
     onConnect: (String) -> Unit,
     onTextChange: (String) -> Unit,
+    onDeliveryModeChange: (KeyboardDeliveryMode) -> Unit = {},
     onTypeText: () -> Unit,
     onClearText: () -> Unit,
+    onUseSnippet: (String) -> Unit = {},
     onCommand: (HidCommand) -> Unit,
     customActions: List<DeckAction> = emptyList(),
     onCustomAction: (DeckAction) -> Unit = {},
@@ -169,7 +176,20 @@ fun KeyboardScreen(
                         onRefreshHosts = onRefreshHosts,
                         onConnect = onConnect,
                     )
-                    Composer(text, state.isConnected, onTextChange, onTypeText, onClearText)
+                    Composer(
+                        text = text,
+                        connected = state.isConnected,
+                        isSending = isSending,
+                        deliveryMode = deliveryMode,
+                        status = sendStatus,
+                        recentSends = recentSends,
+                        snippets = snippets,
+                        onTextChange = onTextChange,
+                        onDeliveryModeChange = onDeliveryModeChange,
+                        onTypeText = onTypeText,
+                        onClearText = onClearText,
+                        onUseSnippet = onUseSnippet,
+                    )
                     CustomActionRow(
                         actions = customActions.take(4),
                         onAction = onCustomAction,
@@ -201,7 +221,20 @@ fun KeyboardScreen(
                     onRefreshHosts = onRefreshHosts,
                     onConnect = onConnect,
                 )
-                Composer(text, state.isConnected, onTextChange, onTypeText, onClearText)
+                Composer(
+                    text = text,
+                    connected = state.isConnected,
+                    isSending = isSending,
+                    deliveryMode = deliveryMode,
+                    status = sendStatus,
+                    recentSends = recentSends,
+                    snippets = snippets,
+                    onTextChange = onTextChange,
+                    onDeliveryModeChange = onDeliveryModeChange,
+                    onTypeText = onTypeText,
+                    onClearText = onClearText,
+                    onUseSnippet = onUseSnippet,
+                )
                 CustomActionRow(
                     actions = customActions.take(8),
                     onAction = onCustomAction,
@@ -324,10 +357,17 @@ private fun KeyboardCommandContent(
 @Composable
 private fun Composer(
     text: String,
-    enabled: Boolean,
+    connected: Boolean,
+    isSending: Boolean,
+    deliveryMode: KeyboardDeliveryMode,
+    status: String,
+    recentSends: List<String>,
+    snippets: List<String>,
     onTextChange: (String) -> Unit,
+    onDeliveryModeChange: (KeyboardDeliveryMode) -> Unit,
     onTypeText: () -> Unit,
     onClearText: () -> Unit,
+    onUseSnippet: (String) -> Unit,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -345,11 +385,40 @@ private fun Composer(
                 maxLines = 6,
                 modifier = Modifier.fillMaxWidth(),
             )
+            Text(
+                text = "Status: $status",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text("Delivery", style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                KeyboardDeliveryMode.entries.forEach { mode ->
+                    DeckFilterPill(
+                        label = mode.label,
+                        selected = deliveryMode == mode,
+                        onClick = { onDeliveryModeChange(mode) },
+                        modifier = Modifier.weight(1f).heightIn(min = 44.dp),
+                    )
+                }
+            }
+            Text(
+                text = when (deliveryMode) {
+                    KeyboardDeliveryMode.Auto -> "Auto uses Bluetooth for short ASCII and Mac pasteboard for long, multiline, or unicode text."
+                    KeyboardDeliveryMode.BluetoothTyping -> if (connected) "Types keystrokes over Bluetooth HID." else "Connect Bluetooth first."
+                    KeyboardDeliveryMode.MacClipboardPaste -> "Writes Mac clipboard over SSH, then pastes into the front app."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (snippets.isNotEmpty() || recentSends.isNotEmpty()) {
+                Text("Snippets", style = MaterialTheme.typography.labelLarge)
+                SnippetRow((snippets + recentSends).distinct().take(8), onUseSnippet)
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 DeckActionButton(
-                    label = "Type",
+                    label = if (deliveryMode == KeyboardDeliveryMode.MacClipboardPaste) "Paste to Mac" else "Send",
                     onClick = onTypeText,
-                    enabled = enabled && text.isNotBlank(),
+                    enabled = !isSending && text.isNotBlank(),
                     icon = Icons.AutoMirrored.Outlined.Send,
                     modifier = Modifier.weight(1f).height(56.dp),
                 )
@@ -360,6 +429,26 @@ private fun Composer(
                     modifier = Modifier.weight(1f).height(56.dp),
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun SnippetRow(
+    snippets: List<String>,
+    onUseSnippet: (String) -> Unit,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+    ) {
+        snippets.forEach { snippet ->
+            DeckFilterPill(
+                label = snippet.take(24),
+                selected = false,
+                onClick = { onUseSnippet(snippet) },
+                modifier = Modifier.heightIn(min = 44.dp),
+            )
         }
     }
 }

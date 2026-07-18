@@ -10,6 +10,7 @@ enum class HidHealthKind {
     Starting,
     ReadyNoTarget,
     ReadyToConnect,
+    Reconnecting,
     Connecting,
     Connected,
     Failed,
@@ -33,6 +34,7 @@ fun HidHealth.statusLabel(): String =
         HidHealthKind.Starting -> "Starting"
         HidHealthKind.ReadyNoTarget -> "Choose"
         HidHealthKind.ReadyToConnect -> "Configured"
+        HidHealthKind.Reconnecting -> "Retrying"
         HidHealthKind.Connecting -> "Connecting"
         HidHealthKind.Connected -> "Connected"
         HidHealthKind.Failed -> "Failed"
@@ -70,6 +72,12 @@ fun HidState.hidHealth(permissionGranted: Boolean): HidHealth {
             kind = HidHealthKind.Connecting,
             title = target?.let { "Connecting to $it" } ?: "Connecting Bluetooth target",
             detail = status,
+        )
+        normalized.startsWith("reconnecting ") || reconnectAttempt > 0 -> HidHealth(
+            kind = HidHealthKind.Reconnecting,
+            title = target?.let { "Reconnecting to $it" } ?: "Reconnecting Bluetooth target",
+            detail = nextReconnectDetail(),
+            actionHint = "Keep Codecks open once; the foreground session keeps retrying.",
         )
         lifecycle == HidLifecycle.Opening ||
             "opening" in normalized ||
@@ -110,3 +118,13 @@ private fun HidState.selectedHidHostLabel(): String? =
         hosts.firstOrNull { it.address == selected }?.label
     }?.substringBefore(" (")
         ?.ifBlank { null }
+
+private fun HidState.nextReconnectDetail(): String {
+    val now = System.currentTimeMillis()
+    val retryInSeconds = ((nextReconnectAtMillis - now).coerceAtLeast(0L) / 1_000L).toInt()
+    return if (retryInSeconds > 0) {
+        "Auto reconnect attempt $reconnectAttempt. Next retry in ${retryInSeconds}s."
+    } else {
+        "Auto reconnect attempt $reconnectAttempt is ready."
+    }
+}

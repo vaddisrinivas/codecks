@@ -134,7 +134,6 @@ val validateReleaseSurface by tasks.registering {
             listOf(
                 "FeatureFlag.ContextDeck to false",
                 "FeatureFlag.Widget to false",
-                "FeatureFlag.Clipboard to false",
                 "FeatureFlag.Activity to false",
                 "FeatureFlag.Devices to false",
                 "FeatureFlag.Premium to false",
@@ -178,8 +177,8 @@ android {
         applicationId = "app.codecks"
         minSdk = 28
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.1.2"
+        versionCode = 4
+        versionName = "0.1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["optionalContextSurfacesEnabled"] = optionalContextSurfacesEnabled.get()

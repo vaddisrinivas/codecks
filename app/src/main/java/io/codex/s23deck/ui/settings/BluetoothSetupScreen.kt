@@ -99,6 +99,17 @@ fun BluetoothSetupScreen(
                         color = MaterialTheme.colorScheme.primary,
                     )
                     DeckActionButton(
+                        label = "Reconnect saved Mac",
+                        onClick = {
+                            onStart()
+                            onRefreshHosts()
+                            state.selectedHostAddress?.let(onConnect)
+                        },
+                        icon = Icons.Outlined.Bluetooth,
+                        enabled = permissionGranted && state.selectedHostAddress != null,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                    )
+                    DeckActionButton(
                         label = "Open Trackpad",
                         onClick = onOpenTrackpad,
                         icon = Icons.Outlined.Bluetooth,
