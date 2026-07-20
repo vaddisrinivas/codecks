@@ -1485,6 +1485,7 @@ private fun shareDebugBundle(
             appendLine("ready=${hidState.isReady}")
             appendLine("connected=${hidState.isConnected}")
             appendLine("knownHosts=${hidState.hosts.size}")
+            appendLine("diagnostic=${hidState.redactedDiagnosticSummary()}")
             appendLine()
             appendLine("[trackpad]")
             appendLine("pointerSpeedBucket=${trackpadSettings.pointerSpeed.bucketedSpeed()}")
@@ -1728,6 +1729,7 @@ private fun MouseDestination(
             airTouchY = target.y
             if (state.isConnected) viewModel.move(correctionX, correctionY)
         },
+        onTapCorrection = viewModel::markLatestTapWrong,
         onOpenBluetoothSettings = onOpenBluetoothSettings,
         onOpenNotificationSettings = onOpenNotificationSettings,
         sessionPinned = sessionPinned,

@@ -6,9 +6,9 @@ Updated: July 17, 2026
 | --- | --- |
 | Product | Codecks |
 | Application ID | `app.codecks` |
-| Version | `0.1.3` (`versionCode` 4) |
+| Version | `0.1.4` (`versionCode` 5) |
 | Minimum Android | 9 / API 28 |
-| Target Android | API 36 |
+| Target Android | API 37 |
 | Default mode | Local-only; no account, billing, hosted backend, database, analytics, or cloud sync |
 | Core surfaces | Deck, Trackpad, Keyboard/Text, Clipboard bridge, Automations, Settings, Deck editor |
 | Optional core tool | AI-assisted drafting through a user-selected provider |

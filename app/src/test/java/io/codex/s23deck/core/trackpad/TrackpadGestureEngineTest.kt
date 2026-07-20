@@ -63,6 +63,33 @@ class TrackpadGestureEngineTest {
         assertEquals(TrackpadGestureEvent.None, engine.gestureFor(1, Offset.Zero, true))
     }
 
+    @Test
+    fun adaptiveTapThreshold_canTightenAccidentalClickGuard() {
+        assertEquals(TrackpadGestureEvent.LeftClick, engine.gestureFor(1, Offset(8f, 0f), false))
+        assertEquals(
+            TrackpadGestureEvent.None,
+            engine.gestureFor(
+                maxPointers = 1,
+                totalPan = Offset(8f, 0f),
+                dragLockEnabled = false,
+                tapMovementThresholdPx = 6f,
+            ),
+        )
+    }
+
+    @Test
+    fun gestureDecisionSummariesAreContentFree() {
+        val decision = engine.classifyGesture(
+            maxPointers = 1,
+            totalPan = Offset(2f, 1f),
+            durationMillis = 130L,
+            dragLockEnabled = false,
+        )
+
+        assertEquals(TrackpadGestureEvent.LeftClick, decision.event)
+        assertEquals("pointers=1 movement=still duration=tap classified=left_click", decision.sample.diagnosticSummary())
+    }
+
     private fun assertCommand(expected: HidCommand, actual: TrackpadGestureEvent) {
         assertEquals(TrackpadGestureEvent.Command(expected), actual)
     }

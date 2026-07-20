@@ -12,12 +12,42 @@ class TrackpadGestureEngine {
         else -> TrackpadMotionMode.ReservedGesture
     }
 
+    fun classifyGesture(
+        maxPointers: Int,
+        totalPan: Offset,
+        durationMillis: Long,
+        dragLockEnabled: Boolean,
+        tapMovementThresholdPx: Float = DEFAULT_TAP_MOVEMENT_THRESHOLD_PX,
+    ): TrackpadGestureDecision {
+        val event = gestureFor(
+            maxPointers = maxPointers,
+            totalPan = totalPan,
+            dragLockEnabled = dragLockEnabled,
+            tapMovementThresholdPx = tapMovementThresholdPx,
+        )
+        return TrackpadGestureDecision(
+            event = event,
+            sample = TrackpadGestureSample(
+                maxPointers = maxPointers,
+                panDistancePx = totalPan.getDistance(),
+                durationMillis = durationMillis.coerceAtLeast(0L),
+                classification = event.safeLabel(),
+            ),
+        )
+    }
+
     fun gestureFor(
         maxPointers: Int,
         totalPan: Offset,
         dragLockEnabled: Boolean,
+        tapMovementThresholdPx: Float = DEFAULT_TAP_MOVEMENT_THRESHOLD_PX,
     ): TrackpadGestureEvent {
         val pan = totalPan.dominantPan()
+        val tapThreshold = tapMovementThresholdPx.coerceIn(
+            MIN_TAP_MOVEMENT_THRESHOLD_PX,
+            MAX_TAP_MOVEMENT_THRESHOLD_PX,
+        )
+        val tapDistanceSquared = tapThreshold * tapThreshold
         return when {
             maxPointers == 2 && totalPan.isBrowserSwipe() && totalPan.x < 0f -> TrackpadGestureEvent.Command(HidCommand.BrowserBack)
             maxPointers == 2 && totalPan.isBrowserSwipe() -> TrackpadGestureEvent.Command(HidCommand.BrowserForward)
@@ -37,13 +67,34 @@ class TrackpadGestureEngine {
             maxPointers == 3 && totalPan.getDistanceSquared() < 256f -> TrackpadGestureEvent.Command(HidCommand.ShowDesktop)
             maxPointers > 2 && totalPan.getDistanceSquared() < 196f -> TrackpadGestureEvent.None
             maxPointers == 2 && totalPan.getDistanceSquared() < 196f -> TrackpadGestureEvent.RightClick
-            totalPan.getDistanceSquared() < 100f && !dragLockEnabled -> TrackpadGestureEvent.LeftClick
+            totalPan.getDistanceSquared() < tapDistanceSquared && !dragLockEnabled -> TrackpadGestureEvent.LeftClick
             else -> TrackpadGestureEvent.None
         }
     }
 
     fun shouldReserveTwoFingerBrowserSwipe(totalPan: Offset): Boolean =
         totalPan.isBrowserSwipe(candidateDistancePx = 18f)
+
+    companion object {
+        const val DEFAULT_TAP_MOVEMENT_THRESHOLD_PX = 10f
+        const val MIN_TAP_MOVEMENT_THRESHOLD_PX = 6f
+        const val MAX_TAP_MOVEMENT_THRESHOLD_PX = 18f
+    }
+}
+
+data class TrackpadGestureDecision(
+    val event: TrackpadGestureEvent,
+    val sample: TrackpadGestureSample,
+)
+
+data class TrackpadGestureSample(
+    val maxPointers: Int,
+    val panDistancePx: Float,
+    val durationMillis: Long,
+    val classification: String,
+) {
+    fun diagnosticSummary(): String =
+        "pointers=$maxPointers movement=${panDistancePx.movementBucket()} duration=${durationMillis.durationBucket()} classified=$classification"
 }
 
 sealed interface TrackpadGestureEvent {
@@ -57,6 +108,13 @@ enum class TrackpadMotionMode {
     Pointer,
     Scroll,
     ReservedGesture,
+}
+
+private fun TrackpadGestureEvent.safeLabel(): String = when (this) {
+    TrackpadGestureEvent.None -> "none"
+    TrackpadGestureEvent.LeftClick -> "left_click"
+    TrackpadGestureEvent.RightClick -> "right_click"
+    is TrackpadGestureEvent.Command -> "command:${command.name}"
 }
 
 private enum class DominantPan {
@@ -83,4 +141,19 @@ private fun Offset.isBrowserSwipe(candidateDistancePx: Float = 56f): Boolean {
     val absY = abs(y)
     if (absX < candidateDistancePx) return false
     return absX >= max(candidateDistancePx, absY * 1.75f)
+}
+
+private fun Float.movementBucket(): String = when {
+    this < 4f -> "still"
+    this < 10f -> "small"
+    this < 24f -> "medium"
+    this < 56f -> "large"
+    else -> "swipe"
+}
+
+private fun Long.durationBucket(): String = when {
+    this < 90L -> "tap-fast"
+    this < 220L -> "tap"
+    this < 520L -> "press"
+    else -> "hold"
 }

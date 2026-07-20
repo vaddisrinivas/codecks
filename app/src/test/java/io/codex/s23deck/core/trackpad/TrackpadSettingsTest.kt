@@ -14,6 +14,8 @@ class TrackpadSettingsTest {
         assertTrue(settings.quietModeEnabled)
         assertEquals(120_000, settings.idleBlankTimeoutMillis)
         assertEquals(620, settings.doubleTapTimeoutMillis)
+        assertEquals(10f, settings.tapMovementThresholdPx, 0.0001f)
+        assertEquals(0, settings.tapCorrectionCount)
         assertEquals(0.48f, settings.backgroundOpacity, 0.0001f)
     }
 }

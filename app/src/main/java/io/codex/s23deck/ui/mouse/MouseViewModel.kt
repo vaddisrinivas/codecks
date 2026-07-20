@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.codex.s23deck.core.trackpad.PointerDeltaAccumulator
+import io.codex.s23deck.core.trackpad.TrackpadGestureEngine
 import io.codex.s23deck.core.trackpad.TrackpadSettings
 import io.codex.s23deck.core.trackpad.TrackpadSettingsRepository
 import io.codex.s23deck.HidCommand
@@ -42,6 +43,21 @@ class MouseViewModel @Inject constructor(
     fun updateSettings(transform: (TrackpadSettings) -> TrackpadSettings) {
         viewModelScope.launch {
             trackpadSettingsRepository.update(transform)
+        }
+    }
+
+    fun markLatestTapWrong() {
+        viewModelScope.launch {
+            trackpadSettingsRepository.update {
+                it.copy(
+                    tapCorrectionCount = (it.tapCorrectionCount + 1).coerceAtMost(999),
+                    tapMovementThresholdPx = (it.tapMovementThresholdPx - 1f).coerceIn(
+                        TrackpadGestureEngine.MIN_TAP_MOVEMENT_THRESHOLD_PX,
+                        TrackpadGestureEngine.MAX_TAP_MOVEMENT_THRESHOLD_PX,
+                    ),
+                    doubleTapTimeoutMillis = (it.doubleTapTimeoutMillis + 20).coerceAtMost(760),
+                )
+            }
         }
     }
 }

@@ -32,6 +32,8 @@ data class TrackpadSettings(
     val clockStyle: TrackpadClockStyle = TrackpadClockStyle.Stacked,
     val floatingMenuLayout: TrackpadFloatingMenuLayout = TrackpadFloatingMenuLayout.Horizontal,
     val doubleTapTimeoutMillis: Int = 620,
+    val tapMovementThresholdPx: Float = TrackpadGestureEngine.DEFAULT_TAP_MOVEMENT_THRESHOLD_PX,
+    val tapCorrectionCount: Int = 0,
     val sPenPrecisionEnabled: Boolean = true,
     val dragLockEnabled: Boolean = false,
     val labsEnabled: Boolean = false,
@@ -86,6 +88,11 @@ class TrackpadSettingsRepository @Inject constructor(
             clockStyle = preferences[CLOCK_STYLE]?.let(::enumValueOrNull) ?: TrackpadClockStyle.Stacked,
             floatingMenuLayout = preferences[FLOATING_MENU_LAYOUT]?.let(::enumValueOrNull) ?: TrackpadFloatingMenuLayout.Horizontal,
             doubleTapTimeoutMillis = preferences[DOUBLE_TAP_TIMEOUT_MS]?.takeUnless { it <= 420 }?.coerceIn(350, 900) ?: 620,
+            tapMovementThresholdPx = preferences[TAP_MOVEMENT_THRESHOLD_PX]?.coerceIn(
+                TrackpadGestureEngine.MIN_TAP_MOVEMENT_THRESHOLD_PX,
+                TrackpadGestureEngine.MAX_TAP_MOVEMENT_THRESHOLD_PX,
+            ) ?: TrackpadGestureEngine.DEFAULT_TAP_MOVEMENT_THRESHOLD_PX,
+            tapCorrectionCount = preferences[TAP_CORRECTION_COUNT]?.coerceIn(0, 999) ?: 0,
             sPenPrecisionEnabled = preferences[SPEN_PRECISION_ENABLED] ?: true,
             dragLockEnabled = preferences[DRAG_LOCK_ENABLED] ?: false,
             labsEnabled = preferences[LABS_ENABLED] ?: false,
@@ -115,6 +122,11 @@ class TrackpadSettingsRepository @Inject constructor(
                 clockStyle = preferences[CLOCK_STYLE]?.let(::enumValueOrNull) ?: TrackpadClockStyle.Stacked,
                 floatingMenuLayout = preferences[FLOATING_MENU_LAYOUT]?.let(::enumValueOrNull) ?: TrackpadFloatingMenuLayout.Horizontal,
                 doubleTapTimeoutMillis = preferences[DOUBLE_TAP_TIMEOUT_MS]?.takeUnless { it <= 420 }?.coerceIn(350, 900) ?: 620,
+                tapMovementThresholdPx = preferences[TAP_MOVEMENT_THRESHOLD_PX]?.coerceIn(
+                    TrackpadGestureEngine.MIN_TAP_MOVEMENT_THRESHOLD_PX,
+                    TrackpadGestureEngine.MAX_TAP_MOVEMENT_THRESHOLD_PX,
+                ) ?: TrackpadGestureEngine.DEFAULT_TAP_MOVEMENT_THRESHOLD_PX,
+                tapCorrectionCount = preferences[TAP_CORRECTION_COUNT]?.coerceIn(0, 999) ?: 0,
                 sPenPrecisionEnabled = preferences[SPEN_PRECISION_ENABLED] ?: true,
                 dragLockEnabled = preferences[DRAG_LOCK_ENABLED] ?: false,
                 labsEnabled = preferences[LABS_ENABLED] ?: false,
@@ -140,6 +152,11 @@ class TrackpadSettingsRepository @Inject constructor(
             preferences[CLOCK_STYLE] = next.clockStyle.name
             preferences[FLOATING_MENU_LAYOUT] = next.floatingMenuLayout.name
             preferences[DOUBLE_TAP_TIMEOUT_MS] = next.doubleTapTimeoutMillis.coerceIn(350, 900)
+            preferences[TAP_MOVEMENT_THRESHOLD_PX] = next.tapMovementThresholdPx.coerceIn(
+                TrackpadGestureEngine.MIN_TAP_MOVEMENT_THRESHOLD_PX,
+                TrackpadGestureEngine.MAX_TAP_MOVEMENT_THRESHOLD_PX,
+            )
+            preferences[TAP_CORRECTION_COUNT] = next.tapCorrectionCount.coerceIn(0, 999)
             preferences[SPEN_PRECISION_ENABLED] = next.sPenPrecisionEnabled
             preferences[DRAG_LOCK_ENABLED] = next.dragLockEnabled
             preferences[LABS_ENABLED] = next.labsEnabled
@@ -171,6 +188,8 @@ class TrackpadSettingsRepository @Inject constructor(
         val CLOCK_STYLE = stringPreferencesKey("clock_style")
         val FLOATING_MENU_LAYOUT = stringPreferencesKey("floating_menu_layout")
         val DOUBLE_TAP_TIMEOUT_MS = intPreferencesKey("double_tap_timeout_ms")
+        val TAP_MOVEMENT_THRESHOLD_PX = floatPreferencesKey("tap_movement_threshold_px")
+        val TAP_CORRECTION_COUNT = intPreferencesKey("tap_correction_count")
         val SPEN_PRECISION_ENABLED = booleanPreferencesKey("spen_precision_enabled")
         val DRAG_LOCK_ENABLED = booleanPreferencesKey("drag_lock_enabled")
         val LABS_ENABLED = booleanPreferencesKey("labs_enabled")

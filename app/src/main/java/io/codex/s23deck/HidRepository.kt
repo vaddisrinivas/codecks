@@ -42,6 +42,8 @@ data class HidState(
     val autoReconnectEnabled: Boolean = true,
     val reconnectAttempt: Int = 0,
     val nextReconnectAtMillis: Long = 0L,
+    val lastTransitionReason: String = "Bluetooth idle",
+    val lastTransitionAtMillis: Long = 0L,
 )
 
 enum class HidCommand {
@@ -255,13 +257,18 @@ class DefaultHidRepository @Inject constructor(
     private fun consumer(usage: Int) = controller.consumerTap(usage)
 
     private fun refreshState(status: String) {
+        val nextLifecycle = lifecycleFor(status)
+        val now = System.currentTimeMillis()
         _state.update {
+            val changed = status != it.status || nextLifecycle != it.lifecycle || controller.isConnected != it.isConnected
             it.copy(
                 status = status,
-                lifecycle = lifecycleFor(status),
+                lifecycle = nextLifecycle,
                 isReady = controller.isReady,
                 isConnected = controller.isConnected,
                 autoReconnectEnabled = !userDisconnected,
+                lastTransitionReason = if (changed) status else it.lastTransitionReason,
+                lastTransitionAtMillis = if (changed) now else it.lastTransitionAtMillis,
             )
         }
         if (controller.isConnected) {
@@ -361,6 +368,24 @@ class DefaultHidRepository @Inject constructor(
 private fun reconnectBackoffMillis(attempt: Int): Long =
     RECONNECT_BACKOFF_MS[(attempt - 1).coerceIn(0, RECONNECT_BACKOFF_MS.lastIndex)]
 
+fun HidState.redactedDiagnosticSummary(nowMillis: Long = System.currentTimeMillis()): String {
+    val retryInSeconds = ((nextReconnectAtMillis - nowMillis).coerceAtLeast(0L) / 1_000L).toInt()
+    val ageSeconds = lastTransitionAtMillis
+        .takeIf { it > 0L }
+        ?.let { ((nowMillis - it).coerceAtLeast(0L) / 1_000L).toInt() }
+    return buildString {
+        append("lifecycle=$lifecycle")
+        append(" ready=$isReady")
+        append(" connected=$isConnected")
+        append(" hosts=${hosts.size}")
+        append(" selected=${selectedHostAddress != null}")
+        append(" reconnectAttempt=$reconnectAttempt")
+        append(" retryIn=${retryInSeconds}s")
+        append(" lastReason=${lastTransitionReason.safeHidReason()}")
+        if (ageSeconds != null) append(" lastAge=${ageSeconds}s")
+    }
+}
+
 internal fun prioritizeHosts(hosts: List<HidHost>, selectedAddress: String?): List<HidHost> {
     if (hosts.isEmpty()) return emptyList()
 
@@ -385,6 +410,13 @@ private fun hostPriority(host: HidHost, selectedAddress: String?): Int {
     if (UNRELATED_HINTS.any(label::contains)) score -= 80
     return score
 }
+
+private fun String.safeHidReason(): String =
+    replace(Regex("""([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}"""), "[bluetooth-address]")
+        .replace(Regex("""\s+"""), " ")
+        .trim()
+        .take(96)
+        .ifBlank { "none" }
 
 private val COMPUTER_HINTS = listOf(
     "macbook",

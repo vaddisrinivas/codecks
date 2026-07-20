@@ -67,7 +67,7 @@ Release signing instructions live in [docs/release/RELEASING.md](docs/release/RE
 
 ## Project Status
 
-`v0.1.3` is a public beta. Core deck, trackpad, and automation flows are implemented. Broader device coverage, TalkBack validation, and longer crash-free field testing remain GA gates. See the [production launch plan](docs/release/PRODUCTION_LAUNCH_PLAN.md).
+`v0.1.4` is a public beta. Core deck, trackpad, and automation flows are implemented. This release improves Trackpad tap correction and redacted HID diagnostics. Broader device coverage, TalkBack validation, and longer crash-free field testing remain GA gates. See the [production launch plan](docs/release/PRODUCTION_LAUNCH_PLAN.md).
 
 ## FOSS Distribution
 

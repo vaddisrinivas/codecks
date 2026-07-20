@@ -114,6 +114,7 @@ import io.codex.s23deck.core.trackpad.TrackpadRotation
 import io.codex.s23deck.core.trackpad.TrackpadSettings
 import io.codex.s23deck.core.trackpad.TrackpadGestureEngine
 import io.codex.s23deck.core.trackpad.TrackpadGestureEvent
+import io.codex.s23deck.core.trackpad.TrackpadGestureSample
 import io.codex.s23deck.core.trackpad.TrackpadMotionMode
 import io.codex.s23deck.core.trackpad.isTrackpadScrollZone
 import io.codex.s23deck.core.trackpad.trackpadPointerGain
@@ -159,6 +160,7 @@ fun MouseScreen(
     onAirTouchDelta: (Float, Float) -> Unit = { _, _ -> },
     onAirTouchRecenter: () -> Unit = {},
     onAirTouchSampleConfirmed: (target: Offset, observed: Offset) -> Unit = { _, _ -> },
+    onTapCorrection: () -> Unit = {},
     onOpenBluetoothSettings: () -> Unit = {},
     onOpenNotificationSettings: () -> Unit = {},
     onExitTrackpad: () -> Unit = {},
@@ -183,6 +185,7 @@ fun MouseScreen(
     val clockStyle = settings.clockStyle
     val floatingMenuLayout = settings.floatingMenuLayout
     val doubleTapTimeoutMillis = settings.doubleTapTimeoutMillis
+    val tapMovementThresholdPx = settings.tapMovementThresholdPx
     val sPenPrecisionEnabled = settings.sPenPrecisionEnabled
     val backTapEnabled = settings.backTapEnabled && backTapAvailable
     val volumeKeysEnabled = settings.volumeKeysEnabled && volumeKeysAvailable
@@ -303,6 +306,7 @@ fun MouseScreen(
                     rotation = rotation,
                     hapticsEnabled = hapticsEnabled,
                     doubleTapTimeoutMillis = doubleTapTimeoutMillis,
+                    tapMovementThresholdPx = tapMovementThresholdPx,
                     backgroundOpacity = backgroundOpacity,
                     clockStyle = clockStyle,
                     phoneNotifications = phoneNotifications,
@@ -329,6 +333,7 @@ fun MouseScreen(
                     sensitivity = sensitivity,
                     acceleration = acceleration,
                     enabled = state.isConnected,
+                    onTapCorrection = onTapCorrection,
                     modifier = Modifier.fillMaxSize(),
                 )
                 MouseInputMode.AirTouch -> AirTouchSurface(
@@ -392,6 +397,7 @@ fun MouseScreen(
                             idleBlankTimeoutMillis = idleBlankTimeoutMillis,
                             hapticsEnabled = hapticsEnabled,
                             doubleTapTimeoutMillis = doubleTapTimeoutMillis,
+                            tapMovementThresholdPx = tapMovementThresholdPx,
                             phoneNotificationAccessReady = phoneNotificationAccessReady,
                             phoneNotificationLaneEnabled = phoneNotificationLaneEnabled,
                             onPointerSpeedChange = { value -> onSettingsChange { it.copy(pointerSpeed = value) } },
@@ -404,6 +410,16 @@ fun MouseScreen(
                             onIdleBlankTimeoutChange = { value -> onSettingsChange { it.copy(idleBlankTimeoutMillis = value) } },
                             onHapticsEnabledChange = { value -> onSettingsChange { it.copy(hapticsEnabled = value) } },
                             onDoubleTapTimeoutChange = { value -> onSettingsChange { it.copy(doubleTapTimeoutMillis = value) } },
+                            onTapMovementThresholdChange = { value -> onSettingsChange { it.copy(tapMovementThresholdPx = value) } },
+                            onTapCorrectionReset = {
+                                onSettingsChange {
+                                    it.copy(
+                                        tapCorrectionCount = 0,
+                                        tapMovementThresholdPx = TrackpadGestureEngine.DEFAULT_TAP_MOVEMENT_THRESHOLD_PX,
+                                        doubleTapTimeoutMillis = 620,
+                                    )
+                                }
+                            },
                             onOpenNotificationSettings = onOpenNotificationSettings,
                             modifier = trayModifier,
                         )
@@ -1265,6 +1281,7 @@ private fun TrackpadSettingsTray(
     idleBlankTimeoutMillis: Int,
     hapticsEnabled: Boolean,
     doubleTapTimeoutMillis: Int,
+    tapMovementThresholdPx: Float,
     phoneNotificationAccessReady: Boolean,
     phoneNotificationLaneEnabled: Boolean,
     onPointerSpeedChange: (Float) -> Unit,
@@ -1277,6 +1294,8 @@ private fun TrackpadSettingsTray(
     onIdleBlankTimeoutChange: (Int) -> Unit,
     onHapticsEnabledChange: (Boolean) -> Unit,
     onDoubleTapTimeoutChange: (Int) -> Unit,
+    onTapMovementThresholdChange: (Float) -> Unit,
+    onTapCorrectionReset: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1357,6 +1376,16 @@ private fun TrackpadSettingsTray(
                 valueRange = 350f..900f,
                 onValueChange = { onDoubleTapTimeoutChange(it.roundToInt()) },
             )
+            TrackpadSliderSetting(
+                label = "Tap guard",
+                valueLabel = "${tapMovementThresholdPx.roundToInt()}px",
+                value = tapMovementThresholdPx,
+                valueRange = TrackpadGestureEngine.MIN_TAP_MOVEMENT_THRESHOLD_PX..TrackpadGestureEngine.MAX_TAP_MOVEMENT_THRESHOLD_PX,
+                onValueChange = onTapMovementThresholdChange,
+            )
+            TextButton(onClick = onTapCorrectionReset) {
+                Text("Reset tap learning")
+            }
             SettingsSwitchRow("Scroll rail", scrollRailEnabled, onScrollRailEnabledChange, enabled = true)
             SettingsSwitchRow("Natural scroll", naturalScroll, onNaturalScrollChange, enabled = true)
             SettingsSwitchRow("Quiet while using Trackpad", quietModeEnabled, onQuietModeEnabledChange, enabled = true)
@@ -1414,6 +1443,7 @@ private fun Trackpad(
     rotation: TrackpadRotation,
     hapticsEnabled: Boolean,
     doubleTapTimeoutMillis: Int,
+    tapMovementThresholdPx: Float,
     backgroundOpacity: Float,
     clockStyle: TrackpadClockStyle,
     phoneNotifications: List<NotificationPreview>,
@@ -1425,6 +1455,7 @@ private fun Trackpad(
     controlsOpen: Boolean,
     sessionPinned: Boolean,
     onDoubleTap: () -> Unit,
+    onTapCorrection: () -> Unit = {},
     sensitivity: Float,
     acceleration: Float,
     enabled: Boolean,
@@ -1435,6 +1466,8 @@ private fun Trackpad(
     val stylusTraceColor = MaterialTheme.colorScheme.tertiary
     var lastActivityMillis by remember { mutableStateOf(SystemClock.uptimeMillis()) }
     var idleBlanked by remember { mutableStateOf(false) }
+    var latestTapSample by remember { mutableStateOf<TrackpadGestureSample?>(null) }
+    var latestTapFeedbackVisible by remember { mutableStateOf(false) }
     fun recordTrackpadActivity() {
         lastActivityMillis = SystemClock.uptimeMillis()
         if (idleBlanked) idleBlanked = false
@@ -1483,6 +1516,7 @@ private fun Trackpad(
                 rotation = rotation,
                 hapticsEnabled = hapticsEnabled,
                 doubleTapTimeoutMillis = doubleTapTimeoutMillis,
+                tapMovementThresholdPx = tapMovementThresholdPx,
                 onMove = onMove,
                 onLeftClick = onLeftClick,
                 onRightClick = onRightClick,
@@ -1490,6 +1524,12 @@ private fun Trackpad(
                 onCommand = onCommand,
                 onPress = onPress,
                 onReleaseButtons = onReleaseButtons,
+                onGestureSample = { sample ->
+                    if (sample.classification == "left_click" || sample.classification == "right_click") {
+                        latestTapSample = sample
+                        latestTapFeedbackVisible = true
+                    }
+                },
                 stylusEnabled = stylusEnabled,
                 onTrace = { point ->
                     if (traceEnabled) {
@@ -1566,6 +1606,45 @@ private fun Trackpad(
                         .align(Alignment.BottomCenter)
                         .padding(start = 16.dp, end = 16.dp, bottom = 106.dp),
                 )
+            }
+            if (latestTapFeedbackVisible && !controlsOpen) {
+                LaunchedEffect(latestTapSample) {
+                    delay(3_200L)
+                    latestTapFeedbackVisible = false
+                }
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.96f),
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    shape = MaterialTheme.shapes.large,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 72.dp, start = 18.dp, end = 18.dp)
+                        .widthIn(max = 420.dp),
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    ) {
+                        Text(
+                            text = latestTapSample?.diagnosticSummary() ?: "Tap recorded",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(
+                            onClick = {
+                                onTapCorrection()
+                                latestTapFeedbackVisible = false
+                            },
+                        ) {
+                            Text("Wrong click")
+                        }
+                    }
+                }
             }
             if (scrollRailEnabled) {
                 ScrollRail(
@@ -2050,6 +2129,7 @@ private fun RawTrackpadTouchLayer(
     rotation: TrackpadRotation,
     hapticsEnabled: Boolean,
     doubleTapTimeoutMillis: Int,
+    tapMovementThresholdPx: Float,
     onMove: (Float, Float) -> Unit,
     onLeftClick: () -> Unit,
     onRightClick: () -> Unit,
@@ -2058,6 +2138,7 @@ private fun RawTrackpadTouchLayer(
     onPress: (Int) -> Unit,
     onReleaseButtons: () -> Unit,
     onDoubleTap: () -> Unit,
+    onGestureSample: (TrackpadGestureSample) -> Unit,
     onActivity: () -> Unit,
     stylusEnabled: Boolean,
     onTrace: (PointerTracePoint) -> Unit,
@@ -2079,6 +2160,7 @@ private fun RawTrackpadTouchLayer(
             view.rotation = rotation
             view.hapticsEnabled = hapticsEnabled
             view.doubleTapTimeoutMillis = doubleTapTimeoutMillis.coerceIn(350, 900)
+            view.tapMovementThresholdPx = tapMovementThresholdPx
             view.onMove = onMove
             view.onLeftClick = onLeftClick
             view.onRightClick = onRightClick
@@ -2087,6 +2169,7 @@ private fun RawTrackpadTouchLayer(
             view.onPress = onPress
             view.onReleaseButtons = onReleaseButtons
             view.onDoubleTap = onDoubleTap
+            view.onGestureSample = onGestureSample
             view.onActivity = onActivity
             view.stylusEnabled = stylusEnabled
             view.onTrace = onTrace
@@ -2109,6 +2192,7 @@ private class RawTrackpadView(context: Context) : View(context) {
     var rotation: TrackpadRotation = TrackpadRotation.Deg0
     var hapticsEnabled: Boolean = true
     var doubleTapTimeoutMillis: Int = 520
+    var tapMovementThresholdPx: Float = TrackpadGestureEngine.DEFAULT_TAP_MOVEMENT_THRESHOLD_PX
     var onMove: (Float, Float) -> Unit = { _, _ -> }
     var onLeftClick: () -> Unit = {}
     var onRightClick: () -> Unit = {}
@@ -2117,6 +2201,7 @@ private class RawTrackpadView(context: Context) : View(context) {
     var onPress: (Int) -> Unit = {}
     var onReleaseButtons: () -> Unit = {}
     var onDoubleTap: () -> Unit = {}
+    var onGestureSample: (TrackpadGestureSample) -> Unit = {}
     var onActivity: () -> Unit = {}
     var stylusEnabled: Boolean = true
     var onTrace: (PointerTracePoint) -> Unit = {}
@@ -2125,6 +2210,7 @@ private class RawTrackpadView(context: Context) : View(context) {
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
     private var maxPointers = 0
     private var totalPan = Offset.Zero
+    private var gestureStartedAtMs = 0L
     private var lastCentroid: Offset? = null
     private var lastPointerDelta = Offset.Zero
     private var pointerVelocity = Offset.Zero
@@ -2185,6 +2271,7 @@ private class RawTrackpadView(context: Context) : View(context) {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 resetGesture()
+                gestureStartedAtMs = event.eventTime
                 addOrUpdatePointer(event, event.actionIndex)
                 maxPointers = maxOf(maxPointers, activePointers.size)
                 lastCentroid = centroid()
@@ -2369,7 +2456,15 @@ private class RawTrackpadView(context: Context) : View(context) {
     private fun finishGesture() {
         val pointerCount = maxPointers
         val pan = totalPan
-        when (val gesture = gestureEngine.gestureFor(pointerCount, pan, dragLockEnabled)) {
+        val decision = gestureEngine.classifyGesture(
+            maxPointers = pointerCount,
+            totalPan = pan,
+            durationMillis = SystemClock.uptimeMillis() - gestureStartedAtMs,
+            dragLockEnabled = dragLockEnabled,
+            tapMovementThresholdPx = tapMovementThresholdPx,
+        )
+        onGestureSample(decision.sample)
+        when (val gesture = decision.event) {
             TrackpadGestureEvent.LeftClick -> {
                 if (hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                 val now = SystemClock.uptimeMillis()
@@ -2407,6 +2502,7 @@ private class RawTrackpadView(context: Context) : View(context) {
         activePointers.clear()
         maxPointers = 0
         totalPan = Offset.Zero
+        gestureStartedAtMs = 0L
         lastCentroid = null
         lastPointerDelta = Offset.Zero
         pointerVelocity = Offset.Zero
