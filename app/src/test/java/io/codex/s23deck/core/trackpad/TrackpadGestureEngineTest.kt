@@ -32,6 +32,24 @@ class TrackpadGestureEngineTest {
     }
 
     @Test
+    fun twoFingerHorizontalSwipe_emitsBrowserNavigationCommands() {
+        assertCommand(HidCommand.BrowserBack, engine.gestureFor(2, Offset(-68f, 12f), false))
+        assertCommand(HidCommand.BrowserForward, engine.gestureFor(2, Offset(70f, -10f), false))
+    }
+
+    @Test
+    fun twoFingerVerticalSwipe_remainsScrollUntilGestureEnd() {
+        assertEquals(TrackpadGestureEvent.None, engine.gestureFor(2, Offset(16f, 82f), false))
+        assertEquals(TrackpadGestureEvent.RightClick, engine.gestureFor(2, Offset(4f, 4f), false))
+    }
+
+    @Test
+    fun twoFingerHorizontalCandidate_reservesScrollEarly() {
+        assertEquals(true, engine.shouldReserveTwoFingerBrowserSwipe(Offset(-24f, 4f)))
+        assertEquals(false, engine.shouldReserveTwoFingerBrowserSwipe(Offset(10f, 36f)))
+    }
+
+    @Test
     fun diagonalSwipesUseDominantAxis() {
         assertCommand(HidCommand.MissionControl, engine.gestureFor(3, Offset(42f, -80f), false))
         assertCommand(HidCommand.AppExpose, engine.gestureFor(4, Offset(-42f, 80f), false))

@@ -3,6 +3,7 @@ package io.codex.s23deck.core.trackpad
 import androidx.compose.ui.geometry.Offset
 import io.codex.s23deck.HidCommand
 import kotlin.math.abs
+import kotlin.math.max
 
 class TrackpadGestureEngine {
     fun motionFor(pointerCount: Int): TrackpadMotionMode = when (pointerCount) {
@@ -18,6 +19,8 @@ class TrackpadGestureEngine {
     ): TrackpadGestureEvent {
         val pan = totalPan.dominantPan()
         return when {
+            maxPointers == 2 && totalPan.isBrowserSwipe() && totalPan.x < 0f -> TrackpadGestureEvent.Command(HidCommand.BrowserBack)
+            maxPointers == 2 && totalPan.isBrowserSwipe() -> TrackpadGestureEvent.Command(HidCommand.BrowserForward)
             maxPointers >= 5 && totalPan.getDistanceSquared() < 400f -> TrackpadGestureEvent.Command(HidCommand.Launchpad)
             maxPointers >= 5 && pan == DominantPan.Left -> TrackpadGestureEvent.Command(HidCommand.AppSwitcher)
             maxPointers >= 5 && pan == DominantPan.Right -> TrackpadGestureEvent.Command(HidCommand.AppSwitcher)
@@ -38,6 +41,9 @@ class TrackpadGestureEngine {
             else -> TrackpadGestureEvent.None
         }
     }
+
+    fun shouldReserveTwoFingerBrowserSwipe(totalPan: Offset): Boolean =
+        totalPan.isBrowserSwipe(candidateDistancePx = 18f)
 }
 
 sealed interface TrackpadGestureEvent {
@@ -70,4 +76,11 @@ private fun Offset.dominantPan(threshold: Float = 24f): DominantPan? {
         y > 0f -> DominantPan.Down
         else -> DominantPan.Up
     }
+}
+
+private fun Offset.isBrowserSwipe(candidateDistancePx: Float = 56f): Boolean {
+    val absX = abs(x)
+    val absY = abs(y)
+    if (absX < candidateDistancePx) return false
+    return absX >= max(candidateDistancePx, absY * 1.75f)
 }

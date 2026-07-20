@@ -21,6 +21,9 @@ class TrackpadLockTaskPolicyTest {
         val mouseScreen = File("src/main/java/io/codex/s23deck/ui/mouse/MouseScreen.kt").readText()
 
         assertTrue(mouseScreen.contains("Tap Lock to protect against Home gestures"))
+        assertTrue(mouseScreen.contains("Pin app"))
+        assertTrue(mouseScreen.contains("Quiet while using Trackpad"))
+        assertTrue(mouseScreen.contains("phoneNotificationLaneEnabled && !quietModeEnabled"))
         assertTrue(mouseScreen.contains("dynamicEnabled = dynamicActions.isNotEmpty()"))
         assertTrue(mouseScreen.contains("if (dynamicEnabled) add(TrackpadQuickTray.Dynamic to Icons.Outlined.AutoAwesome)"))
         assertTrue(mouseScreen.contains("if (quickTray == TrackpadQuickTray.Dynamic && dynamicActions.isEmpty())"))

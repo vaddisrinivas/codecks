@@ -108,6 +108,8 @@ private val macControls = listOf(
     KeyControl("Notify", HidCommand.NotificationCenter),
     KeyControl("App switch", HidCommand.AppSwitcher),
     KeyControl("Window", HidCommand.WindowSwitcher),
+    KeyControl("Browser back", HidCommand.BrowserBack),
+    KeyControl("Browser forward", HidCommand.BrowserForward),
     KeyControl("Shot area", HidCommand.ScreenshotArea),
     KeyControl("Shot window", HidCommand.ScreenshotWindow),
     KeyControl("Space left", HidCommand.SpaceLeft),
