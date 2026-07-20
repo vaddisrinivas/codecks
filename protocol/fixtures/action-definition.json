@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0",
+  "id": "macos.finder.reveal",
+  "title": "Reveal in Finder",
+  "platform": "macos",
+  "category": "app",
+  "description": "Open Finder and reveal a local path.",
+  "inputs": [
+    {
+      "name": "path",
+      "type": "string",
+      "required": true,
+      "description": "Absolute local file or folder path."
+    }
+  ],
+  "effects": [
+    "opens_app"
+  ],
+  "requiresConfirmation": false,
+  "safety": {
+    "level": "safe",
+    "notes": "Read-only navigation."
+  },
+  "implementation": {
+    "kind": "macos.shell",
+    "command": "open -R \"$path\""
+  }
+}

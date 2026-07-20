@@ -78,9 +78,6 @@ dependencies {
     implementation(project(":feature:deck"))
     implementation(project(":feature:settings"))
     implementation(project(":feature:trackpad"))
-    implementation(libs.androidx.appfunctions)
-    implementation(libs.androidx.appfunctions.service)
-
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material.icons.extended)
@@ -94,6 +91,5 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
-    ksp(libs.androidx.appfunctions.compiler)
     testImplementation(libs.junit)
 }

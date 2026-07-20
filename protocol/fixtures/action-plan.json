@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0",
+  "planId": "plan_20260715_meeting_setup",
+  "createdAt": "2026-07-15T12:00:00Z",
+  "summary": "Open a meeting URL, lower volume, and take a screenshot.",
+  "steps": [
+    {
+      "stepId": "open_meeting",
+      "actionId": "macos.url.open",
+      "arguments": {
+        "url": "https://example.com/meeting"
+      }
+    },
+    {
+      "stepId": "set_volume",
+      "actionId": "macos.volume.set",
+      "arguments": {
+        "level": 35
+      },
+      "dependsOn": [
+        "open_meeting"
+      ]
+    },
+    {
+      "stepId": "capture_screen",
+      "actionId": "macos.screenshot.fullscreen",
+      "arguments": {
+        "destination": "~/Desktop"
+      },
+      "dependsOn": [
+        "set_volume"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codecks.local/protocol/schemas/action-invocation.schema.json",
+  "title": "Codecks Action Invocation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "invocationId",
+    "actionId",
+    "requestedAt",
+    "source",
+    "arguments"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "invocationId": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{8,80}$"
+    },
+    "actionId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(\\.[a-z0-9]+)+$"
+    },
+    "requestedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deviceId",
+        "surface"
+      ],
+      "properties": {
+        "deviceId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "surface": {
+          "type": "string",
+          "enum": [
+            "deck",
+            "trackpad",
+            "automation",
+            "test"
+          ]
+        }
+      }
+    },
+    "arguments": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "dryRun": {
+      "type": "boolean",
+      "default": false
+    }
+  }
+}

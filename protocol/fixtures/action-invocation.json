@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0",
+  "invocationId": "inv_20260715_finder_reveal",
+  "actionId": "macos.finder.reveal",
+  "requestedAt": "2026-07-15T12:00:00Z",
+  "source": {
+    "deviceId": "local-test-device",
+    "surface": "test"
+  },
+  "arguments": {
+    "path": "/Users/example/Desktop/report.pdf"
+  },
+  "dryRun": true
+}

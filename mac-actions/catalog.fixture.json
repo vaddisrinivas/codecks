@@ -1,0 +1,249 @@
+{
+  "schemaVersion": "1.0",
+  "catalogId": "macos.local.fixture",
+  "updatedAt": "2026-07-15T12:00:00Z",
+  "actions": [
+    {
+      "id": "macos.finder.open",
+      "title": "Open Finder",
+      "platform": "macos",
+      "category": "app",
+      "description": "Open Finder.",
+      "inputs": [],
+      "effects": [
+        "opens_app"
+      ],
+      "requiresConfirmation": false,
+      "safety": {
+        "level": "safe",
+        "notes": "Foregrounds Finder only."
+      },
+      "implementation": {
+        "kind": "macos.shell",
+        "command": "open -a Finder"
+      }
+    },
+    {
+      "id": "macos.terminal.open",
+      "title": "Open Terminal",
+      "platform": "macos",
+      "category": "app",
+      "description": "Open Terminal.",
+      "inputs": [],
+      "effects": [
+        "opens_app"
+      ],
+      "requiresConfirmation": false,
+      "safety": {
+        "level": "safe",
+        "notes": "Launches Terminal without running a command."
+      },
+      "implementation": {
+        "kind": "macos.shell",
+        "command": "open -a Terminal"
+      }
+    },
+    {
+      "id": "macos.spotlight.open",
+      "title": "Open Spotlight",
+      "platform": "macos",
+      "category": "input",
+      "description": "Open Spotlight search.",
+      "inputs": [],
+      "effects": [
+        "types_text"
+      ],
+      "requiresConfirmation": false,
+      "safety": {
+        "level": "safe",
+        "notes": "Opens search UI."
+      },
+      "implementation": {
+        "kind": "macos.shortcut",
+        "command": "cmd+space"
+      }
+    },
+    {
+      "id": "macos.screenshot.fullscreen",
+      "title": "Take Screenshot",
+      "platform": "macos",
+      "category": "system",
+      "description": "Capture the full screen.",
+      "inputs": [
+        {
+          "name": "destination",
+          "type": "string",
+          "required": false,
+          "description": "Destination folder.",
+          "default": "~/Desktop"
+        }
+      ],
+      "effects": [
+        "captures_screen"
+      ],
+      "requiresConfirmation": false,
+      "safety": {
+        "level": "safe",
+        "notes": "May capture visible private content."
+      },
+      "implementation": {
+        "kind": "macos.shell",
+        "command": "screencapture \"$destination/screenshot-$(date +%Y%m%d-%H%M%S).png\""
+      }
+    },
+    {
+      "id": "macos.missioncontrol.open",
+      "title": "Mission Control",
+      "platform": "macos",
+      "category": "window",
+      "description": "Open Mission Control.",
+      "inputs": [],
+      "effects": [
+        "changes_window_state"
+      ],
+      "requiresConfirmation": false,
+      "safety": {
+        "level": "safe",
+        "notes": "Shows window overview."
+      },
+      "implementation": {
+        "kind": "macos.shortcut",
+        "command": "ctrl+up"
+      }
+    },
+    {
+      "id": "macos.spaces.next",
+      "title": "Next Space",
+      "platform": "macos",
+      "category": "window",
+      "description": "Move to the next desktop Space.",
+      "inputs": [],
+      "effects": [
+        "changes_space"
+      ],
+      "requiresConfirmation": false,
+      "safety": {
+        "level": "safe",
+        "notes": "Navigates between Spaces."
+      },
+      "implementation": {
+        "kind": "macos.shortcut",
+        "command": "ctrl+right"
+      }
+    },
+    {
+      "id": "macos.window.fullscreen.toggle",
+      "title": "Toggle Full Screen",
+      "platform": "macos",
+      "category": "window",
+      "description": "Toggle full screen for the focused app.",
+      "inputs": [],
+      "effects": [
+        "changes_window_state"
+      ],
+      "requiresConfirmation": false,
+      "safety": {
+        "level": "safe",
+        "notes": "Affects focused window only."
+      },
+      "implementation": {
+        "kind": "macos.shortcut",
+        "command": "ctrl+cmd+f"
+      }
+    },
+    {
+      "id": "macos.session.lock",
+      "title": "Lock Mac",
+      "platform": "macos",
+      "category": "system",
+      "description": "Lock the current Mac session.",
+      "inputs": [],
+      "effects": [
+        "locks_session"
+      ],
+      "requiresConfirmation": true,
+      "safety": {
+        "level": "confirm",
+        "notes": "Interrupts current session and requires unlock."
+      },
+      "implementation": {
+        "kind": "macos.shortcut",
+        "command": "ctrl+cmd+q"
+      }
+    },
+    {
+      "id": "macos.media.playpause",
+      "title": "Play/Pause Media",
+      "platform": "macos",
+      "category": "media",
+      "description": "Toggle media playback.",
+      "inputs": [],
+      "effects": [
+        "changes_media_playback"
+      ],
+      "requiresConfirmation": false,
+      "safety": {
+        "level": "safe",
+        "notes": "Uses media key behavior."
+      },
+      "implementation": {
+        "kind": "macos.shortcut",
+        "command": "media_play_pause"
+      }
+    },
+    {
+      "id": "macos.volume.set",
+      "title": "Set Volume",
+      "platform": "macos",
+      "category": "media",
+      "description": "Set system output volume from 0 to 100.",
+      "inputs": [
+        {
+          "name": "level",
+          "type": "integer",
+          "required": true,
+          "description": "Volume percentage from 0 to 100."
+        }
+      ],
+      "effects": [
+        "changes_volume"
+      ],
+      "requiresConfirmation": false,
+      "safety": {
+        "level": "safe",
+        "notes": "Changes local output volume."
+      },
+      "implementation": {
+        "kind": "macos.appleScript",
+        "command": "set volume output volume level"
+      }
+    },
+    {
+      "id": "macos.url.open",
+      "title": "Open URL",
+      "platform": "macos",
+      "category": "network",
+      "description": "Open a URL with the default browser.",
+      "inputs": [
+        {
+          "name": "url",
+          "type": "url",
+          "required": true,
+          "description": "URL to open."
+        }
+      ],
+      "effects": [
+        "opens_url"
+      ],
+      "requiresConfirmation": false,
+      "safety": {
+        "level": "safe",
+        "notes": "Opens external content in the default browser."
+      },
+      "implementation": {
+        "kind": "macos.url",
+        "command": "open \"$url\""
+      }
+    }
+  ]
+}

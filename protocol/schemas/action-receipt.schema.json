@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codecks.local/protocol/schemas/action-receipt.schema.json",
+  "title": "Codecks Action Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "receiptId",
+    "invocationId",
+    "actionId",
+    "status",
+    "startedAt",
+    "finishedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "receiptId": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{8,80}$"
+    },
+    "invocationId": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{8,80}$"
+    },
+    "actionId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(\\.[a-z0-9]+)+$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "accepted",
+        "completed",
+        "failed",
+        "denied",
+        "skipped"
+      ]
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finishedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "message": {
+      "type": "string"
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

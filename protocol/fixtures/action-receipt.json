@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "receiptId": "rcpt_20260715_finder_reveal",
+  "invocationId": "inv_20260715_finder_reveal",
+  "actionId": "macos.finder.reveal",
+  "status": "completed",
+  "startedAt": "2026-07-15T12:00:01Z",
+  "finishedAt": "2026-07-15T12:00:02Z",
+  "message": "Finder opened with requested path selected.",
+  "outputs": {
+    "app": "Finder"
+  }
+}

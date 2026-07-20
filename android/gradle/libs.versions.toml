@@ -16,7 +16,6 @@ nav3 = "1.1.4"
 room = "2.8.4"
 sshj = "0.40.0"
 targetSdk = "37"
-androidxAppfunctions = "1.0.0-alpha10"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
@@ -40,9 +39,6 @@ androidx-material3-adaptive-navigation3 = { module = "androidx.compose.material3
 androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "nav3" }
 androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref = "nav3" }
 junit = { module = "junit:junit", version.ref = "junit" }
-androidx-appfunctions = { module = "androidx.appfunctions:appfunctions", version.ref = "androidxAppfunctions" }
-androidx-appfunctions-service = { module = "androidx.appfunctions:appfunctions-service", version.ref = "androidxAppfunctions" }
-androidx-appfunctions-compiler = { module = "androidx.appfunctions:appfunctions-compiler", version.ref = "androidxAppfunctions" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinxSerialization" }

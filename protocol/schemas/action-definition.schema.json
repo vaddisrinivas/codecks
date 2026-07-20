@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codecks.local/protocol/schemas/action-definition.schema.json",
+  "title": "Codecks Action Definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "title",
+    "platform",
+    "category",
+    "description",
+    "inputs",
+    "effects",
+    "safety"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(\\.[a-z0-9]+)+$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "macos"
+      ]
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "app",
+        "system",
+        "window",
+        "media",
+        "input",
+        "network"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/input"
+      }
+    },
+    "effects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": [
+          "opens_app",
+          "opens_url",
+          "changes_window_state",
+          "changes_space",
+          "captures_screen",
+          "locks_session",
+          "changes_media_playback",
+          "changes_volume",
+          "types_text",
+          "runs_command"
+        ]
+      }
+    },
+    "requiresConfirmation": {
+      "type": "boolean",
+      "default": false
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "notes"
+      ],
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": [
+            "safe",
+            "confirm",
+            "restricted"
+          ]
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "implementation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "command"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "macos.shortcut",
+            "macos.url",
+            "macos.appleScript",
+            "macos.shell"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "$defs": {
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type",
+        "required"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-zA-Z0-9]*$"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "string",
+            "number",
+            "integer",
+            "boolean",
+            "url"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
+        },
+        "default": {}
+      }
+    }
+  }
+}
