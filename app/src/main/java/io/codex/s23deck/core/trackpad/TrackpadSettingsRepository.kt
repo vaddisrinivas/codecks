@@ -27,6 +27,7 @@ data class TrackpadSettings(
     val hapticsEnabled: Boolean = true,
     val pointerTraceEnabled: Boolean = false,
     val quietModeEnabled: Boolean = true,
+    val idleBlankTimeoutMillis: Int = 120_000,
     val backgroundOpacity: Float = 0.48f,
     val clockStyle: TrackpadClockStyle = TrackpadClockStyle.Stacked,
     val floatingMenuLayout: TrackpadFloatingMenuLayout = TrackpadFloatingMenuLayout.Horizontal,
@@ -80,6 +81,7 @@ class TrackpadSettingsRepository @Inject constructor(
             hapticsEnabled = preferences[HAPTICS_ENABLED] ?: true,
             pointerTraceEnabled = preferences[POINTER_TRACE_ENABLED] ?: false,
             quietModeEnabled = preferences[QUIET_MODE_ENABLED] ?: true,
+            idleBlankTimeoutMillis = preferences[IDLE_BLANK_TIMEOUT_MS]?.coerceIn(30_000, 600_000) ?: 120_000,
             backgroundOpacity = preferences[BACKGROUND_OPACITY]?.coerceIn(0.05f, 0.72f) ?: 0.48f,
             clockStyle = preferences[CLOCK_STYLE]?.let(::enumValueOrNull) ?: TrackpadClockStyle.Stacked,
             floatingMenuLayout = preferences[FLOATING_MENU_LAYOUT]?.let(::enumValueOrNull) ?: TrackpadFloatingMenuLayout.Horizontal,
@@ -108,6 +110,7 @@ class TrackpadSettingsRepository @Inject constructor(
                 hapticsEnabled = preferences[HAPTICS_ENABLED] ?: true,
                 pointerTraceEnabled = preferences[POINTER_TRACE_ENABLED] ?: false,
                 quietModeEnabled = preferences[QUIET_MODE_ENABLED] ?: true,
+                idleBlankTimeoutMillis = preferences[IDLE_BLANK_TIMEOUT_MS]?.coerceIn(30_000, 600_000) ?: 120_000,
                 backgroundOpacity = preferences[BACKGROUND_OPACITY]?.coerceIn(0.05f, 0.72f) ?: 0.48f,
                 clockStyle = preferences[CLOCK_STYLE]?.let(::enumValueOrNull) ?: TrackpadClockStyle.Stacked,
                 floatingMenuLayout = preferences[FLOATING_MENU_LAYOUT]?.let(::enumValueOrNull) ?: TrackpadFloatingMenuLayout.Horizontal,
@@ -132,6 +135,7 @@ class TrackpadSettingsRepository @Inject constructor(
             preferences[HAPTICS_ENABLED] = next.hapticsEnabled
             preferences[POINTER_TRACE_ENABLED] = next.pointerTraceEnabled
             preferences[QUIET_MODE_ENABLED] = next.quietModeEnabled
+            preferences[IDLE_BLANK_TIMEOUT_MS] = next.idleBlankTimeoutMillis.coerceIn(30_000, 600_000)
             preferences[BACKGROUND_OPACITY] = next.backgroundOpacity.coerceIn(0.05f, 0.72f)
             preferences[CLOCK_STYLE] = next.clockStyle.name
             preferences[FLOATING_MENU_LAYOUT] = next.floatingMenuLayout.name
@@ -162,6 +166,7 @@ class TrackpadSettingsRepository @Inject constructor(
         val HAPTICS_ENABLED = booleanPreferencesKey("haptics_enabled")
         val POINTER_TRACE_ENABLED = booleanPreferencesKey("pointer_trace_enabled")
         val QUIET_MODE_ENABLED = booleanPreferencesKey("quiet_mode_enabled")
+        val IDLE_BLANK_TIMEOUT_MS = intPreferencesKey("idle_blank_timeout_ms")
         val BACKGROUND_OPACITY = floatPreferencesKey("background_opacity")
         val CLOCK_STYLE = stringPreferencesKey("clock_style")
         val FLOATING_MENU_LAYOUT = stringPreferencesKey("floating_menu_layout")

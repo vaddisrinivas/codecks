@@ -12,6 +12,7 @@ class TrackpadSettingsTest {
 
         assertFalse(settings.pointerTraceEnabled)
         assertTrue(settings.quietModeEnabled)
+        assertEquals(120_000, settings.idleBlankTimeoutMillis)
         assertEquals(620, settings.doubleTapTimeoutMillis)
         assertEquals(0.48f, settings.backgroundOpacity, 0.0001f)
     }

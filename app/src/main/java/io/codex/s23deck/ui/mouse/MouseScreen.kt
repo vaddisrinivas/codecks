@@ -173,6 +173,7 @@ fun MouseScreen(
     val dragLockEnabled = settings.dragLockEnabled
     val traceEnabled = settings.pointerTraceEnabled
     val quietModeEnabled = settings.quietModeEnabled
+    val idleBlankTimeoutMillis = settings.idleBlankTimeoutMillis
     val scrollRailEnabled = settings.scrollRailEnabled
     val verticalRailDirection = if (settings.scrollRailInverted) ScrollRailDirection.Inverted else ScrollRailDirection.Direct
     val railSide = settings.railSide
@@ -309,6 +310,7 @@ fun MouseScreen(
                     phoneNotificationAccessReady = phoneNotificationAccessReady,
                     phoneNotificationLaneEnabled = phoneNotificationLaneEnabled && !quietModeEnabled,
                     quietModeEnabled = quietModeEnabled,
+                    idleBlankTimeoutMillis = idleBlankTimeoutMillis,
                     onDragLockChange = { enabled ->
                         onSettingsChange { it.copy(dragLockEnabled = enabled) }
                         if (enabled) onPress(1) else onReleaseButtons()
@@ -387,6 +389,7 @@ fun MouseScreen(
                             scrollRailEnabled = scrollRailEnabled,
                             traceEnabled = traceEnabled,
                             quietModeEnabled = quietModeEnabled,
+                            idleBlankTimeoutMillis = idleBlankTimeoutMillis,
                             hapticsEnabled = hapticsEnabled,
                             doubleTapTimeoutMillis = doubleTapTimeoutMillis,
                             phoneNotificationAccessReady = phoneNotificationAccessReady,
@@ -398,6 +401,7 @@ fun MouseScreen(
                             onScrollRailEnabledChange = { value -> onSettingsChange { it.copy(scrollRailEnabled = value) } },
                             onTraceEnabledChange = { value -> onSettingsChange { it.copy(pointerTraceEnabled = value) } },
                             onQuietModeEnabledChange = { value -> onSettingsChange { it.copy(quietModeEnabled = value) } },
+                            onIdleBlankTimeoutChange = { value -> onSettingsChange { it.copy(idleBlankTimeoutMillis = value) } },
                             onHapticsEnabledChange = { value -> onSettingsChange { it.copy(hapticsEnabled = value) } },
                             onDoubleTapTimeoutChange = { value -> onSettingsChange { it.copy(doubleTapTimeoutMillis = value) } },
                             onOpenNotificationSettings = onOpenNotificationSettings,
@@ -1258,6 +1262,7 @@ private fun TrackpadSettingsTray(
     scrollRailEnabled: Boolean,
     traceEnabled: Boolean,
     quietModeEnabled: Boolean,
+    idleBlankTimeoutMillis: Int,
     hapticsEnabled: Boolean,
     doubleTapTimeoutMillis: Int,
     phoneNotificationAccessReady: Boolean,
@@ -1269,6 +1274,7 @@ private fun TrackpadSettingsTray(
     onScrollRailEnabledChange: (Boolean) -> Unit,
     onTraceEnabledChange: (Boolean) -> Unit,
     onQuietModeEnabledChange: (Boolean) -> Unit,
+    onIdleBlankTimeoutChange: (Int) -> Unit,
     onHapticsEnabledChange: (Boolean) -> Unit,
     onDoubleTapTimeoutChange: (Int) -> Unit,
     onOpenNotificationSettings: () -> Unit,
@@ -1359,6 +1365,13 @@ private fun TrackpadSettingsTray(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            TrackpadSliderSetting(
+                label = "Screen blanks after idle",
+                valueLabel = "${idleBlankTimeoutMillis / 1000}s",
+                value = idleBlankTimeoutMillis.toFloat(),
+                valueRange = 30_000f..600_000f,
+                onValueChange = { onIdleBlankTimeoutChange((it / 5_000f).roundToInt() * 5_000) },
+            )
             SettingsSwitchRow("Haptics", hapticsEnabled, onHapticsEnabledChange, enabled = true)
             SettingsSwitchRow("Pointer trace", traceEnabled, onTraceEnabledChange, enabled = true)
         }
@@ -1408,6 +1421,7 @@ private fun Trackpad(
     phoneNotificationAccessReady: Boolean,
     phoneNotificationLaneEnabled: Boolean,
     quietModeEnabled: Boolean,
+    idleBlankTimeoutMillis: Int,
     controlsOpen: Boolean,
     sessionPinned: Boolean,
     onDoubleTap: () -> Unit,
@@ -1419,6 +1433,18 @@ private fun Trackpad(
     val tracePoints = remember { mutableStateListOf<PointerTracePoint>() }
     val traceColor = MaterialTheme.colorScheme.primary
     val stylusTraceColor = MaterialTheme.colorScheme.tertiary
+    var lastActivityMillis by remember { mutableStateOf(SystemClock.uptimeMillis()) }
+    var idleBlanked by remember { mutableStateOf(false) }
+    fun recordTrackpadActivity() {
+        lastActivityMillis = SystemClock.uptimeMillis()
+        if (idleBlanked) idleBlanked = false
+    }
+    LaunchedEffect(idleBlankTimeoutMillis, lastActivityMillis) {
+        val timeoutMillis = idleBlankTimeoutMillis.coerceIn(30_000, 600_000).toLong()
+        idleBlanked = false
+        delay(timeoutMillis)
+        idleBlanked = true
+    }
     LaunchedEffect(tracePoints.size) {
         while (tracePoints.isNotEmpty()) {
             delay(80L)
@@ -1453,6 +1479,7 @@ private fun Trackpad(
                 dragLockEnabled = dragLockEnabled,
                 railSide = railSide,
                 onDoubleTap = onDoubleTap,
+                onActivity = ::recordTrackpadActivity,
                 rotation = rotation,
                 hapticsEnabled = hapticsEnabled,
                 doubleTapTimeoutMillis = doubleTapTimeoutMillis,
@@ -1554,6 +1581,13 @@ private fun Trackpad(
                         )
                         .fillMaxHeight(0.42f)
                         .widthIn(min = 14.dp, max = 16.dp),
+                )
+            }
+            if (idleBlanked) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(Color.Black.copy(alpha = 0.96f)),
                 )
             }
         }
@@ -2024,6 +2058,7 @@ private fun RawTrackpadTouchLayer(
     onPress: (Int) -> Unit,
     onReleaseButtons: () -> Unit,
     onDoubleTap: () -> Unit,
+    onActivity: () -> Unit,
     stylusEnabled: Boolean,
     onTrace: (PointerTracePoint) -> Unit,
     modifier: Modifier = Modifier,
@@ -2052,6 +2087,7 @@ private fun RawTrackpadTouchLayer(
             view.onPress = onPress
             view.onReleaseButtons = onReleaseButtons
             view.onDoubleTap = onDoubleTap
+            view.onActivity = onActivity
             view.stylusEnabled = stylusEnabled
             view.onTrace = onTrace
         },
@@ -2081,6 +2117,7 @@ private class RawTrackpadView(context: Context) : View(context) {
     var onPress: (Int) -> Unit = {}
     var onReleaseButtons: () -> Unit = {}
     var onDoubleTap: () -> Unit = {}
+    var onActivity: () -> Unit = {}
     var stylusEnabled: Boolean = true
     var onTrace: (PointerTracePoint) -> Unit = {}
 
@@ -2144,6 +2181,7 @@ private class RawTrackpadView(context: Context) : View(context) {
             return false
         }
         parent?.requestDisallowInterceptTouchEvent(true)
+        onActivity()
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 resetGesture()
@@ -2276,6 +2314,7 @@ private class RawTrackpadView(context: Context) : View(context) {
         }
         parent?.requestDisallowInterceptTouchEvent(true)
         val position = Offset(event.x, event.y)
+        onActivity()
         when (event.actionMasked) {
             MotionEvent.ACTION_HOVER_ENTER -> {
                 lastHoverPosition = position
