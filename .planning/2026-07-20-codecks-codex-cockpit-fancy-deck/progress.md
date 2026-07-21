@@ -164,3 +164,27 @@ Continue with the remaining release-quality gaps:
 ## Next action
 
 Run physical-device proof if the S23 Ultra is connected, then decide whether to package/release this checkpoint.
+
+## 2026-07-20 release continuation
+
+- Current release decision: package the implemented Codex cockpit/fancy deck/bridge work as `v0.1.5`.
+- Version metadata updated for release preparation:
+  - root signed APK: `versionCode = 6`, `versionName = "0.1.5"`.
+  - nested Codecks v2 cockpit preview APK: `versionCode = 2`, `versionName = "0.1.5-preview"`.
+- Current CI baseline before this bump:
+  - Quality run for commit `62bda6a` was still in progress when checked.
+  - Prior sanitized commit `455d564` had a green Quality run.
+- Remaining proof before tag:
+  - local release gates after the version bump.
+  - pushed-main Quality run after the version bump.
+  - tag-triggered Release workflow and asset verification.
+  - physical S23 Ultra proof remains unavailable unless a device is connected.
+- Local release gates after the version bump:
+  - `python3 tools/secret_surface_check.py`
+  - Result: `secret surface OK`.
+  - `python3 tools/ai_creator_v2_eval.py`
+  - Result: `ai creator v2 corpus OK: total=120 action=40 deck=40 automation=40`.
+  - `JAVA_HOME=<java17> ANDROID_HOME=<android-sdk> ./gradlew --no-daemon :app:check`
+  - Result: `BUILD SUCCESSFUL in 1m 27s`.
+  - `cd android && JAVA_HOME=<java17> ANDROID_HOME=<android-sdk> ./gradlew --no-daemon assembleLocalDebug assembleIncubatorDebug :app:testLocalDebugUnitTest :feature:deck:testDebugUnitTest :domain:targets:test :domain:decks:test :domain:codex:test :domain:actions:test :runtime:actions:test :data:decks:testDebugUnitTest :data:receipts:testDebugUnitTest :data:targets:testDebugUnitTest :core:security:test :transport:ssh:test checkReleaseBoundary`
+  - Result: `BUILD SUCCESSFUL in 18s`.
