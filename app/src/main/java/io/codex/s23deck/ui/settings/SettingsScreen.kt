@@ -143,7 +143,7 @@ fun SettingsScreen(
     onResetFeatureFlags: () -> Unit = {},
 ) {
     var showResetFlagsDialog by rememberSaveable { mutableStateOf(false) }
-    var selectedSection by rememberSaveable { mutableStateOf(SettingsSection.Essentials) }
+    var selectedSection by rememberSaveable { mutableStateOf(SettingsSection.Look) }
     var trackpadFineTuneOpen by rememberSaveable { mutableStateOf(false) }
     val hidHealth = hidState.hidHealth(bluetoothPermissionGranted)
     val readiness = codecksReadiness(connectionHealth, hidHealth, aiProviderReady)

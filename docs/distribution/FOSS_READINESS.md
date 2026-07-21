@@ -1,6 +1,6 @@
 # Codecks FOSS Readiness
 
-Status: ready for maintainer review. Current public beta is `v0.1.8`.
+Status: ready for maintainer review. Current public beta is `v0.1.9`.
 
 ## What Is Ready
 

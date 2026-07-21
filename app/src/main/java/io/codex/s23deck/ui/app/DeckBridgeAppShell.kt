@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Menu
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -189,11 +190,33 @@ private fun CodecksDrawerContent(
         ) {
             DrawerHeader(readiness = readiness, onOpenConnection = onOpenConnection)
             Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState()),
             ) {
+                DrawerSectionLabel("Make")
+                if (deckEditorEnabled) {
+                    CodecksDrawerItem(
+                        label = "Create button",
+                        summary = "Emoji, blank, Mac action",
+                        icon = Icons.Outlined.Palette,
+                        selected = currentRoute == EditorRoute,
+                        onClick = onOpenEditor,
+                        accent = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
+                if (aiBuilderEnabled) {
+                    CodecksDrawerItem(
+                        label = "AI builder",
+                        summary = "Draft buttons and rules",
+                        icon = Icons.Outlined.AutoAwesome,
+                        selected = currentRoute == AiBuilderRoute,
+                        onClick = { onDestinationSelected(AiBuilderRoute) },
+                        accent = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
+
                 DrawerSectionLabel("Core")
                 destinations.forEach { destination ->
                     CodecksDrawerItem(
@@ -209,19 +232,10 @@ private fun CodecksDrawerContent(
                 if (deckEditorEnabled) {
                     CodecksDrawerItem(
                         label = "Edit deck",
-                        summary = "Move, assign, restyle keys",
+                        summary = "Move and resize keys",
                         icon = Icons.Outlined.Edit,
                         selected = currentRoute == EditorRoute,
                         onClick = onOpenEditor,
-                    )
-                }
-                if (aiBuilderEnabled) {
-                    CodecksDrawerItem(
-                        label = "AI builder",
-                        summary = "Create buttons and automations",
-                        icon = Icons.Outlined.AutoAwesome,
-                        selected = currentRoute == AiBuilderRoute,
-                        onClick = { onDestinationSelected(AiBuilderRoute) },
                     )
                 }
                 Spacer(modifier = Modifier.size(8.dp))
@@ -238,61 +252,46 @@ private fun DrawerHeader(
 ) {
     val statusColor = if (readiness.coreReady) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.82f),
         contentColor = MaterialTheme.colorScheme.onSurface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(18.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 16.dp)
-            .clip(RoundedCornerShape(24.dp))
+            .padding(bottom = 12.dp)
+            .clip(RoundedCornerShape(18.dp))
             .clickable(role = Role.Button, onClick = onOpenConnection),
     ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.padding(18.dp),
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(12.dp),
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Surface(
+                color = statusColor.copy(alpha = 0.14f),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, statusColor.copy(alpha = 0.35f)),
+                modifier = Modifier.size(40.dp),
             ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.13f),
-                    shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, statusColor.copy(alpha = 0.42f)),
-                    modifier = Modifier.size(44.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text("ck", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Codecks", style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        text = "Deck • Trackpad • Automations",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                Box(contentAlignment = Alignment.Center) {
+                    Text("ck", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 }
             }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                StatusDot(color = statusColor)
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Codecks", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = readiness.title,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f),
-                )
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp),
+                    text = if (readiness.coreReady) "Ready" else "Setup optional for making decks",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
                 )
             }
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }
@@ -303,7 +302,7 @@ private fun DrawerSectionLabel(text: String) {
         text = text.uppercase(),
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 10.dp, top = 8.dp, bottom = 2.dp),
+        modifier = Modifier.padding(start = 10.dp, top = 6.dp, bottom = 2.dp),
     )
 }
 
@@ -328,7 +327,7 @@ private fun CodecksDrawerItem(
         targetValue = if (selected) accent.copy(alpha = 0.72f) else accent.copy(alpha = 0.16f),
         label = "drawerItemBorder",
     )
-    val shape = RoundedCornerShape(20.dp)
+    val shape = RoundedCornerShape(16.dp)
     Surface(
         color = container,
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -336,23 +335,23 @@ private fun CodecksDrawerItem(
         shape = shape,
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 62.dp)
+            .heightIn(min = 54.dp)
             .clip(shape)
             .clickable(role = Role.Button, onClick = onClick),
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
         ) {
             Surface(
                 color = accent.copy(alpha = if (selected) 0.20f else 0.10f),
                 contentColor = accent.copy(alpha = if (selected) 1f else 0.82f),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.size(42.dp),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.size(38.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp))
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
                 }
             }
             Column(modifier = Modifier.weight(1f)) {

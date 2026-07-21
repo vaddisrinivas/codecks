@@ -57,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.codex.s23deck.domain.ActionKind
+import io.codex.s23deck.domain.ActionIcon
 import io.codex.s23deck.domain.DeckAction
 import io.codex.s23deck.ui.designsystem.CodecksDeckEdgeGlowBackground
 import io.codex.s23deck.ui.designsystem.DeckActionButton
@@ -176,6 +177,18 @@ fun DeckEditorScreen(
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 item {
+                    ActionPickerHeader(
+                        query = query,
+                        onQueryChange = { query = it },
+                        selectedCategory = selectedCategory,
+                        onCategoryChange = { selectedCategoryName = it.name },
+                        onCreateWithAi = onCreateWithAi,
+                        onCreateCustomButton = { label ->
+                            onAssignAction(safeSelection, customDecorAction(safeSelection, label))
+                        },
+                    )
+                }
+                item {
                     EditorHeader(
                         slot = safeSelection,
                         slotCount = slots.size,
@@ -187,6 +200,17 @@ fun DeckEditorScreen(
                         onResizeAction = onResizeAction,
                         deckStyle = deckStyle,
                     )
+                }
+                if (filteredActions.isEmpty()) {
+                    item { EmptySearchState(query = trimmedQuery, category = selectedCategory) }
+                }
+                itemsIndexed(filteredActions, key = { _, action -> action.id }) { index, action ->
+                    ActionRow(
+                        action = action,
+                        selected = selectedAction?.id == action.id,
+                        onClick = { onAssignAction(safeSelection, action) },
+                    )
+                    if (index < filteredActions.lastIndex) EditorDivider()
                 }
                 item { SectionTitle("Deck layout") }
                 item {
@@ -209,26 +233,6 @@ fun DeckEditorScreen(
                         deckStyle = deckStyle,
                         modifier = Modifier.heightIn(min = 112.dp, max = 360.dp),
                     )
-                }
-                item {
-                    ActionPickerHeader(
-                        query = query,
-                        onQueryChange = { query = it },
-                        selectedCategory = selectedCategory,
-                        onCategoryChange = { selectedCategoryName = it.name },
-                        onCreateWithAi = onCreateWithAi,
-                    )
-                }
-                if (filteredActions.isEmpty()) {
-                    item { EmptySearchState(query = trimmedQuery, category = selectedCategory) }
-                }
-                itemsIndexed(filteredActions, key = { _, action -> action.id }) { index, action ->
-                    ActionRow(
-                        action = action,
-                        selected = selectedAction?.id == action.id,
-                        onClick = { onAssignAction(safeSelection, action) },
-                    )
-                    if (index < filteredActions.lastIndex) EditorDivider()
                 }
                 item {
                     SaveBar(
@@ -483,13 +487,16 @@ private fun EditorPane(
             )
         }
         item {
-            ActionPickerHeader(
-                query = query,
-                onQueryChange = onQueryChange,
-                selectedCategory = selectedCategory,
-                onCategoryChange = onCategoryChange,
-                onCreateWithAi = onCreateWithAi,
-            )
+                ActionPickerHeader(
+                    query = query,
+                    onQueryChange = onQueryChange,
+                    selectedCategory = selectedCategory,
+                    onCategoryChange = onCategoryChange,
+                    onCreateWithAi = onCreateWithAi,
+                    onCreateCustomButton = { label ->
+                        onAssignAction(slot, customDecorAction(slot, label))
+                    },
+                )
         }
         if (filteredActions.isEmpty()) {
             item { EmptySearchState(query = query.trim(), category = selectedCategory) }
@@ -529,7 +536,7 @@ private fun EditorHeader(
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
     ) {
         Text(
-            text = "Pick a slot",
+            text = "Selected slot",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.semantics { heading() },
@@ -598,7 +605,6 @@ private fun EditorHeader(
                 }
             }
         }
-        EditorStylePreview(deckStyle = deckStyle, selectedAction = selectedAction)
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 text = "Button width",
@@ -709,7 +715,10 @@ private fun ActionPickerHeader(
     selectedCategory: ActionCategory,
     onCategoryChange: (ActionCategory) -> Unit,
     onCreateWithAi: () -> Unit,
+    onCreateCustomButton: (String) -> Unit,
 ) {
+    var customLabel by rememberSaveable { mutableStateOf("") }
+    val trimmedCustomLabel = customLabel.trim()
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
         Text(
             text = "Buttons",
@@ -717,6 +726,41 @@ private fun ActionPickerHeader(
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.semantics { heading() },
         )
+        Surface(
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+            shape = MaterialTheme.shapes.large,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)),
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.padding(12.dp),
+            ) {
+                Text(
+                    text = "Make your own emoji button",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                OutlinedTextField(
+                    value = customLabel,
+                    onValueChange = { customLabel = it.take(32) },
+                    singleLine = true,
+                    label = { Text("Emoji or label") },
+                    placeholder = { Text("💀 Deploy, 🌶️ Chaos, 🧃 Break") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                DeckActionButton(
+                    label = "Make emoji button",
+                    onClick = {
+                        onCreateCustomButton(trimmedCustomLabel)
+                        customLabel = ""
+                    },
+                    enabled = trimmedCustomLabel.isNotBlank(),
+                    icon = Icons.Outlined.AutoAwesome,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                )
+            }
+        }
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChange,
@@ -796,6 +840,26 @@ private fun ActionRow(action: DeckAction, selected: Boolean, onClick: () -> Unit
         },
         tonalElevation = if (selected) 2.dp else 0.dp,
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).heightIn(min = 64.dp),
+    )
+}
+
+private fun customDecorAction(slot: Int, label: String): DeckAction {
+    val cleanLabel = label.trim().ifBlank { "✨ Button" }.take(32)
+    val safeIdLabel = cleanLabel
+        .lowercase()
+        .map { if (it.isLetterOrDigit()) it else '_' }
+        .joinToString("")
+        .trim('_')
+        .ifBlank { "emoji" }
+        .take(18)
+    return DeckAction(
+        id = "custom_decor_${slot}_${System.currentTimeMillis()}_$safeIdLabel",
+        label = cleanLabel,
+        kind = ActionKind.Local,
+        icon = ActionIcon.Emoji,
+        description = "Custom emoji/decor button",
+        route = "celebrate",
+        liveSafe = true,
     )
 }
 

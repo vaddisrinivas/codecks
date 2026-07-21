@@ -250,95 +250,54 @@ private fun AutomationHeader(
 ) {
     val controlsReady = connectionReady && connectionHealth.isReady
     Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
-        CodecksPanel(
-            selected = controlsReady,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = if (controlsReady) 0.20f else 0.11f),
-                        contentColor = MaterialTheme.colorScheme.primary,
-                        shape = MaterialTheme.shapes.medium,
-                        modifier = Modifier.size(48.dp),
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = if (controlsReady) Icons.Outlined.Bolt else Icons.Outlined.Computer,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(23.dp),
-                            )
-                        }
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "$automationCount automations",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = if (controlsReady) {
-                                "$enabledCount enabled · $triggerCount triggers · $visibleCount shown · $triggerMonitorLabel"
-                            } else {
-                                "${connectionHealth.title} · ${connectionHealth.detail}"
-                            },
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    DeckActionButton(
-                        label = "Check",
-                        onClick = onCheckTriggers,
-                        enabled = controlsReady,
-                        icon = Icons.Outlined.Bolt,
-                        modifier = Modifier.weight(1f).heightIn(min = 52.dp),
-                    )
-                    DeckActionButton(
-                        label = "New",
-                        onClick = onCreate,
-                        icon = Icons.Outlined.Add,
-                        modifier = Modifier.weight(1f).heightIn(min = 52.dp),
-                    )
-                    DeckActionButton(
-                        label = "AI",
-                        onClick = onCreateWithAi,
-                        icon = Icons.Outlined.AutoAwesome,
-                        selected = true,
-                        modifier = Modifier.weight(1f).heightIn(min = 52.dp),
-                    )
-                }
-            }
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = "Rules",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "$enabledCount on · $visibleCount shown · $triggerMonitorLabel",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
+        DeckActionButton(
+            label = "New rule",
+            onClick = onCreate,
+            icon = Icons.Outlined.Add,
+            selected = true,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        )
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChange,
             leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-            placeholder = { Text("Search automations") },
+            placeholder = { Text("Search rules") },
             singleLine = true,
             shape = MaterialTheme.shapes.medium,
             modifier = Modifier.fillMaxWidth(),
         )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            DeckActionButton(
+                label = "Dry check",
+                onClick = onCheckTriggers,
+                enabled = controlsReady,
+                icon = Icons.Outlined.Bolt,
+                modifier = Modifier.weight(1f).heightIn(min = 46.dp),
+            )
+            DeckActionButton(
+                label = "AI draft",
+                onClick = onCreateWithAi,
+                icon = Icons.Outlined.AutoAwesome,
+                modifier = Modifier.weight(1f).heightIn(min = 46.dp),
+            )
+        }
     }
 }
 

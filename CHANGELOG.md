@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.9 — 2026-07-21
+
+UI rescue and creation-flow cleanup release.
+
+- Promoted button creation in the drawer so `Create button` and `AI builder` appear before setup-heavy sections.
+- Moved the custom emoji/decor button composer to the top of Edit Deck.
+- Reordered Edit Deck so making or assigning a button comes before layout management.
+- Simplified Automations into a clearer Rules surface with a primary New Rule action.
+- Made Settings open directly to Look so theme/icon choices are not buried behind setup.
+- Reworked Bluetooth setup copy and removed clipped target rows in the unconfigured state.
+- Kept Codecks as one signed APK; no alternate preview/debug APK is published.
+
 ## 0.1.8 — 2026-07-21
 
 Fancy deck and editor cleanup release.

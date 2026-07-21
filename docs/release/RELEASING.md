@@ -27,8 +27,8 @@ Repository Actions secrets hold the base64-encoded keystore, alias, and password
 Do not attach debug, preview, incubator, or alternate-app APKs to public releases.
 
 ```bash
-git tag -s v0.1.8 -m "Codecks v0.1.8"
-git push origin v0.1.8
+git tag -s v0.1.9 -m "Codecks v0.1.9"
+git push origin v0.1.9
 ```
 
 If signed Git tags are unavailable, use an annotated tag and rely on the signed APK plus published checksum. Never reuse a version name/code for different binaries.
