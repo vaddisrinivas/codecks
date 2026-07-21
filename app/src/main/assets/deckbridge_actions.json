@@ -1,7 +1,7 @@
 [
   {"id":"blank","label":"Blank","kind":"app","route":"empty_slot","description":"No action assigned."},
   {"id":"add_button","label":"Add Control","kind":"app","route":"button_picker","description":"Choose a control for this slot."},
-  {"id":"pages","label":"Pages","kind":"app","route":"drawer","description":"Open navigation."},
+  {"id":"settings_shortcut","label":"Settings","kind":"app","route":"settings","description":"Open Codecks settings."},
   {"id":"detect_mac","label":"Detect Mac","kind":"app","route":"setup_scan","description":"Open setup and scan for SSH hosts."},
   {"id":"trackpad","label":"Trackpad","kind":"app","route":"trackpad","description":"Open Trackpad."},
   {"id":"automations","label":"Automate","kind":"app","route":"automations","description":"Open Automations."},

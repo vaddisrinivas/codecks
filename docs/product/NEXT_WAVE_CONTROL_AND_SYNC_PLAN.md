@@ -47,8 +47,8 @@ Android’s `BluetoothHidDevice` API is a HID Device profile proxy. The app must
 
 In our code:
 
-- [`HidController.java`](../../app/src/main/java/io/codex/s23deck/HidController.java) opens the HID profile and registers the app.
-- [`HidRepository.kt`](../../app/src/main/java/io/codex/s23deck/HidRepository.kt) stores one selected host and attempts auto-reconnect.
+- [`HidController.java`](../../app/src/main/java/io/codecks/HidController.java) opens the HID profile and registers the app.
+- [`HidRepository.kt`](../../app/src/main/java/io/codecks/HidRepository.kt) stores one selected host and attempts auto-reconnect.
 - But reconnect is one-shot/best-effort. If `connect()` returns false, if Android closes the HID profile, if the app leaves foreground, or if macOS rejects the attempt, we do not have a durable reconnect loop with backoff and diagnostics.
 
 So the fix is a real HID session manager.

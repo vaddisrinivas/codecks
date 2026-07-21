@@ -1,0 +1,241 @@
+package io.codecks.ui.ai
+
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Science
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import io.codecks.BuildConfig
+import io.codecks.domain.ai.DraftKind
+import io.codecks.ui.designsystem.DeckActionButton
+import io.codecks.ui.designsystem.DeckFilterPill
+
+internal fun LazyListScope.aiProviderSettingsItems(
+    state: AiProviderSettingsState,
+    onProviderSelected: (AiProviderChoice) -> Unit,
+    onModelSelected: (String) -> Unit,
+    onApiKeyChanged: (String) -> Unit,
+    onBaseUrlChanged: (String) -> Unit,
+    onSaveApiKey: () -> Unit,
+    onConfirmImportedCredential: () -> Unit,
+    onTest: () -> Unit,
+    onRefreshEntitlement: () -> Unit,
+) {
+    item {
+        AiProviderSummary(
+            state = state,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+        )
+    }
+    item {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .horizontalScroll(rememberScrollState()),
+        ) {
+            AiProviderChoice.entries.forEach { provider ->
+                DeckFilterPill(
+                    label = provider.label,
+                    selected = state.selectedProvider == provider,
+                    onClick = { onProviderSelected(provider) },
+                    modifier = Modifier.heightIn(min = 48.dp),
+                )
+            }
+        }
+    }
+    item {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        ) {
+            Text("Model", style = MaterialTheme.typography.labelLarge)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+            ) {
+                state.selectedProvider.models.forEach { model ->
+                    val modelEnabled = state.draftKind == DraftKind.ContextApps || model.supportsStructuredDrafts
+                    DeckFilterPill(
+                        label = if (modelEnabled) model.label else "${model.label} · not V2",
+                        selected = state.selectedModelId == model.id,
+                        onClick = { onModelSelected(model.id) },
+                        enabled = modelEnabled,
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    )
+                }
+            }
+        }
+    }
+    item {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        ) {
+            Text(
+                text = "Paste a provider key here. Codecks does not read API keys from your Mac over SSH.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            state.pendingImportedCredential?.let { credential ->
+                Text(
+                    text = "Found key from ${credential.source}. Nothing saved yet.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                DeckActionButton(
+                    label = "Save imported key",
+                    onClick = onConfirmImportedCredential,
+                    enabled = !state.isImportingFromMac,
+                    icon = Icons.Outlined.Key,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                )
+            }
+            if (state.selectedProvider == AiProviderChoice.LiteLLM) {
+                OutlinedTextField(
+                    value = state.baseUrlInput,
+                    onValueChange = onBaseUrlChanged,
+                    label = { Text("Endpoint URL") },
+                    placeholder = { Text(BuildConfig.LITELLM_BASE_URL) },
+                    singleLine = true,
+                    supportingText = {
+                        Text(
+                            if (state.savedBaseUrl.isNotBlank()) {
+                                "Saved endpoint used for generation"
+                            } else {
+                                "Use this for LiteLLM, Azure/OpenAI-compatible gateways, or local model routers"
+                            },
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            OutlinedTextField(
+                value = state.apiKeyInput,
+                onValueChange = onApiKeyChanged,
+                label = { Text("${state.selectedProvider.label} API key") },
+                leadingIcon = { Icon(Icons.Outlined.Key, contentDescription = null) },
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true,
+                supportingText = {
+                    Text(
+                        when {
+                            state.hasSavedKey && state.apiKeyInput.isNotBlank() -> "Save to replace the stored key"
+                            state.hasSavedKey -> "Saved key ready for tests and generation"
+                            else -> "Save a key before testing or generating"
+                        },
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                DeckActionButton(
+                    label = "Save key",
+                    onClick = onSaveApiKey,
+                    enabled = state.apiKeyInput.isNotBlank(),
+                    icon = Icons.Outlined.Key,
+                    modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                )
+                DeckActionButton(
+                    label = if (state.testStatus == AiProviderTestStatus.Running) "Testing" else "Test key",
+                    onClick = onTest,
+                    enabled = state.hasSavedKey && state.premiumAllowed && state.testStatus != AiProviderTestStatus.Running,
+                    icon = Icons.Outlined.Science,
+                    modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                )
+            }
+        }
+    }
+    item {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp),
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(14.dp),
+            ) {
+                Icon(
+                    if (state.premiumAllowed) Icons.Outlined.CheckCircle else Icons.Outlined.ErrorOutline,
+                    contentDescription = null,
+                    tint = if (state.premiumAllowed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
+                    Text("AI access", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        if (state.premiumAllowed) "AI Creator enabled" else "AI Creator unavailable",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                DeckActionButton(
+                    label = "Refresh",
+                    onClick = onRefreshEntitlement,
+                    modifier = Modifier.heightIn(min = 48.dp).weight(0.7f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AiProviderSummary(
+    state: AiProviderSettingsState,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = MaterialTheme.shapes.medium,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(14.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Key,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
+                Text("Provider", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "${state.selectedProvider.label} · ${state.selectedModel.label}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    when {
+                        !state.premiumAllowed -> "AI Creator is not enabled"
+                        state.hasSavedKey -> "Encrypted key saved"
+                        else -> "Save an API key before generating"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}

@@ -9,10 +9,10 @@
 Files modified:
 
 - `app/src/main/AndroidManifest.xml`
-- `app/src/main/java/io/codex/s23deck/MainActivity.kt`
-- `app/src/main/java/io/codex/s23deck/IntentDestinationPolicy.kt`
-- `app/src/main/java/io/codex/s23deck/DeckWidgetProvider.kt`
-- `app/src/main/java/io/codex/s23deck/DeckTileService.kt`
+- `app/src/main/java/io/codecks/MainActivity.kt`
+- `app/src/main/java/io/codecks/IntentDestinationPolicy.kt`
+- `app/src/main/java/io/codecks/DeckWidgetProvider.kt`
+- `app/src/main/java/io/codecks/DeckTileService.kt`
 
 ```diff
  <application
@@ -53,7 +53,7 @@ Files modified:
 +    .orElse(providers.gradleProperty("releaseStoreFile"))
 +    .orElse("")
 
--applicationId = "io.codex.s23deck"
+-applicationId = "io.codecks"
 +applicationId = "app.codecks"
 
 -applicationIdSuffix = ".next"
@@ -76,9 +76,9 @@ Files modified:
 
 - `app/build.gradle.kts`
 - `app/src/main/AndroidManifest.xml`
-- `app/src/main/java/io/codex/s23deck/MainActivity.kt`
-- `app/src/main/java/io/codex/s23deck/domain/commerce/FeatureFlagDefaults.kt`
-- `app/src/main/java/io/codex/s23deck/data/commerce/LocalFeatureFlagRepository.kt`
+- `app/src/main/java/io/codecks/MainActivity.kt`
+- `app/src/main/java/io/codecks/domain/features/FeatureFlagDefaults.kt`
+- `app/src/main/java/io/codecks/data/features/LocalFeatureFlagRepository.kt`
 
 ```diff
 -implementation("androidx.credentials:credentials-play-services-auth:1.5.0")

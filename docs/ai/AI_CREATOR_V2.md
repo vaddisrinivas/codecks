@@ -117,7 +117,7 @@ Live-provider release-gate scoring is opt-in because it uses real provider keys 
 ```bash
 CODECKS_AI_V2_LIVE_EVAL=true \
 CODECKS_AI_V2_LIVE_PROVIDERS=openai,anthropic,gemini \
-./gradlew testDebugUnitTest --tests io.codex.s23deck.data.ai.AiCreatorV2LiveEvalTest
+./gradlew testDebugUnitTest --tests io.codecks.data.ai.AiCreatorV2LiveEvalTest
 ```
 
 Use `CODECKS_AI_V2_LIVE_LIMIT=3` for smoke checks. Full stable gating should omit the limit and leave `CODECKS_AI_V2_LIVE_ASSERT_GATES=true`.

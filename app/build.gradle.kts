@@ -7,7 +7,6 @@ plugins {
 }
 
 val optionalContextSurfacesEnabled = providers.gradleProperty("optionalContextSurfacesEnabled").orElse("false")
-val quickSettingsTileEnabled = providers.gradleProperty("quickSettingsTileEnabled").orElse("false")
 val liteLlmBaseUrl = providers.gradleProperty("liteLlmBaseUrl").orElse("")
 val releaseStoreFile = providers.environmentVariable("CODECKS_RELEASE_STORE_FILE")
     .orElse(providers.gradleProperty("releaseStoreFile"))
@@ -42,14 +41,14 @@ val validateArchitectureBoundaries by tasks.registering {
     group = "verification"
     description = "Blocks new Android/data/ui imports from pure domain and core logic packages."
     doLast {
-        val sourceRoot = file("src/main/java/io/codex/s23deck")
+        val sourceRoot = file("src/main/java/io/codecks")
         val guardedRoots = listOf("domain", "core/actions", "core/trackpad")
         val allowedBaseline = setOf(
             "core/actions/DefaultActionRunner.kt",
             "core/trackpad/TrackpadGestureEngine.kt",
             "core/trackpad/TrackpadSettingsRepository.kt",
             "domain/ai/StructuredDraftParser.kt",
-            "domain/commerce/CommerceContracts.kt",
+            "domain/features/FeatureContracts.kt",
         )
         val forbidden = Regex("""^import (android\.|androidx\.|io\.codex\.s23deck\.data\.|io\.codex\.s23deck\.ui\.).*""")
         val violations = guardedRoots
@@ -81,7 +80,7 @@ val validateReleaseSurface by tasks.registering {
         val mainManifest = file("src/main/AndroidManifest.xml").readText()
         val debugManifest = file("src/debug/AndroidManifest.xml").takeIf { it.exists() }?.readText().orEmpty()
         val buildScript = file("build.gradle.kts").readText()
-        val featureDefaults = file("src/main/java/io/codex/s23deck/domain/commerce/FeatureFlagDefaults.kt")
+        val featureDefaults = file("src/main/java/io/codecks/domain/features/FeatureFlagDefaults.kt")
             .takeIf { it.exists() }
             ?.readText()
             .orEmpty()
@@ -107,39 +106,24 @@ val validateReleaseSurface by tasks.registering {
                 add("MainActivity must stay resizeable for Samsung DeX/freeform")
             }
             if ("android:enabled=\"\${optionalContextSurfacesEnabled}\"" !in mainManifest) {
-                add("Context/widget manifest components must be explicitly gated for local-only v1")
+                add("Optional notification listener must be explicitly gated for local-only v1")
             }
             val optionalContextGateCount = Regex("""android:enabled="\$\{optionalContextSurfacesEnabled\}"""")
                 .findAll(mainManifest)
                 .count()
-            if (optionalContextGateCount < 3) {
-                add("Widget provider, widget launch activity, and notification listener must all use optionalContextSurfacesEnabled")
+            if (optionalContextGateCount < 1) {
+                add("Notification listener must use optionalContextSurfacesEnabled")
             }
             listOf(
-                ".DeckWidgetProvider",
-                ".WidgetLaunchActivity",
-                ".data.notifications.DeckBridgeNotificationListenerService",
+                ".data.context.DeckBridgeNotificationListenerService",
             ).filterNot { it in mainManifest }.forEach { component ->
                 add("Release ledger expects optional component missing from manifest check: $component")
             }
             if ("val optionalContextSurfacesEnabled = providers.gradleProperty(\"optionalContextSurfacesEnabled\").orElse(\"false\")" !in buildScript) {
                 add("Optional context/widget surfaces must default disabled")
             }
-            if ("android:enabled=\"\${quickSettingsTileEnabled}\"" !in mainManifest) {
-                add("Quick Settings tile must be explicitly gated for local-only v1")
-            }
-            if ("val quickSettingsTileEnabled = providers.gradleProperty(\"quickSettingsTileEnabled\").orElse(\"false\")" !in buildScript) {
-                add("Quick Settings tile default must remain disabled")
-            }
             listOf(
                 "FeatureFlag.ContextDeck to false",
-                "FeatureFlag.Widget to false",
-                "FeatureFlag.Activity to false",
-                "FeatureFlag.Devices to false",
-                "FeatureFlag.Premium to false",
-                "FeatureFlag.Paywall to false",
-                "FeatureFlag.Advanced to false",
-                "FeatureFlag.Appearance to false",
                 "FeatureFlag.Labs to false",
             ).filterNot { it in featureDefaults }.forEach { expectedDefault ->
                 add("Local-only feature default must remain release-off: $expectedDefault")
@@ -170,19 +154,18 @@ val validateReleaseSurface by tasks.registering {
 }
 
 android {
-    namespace = "io.codex.s23deck"
+    namespace = "io.codecks"
     compileSdk = 37
 
     defaultConfig {
         applicationId = "app.codecks"
         minSdk = 28
         targetSdk = 37
-        versionCode = 10
-        versionName = "0.1.9"
+        versionCode = 11
+        versionName = "0.1.10"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["optionalContextSurfacesEnabled"] = optionalContextSurfacesEnabled.get()
-        manifestPlaceholders["quickSettingsTileEnabled"] = quickSettingsTileEnabled.get()
         buildConfigField("Boolean", "LOCAL_ONLY_V1", "true")
         buildConfigField("String", "LITELLM_BASE_URL", "\"${liteLlmBaseUrl.get()}\"")
     }

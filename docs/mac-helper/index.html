@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codecks Mac Helper</title>
+  <style>
+    :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #07100b; color: #eef8ef; }
+    body { margin: 0; padding: 24px; }
+    main { max-width: 860px; margin: 0 auto; }
+    section { border: 1px solid #244d35; border-radius: 18px; padding: 18px; margin: 16px 0; background: #0c1710; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #020704; border-radius: 14px; padding: 14px; }
+    button { border: 0; border-radius: 999px; padding: 10px 14px; background: #3ddc84; color: #031107; font-weight: 700; }
+    input { width: 100%; box-sizing: border-box; border-radius: 12px; border: 1px solid #315940; padding: 12px; background: #020704; color: #eef8ef; margin: 6px 0 12px; }
+    .muted { color: #a9b8ad; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Codecks Mac Helper</h1>
+  <p class="muted">Fallback page. The Android app should normally find your Mac and install the SSH key itself. Use this page only when pairing gets stuck.</p>
+
+  <section>
+    <h2>1. Enable Remote Login</h2>
+    <p>On your Mac: System Settings → General → Sharing → Remote Login → On.</p>
+  </section>
+
+  <section>
+    <h2>2. Show your Mac fingerprint</h2>
+    <p>Copy this into Terminal. Compare the output with Codecks before trusting.</p>
+    <pre id="fingerprint">node -e 'const {execSync}=require("child_process"); for (const f of ["/etc/ssh/ssh_host_ed25519_key.pub","/etc/ssh/ssh_host_rsa_key.pub"]) { try { console.log(execSync(`ssh-keygen -lf ${f}`, {encoding:"utf8"}).trim()) } catch {} }'</pre>
+    <button data-copy="fingerprint">Copy fingerprint command</button>
+  </section>
+
+  <section>
+    <h2>3. Manual key install fallback</h2>
+    <p>Prefer the app button: Settings → Connections → Pair Mac. If that fails, paste the public key from Codecks here to generate a Terminal command.</p>
+    <label for="publicKey">Codecks public key</label>
+    <input id="publicKey" placeholder="ssh-rsa AAAA...">
+    <pre id="install">Paste a public key above.</pre>
+    <button data-copy="install">Copy install command</button>
+  </section>
+</main>
+<script>
+  const publicKey = document.querySelector("#publicKey");
+  const install = document.querySelector("#install");
+  publicKey.addEventListener("input", () => {
+    const key = publicKey.value.trim().replace(/'/g, "'\"'\"'");
+    install.textContent = key
+      ? `mkdir -p ~/.ssh && chmod 700 ~/.ssh && grep -qxF '${key}' ~/.ssh/authorized_keys 2>/dev/null || printf '%s\\n' '${key}' >> ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys`
+      : "Paste a public key above.";
+  });
+  document.querySelectorAll("[data-copy]").forEach(button => {
+    button.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(document.querySelector(`#${button.dataset.copy}`).textContent);
+      button.textContent = "Copied";
+      setTimeout(() => button.textContent = button.dataset.copy === "install" ? "Copy install command" : "Copy fingerprint command", 1200);
+    });
+  });
+</script>
+</body>
+</html>

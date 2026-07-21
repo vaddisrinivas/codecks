@@ -50,7 +50,7 @@ TEXT_SUFFIXES = {
 
 def tracked_files() -> list[str]:
     result = subprocess.run(
-        ["git", "ls-files"],
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
         cwd=ROOT,
         check=True,
         text=True,
@@ -67,6 +67,8 @@ def main() -> int:
     failures: list[str] = []
     for relative in tracked_files():
         path = ROOT / relative
+        if not path.exists():
+            continue
         name = path.name
         if name in FORBIDDEN_FILE_NAMES or name.endswith(FORBIDDEN_FILE_SUFFIXES):
             failures.append(f"tracked secret-like file is forbidden: {relative}")
