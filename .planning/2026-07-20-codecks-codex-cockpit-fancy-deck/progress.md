@@ -188,3 +188,30 @@ Run physical-device proof if the S23 Ultra is connected, then decide whether to 
   - Result: `BUILD SUCCESSFUL in 1m 27s`.
   - `cd android && JAVA_HOME=<java17> ANDROID_HOME=<android-sdk> ./gradlew --no-daemon assembleLocalDebug assembleIncubatorDebug :app:testLocalDebugUnitTest :feature:deck:testDebugUnitTest :domain:targets:test :domain:decks:test :domain:codex:test :domain:actions:test :runtime:actions:test :data:decks:testDebugUnitTest :data:receipts:testDebugUnitTest :data:targets:testDebugUnitTest :core:security:test :transport:ssh:test checkReleaseBoundary`
   - Result: `BUILD SUCCESSFUL in 18s`.
+- Pushed release-prep commit:
+  - commit: `aba451e Prepare Codecks v0.1.5 release`.
+  - branch: `main`.
+- GitHub main Quality run for `aba451e`:
+  - run: `29792157922`.
+  - result: success in 5m 46s.
+  - steps green: privacy check, unit tests, Android lint, debug APK, upload debug APK.
+- Created and pushed tag:
+  - tag: `v0.1.5`.
+- GitHub Release workflow for `v0.1.5`:
+  - run: `29792434424`.
+  - result: success in 11m 5s.
+  - steps green: tag validation, keystore restore, privacy check, AI Creator V2 corpus check, test/lint/release-surface checks, signed APK build, v2 cockpit preview APK build, artifact upload, GitHub release publish.
+- Published release:
+  - URL: `https://github.com/vaddisrinivas/codecks/releases/tag/v0.1.5`.
+  - name: `Codecks v0.1.5`.
+  - draft: false.
+  - prerelease: false.
+  - published at: `2026-07-21T01:22:12Z`.
+  - assets:
+    - `codecks-v0.1.5.apk`, sha256 `2ae53623203bbb73f93f05093556ee8bc56a8928ef23afb8d0c66d449a4407fc`.
+    - `codecks-v2-cockpit-preview-v0.1.5.apk`, sha256 `2711c3b8b2dbf780227d881bd4060e1e8f5f356e19e82326e33a37c1ac255daa`.
+    - `SHA256SUMS.txt`.
+- Verified `SHA256SUMS.txt` includes both APK filenames and matching hashes.
+- Final device availability check:
+  - only `<emulator>` was connected.
+  - physical S23 Ultra proof remains not performed.
