@@ -12,7 +12,6 @@ Updated: July 21, 2026
 | Default mode | Local-only; no account, billing, hosted backend, database, analytics, or cloud sync |
 | Core surfaces | Deck, Trackpad, Keyboard/Text, Clipboard bridge, Automations, Settings, Deck editor |
 | Optional core tool | AI-assisted drafting through a user-selected provider |
-| Preview artifact | `codecks-v2-cockpit-preview-v0.1.6.apk` (`io.codecks.app.debug`, `0.1.6-preview`, debug-signed preview only) |
 | Disabled incubators | Context Deck, Widget, Activity, Devices, Premium, Paywall, Advanced, Appearance, Labs |
 
 ## Release invariants
@@ -25,7 +24,7 @@ Updated: July 21, 2026
 - No signing key, credential, workstation path, device serial, or private QA artifact enters Git.
 - AI generation is user initiated, shows provider/model/context, and produces reviewable drafts.
 - Generated automations remain disabled until the current revision passes a test.
-- The v2 Codex Cockpit preview is a separate debug artifact; it is not the signed root release APK and must keep local bridge actions guarded.
+- Codecks ships as one signed APK; debug or prototype builds must not be attached to public releases.
 
 ## Public Android components
 

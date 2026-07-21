@@ -2,7 +2,7 @@
 
 Description:
 
-> A local-first Android command deck, trackpad, automation surface, and agent cockpit preview for Mac.
+> A local-first Android command deck, trackpad, and automation surface for Mac.
 
 Homepage:
 
@@ -10,7 +10,7 @@ Homepage:
 
 Topics:
 
-`android`, `automation`, `bluetooth-hid`, `codex`, `command-deck`, `foss`, `jetpack-compose`, `kotlin`, `local-first`, `macos`, `samsung-dex`, `trackpad`
+`android`, `automation`, `bluetooth-hid`, `command-deck`, `foss`, `jetpack-compose`, `kotlin`, `local-first`, `macos`, `samsung-dex`, `trackpad`
 
 Social preview:
 

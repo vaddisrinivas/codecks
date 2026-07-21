@@ -6,11 +6,10 @@ Release URL: https://github.com/vaddisrinivas/codecks/releases/tag/v0.1.5
 
 ## Summary
 
-Codecks v0.1.5 packages the new Codecks v2 Codex cockpit preview alongside the existing signed Codecks APK.
+Codecks v0.1.5 shipped the signed Codecks APK and captured the cockpit prototype work as source/planning context only. Public releases should use the single signed APK.
 
 ## What's new
 
-- Added a Codex Cockpit preview for monitoring agent/task work from Android.
 - Added a fancy deck layer with expressive buttons, emoji-forward controls, status styling, glow/effect presets, and playful completion affordances.
 - Added editable/persisted custom button metadata for label, status, action id, emoji/effect/theme/safety settings.
 - Added guarded bridge actions for safe local snapshot fetches only.
@@ -28,15 +27,13 @@ Codecks v0.1.5 packages the new Codecks v2 Codex cockpit preview alongside the e
 
 ## Artifacts
 
-- `codecks-v0.1.5.apk`: signed root Codecks APK.
-- `codecks-v2-cockpit-preview-v0.1.5.apk`: Codecks v2 cockpit preview debug APK.
-- `SHA256SUMS.txt`: checksums for both APKs.
+- `codecks-v0.1.5.apk`: signed Codecks APK.
+- `SHA256SUMS.txt`: checksum for the signed APK.
 
 ## Checksums
 
 ```text
 2ae53623203bbb73f93f05093556ee8bc56a8928ef23afb8d0c66d449a4407fc  codecks-v0.1.5.apk
-2711c3b8b2dbf780227d881bd4060e1e8f5f356e19e82326e33a37c1ac255daa  codecks-v2-cockpit-preview-v0.1.5.apk
 ```
 
 ## Verification
@@ -44,9 +41,8 @@ Codecks v0.1.5 packages the new Codecks v2 Codex cockpit preview alongside the e
 - Local privacy scan passed.
 - Local AI Creator V2 corpus check passed.
 - Root Android `:app:check` passed.
-- Nested Codecks v2 build/test/release-boundary suite passed.
 - GitHub Quality run for the release-prep commit passed.
-- GitHub Release workflow for `v0.1.5` passed and uploaded both APKs plus checksums.
+- GitHub Release workflow for `v0.1.5` passed and now exposes the single signed APK plus checksum.
 - Post-release `main` Quality run passed.
 
 ## Known caveat

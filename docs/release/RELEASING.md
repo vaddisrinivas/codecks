@@ -19,13 +19,12 @@ sha256sum app/build/outputs/apk/release/app-release.apk
 
 ## GitHub release
 
-Repository Actions secrets hold the base64-encoded keystore, alias, and passwords. Pushing a signed version tag runs `.github/workflows/release.yml`, rebuilds from the public commit, verifies quality gates, and publishes a signed APK plus `SHA256SUMS.txt`.
+Repository Actions secrets hold the base64-encoded keystore, alias, and passwords. Pushing a signed version tag runs `.github/workflows/release.yml`, rebuilds from the public commit, verifies quality gates, and publishes exactly one signed APK plus `SHA256SUMS.txt`.
 
-For `v0.1.5` and later, the same workflow also builds and uploads the nested Codecks v2 cockpit preview APK:
+- `codecks-<tag>.apk`: signed Codecks APK.
+- `SHA256SUMS.txt`: checksum for the signed APK.
 
-- `codecks-<tag>.apk`: signed root Codecks APK.
-- `codecks-v2-cockpit-preview-<tag>.apk`: debug-signed Codecks v2 cockpit preview APK.
-- `SHA256SUMS.txt`: checksums for both APKs.
+Do not attach debug, preview, incubator, or alternate-app APKs to public releases.
 
 ```bash
 git tag -s v0.1.6 -m "Codecks v0.1.6"

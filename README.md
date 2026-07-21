@@ -22,7 +22,6 @@ Mac shortcuts are fast until you need the command you never remember. Codecks gi
 - **Command deck:** Finder, Terminal, Spaces, media, screenshots, browser tabs, and custom Mac commands.
 - **Trackpad:** Bluetooth HID pointer controls with gestures, scrolling, haptics, rotation, and optional screen pinning.
 - **Automations:** local When / If / Then recipes with safe templates, test-before-enable, and run history.
-- **Codex cockpit preview:** a local-first Android task dashboard and fancy deck preview for agent work.
 - **AI-assisted drafting:** optional provider calls can draft buttons and automations; generated actions stay disabled until reviewed.
 - **DeX-ready layouts:** phone, tablet, landscape, freeform, and desktop windows.
 - **No hosted account:** no Codecks backend, analytics SDK, advertising SDK, public database, or cloud sync.
@@ -43,8 +42,6 @@ Use a non-admin Mac account and review every custom command before enabling it. 
 ## Install
 
 Download the signed APK and `SHA256SUMS.txt` from the [latest GitHub release](https://github.com/vaddisrinivas/codecks/releases/latest). Android may ask you to allow installation from your browser or file manager.
-
-The latest release also includes a separate `codecks-v2-cockpit-preview-<tag>.apk` debug preview build for the new Codex Cockpit and fancy deck work. See [Codecks v0.1.6 release notes](docs/release/RELEASE_NOTES_v0.1.6.md).
 
 Requirements:
 
@@ -70,7 +67,7 @@ Release signing instructions live in [docs/release/RELEASING.md](docs/release/RE
 
 ## Project Status
 
-`v0.1.6` is the current public beta. Core deck, trackpad, and automation flows are implemented in the signed APK, and the release also ships a Codecks v2 Codex Cockpit preview APK with fancy buttons, bridge snapshots, and guarded local snapshot actions. Broader physical-device coverage, TalkBack validation, and longer crash-free field testing remain GA gates. See the [production launch plan](docs/release/PRODUCTION_LAUNCH_PLAN.md).
+`v0.1.6` is the current public beta. Core deck, trackpad, automation, editing, settings, and optional AI-assisted drafting flows are implemented in the single signed APK. Broader physical-device coverage, TalkBack validation, and longer crash-free field testing remain GA gates. See the [production launch plan](docs/release/PRODUCTION_LAUNCH_PLAN.md).
 
 ## FOSS Distribution
 

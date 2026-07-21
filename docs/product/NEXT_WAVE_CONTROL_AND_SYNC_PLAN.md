@@ -2,7 +2,7 @@
 
 Updated: July 21, 2026
 
-> Status note: this document is a historical next-wave plan. Version numbering has since moved: `v0.1.5` shipped as the Codex Cockpit and fancy deck preview release, not the clipboard-bridge wave originally sketched below. Treat the wave labels as planning history, not current release commitments.
+> Status note: this document is a historical next-wave plan. Version numbering has since moved; treat the wave labels as planning history, not current release commitments.
 
 ## Product direction
 
