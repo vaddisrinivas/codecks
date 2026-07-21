@@ -854,7 +854,7 @@ private fun DeckStylePanel(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Deck style", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "A focused near-black control surface. Experimental themes stay out of the main product.",
+                        "Pick the deck personality: classic green, neon, candy, glass, mono, or compact widget tiles.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -862,7 +862,7 @@ private fun DeckStylePanel(
             }
             androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(
-                    listOf(CodecksDeckStyle.StreamDeckPro, CodecksDeckStyle.NothingMonoDeck),
+                    CodecksDeckStyle.entries,
                     key = CodecksDeckStyle::name,
                 ) { style ->
                     DeckStylePreviewCard(
@@ -954,9 +954,9 @@ private fun IconPackPanel(
         Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(14.dp)) {
             Text("Icon pack", style = MaterialTheme.typography.titleMedium)
             androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(CodecksIconPack.entries, key = CodecksIconPack::name) { pack ->
+                items(CodecksIconPack.entries.filterNot { it == CodecksIconPack.FontAwesome }, key = CodecksIconPack::name) { pack ->
                     CodecksPanel(
-                        selected = iconPack == pack,
+                        selected = (if (iconPack == CodecksIconPack.FontAwesome) CodecksIconPack.Tabler else iconPack) == pack,
                         modifier = Modifier
                             .width(164.dp)
                             .clickable { onIconPackChange(pack) },
@@ -976,7 +976,7 @@ private fun IconPackPanel(
                 }
             }
             Text(
-                iconPack.description,
+                (if (iconPack == CodecksIconPack.FontAwesome) CodecksIconPack.Tabler else iconPack).description,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

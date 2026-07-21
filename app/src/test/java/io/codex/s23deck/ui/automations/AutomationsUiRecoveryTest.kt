@@ -17,8 +17,9 @@ class AutomationsUiRecoveryTest {
         assertTrue(source.contains("SAFE_COMMAND_TEMPLATES"))
         assertTrue(source.contains("AutomationHistoryDialog"))
         assertTrue(source.contains("TestPreviewCard"))
-        assertTrue(source.contains("AutomationMetaLine(\"When\""))
-        assertTrue(source.contains("AutomationMetaLine(\"Then\""))
-        assertTrue(source.contains("AutomationMetaLine(\"Last\""))
+        assertTrue(source.contains("AutomationRuleLine("))
+        assertTrue(source.contains("\"WHEN\""))
+        assertTrue(source.contains("\"IF\""))
+        assertTrue(source.contains("\"THEN\""))
     }
 }

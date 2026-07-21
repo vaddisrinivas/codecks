@@ -12,11 +12,11 @@ class DeckStyleGalleryPolicyTest {
         val theme = File("src/main/java/io/codex/s23deck/ui/theme/ThemeSettingsRepository.kt").readText()
 
         assertTrue(settings.contains("DeckStylePreviewCard("))
-        assertTrue(settings.contains("CodecksDeckStyle.StreamDeckPro, CodecksDeckStyle.NothingMonoDeck"))
-        assertTrue(!settings.contains("items(CodecksDeckStyle.entries"))
+        assertTrue(settings.contains("CodecksDeckStyle.entries"))
+        assertTrue(settings.contains("Pick the deck personality"))
         assertTrue(settings.contains("DeckControlTile("))
         assertTrue(tiles.contains("deckStyle: CodecksDeckStyle = CodecksDeckStyle.StreamDeckPro"))
         assertTrue(theme.contains("deckStyle = CodecksDeckStyle.StreamDeckPro"))
-        assertTrue(settings.contains("items(CodecksIconPack.entries"))
+        assertTrue(settings.contains("items(CodecksIconPack.entries.filterNot"))
     }
 }

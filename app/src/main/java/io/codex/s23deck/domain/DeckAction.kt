@@ -37,7 +37,12 @@ enum class ActionIcon {
     Search,
     Terminal,
     Volume,
+    Party,
+    Sparkle,
+    Emoji,
+    Empty,
 }
+
 
 sealed interface ActionStatus {
     data object Idle : ActionStatus

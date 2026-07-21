@@ -145,6 +145,7 @@ class ThemeSettingsRepository(private val context: Context) {
             deckStyle = if (useCodecksGreenDefaults) CodecksDeckStyle.StreamDeckPro else resolvePersistedDeckStyle(savedDeckStyle, userSelectedDeckStyle, deckStyleRevision),
             iconPack = if (useCodecksGreenDefaults) CodecksIconPack.Tabler else preferences[ICON_PACK]
                 ?.let { saved -> CodecksIconPack.entries.firstOrNull { it.name == saved } }
+                ?.takeUnless { it == CodecksIconPack.FontAwesome }
                 ?: CodecksIconPack.Tabler,
         )
     }

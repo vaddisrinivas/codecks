@@ -529,7 +529,7 @@ private fun EditorHeader(
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
     ) {
         Text(
-            text = "Selected slot",
+            text = "Pick a slot",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.semantics { heading() },
@@ -712,7 +712,7 @@ private fun ActionPickerHeader(
 ) {
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
         Text(
-            text = "Action library",
+            text = "Buttons",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.semantics { heading() },
@@ -721,7 +721,7 @@ private fun ActionPickerHeader(
             value = query,
             onValueChange = onQueryChange,
             singleLine = true,
-            label = { Text("Search buttons, commands, apps") },
+            label = { Text("Search actions, emoji, blanks") },
             leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
         )
@@ -777,18 +777,25 @@ private fun ActionRow(action: DeckAction, selected: Boolean, onClick: () -> Unit
             Text(action.description.ifBlank { action.id }, maxLines = 2, overflow = TextOverflow.Ellipsis)
         },
         leadingContent = {
-            Icon(
-                imageVector = action.deckImageVector(),
-                contentDescription = null,
-                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Surface(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = if (selected) 0.18f else 0.10f),
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.size(44.dp),
+            ) {
+                Icon(
+                    imageVector = action.deckImageVector(),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(10.dp).size(24.dp),
+                )
+            }
         },
         trailingContent = {
             if (selected) Text("Assigned", color = MaterialTheme.colorScheme.primary)
             else Icon(Icons.Outlined.Add, contentDescription = null)
         },
         tonalElevation = if (selected) 2.dp else 0.dp,
-        modifier = Modifier.clickable(onClick = onClick).heightIn(min = 64.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).heightIn(min = 64.dp),
     )
 }
 
@@ -842,7 +849,8 @@ private enum class ActionCategory(val title: String) {
     Browser("Browser"),
     Media("Media"),
     Editing("Editing"),
-    System("System");
+    System("System"),
+    Decor("Decor");
 
     fun matches(action: DeckAction): Boolean = when (this) {
         All -> true
@@ -852,6 +860,7 @@ private enum class ActionCategory(val title: String) {
         Media -> action.id in mediaIds || action.icon.name == "Volume" || action.icon.name == "Play"
         Editing -> action.id in editingIds
         System -> action.dangerous || action.id in systemIds
+        Decor -> action.id in decorIds || action.icon.name in setOf("Party", "Sparkle", "Emoji", "Empty")
     }
 
     private companion object {
@@ -861,6 +870,10 @@ private enum class ActionCategory(val title: String) {
         )
         val mediaIds = setOf("play_pause", "next_track", "prev_track", "mute", "vol_up", "vol_down")
         val editingIds = setOf("copy", "paste", "keyboard")
+        val decorIds = setOf(
+            "confetti", "sparkle", "emoji_heart", "emoji_fire", "emoji_focus",
+            "emoji_coffee", "blank_spacer", "magic_blank", "blank",
+        )
         val systemIds = setOf(
             "lock_mac", "sleep_display", "screensaver", "settings", "activity", "mission",
             "next_app", "prev_app", "space_left", "space_right", "show_desktop", "full_screen",

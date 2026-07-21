@@ -24,6 +24,7 @@ import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Computer
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.MusicNote
@@ -639,82 +640,48 @@ private fun AutomationRow(
     val controlsReady = connectionReady && connectionHealth.isReady
     val enabled = item.enabled && controlsReady && !running
     val status = automationStatus(item, running, connectionHealth)
+    val ifLine = when {
+        item.lastTestSucceeded == true -> "Dry run passed"
+        item.lastTestSucceeded == false -> "Dry run failed; fix before enabling"
+        item.canEnable -> "Approved and ready"
+        item.enabled -> "Enabled; run a dry check when changed"
+        else -> "Paused until checked"
+    }
     CodecksPanel(
-            selected = running,
-        danger = item.dangerous || item.lastRunSucceeded == false,
+        selected = running || item.lastTestSucceeded == true,
+        danger = item.dangerous || item.lastRunSucceeded == false || item.lastTestSucceeded == false,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 6.dp)
             .semantics { if (running) stateDescription = "Running" },
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 88.dp)
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+        Column(
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
         ) {
-            Surface(
-                color = if (item.dangerous) {
-                    MaterialTheme.colorScheme.errorContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainer
-                },
-                shape = MaterialTheme.shapes.medium,
-                modifier = Modifier.size(48.dp),
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = item.category.icon(),
-                        contentDescription = null,
-                        tint = if (item.dangerous) {
-                            MaterialTheme.colorScheme.onErrorContainer
-                        } else {
-                            MaterialTheme.colorScheme.primary
-                        },
-                        modifier = Modifier.size(24.dp),
-                    )
-                }
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = item.label,
                         style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
                     )
-                    if (connectionHealth.isReady || running || !item.enabled || item.lastRunSucceeded == false) {
-                        AutomationStatusPill(status)
-                    }
-                }
-                AutomationMetaLine("When", item.triggerLabel)
-                AutomationMetaLine("Then", item.draftCommand.ifBlank { item.description })
-                item.lastRunLabel?.let { label ->
-                    AutomationMetaLine("Last", label, failed = item.lastRunSucceeded == false)
-                }
-                if (item.lastRunSucceeded == false) {
                     Text(
-                        text = if (controlsReady) {
-                            "Repair: open options to test this automation before running again."
-                        } else {
-                            "Repair: ${connectionHealth.actionHint ?: connectionHealth.title}"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error,
+                        text = if (item.enabled) "Enabled" else "Paused",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            }
-            if (running) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.5.dp)
-            } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                AutomationStatusPill(status)
+                if (running) {
+                    CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 2.5.dp)
+                } else {
                     IconButton(onClick = onRun, enabled = enabled) {
                         Icon(
                             Icons.Outlined.PlayArrow,
@@ -722,37 +689,45 @@ private fun AutomationRow(
                             tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    IconButton(onClick = onOptions) {
-                        Icon(Icons.Outlined.Settings, contentDescription = "Automation options")
-                    }
                 }
+                IconButton(onClick = onOptions) {
+                    Icon(Icons.Outlined.Edit, contentDescription = "Edit automation")
+                }
+            }
+            AutomationRuleLine("WHEN", item.triggerLabel)
+            AutomationRuleLine("IF", ifLine, failed = item.lastTestSucceeded == false)
+            AutomationRuleLine("THEN", item.draftCommand.ifBlank { item.description })
+            item.lastRunLabel?.let { label ->
+                AutomationRuleLine("LAST", label, failed = item.lastRunSucceeded == false, compact = true)
             }
         }
     }
 }
 
 @Composable
-private fun AutomationMetaLine(
+private fun AutomationRuleLine(
     label: String,
     value: String,
     failed: Boolean = false,
+    compact: Boolean = false,
 ) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
         verticalAlignment = Alignment.Top,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Text(
-            text = label.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
             color = if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(top = 2.dp),
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
+            style = if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyLarge,
+            color = if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+            maxLines = if (compact) 1 else 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )

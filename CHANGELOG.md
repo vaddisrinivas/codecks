@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.8 — 2026-07-21
+
+Fancy deck and editor cleanup release.
+
+- Added safe decorative deck buttons: confetti, sparkle, emoji markers, blank spacer, and magic tile.
+- Added a Decor category in Edit Deck so decorative buttons are easy to find.
+- Added an in-app celebration overlay for decorative celebration buttons.
+- Fixed the action-library icon row so icon packs cannot render giant cropped glyphs.
+- Hid the broken Font Awesome option and normalize saved Font Awesome settings back to Tabler.
+- Exposed the existing richer deck styles in Settings > Look.
+- Kept Codecks as one signed APK; no alternate preview/debug APK is published.
+
 ## 0.1.7 — 2026-07-21
 
 One-APK cleanup release.

@@ -20,6 +20,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -40,11 +41,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
@@ -292,8 +295,8 @@ private data class CommerceRuntime(
 
 private fun DeckAction.visibleForFlags(flags: Map<FeatureFlag, Boolean>): Boolean = when (kind) {
     ActionKind.Ssh -> true
-    ActionKind.Local -> id in setOf("add_button", "blank") ||
-        route in setOf("trackpad", "automations", "ai", "button_picker", "empty_slot", "layout_builder", "drawer") ||
+    ActionKind.Local -> id in setOf("add_button", "blank", "blank_spacer", "magic_blank", "confetti", "sparkle", "emoji_heart", "emoji_fire", "emoji_focus", "emoji_coffee") ||
+        route in setOf("trackpad", "automations", "ai", "button_picker", "empty_slot", "layout_builder", "drawer", "celebrate", "decor") ||
         (route in setOf("keyboard", "text") && flags.focusedEnabled(FeatureFlag.Keyboard)) ||
         (route == "clipboard" && flags.focusedEnabled(FeatureFlag.Clipboard)) ||
         (id == "clipboard" && flags.focusedEnabled(FeatureFlag.Clipboard)) ||
@@ -631,6 +634,7 @@ private fun DeckBridgeApp(
     var selectedDeckSlot by remember { mutableStateOf(0) }
     var deckDirty by remember { mutableStateOf(false) }
     var focusedDeckActionId by remember { mutableStateOf<String?>(null) }
+    var celebrationLabel by remember { mutableStateOf<String?>(null) }
     var pointerSensitivity by remember { mutableStateOf(1f) }
     var naturalScroll by remember { mutableStateOf(true) }
     var fullscreenOverride by remember { mutableStateOf<Boolean?>(null) }
@@ -729,6 +733,8 @@ private fun DeckBridgeApp(
                 "settings" -> navigate(SettingsRoute)
                 "drawer" -> scope.launch { drawerState.open() }
                 "button_picker", "empty_slot", "layout_builder" -> navigate(EditorRoute)
+                "celebrate" -> celebrationLabel = action.label
+                "decor" -> Unit
                 "setup_scan" -> navigate(ConnectionRoute)
                 "list_apps_panel" -> if (featureFlags.focusedEnabled(FeatureFlag.Advanced)) navigate(AdvancedRoute) else Unit
                 else -> Unit
@@ -805,8 +811,9 @@ private fun DeckBridgeApp(
         )
     }
 
-    DeckBridgeAppShell(
-        drawerState = drawerState,
+    Box(modifier = Modifier.fillMaxSize()) {
+        DeckBridgeAppShell(
+            drawerState = drawerState,
         snackbarHostState = snackbarHostState,
         destinations = destinations,
         currentRoute = currentRoute,
@@ -826,7 +833,7 @@ private fun DeckBridgeApp(
         onOpenEditor = { navigate(EditorRoute) },
         onToggleFullscreen = { fullscreenOverride = !fullscreen },
         onExitFullscreen = { fullscreenOverride = false },
-    ) { contentPadding ->
+        ) { contentPadding ->
             NavDisplay(
                 backStack = backStack,
                 onBack = { backStack.removeLastOrNull() },
@@ -1340,6 +1347,27 @@ private fun DeckBridgeApp(
                 },
                 modifier = Modifier.fillMaxSize(),
             )
+        }
+        celebrationLabel?.let { label ->
+            CelebrationOverlay(label = label, onDone = { celebrationLabel = null })
+        }
+    }
+}
+
+@Composable
+private fun CelebrationOverlay(label: String, onDone: () -> Unit) {
+    LaunchedEffect(label) {
+        kotlinx.coroutines.delay(1_250)
+        onDone()
+    }
+    Box(modifier = Modifier.fillMaxSize()) {
+        Text("🎉", fontSize = 46.sp, modifier = Modifier.align(Alignment.TopStart).padding(start = 34.dp, top = 90.dp))
+        Text("✨", fontSize = 38.sp, modifier = Modifier.align(Alignment.TopEnd).padding(end = 38.dp, top = 150.dp))
+        Text("💚", fontSize = 42.sp, modifier = Modifier.align(Alignment.CenterStart).padding(start = 28.dp))
+        Text(label.take(2), fontSize = 52.sp, modifier = Modifier.align(Alignment.Center))
+        Text("🔥", fontSize = 42.sp, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 34.dp))
+        Text("✨", fontSize = 44.sp, modifier = Modifier.align(Alignment.BottomStart).padding(start = 56.dp, bottom = 150.dp))
+        Text("🎉", fontSize = 50.sp, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 52.dp, bottom = 108.dp))
     }
 }
 

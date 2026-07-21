@@ -345,7 +345,11 @@ class ActionCatalog @Inject constructor(
     }
 
     private fun iconFor(id: String): ActionIcon = when (id) {
-        "add_button", "blank" -> ActionIcon.Add
+        "add_button" -> ActionIcon.Add
+        "blank", "blank_spacer", "empty_pad", "quiet_tile" -> ActionIcon.Empty
+        "confetti", "party", "celebrate" -> ActionIcon.Party
+        "sparkle", "magic_blank", "glow" -> ActionIcon.Sparkle
+        "emoji_heart", "emoji_fire", "emoji_focus", "emoji_coffee" -> ActionIcon.Emoji
         "finder", "desktop", "downloads", "documents" -> ActionIcon.Finder
         "terminal", "dev_tools" -> ActionIcon.Terminal
         "spotlight", "detect_mac", "list_apps" -> ActionIcon.Search

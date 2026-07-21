@@ -77,6 +77,10 @@ private fun resolveActionIcon(icon: ActionIcon, pack: CodecksIconPack): ImageVec
             ActionIcon.Search -> Icons.Outlined.Search
             ActionIcon.Terminal -> Icons.Outlined.Terminal
             ActionIcon.Volume -> Icons.AutoMirrored.Outlined.VolumeUp
+            ActionIcon.Party -> Icons.Outlined.AutoAwesome
+            ActionIcon.Sparkle -> Icons.Outlined.AutoAwesome
+            ActionIcon.Emoji -> Icons.Outlined.AutoAwesome
+            ActionIcon.Empty -> Icons.Outlined.Add
         }
 
         CodecksIconPack.Feather -> when (icon) {
@@ -95,6 +99,10 @@ private fun resolveActionIcon(icon: ActionIcon, pack: CodecksIconPack): ImageVec
             ActionIcon.Search -> FeatherIcons.Search
             ActionIcon.Terminal -> FeatherIcons.Terminal
             ActionIcon.Volume -> FeatherIcons.Volume2
+            ActionIcon.Party -> FeatherIcons.Plus
+            ActionIcon.Sparkle -> FeatherIcons.Plus
+            ActionIcon.Emoji -> FeatherIcons.Plus
+            ActionIcon.Empty -> FeatherIcons.Grid
         }
 
         CodecksIconPack.Tabler -> when (icon) {
@@ -113,6 +121,10 @@ private fun resolveActionIcon(icon: ActionIcon, pack: CodecksIconPack): ImageVec
             ActionIcon.Search -> TablerIcons.Search
             ActionIcon.Terminal -> TablerIcons.Terminal2
             ActionIcon.Volume -> TablerIcons.Volume2
+            ActionIcon.Party -> TablerIcons.Stars
+            ActionIcon.Sparkle -> TablerIcons.Stars
+            ActionIcon.Emoji -> TablerIcons.Stars
+            ActionIcon.Empty -> TablerIcons.Plus
         }
 
         CodecksIconPack.FontAwesome -> when (icon) {
@@ -131,6 +143,10 @@ private fun resolveActionIcon(icon: ActionIcon, pack: CodecksIconPack): ImageVec
             ActionIcon.Search -> FontAwesomeIcons.Solid.Search
             ActionIcon.Terminal -> FontAwesomeIcons.Solid.Terminal
             ActionIcon.Volume -> FontAwesomeIcons.Solid.VolumeUp
+            ActionIcon.Party -> FontAwesomeIcons.Solid.Magic
+            ActionIcon.Sparkle -> FontAwesomeIcons.Solid.Magic
+            ActionIcon.Emoji -> FontAwesomeIcons.Solid.Magic
+            ActionIcon.Empty -> FontAwesomeIcons.Solid.Plus
         }
     }
 
