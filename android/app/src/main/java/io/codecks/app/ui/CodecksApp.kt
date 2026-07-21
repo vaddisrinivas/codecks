@@ -23,6 +23,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
@@ -57,6 +59,7 @@ import io.codecks.domain.targets.TargetSetupDraft
 import io.codecks.domain.targets.TrustState
 import io.codecks.feature.connection.ConnectionSetupScreen
 import io.codecks.feature.connection.ConnectionSetupUiState
+import io.codecks.feature.codex.CodexCockpitScreen
 import io.codecks.feature.deck.DeckScreen
 import io.codecks.feature.automations.AutomationsScreen
 import io.codecks.feature.settings.SettingsScreen
@@ -166,13 +169,25 @@ fun CodecksApp() {
                 )
             }
 
-            else -> RouteContent(
-                route = selectedRoute,
-                onNavigate = { selectedRouteId = it.id },
-                onOpenKeyboard = openKeyboard,
-                onCloseKeyboard = closeKeyboard,
-                modifier = Modifier.fillMaxSize(),
-            )
+            else -> Column(Modifier.fillMaxSize()) {
+                RouteContent(
+                    route = selectedRoute,
+                    onNavigate = { selectedRouteId = it.id },
+                    onOpenKeyboard = openKeyboard,
+                    onCloseKeyboard = closeKeyboard,
+                    modifier = Modifier.weight(1f),
+                )
+                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                    AppRoute.topLevel.forEach { route ->
+                        NavigationBarItem(
+                            selected = route == selectedRoute,
+                            onClick = { selectedRouteId = route.id },
+                            icon = { Icon(route.icon, contentDescription = route.label) },
+                            label = { Text(route.label) },
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -382,6 +397,8 @@ private fun RouteContent(
                 onOpenTrackpad = { onNavigate(AppRoute.Trackpad) },
                 onOpenKeyboard = { onOpenKeyboard(AppRoute.Deck) },
             )
+
+            AppRoute.Codex -> CodexCockpitScreen()
 
             AppRoute.Trackpad -> TrackpadScreen(
                 onExit = { onNavigate(AppRoute.Deck) },

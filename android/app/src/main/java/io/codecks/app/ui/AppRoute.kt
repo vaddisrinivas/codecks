@@ -2,6 +2,7 @@ package io.codecks.app.ui
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.Keyboard
 import androidx.compose.material.icons.rounded.Settings
@@ -21,6 +22,13 @@ sealed interface AppRoute : NavKey {
         override val id = "deck"
         override val label = "Deck"
         override val icon = Icons.Rounded.Dashboard
+    }
+
+    @Serializable
+    data object Codex : AppRoute {
+        override val id = "codex"
+        override val label = "Codex"
+        override val icon = Icons.Rounded.Bolt
     }
 
     @Serializable
@@ -52,7 +60,7 @@ sealed interface AppRoute : NavKey {
     }
 
     companion object {
-        val topLevel = listOf(Deck, Trackpad, Automations, Settings)
+        val topLevel = listOf(Deck, Codex, Trackpad, Automations, Settings)
         val all = topLevel + Keyboard
 
         fun fromId(id: String): AppRoute = all.firstOrNull { it.id == id } ?: Deck
