@@ -35,7 +35,7 @@ The script prints the output path and never includes prompt or source content.
 Use `emit-release-snapshot.sh` to generate a status-only release/GitHub deck payload from a local Git checkout:
 
 ```bash
-mac-actions/codex-cockpit/emit-release-snapshot.sh /Users/srinivasvaddi/Projects/codecks /tmp/codecks-release-cockpit-snapshot.json
+mac-actions/codex-cockpit/emit-release-snapshot.sh <repo> /tmp/codecks-release-cockpit-snapshot.json
 ```
 
 It reports dirty worktree count, latest local tag, and GitHub release URL when `gh` is available and authenticated. It does not read prompt or source content.
@@ -60,7 +60,7 @@ It does not read session bodies, prompts, tool outputs, source files, or convers
 Use `serve-local-bridge.sh` to emit the mock, release, and local Codex metadata snapshots, then serve them locally:
 
 ```bash
-mac-actions/codex-cockpit/serve-local-bridge.sh /Users/srinivasvaddi/Projects/codecks 8765
+mac-actions/codex-cockpit/serve-local-bridge.sh <repo> 8765
 ```
 
 Android emulator URL:

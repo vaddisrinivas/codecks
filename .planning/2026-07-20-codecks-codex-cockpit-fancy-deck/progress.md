@@ -18,7 +18,7 @@ Date: 2026-07-20
   - `android/feature/codex` for the mock-first Codex Cockpit screen.
   - App shell route wiring for a new top-level `Codex` tab.
 - Verified focused compile gate:
-  - `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=/Users/srinivasvaddi/Library/Android/sdk ./gradlew --no-daemon :app:compileLocalDebugKotlin :feature:codex:compileDebugKotlin :core:designsystem:compileDebugKotlin :domain:codex:compileKotlin`
+  - `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=<android-sdk> ./gradlew --no-daemon :app:compileLocalDebugKotlin :feature:codex:compileDebugKotlin :core:designsystem:compileDebugKotlin :domain:codex:compileKotlin`
   - Result: `BUILD SUCCESSFUL in 42s`.
 - Added next-depth scaffolding:
   - domain tests for mock cockpit task states, fancy buttons, and theme presets.
@@ -69,44 +69,44 @@ Date: 2026-07-20
   - emits status-only `local-codex-metadata` snapshots.
 - Updated `serve-local-bridge.sh` to serve `/codecks-local-codex-snapshot.json`.
 - Verified local Codex metadata emitter:
-  - `mac-actions/codex-cockpit/emit-local-codex-snapshot.py /tmp/codecks-local-codex-snapshot.json /Users/srinivasvaddi/.codex 8`
+  - `mac-actions/codex-cockpit/emit-local-codex-snapshot.py /tmp/codecks-local-codex-snapshot.json <codex-home> 8`
   - Result: emitted non-empty `/tmp/codecks-local-codex-snapshot.json` with 8 metadata-only tasks and privacy flags false.
 - Verified bridge server with local Codex metadata endpoint:
   - served and fetched non-empty `/codecks-local-codex-snapshot.json`.
 - Verified focused gate after local Codex metadata emitter:
-  - `cd android && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=/Users/srinivasvaddi/Library/Android/sdk ./gradlew --no-daemon :domain:codex:test :feature:codex:compileDebugKotlin :app:compileLocalDebugKotlin`
+  - `cd android && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=<android-sdk> ./gradlew --no-daemon :domain:codex:test :feature:codex:compileDebugKotlin :app:compileLocalDebugKotlin`
   - Result: `BUILD SUCCESSFUL in 10s`.
 - Verified focused gate after HTTP bridge fetch/server patch:
-  - `chmod +x mac-actions/codex-cockpit/serve-local-bridge.sh && cd android && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=/Users/srinivasvaddi/Library/Android/sdk ./gradlew --no-daemon :domain:codex:test :feature:codex:compileDebugKotlin :app:compileLocalDebugKotlin`
+  - `chmod +x mac-actions/codex-cockpit/serve-local-bridge.sh && cd android && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=<android-sdk> ./gradlew --no-daemon :domain:codex:test :feature:codex:compileDebugKotlin :app:compileLocalDebugKotlin`
   - Result: `BUILD SUCCESSFUL in 18s`.
 - Verified local bridge server smoke:
-  - started `mac-actions/codex-cockpit/serve-local-bridge.sh /Users/srinivasvaddi/Projects/codecks 8765`.
+  - started `mac-actions/codex-cockpit/serve-local-bridge.sh <repo> 8765`.
   - fetched non-empty `http://127.0.0.1:8765/index.json`.
   - fetched non-empty `http://127.0.0.1:8765/codecks-codex-cockpit-snapshot.json`.
   - fetched non-empty `http://127.0.0.1:8765/codecks-release-cockpit-snapshot.json`.
 - Verified latest focused gate:
-  - `chmod +x mac-actions/codex-cockpit/emit-release-snapshot.sh && cd android && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=/Users/srinivasvaddi/Library/Android/sdk ./gradlew --no-daemon :domain:codex:test :feature:codex:compileDebugKotlin :app:compileLocalDebugKotlin`
+  - `chmod +x mac-actions/codex-cockpit/emit-release-snapshot.sh && cd android && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=<android-sdk> ./gradlew --no-daemon :domain:codex:test :feature:codex:compileDebugKotlin :app:compileLocalDebugKotlin`
   - Result: `BUILD SUCCESSFUL in 14s`.
 - Verified both Mac-side emitters:
-  - `mac-actions/codex-cockpit/emit-mock-snapshot.sh /tmp/codecks-codex-cockpit-snapshot.json && test -s /tmp/codecks-codex-cockpit-snapshot.json && mac-actions/codex-cockpit/emit-release-snapshot.sh /Users/srinivasvaddi/Projects/codecks /tmp/codecks-release-cockpit-snapshot.json && test -s /tmp/codecks-release-cockpit-snapshot.json`
+  - `mac-actions/codex-cockpit/emit-mock-snapshot.sh /tmp/codecks-codex-cockpit-snapshot.json && test -s /tmp/codecks-codex-cockpit-snapshot.json && mac-actions/codex-cockpit/emit-release-snapshot.sh <repo> /tmp/codecks-release-cockpit-snapshot.json && test -s /tmp/codecks-release-cockpit-snapshot.json`
   - Result: emitted non-empty `/tmp/codecks-codex-cockpit-snapshot.json` and `/tmp/codecks-release-cockpit-snapshot.json`.
 - Verified latest focused gate:
-  - `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=/Users/srinivasvaddi/Library/Android/sdk ./gradlew --no-daemon :domain:codex:test :feature:codex:compileDebugKotlin :app:compileLocalDebugKotlin`
+  - `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=<android-sdk> ./gradlew --no-daemon :domain:codex:test :feature:codex:compileDebugKotlin :app:compileLocalDebugKotlin`
   - Result: `BUILD SUCCESSFUL in 21s`.
 - Verified mock bridge emitter:
   - `mac-actions/codex-cockpit/emit-mock-snapshot.sh /tmp/codecks-codex-cockpit-snapshot.json && test -s /tmp/codecks-codex-cockpit-snapshot.json`
   - Result: emitted non-empty `/tmp/codecks-codex-cockpit-snapshot.json`.
 - Verified broader nested Android suite:
-  - `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=/Users/srinivasvaddi/Library/Android/sdk ./gradlew --no-daemon assembleLocalDebug assembleIncubatorDebug :app:testLocalDebugUnitTest :feature:deck:testDebugUnitTest :domain:targets:test :domain:decks:test :domain:codex:test :domain:actions:test :runtime:actions:test :data:decks:testDebugUnitTest :data:receipts:testDebugUnitTest :data:targets:testDebugUnitTest :core:security:test :transport:ssh:test checkReleaseBoundary`
+  - `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=<android-sdk> ./gradlew --no-daemon assembleLocalDebug assembleIncubatorDebug :app:testLocalDebugUnitTest :feature:deck:testDebugUnitTest :domain:targets:test :domain:decks:test :domain:codex:test :domain:actions:test :runtime:actions:test :data:decks:testDebugUnitTest :data:receipts:testDebugUnitTest :data:targets:testDebugUnitTest :core:security:test :transport:ssh:test checkReleaseBoundary`
   - Result: `BUILD SUCCESSFUL in 1m 2s`.
 - Verified second focused gate:
-  - `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=/Users/srinivasvaddi/Library/Android/sdk ./gradlew --no-daemon :domain:codex:test :feature:codex:compileDebugKotlin :app:compileLocalDebugKotlin`
+  - `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=<android-sdk> ./gradlew --no-daemon :domain:codex:test :feature:codex:compileDebugKotlin :app:compileLocalDebugKotlin`
   - Result: `BUILD SUCCESSFUL in 16s`.
 - During emulator proof, discovered compact phone layout had no top-level navigation to the `Codex` tab.
 - Added bottom navigation for compact phone layouts so `Deck`, `Codex`, `Trackpad`, `Automations`, and `Settings` are reachable.
 - Verified compact emulator rendered bridge proof:
-  - installed `android/app/build/outputs/apk/local/debug/app-local-debug.apk` on `emulator-5554`.
-  - started `mac-actions/codex-cockpit/serve-local-bridge.sh /Users/srinivasvaddi/Projects/codecks 8765`.
+  - installed `android/app/build/outputs/apk/local/debug/app-local-debug.apk` on `<emulator>`.
+  - started `mac-actions/codex-cockpit/serve-local-bridge.sh <repo> 8765`.
   - configured `adb reverse tcp:8765 tcp:8765`.
   - launched `io.codecks.app.debug/io.codecks.app.MainActivity`.
   - entered demo mode and opened the `Codex` bottom tab.
@@ -118,20 +118,20 @@ Date: 2026-07-20
   - unknown action ids are saved but not executed.
   - no arbitrary shell execution is exposed from fancy buttons.
 - Verified focused gate after guarded action execution:
-  - `cd android && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=/Users/srinivasvaddi/Library/Android/sdk ./gradlew --no-daemon :domain:codex:test :feature:codex:compileDebugKotlin :app:compileLocalDebugKotlin`
+  - `cd android && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=<android-sdk> ./gradlew --no-daemon :domain:codex:test :feature:codex:compileDebugKotlin :app:compileLocalDebugKotlin`
   - Result: `BUILD SUCCESSFUL in 15s`.
 - Verified broader nested Android suite after guarded action execution:
-  - `cd android && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=/Users/srinivasvaddi/Library/Android/sdk ./gradlew --no-daemon assembleLocalDebug assembleIncubatorDebug :app:testLocalDebugUnitTest :feature:deck:testDebugUnitTest :domain:targets:test :domain:decks:test :domain:codex:test :domain:actions:test :runtime:actions:test :data:decks:testDebugUnitTest :data:receipts:testDebugUnitTest :data:targets:testDebugUnitTest :core:security:test :transport:ssh:test checkReleaseBoundary`
+  - `cd android && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=<android-sdk> ./gradlew --no-daemon assembleLocalDebug assembleIncubatorDebug :app:testLocalDebugUnitTest :feature:deck:testDebugUnitTest :domain:targets:test :domain:decks:test :domain:codex:test :domain:actions:test :runtime:actions:test :data:decks:testDebugUnitTest :data:receipts:testDebugUnitTest :data:targets:testDebugUnitTest :core:security:test :transport:ssh:test checkReleaseBoundary`
   - Result: `BUILD SUCCESSFUL in 15s`.
 - Checked connected Android devices for physical proof:
   - `adb devices -l`
-  - Result: only `emulator-5554` was connected; no physical S23 Ultra was available.
+  - Result: only `<emulator>` was connected; no physical S23 Ultra was available.
 - Verified release-readiness checks after the current implementation:
   - `python3 tools/secret_surface_check.py`
   - Result: `secret surface OK`.
-  - `cd android && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=/Users/srinivasvaddi/Library/Android/sdk ./gradlew --no-daemon checkReleaseBoundary`
+  - `cd android && JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=<android-sdk> ./gradlew --no-daemon checkReleaseBoundary`
   - Result: `BUILD SUCCESSFUL in 6s`.
-  - `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=/Users/srinivasvaddi/Library/Android/sdk ./gradlew --no-daemon :app:check`
+  - `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home ANDROID_HOME=<android-sdk> ./gradlew --no-daemon :app:check`
   - Result: `BUILD SUCCESSFUL in 6s`.
 
 ## Current plan location
