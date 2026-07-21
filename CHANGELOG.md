@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.7 — 2026-07-21
+
+One-APK cleanup release.
+
+- Removed the nested alternate Android app and related prototype bridge/protocol files from the public source tree.
+- Updated release automation to publish exactly one signed APK plus `SHA256SUMS.txt`.
+- Removed stale docs/evidence/planning records that pointed users toward the deleted alternate app.
+- Kept Codecks focused on the stable local-first command deck, trackpad, automation, settings, and optional AI drafting app.
+
 ## 0.1.6 — 2026-07-21
 
 Classic deck layout preservation and release-note cleanup.
