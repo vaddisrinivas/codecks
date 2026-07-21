@@ -97,7 +97,7 @@ Codecks implication:
 
 ## Device / display notes
 
-S23 Ultra and similar OLED/AMOLED phones can show different brightness per pixel in normal rendered content because each OLED pixel emits independently.
+OLED/AMOLED phones can show different brightness per pixel in normal rendered content because each OLED pixel emits independently.
 
 Important limitation:
 
@@ -109,22 +109,21 @@ Codecks implication:
 - Use OLED-friendly localized glow, dark/gradient backgrounds, and bright accent pixels.
 - Do not promise “hardware per-pixel brightness control” as an app feature.
 
-## AppFunctions state
+## Android assistant integration state
 
 Problem found in Codecks v2:
 
-- AppFunctions dependencies were unresolved in the nested Android build.
-- The WIP service imported AndroidX AppFunctions APIs and registered a service in the manifest.
+- Android assistant integration dependencies were unresolved in the nested Android build.
+- The WIP service imported experimental Android assistant integration APIs and registered a service in the manifest.
 - Build could not resolve the declared AppFunctions service artifact/version.
 
 Current handling:
 
-- AppFunctions is parked, not discarded.
+- Android assistant integration is deferred, not discarded.
 - The source is preserved at `.planning/2026-07-20-codecks-v2-appfunctions-parked/CodecksAppFunctionService.kt.disabled`.
 - It should only be revived after confirming current official dependency coordinates, Android/API requirements, and integration shape.
 
 Codecks implication:
 
-- AppFunctions is a later integration lane.
+- Android assistant integration is a later integration lane.
 - It should not block the Codex cockpit/fancy deck slice.
-

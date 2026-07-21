@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.1.5 — 2026-07-21
+
+Codex Cockpit and fancy deck preview release.
+
+- Added a Codecks v2 Codex Cockpit preview APK alongside the signed root APK.
+- Added fancy deck buttons, emoji/effect/theme controls, guarded action ids, and local persistence for button metadata.
+- Added local-first Codex snapshot protocol, example payloads, Mac emitters, and a local HTTP bridge server.
+- Added sanitized local Codex metadata snapshots that avoid prompt/source/session body/tool-output content by default.
+- Added compact phone bottom navigation so the Codex tab is reachable.
+- Updated release packaging to upload both APKs plus `SHA256SUMS.txt`.
+- Verified local release gates, GitHub Quality, GitHub Release workflow, release assets, and checksums.
+- Caveat: emulator bridge/render proof exists; physical Android-device proof is still pending.
+
+## 0.1.4 — 2026-07-20
+
+Trackpad correction and redacted diagnostics beta.
+
+- Improved Trackpad tap correction.
+- Added redacted HID diagnostics.
+- Published a signed APK and checksum through the release workflow.
+
 ## 0.1.2 — 2026-07-17
 
 AI Creator V2 and release automation beta.

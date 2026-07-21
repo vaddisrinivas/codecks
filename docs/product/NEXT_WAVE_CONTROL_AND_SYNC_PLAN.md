@@ -1,6 +1,8 @@
 # Codecks next wave: control, sync, and tactile deck
 
-Updated: July 17, 2026
+Updated: July 21, 2026
+
+> Status note: this document is a historical next-wave plan. Version numbering has since moved: `v0.1.5` shipped as the Codex Cockpit and fancy deck preview release, not the clipboard-bridge wave originally sketched below. Treat the wave labels as planning history, not current release commitments.
 
 ## Product direction
 
@@ -114,7 +116,7 @@ Acceptance:
 
 Acceptance:
 
-- Pass on physical Samsung S23 Ultra.
+- Pass on representative physical Android/Samsung hardware.
 - Pass app foreground, screen off/on, home/back gesture, app switch, phone lock/unlock, Bluetooth toggle, Mac sleep/wake.
 - Save reconnect logs without personal device identifiers.
 
@@ -175,7 +177,7 @@ Acceptance:
 - Deck can include “Text to Mac,” “Paste saved snippet,” “Paste phone clipboard,” and “Open keyboard” keys.
 - AI Creator V2 can create these only as typed safe actions, never arbitrary shell.
 
-## Wave 3 — v0.1.5: Clipboard bridge
+## Wave 3 — originally v0.1.5: Clipboard bridge
 
 Goal: controlled clipboard sync, not spooky clipboard surveillance.
 
@@ -236,7 +238,7 @@ Acceptance:
 - Unit tests for conflict resolution, echo suppression, stale endpoints.
 - Instrumented/manual QA for Android clipboard focus limitations.
 
-## Wave 4 — v0.1.6: Codex Micro / Stream Deck polish
+## Wave 4 — originally v0.1.6: Codex Micro / Stream Deck polish
 
 Goal: make Deck feel like a tactile device.
 

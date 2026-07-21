@@ -1,6 +1,6 @@
 # Codex Cockpit Bridge
 
-This folder is the planned Mac-side bridge home for live Codecks Codex Cockpit data.
+This folder contains the Mac-side helpers for Codecks Codex Cockpit preview data.
 
 ## Privacy defaults
 
@@ -18,7 +18,9 @@ This folder is the planned Mac-side bridge home for live Codecks Codex Cockpit d
 
 ## Current artifact
 
-The Android app currently uses `MockCodexCockpit.snapshot()` for the visible cockpit. The protocol shape is captured in `protocol/codex-cockpit/snapshot.schema.json` and `protocol/codex-cockpit/example-snapshot.json`.
+The `v0.1.5` release includes `codecks-v2-cockpit-preview-v0.1.5.apk`. The preview can render mock cockpit data, paste/fetch bridge snapshots, and fetch the local bridge server from emulator/dev setups. The protocol shape is captured in `protocol/codex-cockpit/snapshot.schema.json` and `protocol/codex-cockpit/example-snapshot.json`.
+
+The signed root APK is still `codecks-v0.1.5.apk`; the cockpit APK is a debug-signed preview artifact.
 
 ## Mock emitter
 
@@ -86,3 +88,9 @@ Then fetch:
 ```text
 http://127.0.0.1:8765/codecks-codex-cockpit-snapshot.json
 ```
+
+## v0.1.5 validation status
+
+- Mock, release, and local Codex metadata emitters were smoke-tested.
+- The local HTTP bridge was rendered through the Android emulator.
+- Physical Android-device proof is still pending.

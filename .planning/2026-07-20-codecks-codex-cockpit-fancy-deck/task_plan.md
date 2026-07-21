@@ -2,21 +2,33 @@
 
 Date: 2026-07-20
 
+## Outcome update
+
+Updated: 2026-07-21
+
+- Implemented and released the first Codex Cockpit + Fancy Deck slice as `v0.1.5`.
+- Published GitHub release: https://github.com/vaddisrinivas/codecks/releases/tag/v0.1.5
+- Release assets include `codecks-v0.1.5.apk`, `codecks-v2-cockpit-preview-v0.1.5.apk`, and `SHA256SUMS.txt`.
+- GitHub Release workflow and post-release `main` Quality workflow passed.
+- Emulator bridge/render proof exists.
+- Physical Android-device proof is still pending.
+- Android assistant integration remains deferred.
+
 ## Goal
 
 Turn Codecks v2 into a phone/tablet/DeX control surface for Codex-style agent work, with a useful task cockpit and a playful deck layer: empty fancy buttons, emoji buttons, confetti, celebration effects, richer themes, and utility/productivity actions.
 
 ## Current baseline
 
-- Root Codecks v0.1.4 is released and published from local work.
-- Codecks v2 local foundation is checkpointed on `main` as WIP.
+- Root Codecks v0.1.5 is released and published from local work.
+- Codecks v2 Codex Cockpit preview is packaged as a separate debug APK in the v0.1.5 GitHub release.
 - Nested Android v2 build was repaired by parking AppFunctions and removing unresolved dependencies.
 - AppFunctions source is preserved at `.planning/2026-07-20-codecks-v2-appfunctions-parked/CodecksAppFunctionService.kt.disabled`.
-- Current v2 should be treated as buildable local foundation, not a finished physical-device/Mac-proven release.
+- Current v2 should be treated as a released preview artifact, not a physical-device-proven production surface.
 
 ## Product shape
 
-Codecks becomes a cockpit for steering agent work from the S23 Ultra and larger Android surfaces:
+Codecks becomes a cockpit for steering agent work from phones, tablets, DeX, and larger Android surfaces:
 
 - See every running/recent Codex task as big live cards.
 - Tap into a task, continue it, or send a canned follow-up.
@@ -37,15 +49,15 @@ Codecks becomes a cockpit for steering agent work from the S23 Ultra and larger 
 
 - Local-first: no telemetry, no prompt scraping by default, no server requirement.
 - Useful before clever: a mocked dashboard and fancy deck should work before live Codex bridge complexity.
-- Glanceable: S23 Ultra OLED should look great with bright localized button states, but Android apps control pixels through UI color/HDR surfaces, not raw per-pixel nit APIs.
+- Glanceable: OLED phones should look great with bright localized button states, but Android apps control pixels through UI color/HDR surfaces, not raw per-pixel nit APIs.
 - Guarded commands: approve, stop, destructive release actions, and credentialed actions require explicit user confirmation.
 - Modular: fancy deck, Codex task model, bridge protocol, GitHub/release deck, and voice controls should be separable.
 - Honest proof: local build is not device proof; mocked data is not live Codex integration; release is separate from WIP checkpoint.
 
 ## Non-goals for the first build slice
 
-- Do not revive AppFunctions yet.
-- Do not ship a new public APK until physical-device and Mac bridge proof exist.
+- Do not revive Android assistant integration yet.
+- Do not promote the cockpit preview to production/core status until physical-device proof exists.
 - Do not read task prompt/source content by default.
 - Do not depend on undocumented Codex metadata as the only path without a fallback.
 - Do not build cloud sync or remote account infrastructure.
@@ -145,7 +157,7 @@ Initial theme presets:
 - `Emoji Carnival`: bright emoji-forward mode with stickers, confetti, and rounded soft keys.
 - `Focus Minimal`: calm white/cream surface with precise colored status lights.
 - `Warning Ops`: orange/charcoal incident-control aesthetic.
-- `Aurora Pixel`: S23 Ultra friendly OLED gradient, cyan/green glows, starry particle field.
+- `Aurora Pixel`: OLED-friendly OLED gradient, cyan/green glows, starry particle field.
 - `Paper Desk`: notebook/index-card look for lower-energy planning sessions.
 
 Theme model:
@@ -442,7 +454,7 @@ Acceptance:
 - CCF-005: Effects obey reduced-motion and battery-conscious bounds.
 - CCF-006: Bridge schema excludes prompt/source content by default.
 - CCF-007: Live bridge work is clearly separated from mock UI work.
-- CCF-008: AppFunctions remains parked until dependency/API is confirmed.
+- CCF-008: Android assistant integration remains deferred until dependency/API shape is confirmed.
 - CCF-009: Release deck starts read-only and gates destructive actions.
 - CCF-010: No public release claim is made without device and CI proof.
 

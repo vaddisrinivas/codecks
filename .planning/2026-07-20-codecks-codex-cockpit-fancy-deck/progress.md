@@ -125,7 +125,7 @@ Date: 2026-07-20
   - Result: `BUILD SUCCESSFUL in 15s`.
 - Checked connected Android devices for physical proof:
   - `adb devices -l`
-  - Result: only `<emulator>` was connected; no physical S23 Ultra was available.
+  - Result: only `<emulator>` was connected; no physical Android device was available.
 - Verified release-readiness checks after the current implementation:
   - `python3 tools/secret_surface_check.py`
   - Result: `secret surface OK`.
@@ -145,7 +145,7 @@ Date: 2026-07-20
 Continue with the remaining release-quality gaps:
 
 1. Add guarded execution for safe custom button action ids.
-2. Run physical-device proof on S23 Ultra if available.
+2. Run physical-device proof if a physical Android device is available.
 3. Re-run broader nested suite after the latest compact-navigation/default-bridge changes.
 4. Decide whether this is a checkpoint-only build or a new public release.
 
@@ -163,7 +163,7 @@ Continue with the remaining release-quality gaps:
 
 ## Next action
 
-Run physical-device proof if the S23 Ultra is connected, then decide whether to package/release this checkpoint.
+Run physical-device proof if a physical Android device is connected, then decide whether to package/release this checkpoint.
 
 ## 2026-07-20 release continuation
 
@@ -178,7 +178,7 @@ Run physical-device proof if the S23 Ultra is connected, then decide whether to 
   - local release gates after the version bump.
   - pushed-main Quality run after the version bump.
   - tag-triggered Release workflow and asset verification.
-  - physical S23 Ultra proof remains unavailable unless a device is connected.
+  - physical Android-device proof remains unavailable unless a device is connected.
 - Local release gates after the version bump:
   - `python3 tools/secret_surface_check.py`
   - Result: `secret surface OK`.
@@ -214,4 +214,4 @@ Run physical-device proof if the S23 Ultra is connected, then decide whether to 
 - Verified `SHA256SUMS.txt` includes both APK filenames and matching hashes.
 - Final device availability check:
   - only `<emulator>` was connected.
-  - physical S23 Ultra proof remains not performed.
+  - physical Android-device proof remains not performed.
