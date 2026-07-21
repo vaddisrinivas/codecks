@@ -60,12 +60,17 @@ jobs:
         run: ./gradlew --no-daemon :app:check
       - name: Build signed APK
         run: ./gradlew --no-daemon :app:assembleRelease
+      - name: Build Codecks v2 cockpit preview APK
+        run: |
+          cd android
+          ./gradlew --no-daemon :app:assembleLocalDebug
       - name: Prepare release artifacts
         run: |
           mkdir -p release-artifacts
           cp app/build/outputs/apk/release/app-release.apk "release-artifacts/codecks-${RELEASE_TAG}.apk"
+          cp android/app/build/outputs/apk/local/debug/app-local-debug.apk "release-artifacts/codecks-v2-cockpit-preview-${RELEASE_TAG}.apk"
           cd release-artifacts
-          sha256sum "codecks-${RELEASE_TAG}.apk" > SHA256SUMS.txt
+          sha256sum "codecks-${RELEASE_TAG}.apk" "codecks-v2-cockpit-preview-${RELEASE_TAG}.apk" > SHA256SUMS.txt
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
