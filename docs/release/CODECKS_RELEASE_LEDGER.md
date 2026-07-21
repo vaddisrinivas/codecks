@@ -6,13 +6,13 @@ Updated: July 21, 2026
 | --- | --- |
 | Product | Codecks |
 | Application ID | `app.codecks` |
-| Version | `0.1.5` (`versionCode` 6) |
+| Version | `0.1.6` (`versionCode` 7) |
 | Minimum Android | 9 / API 28 |
 | Target Android | API 37 |
 | Default mode | Local-only; no account, billing, hosted backend, database, analytics, or cloud sync |
 | Core surfaces | Deck, Trackpad, Keyboard/Text, Clipboard bridge, Automations, Settings, Deck editor |
 | Optional core tool | AI-assisted drafting through a user-selected provider |
-| Preview artifact | `codecks-v2-cockpit-preview-v0.1.5.apk` (`io.codecks.app.debug`, `0.1.5-preview`, debug-signed preview only) |
+| Preview artifact | `codecks-v2-cockpit-preview-v0.1.6.apk` (`io.codecks.app.debug`, `0.1.6-preview`, debug-signed preview only) |
 | Disabled incubators | Context Deck, Widget, Activity, Devices, Premium, Paywall, Advanced, Appearance, Labs |
 
 ## Release invariants

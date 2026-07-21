@@ -28,8 +28,8 @@ For `v0.1.5` and later, the same workflow also builds and uploads the nested Cod
 - `SHA256SUMS.txt`: checksums for both APKs.
 
 ```bash
-git tag -s v0.1.5 -m "Codecks v0.1.5"
-git push origin v0.1.5
+git tag -s v0.1.6 -m "Codecks v0.1.6"
+git push origin v0.1.6
 ```
 
 If signed Git tags are unavailable, use an annotated tag and rely on the signed APK plus published checksum. Never reuse a version name/code for different binaries.

@@ -13,8 +13,8 @@ android {
         applicationId = "io.codecks.app"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 2
-        versionName = "0.1.5-preview"
+        versionCode = 3
+        versionName = "0.1.6-preview"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

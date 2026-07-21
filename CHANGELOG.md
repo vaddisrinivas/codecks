@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.6 — 2026-07-21
+
+Classic deck layout preservation and release-note cleanup.
+
+- Preserved the existing four-column luminous deck layout shown in the current installed phone build.
+- Kept the wide Trackpad key plus side Keys/automation-style layout rather than switching to a cramped alternative.
+- Sanitized public release notes and documentation to avoid device-specific wording.
+- Added canonical `v0.1.5` release notes in the repo and updated release/distribution docs.
+- Rebuilt and republished signed APKs/checksums from a green `main`.
+
 ## 0.1.5 — 2026-07-21
 
 Codex Cockpit and fancy deck preview release.

@@ -1,6 +1,6 @@
 # Codecks FOSS Readiness
 
-Status: ready for maintainer review. Current public beta is `v0.1.5`.
+Status: ready for maintainer review. Current public beta is `v0.1.6`.
 
 ## What Is Ready
 
@@ -20,7 +20,7 @@ Potential F-Droid/IzzyOnDroid disclosures:
 - **NonFreeNet:** optional AI provider calls may contact a user-selected external model provider.
 - **Dangerous capability:** user-reviewed Mac commands can run over SSH against the user's own Mac.
 - **Connectivity:** Bluetooth HID and local-network/SSH flows are core product behavior.
-- **Developer preview APK:** `codecks-v2-cockpit-preview-v0.1.5.apk` is debug-signed preview tooling, not the signed root release APK.
+- **Developer preview APK:** `codecks-v2-cockpit-preview-<tag>.apk` is debug-signed preview tooling, not the signed root release APK.
 
 These should be disclosed clearly rather than hidden. The default app remains useful without AI.
 

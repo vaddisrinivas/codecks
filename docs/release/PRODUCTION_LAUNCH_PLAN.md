@@ -4,7 +4,7 @@ Updated: July 21, 2026
 
 ## Release decision
 
-Current public beta is `v0.1.5`. Keep Codecks local-only: do not deploy a backend or public database. Keep account, billing, hosted sync, and advanced surfaces disabled. The `v0.1.5` release adds a separate Codecks v2 Codex Cockpit preview APK; promote to GA only after the field gates below pass.
+Current public beta is `v0.1.6`. Keep Codecks local-only: do not deploy a backend or public database. Keep account, billing, hosted sync, and advanced surfaces disabled. The `v0.1.6` release includes a separate Codecks v2 Codex Cockpit preview APK; promote to GA only after the field gates below pass.
 
 ## Completed for public beta
 
@@ -20,7 +20,7 @@ Current public beta is `v0.1.5`. Keep Codecks local-only: do not deploy a backen
 - [x] Public privacy, security, contribution, and release-signing documentation added.
 - [x] CI runs privacy scan, unit tests, lint, and debug build on every change.
 - [x] Tag/manual workflow rebuilds and publishes signed APK/checksum from public source.
-- [x] `v0.1.5` release workflow publishes both the signed root APK and the Codecks v2 cockpit preview APK with checksums.
+- [x] `v0.1.6` release workflow publishes both the signed root APK and the Codecks v2 cockpit preview APK with checksums.
 - [x] Codex Cockpit bridge defaults exclude prompt/source/session body/tool-output content.
 
 ## GA gates
