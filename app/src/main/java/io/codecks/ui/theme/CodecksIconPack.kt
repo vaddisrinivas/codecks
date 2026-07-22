@@ -18,10 +18,6 @@ enum class CodecksIconPack(
         "Material",
         "Familiar Android symbols with filled and outlined utility shapes.",
     ),
-    FontAwesome(
-        "Font Awesome",
-        "Bold, high-recognition symbols with strong app and brand coverage.",
-    ),
 }
 
 val LocalCodecksIconPack = staticCompositionLocalOf { CodecksIconPack.Tabler }

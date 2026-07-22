@@ -2,8 +2,6 @@ package io.codecks.domain.ai
 
 import io.codecks.data.ai.AiProviderException
 import io.codecks.domain.features.Entitlement
-import io.codecks.domain.features.EntitlementStatus
-import io.codecks.domain.features.EntitlementTier
 import io.codecks.domain.features.FakeEntitlementRepository
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -96,7 +94,7 @@ class AiBuilderV2RepairTest {
             provider = provider,
             validator = ActionDraftValidator(),
             entitlementRepository = FakeEntitlementRepository(
-                Entitlement(EntitlementTier.Premium, EntitlementStatus.Active),
+                Entitlement(localOnly = true),
             ),
         )
 

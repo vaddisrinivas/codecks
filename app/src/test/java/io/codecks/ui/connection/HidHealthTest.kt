@@ -18,7 +18,7 @@ class HidHealthTest {
         ).hidHealth(permissionGranted = false)
 
         assertEquals(HidHealthKind.PermissionMissing, health.kind)
-        assertEquals("Allow", health.statusLabel())
+        assertEquals("Setup needed", health.statusLabel())
         assertFalse(health.canSendInput)
     }
 
@@ -47,7 +47,7 @@ class HidHealthTest {
         ).hidHealth(permissionGranted = true)
 
         assertEquals(HidHealthKind.ReadyToConnect, configured.kind)
-        assertEquals("Configured", configured.statusLabel())
+        assertEquals("Ready", configured.statusLabel())
         assertFalse(configured.canSendInput)
 
         val connected = HidState(
@@ -74,6 +74,6 @@ class HidHealthTest {
         ).hidHealth(permissionGranted = true)
 
         assertEquals(HidHealthKind.ReadyNoTarget, health.kind)
-        assertEquals("Choose", health.statusLabel())
+        assertEquals("Setup needed", health.statusLabel())
     }
 }

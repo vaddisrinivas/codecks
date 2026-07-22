@@ -37,9 +37,7 @@ import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Workspaces
-import androidx.compose.material.icons.outlined.WorkspacePremium
 import androidx.compose.material.icons.outlined.Terminal
-import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -53,6 +51,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -64,6 +63,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import io.codecks.HidState
 import io.codecks.data.clipboard.ClipboardSyncSettings
+import io.codecks.data.context.ContextFeatureStatus
 import io.codecks.data.context.NotificationPrivacySettings
 import io.codecks.core.trackpad.TrackpadClockStyle
 import io.codecks.core.trackpad.TrackpadFloatingMenuLayout
@@ -92,12 +92,12 @@ import io.codecks.ui.connection.statusLabel
 import io.codecks.ui.icons.imageVector
 import io.codecks.ui.theme.CodecksDeckStyle
 import io.codecks.ui.theme.CodecksIconPack
-import io.codecks.ui.theme.DeckBridgeAccent
-import io.codecks.ui.theme.DeckBridgeBorderStyle
-import io.codecks.ui.theme.DeckBridgeShapeStyle
-import io.codecks.ui.theme.DeckBridgeSurfaceStyle
-import io.codecks.ui.theme.DeckBridgeThemeMode
-import io.codecks.ui.theme.DeckBridgeThemeSettings
+import io.codecks.ui.theme.CodecksAccent
+import io.codecks.ui.theme.CodecksBorderStyle
+import io.codecks.ui.theme.CodecksShapeStyle
+import io.codecks.ui.theme.CodecksSurfaceStyle
+import io.codecks.ui.theme.CodecksThemeMode
+import io.codecks.ui.theme.CodecksThemeSettings
 
 @Composable
 fun SettingsScreen(
@@ -108,6 +108,14 @@ fun SettingsScreen(
     bluetoothPermissionGranted: Boolean,
     notificationAccessReady: Boolean,
     notificationPrivacySettings: NotificationPrivacySettings = NotificationPrivacySettings(),
+    contextFeatureStatus: ContextFeatureStatus = ContextFeatureStatus(
+        compiledIntoBuild = true,
+        componentEnabled = false,
+        specialAccessGranted = notificationAccessReady,
+        runtimeFeatureEnabled = false,
+        privacyLaneEnabled = notificationPrivacySettings.showOnTrackpad,
+        allowedPackageCount = notificationPrivacySettings.allowedPackages.size,
+    ),
     clipboardSettings: ClipboardSyncSettings,
     aiProviderReady: Boolean,
     automationsReady: Boolean,
@@ -122,6 +130,7 @@ fun SettingsScreen(
     onConnectionPasswordChange: (String) -> Unit = {},
     onConnectionSelectHost: (String) -> Unit = {},
     onConnectionScan: () -> Unit = {},
+    onConnectionScanLocalNetwork: () -> Unit = {},
     onConnectionVerifyHostKey: () -> Unit = {},
     onConnectionConfirmHostKey: () -> Unit = {},
     onConnectionAuthorize: () -> Unit = {},
@@ -144,23 +153,20 @@ fun SettingsScreen(
     onClipboardModeChange: (ClipboardSyncMode) -> Unit = {},
     onClipboardIntervalChange: (Int) -> Unit = {},
     onAiBuilder: () -> Unit,
-    onPremium: () -> Unit,
-    onWidget: () -> Unit,
     onAppearance: () -> Unit,
     onAdvanced: () -> Unit,
     onDebugBundle: () -> Unit,
-    themeSettings: DeckBridgeThemeSettings = DeckBridgeThemeSettings(),
-    onThemeModeChange: (DeckBridgeThemeMode) -> Unit = {},
-    onThemeAccentChange: (DeckBridgeAccent) -> Unit = {},
-    onThemeSurfaceStyleChange: (DeckBridgeSurfaceStyle) -> Unit = {},
-    onThemeBorderStyleChange: (DeckBridgeBorderStyle) -> Unit = {},
-    onThemeShapeStyleChange: (DeckBridgeShapeStyle) -> Unit = {},
+    themeSettings: CodecksThemeSettings = CodecksThemeSettings(),
+    onThemeModeChange: (CodecksThemeMode) -> Unit = {},
+    onThemeAccentChange: (CodecksAccent) -> Unit = {},
+    onThemeSurfaceStyleChange: (CodecksSurfaceStyle) -> Unit = {},
+    onThemeBorderStyleChange: (CodecksBorderStyle) -> Unit = {},
+    onThemeShapeStyleChange: (CodecksShapeStyle) -> Unit = {},
     onDeckStyleChange: (CodecksDeckStyle) -> Unit = {},
     onIconPackChange: (CodecksIconPack) -> Unit = {},
     trackpadSettings: TrackpadSettings = TrackpadSettings(),
     onTrackpadSettingsChange: ((TrackpadSettings) -> TrackpadSettings) -> Unit = {},
     modifier: Modifier = Modifier,
-    showPremium: Boolean = false,
     localOnlyV1: Boolean = false,
     debugBundleEnabled: Boolean = false,
     developerOptionsEnabled: Boolean = false,
@@ -171,14 +177,60 @@ fun SettingsScreen(
 ) {
     var showResetFlagsDialog by rememberSaveable { mutableStateOf(false) }
     var trackpadFineTuneOpen by rememberSaveable { mutableStateOf(false) }
-    var macConnectionOpen by rememberSaveable { mutableStateOf(false) }
+    var macConnectionOpen by rememberSaveable { mutableStateOf(!connectionReady) }
     val hidHealth = hidState.hidHealth(bluetoothPermissionGranted)
     val readiness = codecksReadiness(connectionHealth, hidHealth, aiProviderReady)
+    LaunchedEffect(connectionReady) {
+        if (!connectionReady) macConnectionOpen = true
+    }
     DeckPage(
         contentPadding = contentPadding,
         modifier = modifier.background(MaterialTheme.colorScheme.background),
     ) {
                 item { SettingsHero(readiness = readiness) }
+                item { SectionLabel("Connections") }
+                item {
+                    SettingsRow(
+                        icon = Icons.Outlined.Link,
+                        title = "Mac control channel",
+                        summary = connectionHealth.detail,
+                        value = connectionHealth.statusLabel(),
+                        onClick = { macConnectionOpen = !macConnectionOpen },
+                    )
+                }
+                if (macConnectionOpen && connectionState != null) {
+                    item {
+                        MacConnectionSettingsPanel(
+                            state = connectionState,
+                            onHostChange = onConnectionHostChange,
+                            onPortChange = onConnectionPortChange,
+                            onUserChange = onConnectionUserChange,
+                            onPasswordChange = onConnectionPasswordChange,
+                            onSelectHost = onConnectionSelectHost,
+                            onScan = onConnectionScan,
+                            onScanLocalNetwork = onConnectionScanLocalNetwork,
+                            onVerifyHostKey = onConnectionVerifyHostKey,
+                            onConfirmHostKey = onConnectionConfirmHostKey,
+                            onAuthorize = onConnectionAuthorize,
+                            onRotateKey = onConnectionRotateKey,
+                            onResetTrust = onConnectionResetTrust,
+                            onRemoveTarget = onConnectionRemoveTarget,
+                            onSavePassword = onConnectionSavePassword,
+                            onUseSavedPassword = onConnectionUseSavedPassword,
+                            onTest = onConnectionTest,
+                            onOpenMacHelper = onOpenMacHelper,
+                        )
+                    }
+                }
+                item {
+                    SettingsRow(
+                        icon = Icons.Outlined.Fullscreen,
+                        title = "App fullscreen",
+                        summary = "Hide system bars and bottom navigation across Deck, Trackpad, Rules, AI, and Settings. Back exits fullscreen.",
+                        value = if (fullscreen) "On" else "Off",
+                        onClick = onFullscreen,
+                    )
+                }
                 item { SectionLabel("Readiness") }
                 item {
                     CodecksPanel(
@@ -201,17 +253,13 @@ fun SettingsScreen(
                         )
                     }
                 }
-                item { SectionLabel(if (localOnlyV1) "Local Data" else "Account & Data") }
+                item { SectionLabel("Local data") }
                 item {
                     SettingsRow(
-                        icon = if (localOnlyV1) Icons.Outlined.CheckCircle else Icons.Outlined.WorkspacePremium,
-                        title = if (localOnlyV1) "Local-only launch mode" else "Account and plan",
-                        summary = if (localOnlyV1) {
-                            "No Codecks login, billing, server account, or public database is used in this version"
-                        } else {
-                            "Sign in, billing, restore purchases, and account deletion"
-                        },
-                        value = if (localOnlyV1) "On" else null,
+                        icon = Icons.Outlined.CheckCircle,
+                        title = "Local-only launch mode",
+                        summary = "No Codecks login, billing, server account, or public database is used in this version",
+                        value = "On",
                         onClick = null,
                         showChevron = false,
                     )
@@ -221,7 +269,7 @@ fun SettingsScreen(
                         icon = Icons.Outlined.Info,
                         title = "Privacy policy and data safety",
                         summary = if (localOnlyV1) {
-                            "Decks, Mac targets, provider keys, clipboard settings, and notification preferences stay on this phone"
+                            "Decks, Macs, AI keys, clipboard settings, and notification preferences stay on this phone"
                         } else {
                             "Review what Codecks stores locally, what can leave the device, and Play Data Safety disclosures"
                         },
@@ -232,7 +280,7 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.Outlined.FileDownload,
                         title = "Export local backup",
-                        summary = "Save Deck and automations as JSON; API keys, SSH keys, and connection secrets are excluded",
+                        summary = "Save Deck and Rules as JSON; API keys, SSH keys, and connection secrets are excluded",
                         onClick = onExportBackup,
                     )
                 }
@@ -240,62 +288,19 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.Outlined.FileUpload,
                         title = "Restore local backup",
-                        summary = "Replace Deck and automations from a Codecks backup file",
+                        summary = "Replace Deck and Rules from a Codecks backup file",
                         onClick = onImportBackup,
                     )
-                }
-                item { SectionLabel("Connections") }
-                item {
-                    SettingsRow(
-                        icon = Icons.Outlined.Fullscreen,
-                        title = "App fullscreen",
-                        summary = "Hide system bars and bottom navigation across Deck, Trackpad, Rules, AI, and Settings. Back exits fullscreen.",
-                        value = if (fullscreen) "On" else "Off",
-                        onClick = onFullscreen,
-                    )
-                }
-                item {
-                    SettingsRow(
-                        icon = Icons.Outlined.Link,
-                        title = "Mac control channel",
-                        summary = connectionHealth.detail,
-                        value = connectionHealth.statusLabel(),
-                        onClick = { macConnectionOpen = !macConnectionOpen },
-                    )
-                }
-                if (macConnectionOpen && connectionState != null) {
-                    item {
-                        MacConnectionSettingsPanel(
-                            state = connectionState,
-                            onHostChange = onConnectionHostChange,
-                            onPortChange = onConnectionPortChange,
-                            onUserChange = onConnectionUserChange,
-                            onPasswordChange = onConnectionPasswordChange,
-                            onSelectHost = onConnectionSelectHost,
-                            onScan = onConnectionScan,
-                            onVerifyHostKey = onConnectionVerifyHostKey,
-                            onConfirmHostKey = onConnectionConfirmHostKey,
-                            onAuthorize = onConnectionAuthorize,
-                            onRotateKey = onConnectionRotateKey,
-                            onResetTrust = onConnectionResetTrust,
-                            onRemoveTarget = onConnectionRemoveTarget,
-                            onSavePassword = onConnectionSavePassword,
-                            onUseSavedPassword = onConnectionUseSavedPassword,
-                            onTest = onConnectionTest,
-                            onOpenMacHelper = onOpenMacHelper,
-                        )
-                    }
                 }
                 item {
                     SettingsRow(
                         icon = Icons.Outlined.Mouse,
-                        title = "Trackpad input target",
+                        title = "Trackpad Mac",
                         summary = hidHealth.detail,
                         value = hidHealth.statusLabel(),
                         onClick = onBluetooth,
                     )
                 }
-                item { SectionLabel("Controls") }
                 item { SectionLabel("Trackpad") }
                 item {
                     TrackpadSettingsPanel(
@@ -340,12 +345,8 @@ fun SettingsScreen(
                         SettingsRow(
                             icon = Icons.Outlined.Notifications,
                             title = "Notification access",
-                            summary = if (notificationAccessReady) {
-                                "Phone notifications can appear behind Trackpad"
-                            } else {
-                                "Open Android notification access; apps cannot grant this with a normal prompt"
-                            },
-                            value = if (notificationAccessReady) "Ready" else "Allow",
+                            summary = contextFeatureStatus.summary,
+                            value = contextFeatureStatus.label,
                             onClick = onNotificationAccess,
                         )
                     }
@@ -367,13 +368,12 @@ fun SettingsScreen(
                     }
                 }
 
-                item { SectionLabel("Automations") }
-                item { SectionLabel("Create and run") }
+                item { SectionLabel("Rules and AI") }
                 item {
                     SettingsRow(
                         icon = Icons.Outlined.Psychology,
-                        title = "AI creator",
-                        summary = if (aiProviderReady) "Provider key saved for decks, buttons, and automations" else "Add a provider key before generating",
+                        title = "AI Builder",
+                        summary = if (aiProviderReady) "AI key saved for decks, buttons, and rules" else "Add an AI key before generating",
                         value = if (aiProviderReady) "Ready" else "Missing",
                         onClick = onAiBuilder,
                     )
@@ -381,13 +381,12 @@ fun SettingsScreen(
                 item {
                     SettingsRow(
                         icon = Icons.Outlined.Psychology,
-                        title = "Automations",
+                        title = "Rules",
                         summary = if (automationsReady) "Runnable workspace routines are ready" else "Needs Mac control channel",
                         value = if (automationsReady) "Ready" else "Setup",
                         onClick = onAutomations,
                     )
                 }
-                item { SectionLabel("Look") }
                 item { SectionLabel("Deck style") }
                 item {
                     DeckStylePanel(
@@ -403,28 +402,6 @@ fun SettingsScreen(
                     )
                 }
                 item { SectionLabel("Support") }
-                if (!localOnlyV1) {
-                    item { SectionLabel("Account") }
-                    item {
-                        SettingsRow(
-                            icon = Icons.Outlined.WorkspacePremium,
-                            title = "Account and plan",
-                            summary = "Sign in, billing, restore purchases, and account deletion",
-                            value = null,
-                            onClick = null,
-                            showChevron = false,
-                        )
-                    }
-                    item {
-                        SettingsRow(
-                            icon = Icons.Outlined.ErrorOutline,
-                            title = "Delete account",
-                            summary = "Available from Account and plan; deletes server account state and local session data",
-                            onClick = null,
-                            showChevron = false,
-                        )
-                    }
-                }
                 if (developerOptionsEnabled) {
                     item { SectionLabel("Developer mode") }
                     item {
@@ -499,6 +476,7 @@ private fun MacConnectionSettingsPanel(
     onPasswordChange: (String) -> Unit,
     onSelectHost: (String) -> Unit,
     onScan: () -> Unit,
+    onScanLocalNetwork: () -> Unit,
     onVerifyHostKey: () -> Unit,
     onConfirmHostKey: () -> Unit,
     onAuthorize: () -> Unit,
@@ -534,7 +512,7 @@ private fun MacConnectionSettingsPanel(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(14.dp)) {
-            Text("Pair your Mac", style = MaterialTheme.typography.titleMedium)
+            Text("Connect a Mac", style = MaterialTheme.typography.titleMedium)
             Text(
                 "One setup flow for Deck, Trackpad, and Rules. Your password is used once; Codecks keeps a secure key after pairing.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -544,7 +522,7 @@ private fun MacConnectionSettingsPanel(
             HorizontalDivider()
             when (step) {
                 MacPairingStep.FindMac -> {
-                    Text("Find Mac", style = MaterialTheme.typography.titleSmall)
+                    Text("Find", style = MaterialTheme.typography.titleSmall)
                     Text(
                         "Scan your network, pick your Mac, or enter its hostname manually.",
                         style = MaterialTheme.typography.bodySmall,
@@ -566,7 +544,7 @@ private fun MacConnectionSettingsPanel(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     DeckActionButton(
-                        label = if (state.operation == ConnectionOperation.Verifying) "Reading fingerprint…" else "Verify this Mac",
+                        label = if (state.operation == ConnectionOperation.Verifying) "Checking…" else "Trust this Mac",
                         onClick = onVerifyHostKey,
                         enabled = canVerify,
                         icon = Icons.Outlined.CheckCircle,
@@ -575,7 +553,7 @@ private fun MacConnectionSettingsPanel(
                     state.pendingFingerprint?.let { fingerprint ->
                         Text(fingerprint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         DeckActionButton(
-                            label = "Trust manually",
+                            label = "Confirm this is my Mac",
                             onClick = onConfirmHostKey,
                             enabled = idle,
                             icon = Icons.Outlined.CheckCircle,
@@ -655,7 +633,7 @@ private fun MacConnectionSettingsPanel(
                     value = state.password,
                     onValueChange = onPasswordChange,
                     label = { Text("Mac password") },
-                    supportingText = { Text("Used once to install the Codecks key") },
+                    supportingText = { Text("Used once; not stored unless you save it") },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -663,7 +641,7 @@ private fun MacConnectionSettingsPanel(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                     DeckActionButton(
-                        label = "Use saved",
+                        label = "Use saved password",
                         onClick = onUseSavedPassword,
                         enabled = idle,
                         modifier = Modifier.weight(1f).heightIn(min = 52.dp),
@@ -676,7 +654,7 @@ private fun MacConnectionSettingsPanel(
                     )
                 }
                 DeckActionButton(
-                    label = if (state.operation == ConnectionOperation.Connecting) "Pairing…" else "Pair Mac",
+                    label = if (state.operation == ConnectionOperation.Connecting) "Saving…" else "Save Mac",
                     onClick = onAuthorize,
                     enabled = canAuthorize,
                     icon = Icons.Outlined.Link,
@@ -727,7 +705,7 @@ private fun MacConnectionSettingsPanel(
                 }
                 DeckActionButton(
                     label = "Scan network",
-                    onClick = onScan,
+                    onClick = onScanLocalNetwork,
                     enabled = idle,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                 )
@@ -1075,7 +1053,7 @@ private fun DeckStylePanel(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Deck style", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Pick the deck personality: classic green, neon, candy, glass, mono, or compact widget tiles.",
+                        "Pick the deck personality: classic green, neon, candy, glass, mono, or compact tiles.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1175,9 +1153,9 @@ private fun IconPackPanel(
         Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(14.dp)) {
             Text("Icon pack", style = MaterialTheme.typography.titleMedium)
             androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(CodecksIconPack.entries.filterNot { it == CodecksIconPack.FontAwesome }, key = CodecksIconPack::name) { pack ->
+                items(CodecksIconPack.entries, key = CodecksIconPack::name) { pack ->
                     CodecksPanel(
-                        selected = (if (iconPack == CodecksIconPack.FontAwesome) CodecksIconPack.Tabler else iconPack) == pack,
+                        selected = iconPack == pack,
                         modifier = Modifier
                             .width(164.dp)
                             .clickable { onIconPackChange(pack) },
@@ -1197,7 +1175,7 @@ private fun IconPackPanel(
                 }
             }
             Text(
-                (if (iconPack == CodecksIconPack.FontAwesome) CodecksIconPack.Tabler else iconPack).description,
+                iconPack.description,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1207,19 +1185,19 @@ private fun IconPackPanel(
 
 @Composable
 fun ThemeModePanel(
-    themeSettings: DeckBridgeThemeSettings,
-    onThemeModeChange: (DeckBridgeThemeMode) -> Unit,
-    onAccentChange: (DeckBridgeAccent) -> Unit = {},
-    onSurfaceStyleChange: (DeckBridgeSurfaceStyle) -> Unit = {},
-    onBorderStyleChange: (DeckBridgeBorderStyle) -> Unit = {},
-    onShapeStyleChange: (DeckBridgeShapeStyle) -> Unit = {},
+    themeSettings: CodecksThemeSettings,
+    onThemeModeChange: (CodecksThemeMode) -> Unit,
+    onAccentChange: (CodecksAccent) -> Unit = {},
+    onSurfaceStyleChange: (CodecksSurfaceStyle) -> Unit = {},
+    onBorderStyleChange: (CodecksBorderStyle) -> Unit = {},
+    onShapeStyleChange: (CodecksShapeStyle) -> Unit = {},
     showMode: Boolean = true,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         if (showMode) {
             Text("Mode", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(DeckBridgeThemeMode.entries, key = DeckBridgeThemeMode::name) { mode ->
+                items(CodecksThemeMode.entries, key = CodecksThemeMode::name) { mode ->
                     DeckFilterPill(
                         label = mode.label,
                         selected = themeSettings.mode == mode,
@@ -1243,7 +1221,7 @@ fun ThemeModePanel(
         }
         Text("Accent", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(DeckBridgeAccent.entries, key = DeckBridgeAccent::name) { accent ->
+            items(CodecksAccent.entries, key = CodecksAccent::name) { accent ->
                 DeckFilterPill(
                     label = accent.label,
                     selected = themeSettings.accent == accent,
@@ -1254,7 +1232,7 @@ fun ThemeModePanel(
         }
         Text("Surfaces", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(DeckBridgeSurfaceStyle.entries, key = DeckBridgeSurfaceStyle::name) { style ->
+            items(CodecksSurfaceStyle.entries, key = CodecksSurfaceStyle::name) { style ->
                 DeckFilterPill(
                     label = style.label,
                     selected = themeSettings.surfaceStyle == style,
@@ -1266,7 +1244,7 @@ fun ThemeModePanel(
         Text(themeSettings.surfaceStyle.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("Borders", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(DeckBridgeBorderStyle.entries, key = DeckBridgeBorderStyle::name) { style ->
+            items(CodecksBorderStyle.entries, key = CodecksBorderStyle::name) { style ->
                 DeckFilterPill(
                     label = style.label,
                     selected = themeSettings.borderStyle == style,
@@ -1278,7 +1256,7 @@ fun ThemeModePanel(
         Text(themeSettings.borderStyle.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("Shape", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(DeckBridgeShapeStyle.entries, key = DeckBridgeShapeStyle::name) { style ->
+            items(CodecksShapeStyle.entries, key = CodecksShapeStyle::name) { style ->
                 DeckFilterPill(
                     label = style.label,
                     selected = themeSettings.shapeStyle == style,
@@ -1295,38 +1273,16 @@ fun ThemeModePanel(
 private fun SettingsHero(
     readiness: io.codecks.ui.connection.CodecksReadiness,
 ) {
-    CodecksPanel(
-        selected = readiness.coreReady,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 10.dp),
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-            modifier = Modifier.padding(18.dp),
-        ) {
-            Surface(
-                color = if (readiness.coreReady) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.primaryContainer,
-                contentColor = if (readiness.coreReady) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer,
-                shape = MaterialTheme.shapes.medium,
-                modifier = Modifier.size(52.dp),
-            ) {
-                Box(contentAlignment = androidx.compose.ui.Alignment.Center) {
-                    Icon(
-                        imageVector = if (readiness.coreReady) Icons.Outlined.CheckCircle else Icons.Outlined.Settings,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
-                Text(readiness.title, style = MaterialTheme.typography.titleLarge)
-                Text(
-                    readiness.detail,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+        Text(readiness.title, style = MaterialTheme.typography.titleLarge)
+        Text(
+            readiness.detail,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -1357,7 +1313,7 @@ private fun SetupChecklist(
             onClick = onConnection,
         )
         SetupRow(
-            title = "Trackpad input target",
+            title = "Trackpad Mac",
             summary = hidHealth.detail,
             ready = hidHealth.canSendInput,
             statusLabel = hidHealth.statusLabel(),
@@ -1379,11 +1335,11 @@ private fun SetupChecklist(
         }
         if (featureFlags.isOn(FeatureFlag.Ai)) {
             SetupRow(
-                title = "AI provider",
+                title = "AI Builder",
                 summary = if (aiProviderReady) {
                     "AI key saved"
                 } else {
-                    "Save a provider key"
+                    "Save an AI key"
                 },
                 ready = aiProviderReady,
                 statusLabel = if (aiProviderReady) "Ready" else "Optional",
@@ -1393,7 +1349,7 @@ private fun SetupChecklist(
         }
         if (featureFlags.isOn(FeatureFlag.Automations)) {
             SetupRow(
-                title = "Automations",
+                title = "Rules",
                 summary = if (automationsReady) "Ready to run" else "Needs Mac control channel",
                 ready = automationsReady,
                 onClick = onAutomations,
@@ -1407,7 +1363,7 @@ private fun SetupRow(
     title: String,
     summary: String,
     ready: Boolean,
-    statusLabel: String = if (ready) "Ready" else "Fix",
+    statusLabel: String = if (ready) "Ready" else "Setup needed",
     required: Boolean = true,
     onClick: () -> Unit,
 ) {
@@ -1447,20 +1403,23 @@ private fun FeatureFlagPanel(
         verticalArrangement = Arrangement.spacedBy(2.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        listOf(
-            FlagSpec(FeatureFlag.Deck, "Deck", "Home deck and scriptable controls", Icons.Outlined.GridView),
-            FlagSpec(FeatureFlag.Trackpad, "Trackpad", "Full-screen pointer, gestures, scroll zone", Icons.Outlined.Mouse),
-            FlagSpec(FeatureFlag.Ai, "AI", "Provider keys, decks, buttons, automations", Icons.Outlined.AutoAwesome),
-            FlagSpec(FeatureFlag.ContextDeck, "Context signals", "AI-ranked local context and notification privacy lanes", Icons.Outlined.AutoAwesome),
-            FlagSpec(FeatureFlag.Automations, "Automations", "Runnable workspace routines", Icons.Outlined.Psychology),
-            FlagSpec(FeatureFlag.Keyboard, "Keyboard controls", "Keyboard surface inside Trackpad", Icons.Outlined.Keyboard),
-            FlagSpec(FeatureFlag.Clipboard, "Clipboard controls", "Clipboard surface and sync settings", Icons.Outlined.ContentPaste),
-            FlagSpec(FeatureFlag.Labs, "Labs", "Experimental inputs stay hidden unless enabled", Icons.Outlined.Terminal),
-            FlagSpec(FeatureFlag.LabAirMouse, "Labs: Air mouse", "Tilt phone to move pointer", Icons.Outlined.Mouse),
-            FlagSpec(FeatureFlag.LabAirTouch, "Labs: S Pen air touch", "Experimental fake-monitor calibration", Icons.Outlined.Mouse),
-            FlagSpec(FeatureFlag.LabBackTap, "Labs: back tap", "Device back tap can click", Icons.Outlined.Mouse),
-            FlagSpec(FeatureFlag.LabVolumeKeys, "Labs: volume keys", "Use volume keys for scroll", Icons.Outlined.Mouse),
-        ).forEach { spec ->
+        val labsEnabled = featureFlags.isOn(FeatureFlag.Labs)
+        buildList {
+            add(FlagSpec(FeatureFlag.Deck, "Deck", "Home deck and scriptable controls", Icons.Outlined.GridView))
+            add(FlagSpec(FeatureFlag.Trackpad, "Trackpad", "Full-screen pointer, gestures, scroll zone", Icons.Outlined.Mouse))
+            add(FlagSpec(FeatureFlag.Ai, "AI Builder", "AI keys, decks, buttons, rules", Icons.Outlined.AutoAwesome))
+            add(FlagSpec(FeatureFlag.Automations, "Rules", "Runnable workspace routines", Icons.Outlined.Psychology))
+            add(FlagSpec(FeatureFlag.Keyboard, "Keyboard controls", "Keyboard surface inside Trackpad", Icons.Outlined.Keyboard))
+            add(FlagSpec(FeatureFlag.Clipboard, "Clipboard controls", "Clipboard surface and sync settings", Icons.Outlined.ContentPaste))
+            add(FlagSpec(FeatureFlag.Labs, "Labs", "Experimental inputs stay hidden unless enabled", Icons.Outlined.Terminal))
+            if (labsEnabled) {
+                add(FlagSpec(FeatureFlag.ContextDeck, "Labs: context signals", "Experimental notification privacy and local context lanes", Icons.Outlined.AutoAwesome))
+                add(FlagSpec(FeatureFlag.LabAirMouse, "Labs: Air mouse", "Tilt phone to move pointer", Icons.Outlined.Mouse))
+                add(FlagSpec(FeatureFlag.LabAirTouch, "Labs: S Pen air touch", "Experimental fake-monitor calibration", Icons.Outlined.Mouse))
+                add(FlagSpec(FeatureFlag.LabBackTap, "Labs: back tap", "Device back tap can click", Icons.Outlined.Mouse))
+                add(FlagSpec(FeatureFlag.LabVolumeKeys, "Labs: volume keys", "Use volume keys for scroll", Icons.Outlined.Mouse))
+            }
+        }.forEach { spec ->
             FeatureFlagRow(
                 spec = spec,
                 checked = featureFlags.isOn(spec.flag),

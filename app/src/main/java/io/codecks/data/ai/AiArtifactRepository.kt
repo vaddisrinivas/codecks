@@ -185,7 +185,7 @@ internal object AiArtifactJsonCodec {
             AiArtifact(
                 id = id,
                 kind = item.optString("kind").orEmpty().toArtifactKind(),
-                title = item.optString("title").orEmpty().ifBlank { "AI artifact" },
+                title = item.optString("title").orEmpty().ifBlank { "AI draft" },
                 description = item.optString("description").orEmpty(),
                 prompt = item.optString("prompt").orEmpty(),
                 createdAtMillis = item.long("createdAtMillis", System.currentTimeMillis()),

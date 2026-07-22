@@ -2,7 +2,7 @@ package io.codecks.data.ai
 
 import android.content.Context
 
-data class DeckBridgeAiAgentPack(
+data class CodecksAiAgentPack(
     val agent: String,
     val skill: String,
     val schema: String,
@@ -19,11 +19,11 @@ data class DeckBridgeAiAgentPack(
     }
 
     companion object {
-        fun load(context: Context): DeckBridgeAiAgentPack =
-            DeckBridgeAiAgentPack(
-                agent = context.readAgentAsset("deckbridge_ai_agent/AGENT.md"),
-                skill = context.readAgentAsset("deckbridge_ai_agent/SKILL.md"),
-                schema = context.readAgentAsset("deckbridge_ai_agent/schema.json"),
+        fun load(context: Context): CodecksAiAgentPack =
+            CodecksAiAgentPack(
+                agent = context.readAgentAsset("codecks_ai_agent/AGENT.md"),
+                skill = context.readAgentAsset("codecks_ai_agent/SKILL.md"),
+                schema = context.readAgentAsset("codecks_ai_agent/schema.json"),
             )
     }
 }

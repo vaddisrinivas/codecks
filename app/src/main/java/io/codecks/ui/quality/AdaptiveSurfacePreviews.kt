@@ -13,7 +13,7 @@ import io.codecks.ui.automations.AutomationsScreen
 import io.codecks.ui.automations.AutomationsUiState
 import io.codecks.ui.home.HomeScreen
 import io.codecks.ui.home.HomeUiState
-import io.codecks.ui.theme.DeckBridgeTheme
+import io.codecks.ui.theme.CodecksTheme
 
 private const val PHONE_SPEC = "spec:width=393dp,height=873dp,dpi=440"
 private const val FOLDABLE_SPEC = "spec:width=673dp,height=841dp,dpi=480"
@@ -24,7 +24,7 @@ private const val TABLET_SPEC = "spec:width=1280dp,height=800dp,dpi=240"
 @Preview(name = "Deck tablet", device = TABLET_SPEC, showBackground = true)
 @Composable
 private fun DeckAdaptivePreview() {
-    DeckBridgeTheme {
+    CodecksTheme {
         HomeScreen(
             state = HomeUiState(
                 actions = previewDeckActions(),
@@ -43,7 +43,7 @@ private fun DeckAdaptivePreview() {
 @Preview(name = "Automations tablet", device = TABLET_SPEC, showBackground = true)
 @Composable
 private fun AutomationsAdaptivePreview() {
-    DeckBridgeTheme {
+    CodecksTheme {
         AutomationsScreen(
             state = AutomationsUiState(
                 automations = previewAutomations(),

@@ -128,18 +128,18 @@ private val DeckShapes = Shapes(
 )
 
 @Composable
-fun DeckBridgeTheme(
-    mode: DeckBridgeThemeMode = DeckBridgeThemeMode.Oled,
-    settings: DeckBridgeThemeSettings = DeckBridgeThemeSettings(mode = mode),
+fun CodecksTheme(
+    mode: CodecksThemeMode = CodecksThemeMode.Oled,
+    settings: CodecksThemeSettings = CodecksThemeSettings(mode = mode),
     content: @Composable () -> Unit,
 ) {
     val darkTheme = isSystemInDarkTheme()
     val resolvedMode = settings.mode
-    val darkResolved = resolvedMode == DeckBridgeThemeMode.Dark ||
-        resolvedMode == DeckBridgeThemeMode.Oled ||
-        (resolvedMode == DeckBridgeThemeMode.System && darkTheme)
+    val darkResolved = resolvedMode == CodecksThemeMode.Dark ||
+        resolvedMode == CodecksThemeMode.Oled ||
+        (resolvedMode == CodecksThemeMode.System && darkTheme)
     val colorScheme = when {
-        resolvedMode == DeckBridgeThemeMode.Oled -> DeckOledColors
+        resolvedMode == CodecksThemeMode.Oled -> DeckOledColors
         darkResolved -> DeckDarkColors
         else -> DeckLightColors
     }.applyThemeSettings(settings, darkResolved)
@@ -155,7 +155,7 @@ fun DeckBridgeTheme(
 }
 
 private fun ColorScheme.applyThemeSettings(
-    settings: DeckBridgeThemeSettings,
+    settings: CodecksThemeSettings,
     dark: Boolean,
 ): ColorScheme {
     val accent = settings.accent.color(dark)
@@ -163,22 +163,22 @@ private fun ColorScheme.applyThemeSettings(
     val accentContainer = settings.accent.container(dark)
     val onAccentContainer = settings.accent.onContainer(dark)
     val contrast = when (settings.surfaceStyle) {
-        DeckBridgeSurfaceStyle.Balanced -> 0
-        DeckBridgeSurfaceStyle.Crisp -> 1
-        DeckBridgeSurfaceStyle.Colorful -> 2
+        CodecksSurfaceStyle.Balanced -> 0
+        CodecksSurfaceStyle.Crisp -> 1
+        CodecksSurfaceStyle.Colorful -> 2
     }
     val borderBoost = when (settings.borderStyle) {
-        DeckBridgeBorderStyle.Subtle -> 0
-        DeckBridgeBorderStyle.Visible -> 1
-        DeckBridgeBorderStyle.Strong -> 2
+        CodecksBorderStyle.Subtle -> 0
+        CodecksBorderStyle.Visible -> 1
+        CodecksBorderStyle.Strong -> 2
     }
     return copy(
         primary = accent,
         onPrimary = onAccent,
         primaryContainer = accentContainer,
         onPrimaryContainer = onAccentContainer,
-        secondary = if (settings.surfaceStyle == DeckBridgeSurfaceStyle.Colorful) settings.accent.secondary(dark) else secondary,
-        secondaryContainer = if (settings.surfaceStyle == DeckBridgeSurfaceStyle.Colorful) settings.accent.secondaryContainer(dark) else secondaryContainer,
+        secondary = if (settings.surfaceStyle == CodecksSurfaceStyle.Colorful) settings.accent.secondary(dark) else secondary,
+        secondaryContainer = if (settings.surfaceStyle == CodecksSurfaceStyle.Colorful) settings.accent.secondaryContainer(dark) else secondaryContainer,
         outline = outline.withContrast(borderBoost, dark),
         outlineVariant = outlineVariant.withContrast(borderBoost, dark),
         surfaceContainerLow = surfaceContainerLow.withSurfaceContrast(contrast, dark),
@@ -188,59 +188,59 @@ private fun ColorScheme.applyThemeSettings(
     )
 }
 
-private fun DeckBridgeAccent.color(dark: Boolean): Color = when (this) {
-    DeckBridgeAccent.Blue -> if (dark) Color(0xFF8FCAFF) else Color(0xFF1769E0)
-    DeckBridgeAccent.Cyan -> if (dark) Color(0xFF73D7F4) else Color(0xFF006A7D)
-    DeckBridgeAccent.Green -> if (dark) Color(0xFF3DDC84) else Color(0xFF087F3F)
-    DeckBridgeAccent.Violet -> if (dark) Color(0xFFD1BCFF) else Color(0xFF6D4FD8)
-    DeckBridgeAccent.Amber -> if (dark) Color(0xFFFFCA73) else Color(0xFF8A5A00)
-    DeckBridgeAccent.Rose -> if (dark) Color(0xFFFF8FD8) else Color(0xFFA9006E)
-    DeckBridgeAccent.Coral -> if (dark) Color(0xFFFFA38B) else Color(0xFFA33A22)
-    DeckBridgeAccent.Lime -> if (dark) Color(0xFFB8F45A) else Color(0xFF4D7200)
+private fun CodecksAccent.color(dark: Boolean): Color = when (this) {
+    CodecksAccent.Blue -> if (dark) Color(0xFF8FCAFF) else Color(0xFF1769E0)
+    CodecksAccent.Cyan -> if (dark) Color(0xFF73D7F4) else Color(0xFF006A7D)
+    CodecksAccent.Green -> if (dark) Color(0xFF3DDC84) else Color(0xFF087F3F)
+    CodecksAccent.Violet -> if (dark) Color(0xFFD1BCFF) else Color(0xFF6D4FD8)
+    CodecksAccent.Amber -> if (dark) Color(0xFFFFCA73) else Color(0xFF8A5A00)
+    CodecksAccent.Rose -> if (dark) Color(0xFFFF8FD8) else Color(0xFFA9006E)
+    CodecksAccent.Coral -> if (dark) Color(0xFFFFA38B) else Color(0xFFA33A22)
+    CodecksAccent.Lime -> if (dark) Color(0xFFB8F45A) else Color(0xFF4D7200)
 }
 
-private fun DeckBridgeAccent.container(dark: Boolean): Color = when (this) {
-    DeckBridgeAccent.Blue -> if (dark) Color(0xFF0A3A68) else Color(0xFFD8E9FF)
-    DeckBridgeAccent.Cyan -> if (dark) Color(0xFF003F4C) else Color(0xFFBDEFFF)
-    DeckBridgeAccent.Green -> if (dark) Color(0xFF0A3721) else Color(0xFFC8F5D8)
-    DeckBridgeAccent.Violet -> if (dark) Color(0xFF443184) else Color(0xFFE9DDFF)
-    DeckBridgeAccent.Amber -> if (dark) Color(0xFF533B00) else Color(0xFFFFDEA3)
-    DeckBridgeAccent.Rose -> if (dark) Color(0xFF651246) else Color(0xFFFFD8EA)
-    DeckBridgeAccent.Coral -> if (dark) Color(0xFF652416) else Color(0xFFFFDBD1)
-    DeckBridgeAccent.Lime -> if (dark) Color(0xFF334C00) else Color(0xFFE0F9A4)
+private fun CodecksAccent.container(dark: Boolean): Color = when (this) {
+    CodecksAccent.Blue -> if (dark) Color(0xFF0A3A68) else Color(0xFFD8E9FF)
+    CodecksAccent.Cyan -> if (dark) Color(0xFF003F4C) else Color(0xFFBDEFFF)
+    CodecksAccent.Green -> if (dark) Color(0xFF0A3721) else Color(0xFFC8F5D8)
+    CodecksAccent.Violet -> if (dark) Color(0xFF443184) else Color(0xFFE9DDFF)
+    CodecksAccent.Amber -> if (dark) Color(0xFF533B00) else Color(0xFFFFDEA3)
+    CodecksAccent.Rose -> if (dark) Color(0xFF651246) else Color(0xFFFFD8EA)
+    CodecksAccent.Coral -> if (dark) Color(0xFF652416) else Color(0xFFFFDBD1)
+    CodecksAccent.Lime -> if (dark) Color(0xFF334C00) else Color(0xFFE0F9A4)
 }
 
-private fun DeckBridgeAccent.onContainer(dark: Boolean): Color = when (this) {
-    DeckBridgeAccent.Blue -> if (dark) Color(0xFFD8E9FF) else Color(0xFF001B3D)
-    DeckBridgeAccent.Cyan -> if (dark) Color(0xFFBDEFFF) else Color(0xFF001F27)
-    DeckBridgeAccent.Green -> if (dark) Color(0xFFA7F3C5) else Color(0xFF00210D)
-    DeckBridgeAccent.Violet -> if (dark) Color(0xFFE9DDFF) else Color(0xFF21005D)
-    DeckBridgeAccent.Amber -> if (dark) Color(0xFFFFDEA3) else Color(0xFF2A1800)
-    DeckBridgeAccent.Rose -> if (dark) Color(0xFFFFD8EA) else Color(0xFF3E0026)
-    DeckBridgeAccent.Coral -> if (dark) Color(0xFFFFDBD1) else Color(0xFF3D0900)
-    DeckBridgeAccent.Lime -> if (dark) Color(0xFFE0F9A4) else Color(0xFF142000)
+private fun CodecksAccent.onContainer(dark: Boolean): Color = when (this) {
+    CodecksAccent.Blue -> if (dark) Color(0xFFD8E9FF) else Color(0xFF001B3D)
+    CodecksAccent.Cyan -> if (dark) Color(0xFFBDEFFF) else Color(0xFF001F27)
+    CodecksAccent.Green -> if (dark) Color(0xFFA7F3C5) else Color(0xFF00210D)
+    CodecksAccent.Violet -> if (dark) Color(0xFFE9DDFF) else Color(0xFF21005D)
+    CodecksAccent.Amber -> if (dark) Color(0xFFFFDEA3) else Color(0xFF2A1800)
+    CodecksAccent.Rose -> if (dark) Color(0xFFFFD8EA) else Color(0xFF3E0026)
+    CodecksAccent.Coral -> if (dark) Color(0xFFFFDBD1) else Color(0xFF3D0900)
+    CodecksAccent.Lime -> if (dark) Color(0xFFE0F9A4) else Color(0xFF142000)
 }
 
-private fun DeckBridgeAccent.secondary(dark: Boolean): Color = when (this) {
-    DeckBridgeAccent.Blue -> if (dark) Color(0xFFB9C7DD) else Color(0xFF526070)
-    DeckBridgeAccent.Cyan -> if (dark) Color(0xFFB0CCD3) else Color(0xFF486269)
-    DeckBridgeAccent.Green -> if (dark) Color(0xFFB8CCB8) else Color(0xFF526350)
-    DeckBridgeAccent.Violet -> if (dark) Color(0xFFC9C0DE) else Color(0xFF625B71)
-    DeckBridgeAccent.Amber -> if (dark) Color(0xFFD6C3A3) else Color(0xFF6D5D3F)
-    DeckBridgeAccent.Rose -> if (dark) Color(0xFFE4BBD2) else Color(0xFF775667)
-    DeckBridgeAccent.Coral -> if (dark) Color(0xFFE4BDB4) else Color(0xFF78574F)
-    DeckBridgeAccent.Lime -> if (dark) Color(0xFFC4D0A5) else Color(0xFF5E664B)
+private fun CodecksAccent.secondary(dark: Boolean): Color = when (this) {
+    CodecksAccent.Blue -> if (dark) Color(0xFFB9C7DD) else Color(0xFF526070)
+    CodecksAccent.Cyan -> if (dark) Color(0xFFB0CCD3) else Color(0xFF486269)
+    CodecksAccent.Green -> if (dark) Color(0xFFB8CCB8) else Color(0xFF526350)
+    CodecksAccent.Violet -> if (dark) Color(0xFFC9C0DE) else Color(0xFF625B71)
+    CodecksAccent.Amber -> if (dark) Color(0xFFD6C3A3) else Color(0xFF6D5D3F)
+    CodecksAccent.Rose -> if (dark) Color(0xFFE4BBD2) else Color(0xFF775667)
+    CodecksAccent.Coral -> if (dark) Color(0xFFE4BDB4) else Color(0xFF78574F)
+    CodecksAccent.Lime -> if (dark) Color(0xFFC4D0A5) else Color(0xFF5E664B)
 }
 
-private fun DeckBridgeAccent.secondaryContainer(dark: Boolean): Color = when (this) {
-    DeckBridgeAccent.Blue -> if (dark) Color(0xFF344354) else Color(0xFFD6E4F7)
-    DeckBridgeAccent.Cyan -> if (dark) Color(0xFF304850) else Color(0xFFCCE8EF)
-    DeckBridgeAccent.Green -> if (dark) Color(0xFF374A36) else Color(0xFFD4E8D1)
-    DeckBridgeAccent.Violet -> if (dark) Color(0xFF4A4458) else Color(0xFFE8DEF8)
-    DeckBridgeAccent.Amber -> if (dark) Color(0xFF51452D) else Color(0xFFF7E2B7)
-    DeckBridgeAccent.Rose -> if (dark) Color(0xFF57404C) else Color(0xFFFFD8EA)
-    DeckBridgeAccent.Coral -> if (dark) Color(0xFF59413B) else Color(0xFFFFDBD1)
-    DeckBridgeAccent.Lime -> if (dark) Color(0xFF454B35) else Color(0xFFE5EBCF)
+private fun CodecksAccent.secondaryContainer(dark: Boolean): Color = when (this) {
+    CodecksAccent.Blue -> if (dark) Color(0xFF344354) else Color(0xFFD6E4F7)
+    CodecksAccent.Cyan -> if (dark) Color(0xFF304850) else Color(0xFFCCE8EF)
+    CodecksAccent.Green -> if (dark) Color(0xFF374A36) else Color(0xFFD4E8D1)
+    CodecksAccent.Violet -> if (dark) Color(0xFF4A4458) else Color(0xFFE8DEF8)
+    CodecksAccent.Amber -> if (dark) Color(0xFF51452D) else Color(0xFFF7E2B7)
+    CodecksAccent.Rose -> if (dark) Color(0xFF57404C) else Color(0xFFFFD8EA)
+    CodecksAccent.Coral -> if (dark) Color(0xFF59413B) else Color(0xFFFFDBD1)
+    CodecksAccent.Lime -> if (dark) Color(0xFF454B35) else Color(0xFFE5EBCF)
 }
 
 private fun Color.withSurfaceContrast(level: Int, dark: Boolean): Color {
@@ -263,16 +263,16 @@ private fun Color.lighten(amount: Float): Color =
 private fun Color.darken(amount: Float): Color =
     copy(red = red * (1f - amount), green = green * (1f - amount), blue = blue * (1f - amount))
 
-private fun shapesFor(style: DeckBridgeShapeStyle): Shapes = when (style) {
-    DeckBridgeShapeStyle.Native -> DeckShapes
-    DeckBridgeShapeStyle.Compact -> Shapes(
+private fun shapesFor(style: CodecksShapeStyle): Shapes = when (style) {
+    CodecksShapeStyle.Native -> DeckShapes
+    CodecksShapeStyle.Compact -> Shapes(
         extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
         small = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
         medium = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
         large = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
         extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
     )
-    DeckBridgeShapeStyle.Soft -> Shapes(
+    CodecksShapeStyle.Soft -> Shapes(
         extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
         small = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
         medium = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),

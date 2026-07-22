@@ -134,7 +134,7 @@ class ConnectionViewModelTest {
 
         assertTrue(repository.resetTrustCalled)
         assertEquals("", repository.config.value.hostKey)
-        assertEquals("Mac fingerprint reset. Verify the fingerprint again before running commands.", viewModel.uiState.value.message)
+        assertEquals("Mac trust reset. Trust this Mac again before running controls.", viewModel.uiState.value.message)
     }
 
     @Test
@@ -225,4 +225,9 @@ private class FakeConnectionRepository(
 
     override suspend fun runAction(actionId: String, dangerous: Boolean): Result<String> =
         Result.success("sent")
+    override suspend fun runCommand(command: String): Result<String> = Result.success("sent")
+    override suspend fun runCommandWithInput(command: String, stdin: String): Result<String> = Result.success("sent")
+    override suspend fun validateCommandSyntax(command: String): Result<String> = Result.success("syntax ok")
+    override suspend fun runCommandSecret(command: String): Result<String> = Result.success("sent")
+    override suspend fun selectTarget(targetId: String): Result<String> = Result.success("selected")
 }

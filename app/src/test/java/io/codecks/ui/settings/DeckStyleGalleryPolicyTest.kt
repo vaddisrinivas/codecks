@@ -17,6 +17,6 @@ class DeckStyleGalleryPolicyTest {
         assertTrue(settings.contains("DeckControlTile("))
         assertTrue(tiles.contains("deckStyle: CodecksDeckStyle = CodecksDeckStyle.StreamDeckPro"))
         assertTrue(theme.contains("deckStyle = CodecksDeckStyle.StreamDeckPro"))
-        assertTrue(settings.contains("items(CodecksIconPack.entries.filterNot"))
+        assertTrue(settings.contains("items(CodecksIconPack.entries"))
     }
 }

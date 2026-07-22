@@ -14,8 +14,6 @@ import io.codecks.domain.ai.GeneratedDraft
 import io.codecks.domain.ai.SemanticDraftValidationException
 import io.codecks.domain.features.Entitlement
 import io.codecks.domain.features.EntitlementRepository
-import io.codecks.domain.features.EntitlementStatus
-import io.codecks.domain.features.EntitlementTier
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
@@ -364,10 +362,10 @@ class AiCreatorV2LiveEvalTest {
     }
 
     private object LiveEvalEntitlementRepository : EntitlementRepository {
-        private val premium = Entitlement(EntitlementTier.Premium, EntitlementStatus.Active)
-        override val entitlement: Flow<Entitlement> = flowOf(premium)
-        override suspend fun currentEntitlement(): Entitlement = premium
-        override suspend fun refresh(): Result<Entitlement> = Result.success(premium)
+        private val localOnly = Entitlement(localOnly = true)
+        override val entitlement: Flow<Entitlement> = flowOf(localOnly)
+        override suspend fun currentEntitlement(): Entitlement = localOnly
+        override suspend fun refresh(): Result<Entitlement> = Result.success(localOnly)
     }
 
     private companion object {

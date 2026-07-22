@@ -86,30 +86,22 @@ interface ConnectionRepository {
     suspend fun save(host: String, port: Int, user: String)
     suspend fun generateKey(): Result<String>
     suspend fun publicKey(): String
-    suspend fun trustHostKey(): Result<String> =
-        Result.failure(UnsupportedOperationException("Host verification is unavailable"))
-    suspend fun confirmPendingHostKey(): Result<String> =
-        Result.failure(UnsupportedOperationException("Host trust confirmation is unavailable"))
-    suspend fun rotateKey(): Result<String> =
-        Result.failure(UnsupportedOperationException("SSH key rotation is unavailable"))
-    suspend fun resetTrust(): Result<String> =
-        Result.failure(UnsupportedOperationException("SSH trust reset is unavailable"))
+    suspend fun trustHostKey(): Result<String>
+    suspend fun confirmPendingHostKey(): Result<String>
+    suspend fun rotateKey(): Result<String>
+    suspend fun resetTrust(): Result<String>
     suspend fun installKey(password: String): Result<String>
     suspend fun test(password: String? = null): Result<String>
     suspend fun runAction(actionId: String, dangerous: Boolean): Result<String>
-    suspend fun runCommand(command: String): Result<String> =
-        Result.failure(UnsupportedOperationException("Raw commands are unavailable"))
+    suspend fun runCommand(command: String): Result<String>
     suspend fun runCommandRaw(command: String): Result<String> = runCommand(command)
-    suspend fun runCommandWithInput(command: String, stdin: String): Result<String> =
-        Result.failure(UnsupportedOperationException("Command stdin is unavailable"))
+    suspend fun runCommandWithInput(command: String, stdin: String): Result<String>
+    suspend fun validateCommandSyntax(command: String): Result<String>
     suspend fun writeMacClipboard(text: String): Result<String> = runCommandWithInput("pbcopy", text)
-    suspend fun runCommandSecret(command: String): Result<String> =
-        Result.failure(UnsupportedOperationException("Secret commands are unavailable"))
+    suspend fun runCommandSecret(command: String): Result<String>
     suspend fun savedTargets(): List<ConnectionTarget> = emptyList()
-    suspend fun selectTarget(targetId: String): Result<String> =
-        Result.failure(UnsupportedOperationException("Target switching is unavailable"))
-    suspend fun removeTarget(targetId: String): Result<String> =
-        Result.failure(UnsupportedOperationException("Target removal is unavailable"))
+    suspend fun selectTarget(targetId: String): Result<String>
+    suspend fun removeTarget(targetId: String): Result<String>
     suspend fun runActionOnTarget(targetId: String, actionId: String, dangerous: Boolean): Result<String> =
         runAction(actionId, dangerous)
     suspend fun runCommandOnTarget(targetId: String, command: String): Result<String> = runCommand(command)
@@ -177,7 +169,7 @@ class DefaultConnectionRepository @Inject constructor(
                 val privateOutput = ByteArrayOutputStream()
                 val publicOutput = ByteArrayOutputStream()
                 keyPair.writePrivateKey(privateOutput)
-                keyPair.writePublicKey(publicOutput, "deckbridge")
+                keyPair.writePublicKey(publicOutput, "codecks")
                 keyPair.dispose()
                 writePrivateKey(privateOutput.toString(Charsets.UTF_8.name()))
                 publicKeyFile().writeBytes(publicOutput.toByteArray())
@@ -342,10 +334,10 @@ class DefaultConnectionRepository @Inject constructor(
     }
 
     override suspend fun runAction(actionId: String, dangerous: Boolean): Result<String> =
-        Result.failure(UnsupportedOperationException("Legacy catalog runner removed; use an inline reviewed command"))
+        Result.failure(IllegalStateException("Legacy catalog runner removed; use an inline reviewed command"))
 
     override suspend fun runActionOnTarget(targetId: String, actionId: String, dangerous: Boolean): Result<String> =
-        Result.failure(UnsupportedOperationException("Legacy catalog runner removed; use an inline reviewed command"))
+        Result.failure(IllegalStateException("Legacy catalog runner removed; use an inline reviewed command"))
 
     override suspend fun runCommand(command: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
@@ -383,6 +375,17 @@ class DefaultConnectionRepository @Inject constructor(
         }
     }
 
+    override suspend fun validateCommandSyntax(command: String): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val current = currentConfig()
+            require(current.isReady) { "Connect your Mac first" }
+            require(command.isNotBlank()) { "Command is empty" }
+            val result = runSsh(current, null, readPrivateKey(), "zsh -n", command)
+            check(result.isSuccess) { result.summary }
+            "Command syntax verified"
+        }
+    }
+
     override suspend fun runCommandSecret(command: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val current = currentConfig()
@@ -401,7 +404,7 @@ class DefaultConnectionRepository @Inject constructor(
                 val target = targetById(targetId)
                 require(target.isReady) { "Connect ${target.host} first" }
                 require(command.isNotBlank()) { "Command is empty" }
-                RawCommandPolicy.requireAllowed(command)
+                RawCommandPolicy.requireSafeTemplate(command)
                 val result = runSsh(target.toConfig(), null, readPrivateKey(), command)
                 check(result.isSuccess) { result.summary }
                 result.summary

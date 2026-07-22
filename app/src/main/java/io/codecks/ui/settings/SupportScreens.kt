@@ -12,7 +12,6 @@ import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.TouchApp
-import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -24,48 +23,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.codecks.ui.designsystem.DeckActionButton
 import io.codecks.ui.designsystem.DeckPage
-import io.codecks.ui.theme.DeckBridgeThemeMode
-import io.codecks.ui.theme.DeckBridgeThemeSettings
-
-@Composable
-fun WidgetScreen(contentPadding: PaddingValues, onAddWidget: () -> Unit) {
-    DeckPage(
-        contentPadding = contentPadding,
-    ) {
-        item {
-            SettingsPanel {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                    headlineContent = { Text("Home screen controls") },
-                    supportingContent = { Text("Pin quick entry to Codecks controls from the launcher.") },
-                    leadingContent = { Icon(Icons.Outlined.Widgets, contentDescription = null) },
-                )
-            }
-        }
-        item {
-            DeckActionButton(
-                label = "Add widget",
-                onClick = onAddWidget,
-                icon = Icons.Outlined.Widgets,
-                modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp),
-            )
-        }
-    }
-}
+import io.codecks.ui.theme.CodecksThemeMode
+import io.codecks.ui.theme.CodecksThemeSettings
 
 @Composable
 fun AppearanceScreen(
     contentPadding: PaddingValues,
-    themeMode: DeckBridgeThemeMode,
-    onThemeModeChange: (DeckBridgeThemeMode) -> Unit,
+    themeMode: CodecksThemeMode,
+    onThemeModeChange: (CodecksThemeMode) -> Unit,
 ) {
     DeckPage(contentPadding = contentPadding) {
         item {
             ThemeModePanel(
-                themeSettings = DeckBridgeThemeSettings(mode = themeMode),
+                themeSettings = CodecksThemeSettings(mode = themeMode),
                 onThemeModeChange = onThemeModeChange,
             )
         }

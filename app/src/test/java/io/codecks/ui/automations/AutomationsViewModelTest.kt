@@ -131,7 +131,7 @@ class AutomationsViewModelTest {
         assertEquals(previousRun, repository.recipes.value.single { it.id == "focus" }.lastRun)
         assertEquals(listOf(previousRun), repository.recipes.value.single { it.id == "focus" }.runHistory)
         assertTrue(viewModel.uiState.value.message.orEmpty().startsWith("Test:"))
-        assertTrue(viewModel.uiState.value.message.orEmpty().contains("No Mac command was executed"))
+        assertTrue(viewModel.uiState.value.message.orEmpty().contains("No Mac command ran"))
     }
 
     @Test
@@ -487,6 +487,9 @@ private class FakeAutomationRepository(
             if (recipe.id == recipeId) recipe.copy(pendingApproval = null) else recipe
         }
     }
+    override suspend fun exportRecipes(): Result<String> = Result.success("")
+    override suspend fun validateRecipes(payload: String): Result<Unit> = Result.success(Unit)
+    override suspend fun importRecipes(payload: String): Result<Unit> = Result.success(Unit)
     override suspend fun resetDefaults() = Unit
 }
 
@@ -531,7 +534,17 @@ private class ReadyConnectionRepository : ConnectionRepository {
     override suspend fun save(host: String, port: Int, user: String) = Unit
     override suspend fun generateKey(): Result<String> = Result.success("key")
     override suspend fun publicKey(): String = "key"
+    override suspend fun trustHostKey(): Result<String> = Result.success("trusted")
+    override suspend fun confirmPendingHostKey(): Result<String> = Result.success("confirmed")
+    override suspend fun rotateKey(): Result<String> = Result.success("rotated")
+    override suspend fun resetTrust(): Result<String> = Result.success("reset")
     override suspend fun installKey(password: String): Result<String> = Result.success("installed")
     override suspend fun test(password: String?): Result<String> = Result.success("connected")
+    override suspend fun runCommand(command: String): Result<String> = Result.success("sent")
+    override suspend fun runCommandWithInput(command: String, stdin: String): Result<String> = Result.success("sent")
+    override suspend fun validateCommandSyntax(command: String): Result<String> = Result.success("syntax ok")
+    override suspend fun runCommandSecret(command: String): Result<String> = Result.success("sent")
+    override suspend fun selectTarget(targetId: String): Result<String> = Result.success("selected")
+    override suspend fun removeTarget(targetId: String): Result<String> = Result.success("removed")
     override suspend fun runAction(actionId: String, dangerous: Boolean): Result<String> = Result.success("ran")
 }

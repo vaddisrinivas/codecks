@@ -79,7 +79,7 @@ fun CommandPaletteScreen(
             item {
                 DeckEmptyState(
                     title = "No commands found",
-                    body = "Try another action, app, or automation name.",
+                    body = "Try another button, app, or rule name.",
                     icon = Icons.Outlined.Search,
                     modifier = Modifier.padding(16.dp),
                 )

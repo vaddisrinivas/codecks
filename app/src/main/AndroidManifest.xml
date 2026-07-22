@@ -30,7 +30,7 @@
         android:label="@string/app_name"
         android:roundIcon="@drawable/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.DeckBridge"
+        android:theme="@style/Theme.Codecks"
         android:usesCleartextTraffic="false">
         <meta-data
             android:name="asset_statements"
@@ -40,7 +40,7 @@
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
         <service
-            android:name=".data.context.DeckBridgeNotificationListenerService"
+            android:name=".data.context.CodecksNotificationListenerService"
             android:enabled="${optionalContextSurfacesEnabled}"
             android:exported="true"
             android:label="@string/app_name"

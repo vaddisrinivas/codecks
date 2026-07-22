@@ -50,7 +50,7 @@ val validateArchitectureBoundaries by tasks.registering {
             "domain/ai/StructuredDraftParser.kt",
             "domain/features/FeatureContracts.kt",
         )
-        val forbidden = Regex("""^import (android\.|androidx\.|io\.codex\.s23deck\.data\.|io\.codex\.s23deck\.ui\.).*""")
+        val forbidden = Regex("""^import (android\.|androidx\.|io\.codecks\.data\.|io\.codecks\.ui\.).*""")
         val violations = guardedRoots
             .flatMap { guardedRoot ->
                 file("$sourceRoot/$guardedRoot")
@@ -115,12 +115,12 @@ val validateReleaseSurface by tasks.registering {
                 add("Notification listener must use optionalContextSurfacesEnabled")
             }
             listOf(
-                ".data.context.DeckBridgeNotificationListenerService",
+                ".data.context.CodecksNotificationListenerService",
             ).filterNot { it in mainManifest }.forEach { component ->
                 add("Release ledger expects optional component missing from manifest check: $component")
             }
             if ("val optionalContextSurfacesEnabled = providers.gradleProperty(\"optionalContextSurfacesEnabled\").orElse(\"false\")" !in buildScript) {
-                add("Optional context/widget surfaces must default disabled")
+                add("Optional context surfaces must default disabled")
             }
             listOf(
                 "FeatureFlag.ContextDeck to false",
@@ -161,12 +161,13 @@ android {
         applicationId = "app.codecks"
         minSdk = 28
         targetSdk = 37
-        versionCode = 11
-        versionName = "0.1.10"
+        versionCode = 12
+        versionName = "0.1.11"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["optionalContextSurfacesEnabled"] = optionalContextSurfacesEnabled.get()
         buildConfigField("Boolean", "LOCAL_ONLY_V1", "true")
+        buildConfigField("Boolean", "OPTIONAL_CONTEXT_SURFACES_ENABLED", optionalContextSurfacesEnabled.get())
         buildConfigField("String", "LITELLM_BASE_URL", "\"${liteLlmBaseUrl.get()}\"")
     }
 
@@ -236,7 +237,6 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("br.com.devsrsouza.compose.icons:feather:1.1.1")
-    implementation("br.com.devsrsouza.compose.icons:font-awesome:1.1.1")
     implementation("br.com.devsrsouza.compose.icons:tabler-icons:1.1.1")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")

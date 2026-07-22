@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,6 +76,7 @@ import io.codecks.data.context.ContextAppRankingGate
 import io.codecks.data.context.DeviceSurfaceContextSource
 import io.codecks.data.context.UsageStatsContextSource
 import io.codecks.data.context.NotificationPreview
+import io.codecks.data.context.ContextFeatureStatus
 import io.codecks.data.context.NotificationPrivacySettings
 import io.codecks.data.context.NotificationPrivacySettingsRepository
 import io.codecks.data.context.PhoneNotificationBackplane
@@ -103,7 +105,10 @@ import io.codecks.ui.automations.AutomationsScreen
 import io.codecks.ui.automations.AutomationsViewModel
 import io.codecks.ui.app.destinationRequestToRoute
 import io.codecks.ui.app.CodecksAppShell
+import io.codecks.ui.app.PrimaryTab
 import io.codecks.ui.app.guardRoute
+import io.codecks.ui.app.launchRouteForRestoredTop
+import io.codecks.ui.app.routeEnabled
 import io.codecks.ui.ai.AiWorkspaceMode
 import io.codecks.ui.ai.AiProviderSettingsRoute
 import io.codecks.ui.clipboard.ClipboardScreen
@@ -121,13 +126,13 @@ import io.codecks.ui.runlog.RunLogScreen
 import io.codecks.ui.settings.SettingsScreen
 import io.codecks.ui.theme.CodecksDeckStyle
 import io.codecks.ui.theme.CodecksIconPack
-import io.codecks.ui.theme.DeckBridgeAccent
-import io.codecks.ui.theme.DeckBridgeBorderStyle
-import io.codecks.ui.theme.DeckBridgeShapeStyle
-import io.codecks.ui.theme.DeckBridgeSurfaceStyle
-import io.codecks.ui.theme.DeckBridgeThemeMode
-import io.codecks.ui.theme.DeckBridgeThemeSettings
-import io.codecks.ui.theme.DeckBridgeTheme
+import io.codecks.ui.theme.CodecksAccent
+import io.codecks.ui.theme.CodecksBorderStyle
+import io.codecks.ui.theme.CodecksShapeStyle
+import io.codecks.ui.theme.CodecksSurfaceStyle
+import io.codecks.ui.theme.CodecksThemeMode
+import io.codecks.ui.theme.CodecksThemeSettings
+import io.codecks.ui.theme.CodecksTheme
 import io.codecks.ui.theme.ThemeSettingsRepository
 import io.codecks.ui.theme.resolveForCodecksRelease
 import kotlinx.coroutines.launch
@@ -179,7 +184,7 @@ class MainActivity : ComponentActivity() {
             val themeSettingsRepository = remember(appContext) { ThemeSettingsRepository(appContext) }
             val themeScope = rememberCoroutineScope()
             val themeSettings by themeSettingsRepository.settings.collectAsStateWithLifecycle(
-                initialValue = DeckBridgeThemeSettings(),
+                initialValue = CodecksThemeSettings(),
             )
             LaunchedEffect(themeSettingsRepository) {
                 themeSettingsRepository.migrateToCurrentVisualSystem()
@@ -187,8 +192,8 @@ class MainActivity : ComponentActivity() {
             val effectiveThemeSettings = themeSettings.resolveForCodecksRelease(
                 customizationEnabled = !BuildConfig.LOCAL_ONLY_V1,
             )
-            DeckBridgeTheme(settings = effectiveThemeSettings) {
-                DeckBridgeApp(
+            CodecksTheme(settings = effectiveThemeSettings) {
+                CodecksApp(
                     destinationRequest = destinationRequest,
                     window = window,
                     hidRepository = hidRepository,
@@ -279,19 +284,19 @@ private fun DeckAction.visibleForFlags(flags: Map<FeatureFlag, Boolean>): Boolea
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DeckBridgeApp(
+private fun CodecksApp(
     destinationRequest: String?,
     window: android.view.Window,
     hidRepository: HidRepository,
     actionRunner: ActionRunner,
     connectionRepository: ConnectionRepository,
     backupRepository: CodecksBackupRepository,
-    themeSettings: DeckBridgeThemeSettings,
-    onThemeModeChange: (DeckBridgeThemeMode) -> Unit,
-    onThemeAccentChange: (DeckBridgeAccent) -> Unit,
-    onThemeSurfaceStyleChange: (DeckBridgeSurfaceStyle) -> Unit,
-    onThemeBorderStyleChange: (DeckBridgeBorderStyle) -> Unit,
-    onThemeShapeStyleChange: (DeckBridgeShapeStyle) -> Unit,
+    themeSettings: CodecksThemeSettings,
+    onThemeModeChange: (CodecksThemeMode) -> Unit,
+    onThemeAccentChange: (CodecksAccent) -> Unit,
+    onThemeSurfaceStyleChange: (CodecksSurfaceStyle) -> Unit,
+    onThemeBorderStyleChange: (CodecksBorderStyle) -> Unit,
+    onThemeShapeStyleChange: (CodecksShapeStyle) -> Unit,
     onDeckStyleChange: (CodecksDeckStyle) -> Unit,
     onIconPackChange: (CodecksIconPack) -> Unit,
     onRequestConsumed: () -> Unit,
@@ -312,7 +317,8 @@ private fun DeckBridgeApp(
     }
     val featureFlagRepository = remember(appContext) { LocalFeatureFlagRepository(appContext) }
     val featureFlags by featureFlagRepository.flags.collectAsStateWithLifecycle(initialValue = emptyMap())
-    val contextFeaturesEnabled = featureFlags.focusedEnabled(FeatureFlag.ContextDeck)
+    val contextFeaturesEnabled =
+        featureFlags.focusedEnabled(FeatureFlag.Labs) && featureFlags.focusedEnabled(FeatureFlag.ContextDeck)
     val phoneNotificationFlow = remember(contextFeaturesEnabled) {
         if (contextFeaturesEnabled) {
             PhoneNotificationBackplane.notifications
@@ -323,6 +329,13 @@ private fun DeckBridgeApp(
     val phoneNotifications by phoneNotificationFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val backStack = rememberNavBackStack(HomeRoute)
     val currentRoute = backStack.lastOrNull() ?: HomeRoute
+    LaunchedEffect(Unit) {
+        val launchRoute = launchRouteForRestoredTop(currentRoute)
+        if (launchRoute != currentRoute) {
+            backStack.clear()
+            backStack.add(launchRoute)
+        }
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var pendingBackupPayload by remember { mutableStateOf<String?>(null) }
@@ -359,7 +372,7 @@ private fun DeckBridgeApp(
                     }.mapCatching { backupRepository.import(it).getOrThrow() }
                 }
                 snackbarHostState.showSnackbar(
-                    result.fold(onSuccess = { "Deck and automations restored" }, onFailure = { it.message ?: "Restore failed" }),
+                    result.fold(onSuccess = { "Deck and Rules restored" }, onFailure = { it.message ?: "Restore failed" }),
                 )
             }
         }
@@ -401,6 +414,14 @@ private fun DeckBridgeApp(
         if (it) hidRepository.start()
     }
     val notificationAccessReady = contextFeaturesEnabled && PhoneNotificationBackplane.isEnabled(appContext)
+    val contextFeatureStatus = ContextFeatureStatus(
+        compiledIntoBuild = true,
+        componentEnabled = BuildConfig.OPTIONAL_CONTEXT_SURFACES_ENABLED,
+        specialAccessGranted = PhoneNotificationBackplane.isEnabled(appContext),
+        runtimeFeatureEnabled = contextFeaturesEnabled,
+        privacyLaneEnabled = notificationPrivacySettings.showOnTrackpad,
+        allowedPackageCount = notificationPrivacySettings.allowedPackages.size,
+    )
     val laptopNotifications = homeState.activity.take(6).map { event ->
         NotificationPreview(
             id = "mac-${event.timestampMillis}-${event.actionId}",
@@ -560,7 +581,7 @@ private fun DeckBridgeApp(
             }
             if (providerSpec == null) {
                 aiRankedApps = null
-                contextAppStatus = "Schedule ranking active • local until GPT-5.5 provider key is added"
+                contextAppStatus = "Schedule ranking active • local until an AI key is added"
             } else {
                 val result = runCatching {
                     withContext(Dispatchers.IO) {
@@ -599,7 +620,6 @@ private fun DeckBridgeApp(
         }
     }
     val localOnlyV1 = BuildConfig.LOCAL_ONLY_V1
-    val paywallEnabled = false
     val localEntitlementRepository = remember { LocalOnlyEntitlementRepository() }
     val entitlementRepository = remember(localEntitlementRepository, featureFlagRepository) {
         FeatureFlaggedEntitlementRepository(localEntitlementRepository, featureFlagRepository)
@@ -795,6 +815,7 @@ private fun DeckBridgeApp(
             currentRoute = currentRoute,
             backStackSize = backStack.size,
             fullscreen = fullscreen,
+            tabs = PrimaryTab.entries.filter { tab -> routeEnabled(tab.route, featureFlags) },
             onBack = { backStack.removeLastOrNull() },
             onDestinationSelected = { route ->
                 navigate(route, topLevel = true)
@@ -806,10 +827,11 @@ private fun DeckBridgeApp(
             BackHandler(enabled = fullscreen) {
                 fullscreenOverride = false
             }
-            NavDisplay(
-                backStack = backStack,
-                onBack = { backStack.removeLastOrNull() },
-                entryProvider = entryProvider {
+            key(currentRoute) {
+                NavDisplay(
+                    backStack = backStack,
+                    onBack = { backStack.removeLastOrNull() },
+                    entryProvider = entryProvider {
                     entry<HomeRoute> {
                         HomeScreen(
                             state = homeState.copy(actions = visibleDeckActions),
@@ -956,6 +978,7 @@ private fun DeckBridgeApp(
                             bluetoothPermissionGranted = bluetoothPermissionGranted,
                             notificationAccessReady = notificationAccessReady,
                             notificationPrivacySettings = notificationPrivacySettings,
+                            contextFeatureStatus = contextFeatureStatus,
                             clipboardSettings = clipboardSettings,
                             aiProviderReady = aiProviderReady,
                             automationsReady = featureFlags.focusedEnabled(FeatureFlag.Automations) && connectionHealth.isReady,
@@ -972,6 +995,7 @@ private fun DeckBridgeApp(
                             onConnectionPasswordChange = connectionViewModel::setPassword,
                             onConnectionSelectHost = connectionViewModel::selectHost,
                             onConnectionScan = connectionViewModel::scan,
+                            onConnectionScanLocalNetwork = connectionViewModel::scanLocalNetwork,
                             onConnectionVerifyHostKey = connectionViewModel::verifyHostKey,
                             onConnectionConfirmHostKey = connectionViewModel::confirmHostKey,
                             onConnectionAuthorize = connectionViewModel::authorize,
@@ -1029,8 +1053,6 @@ private fun DeckBridgeApp(
                                 scope.launch { clipboardSettingsRepository.saveIntervalMinutes(minutes) }
                             },
                             onAiBuilder = { navigate(AiBuilderRoute) },
-                            onPremium = {},
-                            onWidget = {},
                             onAppearance = {},
                             onAdvanced = {},
                             onDebugBundle = {
@@ -1057,7 +1079,6 @@ private fun DeckBridgeApp(
                             onTrackpadSettingsChange = { transform ->
                                 scope.launch { trackpadSettingsRepository.update(transform) }
                             },
-                            showPremium = paywallEnabled,
                             localOnlyV1 = localOnlyV1,
                             debugBundleEnabled = BuildConfig.DEBUG,
                             appVersionLabel = "Version ${BuildConfig.VERSION_NAME}",
@@ -1170,6 +1191,7 @@ private fun DeckBridgeApp(
                 modifier = Modifier.fillMaxSize(),
             )
         }
+        }
         celebrationLabel?.let { label ->
             CelebrationOverlay(label = label, onDone = { celebrationLabel = null })
         }
@@ -1268,7 +1290,7 @@ private fun shareDebugBundle(
     if (!BuildConfig.DEBUG) return
     val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
     val directory = File(context.cacheDir, "debug-bundles").apply { mkdirs() }
-    val file = File(directory, "deckbridge-debug-$timestamp.txt")
+    val file = File(directory, "codecks-debug-$timestamp.txt")
     val config = connectionState.config
     file.writeText(
         buildString {

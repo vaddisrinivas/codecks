@@ -55,7 +55,7 @@ class DevicesViewModel @Inject constructor(
                     refresh()
                 }
                 .onFailure { error ->
-                    _uiState.update { it.copy(message = error.message ?: "Could not switch target") }
+                    _uiState.update { it.copy(message = error.message ?: "Could not switch Mac") }
                 }
         }
     }

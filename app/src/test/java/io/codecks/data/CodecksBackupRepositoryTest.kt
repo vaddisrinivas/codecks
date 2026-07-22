@@ -57,6 +57,7 @@ private class FakeBackupActionRepository(private val exported: String) : ActionR
     override suspend fun run(action: DeckAction): Result<String> = Result.success("")
     override suspend fun test(action: DeckAction): Result<String> = Result.success("")
     override suspend fun exportLayout(): Result<String> = Result.success(exported)
+    override suspend fun validateLayout(payload: String): Result<Unit> = Result.success(Unit)
     override suspend fun importLayout(payload: String): Result<Unit> {
         imported = payload
         return Result.success(Unit)
@@ -72,6 +73,7 @@ private class FakeBackupAutomationRepository(private val exported: String) : Aut
     override suspend fun recordRun(recipeId: String, result: ActionResult) = Unit
     override suspend fun resetDefaults() = Unit
     override suspend fun exportRecipes(): Result<String> = Result.success(exported)
+    override suspend fun validateRecipes(payload: String): Result<Unit> = Result.success(Unit)
     override suspend fun importRecipes(payload: String): Result<Unit> {
         imported = payload
         return Result.success(Unit)

@@ -380,6 +380,9 @@ private class GatedActionRepository(
     override suspend fun saveFavorites(actions: List<DeckAction>) {
         savedFavorites = actions
     }
+    override suspend fun exportLayout(): Result<String> = Result.success("")
+    override suspend fun validateLayout(payload: String): Result<Unit> = Result.success(Unit)
+    override suspend fun importLayout(payload: String): Result<Unit> = Result.success(Unit)
 
     override suspend fun run(action: DeckAction): Result<String> = Result.success("${action.label} sent")
 
@@ -408,8 +411,18 @@ private class ReadyConnectionRepository : ConnectionRepository {
     override suspend fun save(host: String, port: Int, user: String) = Unit
     override suspend fun generateKey(): Result<String> = Result.success("public-key")
     override suspend fun publicKey(): String = "public-key"
+    override suspend fun trustHostKey(): Result<String> = Result.success("trusted")
+    override suspend fun confirmPendingHostKey(): Result<String> = Result.success("confirmed")
+    override suspend fun rotateKey(): Result<String> = Result.success("rotated")
+    override suspend fun resetTrust(): Result<String> = Result.success("reset")
     override suspend fun installKey(password: String): Result<String> = Result.success("installed")
     override suspend fun test(password: String?): Result<String> = Result.success("connected")
+    override suspend fun runCommand(command: String): Result<String> = Result.success("sent")
+    override suspend fun runCommandWithInput(command: String, stdin: String): Result<String> = Result.success("sent")
+    override suspend fun validateCommandSyntax(command: String): Result<String> = Result.success("syntax ok")
+    override suspend fun runCommandSecret(command: String): Result<String> = Result.success("sent")
+    override suspend fun selectTarget(targetId: String): Result<String> = Result.success("selected")
+    override suspend fun removeTarget(targetId: String): Result<String> = Result.success("removed")
     override suspend fun runAction(actionId: String, dangerous: Boolean): Result<String> =
         Result.success("sent")
 }

@@ -1,20 +1,18 @@
 package io.codecks.ui.app
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Fullscreen
@@ -33,8 +31,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
@@ -49,6 +45,7 @@ fun CodecksAppShell(
     currentRoute: NavKey,
     backStackSize: Int,
     fullscreen: Boolean,
+    tabs: List<PrimaryTab> = PrimaryTab.entries,
     onBack: () -> Unit,
     onDestinationSelected: (NavKey) -> Unit,
     onOpenSettings: () -> Unit,
@@ -56,52 +53,21 @@ fun CodecksAppShell(
     onExitFullscreen: () -> Unit,
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    val currentTab = PrimaryTab.entries.firstOrNull { it.route == currentRoute }
+    val currentTab = tabs.firstOrNull { it.route == currentRoute } ?: PrimaryTab.entries.firstOrNull { it.route == currentRoute }
     val showBottomBar = !fullscreen && currentTab != null
-    val swipeThresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
-    val edgeSwipePx = with(LocalDensity.current) { 56.dp.toPx() }
-    val swipeModifier = if (!fullscreen && currentTab != null && backStackSize <= 1) {
-        Modifier.pointerInput(currentTab) {
-            var dragTotal = 0f
-            var edgeSwipe = false
-            detectHorizontalDragGestures(
-                onDragStart = { offset ->
-                    dragTotal = 0f
-                    edgeSwipe = offset.x <= edgeSwipePx || offset.x >= size.width - edgeSwipePx
-                },
-                onHorizontalDrag = { _, dragAmount ->
-                    if (edgeSwipe) dragTotal += dragAmount
-                },
-                onDragEnd = {
-                    if (!edgeSwipe || kotlin.math.abs(dragTotal) < swipeThresholdPx) return@detectHorizontalDragGestures
-                    val tabs = PrimaryTab.entries
-                    val index = tabs.indexOf(currentTab)
-                    val nextIndex = if (dragTotal < 0f) index + 1 else index - 1
-                    tabs.getOrNull(nextIndex)?.let { tab -> onDestinationSelected(tab.route) }
-                    dragTotal = 0f
-                    edgeSwipe = false
-                },
-                onDragCancel = {
-                    dragTotal = 0f
-                    edgeSwipe = false
-                },
-            )
-        }
-    } else {
-        Modifier
-    }
 
-    Box(modifier = Modifier.fillMaxSize().then(swipeModifier)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             topBar = if (fullscreen || currentRoute == HomeRoute) {
                 {}
             } else {
                 {
-                    DeckBridgeTopBar(
+                    CodecksTopBar(
                         currentRoute = currentRoute,
                         backStackSize = backStackSize,
                         onBack = onBack,
                         onOpenSettings = onOpenSettings,
+                        onRequestFullscreen = onRequestFullscreen,
                     )
                 }
             },
@@ -109,15 +75,20 @@ fun CodecksAppShell(
                 if (showBottomBar) {
                     CodecksBottomBar(
                         currentTab = currentTab,
+                        tabs = tabs,
                         onTabSelected = { tab -> onDestinationSelected(tab.route) },
-                        onSettingsLongPress = onRequestFullscreen,
                     )
                 }
             },
             containerColor = MaterialTheme.colorScheme.background,
             snackbarHost = { SnackbarHost(snackbarHostState) },
         ) { contentPadding ->
-            content(contentPadding)
+            Surface(
+                color = MaterialTheme.colorScheme.background,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                content(contentPadding)
+            }
         }
         if (fullscreen) {
             IconButton(
@@ -130,60 +101,48 @@ fun CodecksAppShell(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CodecksBottomBar(
     currentTab: PrimaryTab,
+    tabs: List<PrimaryTab>,
     onTabSelected: (PrimaryTab) -> Unit,
-    onSettingsLongPress: () -> Unit,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         tonalElevation = 3.dp,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f)),
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .horizontalScroll(rememberScrollState())
-                .navigationBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .fillMaxWidth()
+                .height(96.dp)
+                .padding(start = 4.dp, top = 8.dp, end = 4.dp, bottom = 18.dp),
         ) {
-        PrimaryTab.entries.forEach { tab ->
+            tabs.forEach { tab ->
                 val selected = currentTab == tab
                 Surface(
+                    onClick = { onTabSelected(tab) },
                     color = if (selected) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                     } else {
                         MaterialTheme.colorScheme.surfaceContainerLow
                     },
-                    contentColor = if (selected) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                    contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     shape = MaterialTheme.shapes.large,
-                    modifier = (if (tab == PrimaryTab.Settings) {
-                        Modifier.combinedClickable(
-                            onClick = { onTabSelected(tab) },
-                            onLongClick = onSettingsLongPress,
-                        )
-                    } else {
-                        Modifier.combinedClickable(
-                            onClick = { onTabSelected(tab) },
-                            onLongClick = {},
-                        )
-                    })
-                        .width(96.dp)
-                        .heightIn(min = 64.dp),
+                    modifier = Modifier.weight(1f).height(70.dp),
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(horizontal = 2.dp, vertical = 6.dp),
                     ) {
-                        Icon(tab.icon, contentDescription = null)
+                        Icon(tab.icon, contentDescription = null, modifier = Modifier.size(24.dp))
                         Text(
                             tab.label,
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.labelSmall,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -196,11 +155,12 @@ private fun CodecksBottomBar(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DeckBridgeTopBar(
+private fun CodecksTopBar(
     currentRoute: NavKey,
     backStackSize: Int,
     onBack: () -> Unit,
     onOpenSettings: () -> Unit,
+    onRequestFullscreen: () -> Unit,
 ) {
     TopAppBar(
         title = { Text(currentRoute.title()) },
@@ -221,6 +181,9 @@ private fun DeckBridgeTopBar(
             }
         },
         actions = {
+            IconButton(onClick = onRequestFullscreen) {
+                Icon(Icons.Outlined.Fullscreen, contentDescription = "Fullscreen")
+            }
             if (currentRoute != SettingsRoute && PrimaryTab.entries.none { it.route == currentRoute }) {
                 IconButton(onClick = onOpenSettings) {
                     Icon(PrimaryTab.Settings.icon, contentDescription = "Settings")

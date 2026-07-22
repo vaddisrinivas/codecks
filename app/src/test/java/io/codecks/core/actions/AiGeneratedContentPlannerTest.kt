@@ -34,6 +34,8 @@ class AiGeneratedContentPlannerTest {
         assertEquals("ai_artifact1", recipe.id)
         assertEquals("AI-created automation from: prep workspace", recipe.description)
         assertEquals(2, recipe.steps.size)
+        assertFalse(recipe.enabled)
+        assertEquals(io.codecks.domain.automation.AutomationTrigger.Manual, recipe.trigger)
         assertTrue(recipe.safety.requiresConfirmation)
     }
 
@@ -84,6 +86,7 @@ class AiGeneratedContentPlannerTest {
 
         assertEquals(1, actions.size)
         assertTrue(actions.single().dangerous)
+        assertTrue(actions.single().requiresTest)
         assertFalse(actions.single().liveSafe)
     }
 }

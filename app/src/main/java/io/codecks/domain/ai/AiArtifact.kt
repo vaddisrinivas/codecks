@@ -1,20 +1,5 @@
 package io.codecks.domain.ai
 
-data class AiChatMessage(
-    val id: String,
-    val role: AiChatRole,
-    val text: String,
-    val artifactId: String? = null,
-    val actionId: String? = null,
-    val actionLabel: String? = null,
-    val timestampMillis: Long = System.currentTimeMillis(),
-)
-
-enum class AiChatRole {
-    User,
-    Assistant,
-}
-
 data class AiArtifact(
     val id: String,
     val kind: AiArtifactKind,

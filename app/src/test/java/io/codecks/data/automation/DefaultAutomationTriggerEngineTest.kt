@@ -111,9 +111,18 @@ private class ScriptedConnectionRepository(
     override suspend fun save(host: String, port: Int, user: String) = Unit
     override suspend fun generateKey(): Result<String> = Result.success("key")
     override suspend fun publicKey(): String = "key"
+    override suspend fun trustHostKey(): Result<String> = Result.success("trusted")
+    override suspend fun confirmPendingHostKey(): Result<String> = Result.success("confirmed")
+    override suspend fun rotateKey(): Result<String> = Result.success("rotated")
+    override suspend fun resetTrust(): Result<String> = Result.success("reset")
     override suspend fun installKey(password: String): Result<String> = Result.success("installed")
     override suspend fun test(password: String?): Result<String> = Result.success("connected")
     override suspend fun runAction(actionId: String, dangerous: Boolean): Result<String> = Result.success("ran")
     override suspend fun runCommand(command: String): Result<String> = Result.success(output)
     override suspend fun runCommandRaw(command: String): Result<String> = Result.success(rawOutput)
+    override suspend fun runCommandWithInput(command: String, stdin: String): Result<String> = Result.success(output)
+    override suspend fun validateCommandSyntax(command: String): Result<String> = Result.success("syntax ok")
+    override suspend fun runCommandSecret(command: String): Result<String> = Result.success(output)
+    override suspend fun selectTarget(targetId: String): Result<String> = Result.success("selected")
+    override suspend fun removeTarget(targetId: String): Result<String> = Result.success("removed")
 }

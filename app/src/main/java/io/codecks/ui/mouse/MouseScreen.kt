@@ -39,7 +39,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bluetooth
 import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
@@ -192,7 +191,6 @@ fun MouseScreen(
     var inputMode by rememberSaveable { mutableStateOf(MouseInputMode.Trackpad) }
     var controlsOpen by rememberSaveable { mutableStateOf(false) }
     var quickTray by rememberSaveable { mutableStateOf<TrackpadQuickTray?>(null) }
-    var keyboardTrayOpen by rememberSaveable { mutableStateOf(false) }
     var gyroSensitivity by rememberSaveable { mutableFloatStateOf(0.85f) }
     var gyroCalibration by rememberSaveable(stateSaver = OffsetSaver) { mutableStateOf(Offset.Zero) }
     var latestGyroSample by remember { mutableStateOf(Offset.Zero) }
@@ -508,108 +506,6 @@ fun MouseScreen(
             }
         }
     }
-    if (keyboardTrayOpen) {
-        AlertDialog(
-            onDismissRequest = { keyboardTrayOpen = false },
-            title = { Text("Keyboard shortcuts") },
-            text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.verticalScroll(rememberScrollState()),
-                ) {
-                    KeyboardCommandGrid(enabled = state.isConnected, onCommand = onCommand)
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { keyboardTrayOpen = false }) { Text("Done") }
-            },
-        )
-    }
-}
-
-@Composable
-private fun TrackpadBottomBar(
-    connected: Boolean,
-    dragLockEnabled: Boolean,
-    onKeyboard: () -> Unit,
-    onClipboard: () -> Unit,
-    onDragLock: () -> Unit,
-    onMore: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.96f),
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)),
-        shape = MaterialTheme.shapes.extraLarge,
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(8.dp),
-        ) {
-            TrackpadBottomAction(
-                label = "Keyboard",
-                icon = Icons.Outlined.Keyboard,
-                onClick = onKeyboard,
-                modifier = Modifier.weight(1f),
-            )
-            TrackpadBottomAction(
-                label = "Clipboard",
-                icon = Icons.Outlined.ContentPaste,
-                onClick = onClipboard,
-                modifier = Modifier.weight(1f),
-            )
-            TrackpadBottomAction(
-                label = if (dragLockEnabled) "Dragging" else "Drag lock",
-                icon = Icons.Outlined.Lock,
-                selected = dragLockEnabled,
-                enabled = connected,
-                onClick = onDragLock,
-                modifier = Modifier.weight(1f),
-            )
-            TrackpadBottomAction(
-                label = if (connected) "More" else "Target",
-                icon = if (connected) Icons.Outlined.Tune else Icons.Outlined.Bluetooth,
-                selected = !connected,
-                onClick = onMore,
-                modifier = Modifier.weight(1f),
-            )
-        }
-    }
-}
-
-@Composable
-private fun TrackpadBottomAction(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    selected: Boolean = false,
-    enabled: Boolean = true,
-) {
-    Surface(
-        onClick = onClick,
-        enabled = enabled,
-        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else Color.Transparent,
-        contentColor = when {
-            !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f)
-            selected -> MaterialTheme.colorScheme.primary
-            else -> MaterialTheme.colorScheme.onSurfaceVariant
-        },
-        shape = MaterialTheme.shapes.large,
-        modifier = modifier.heightIn(min = 56.dp),
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
-        ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
-            Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-        }
-    }
 }
 
 @Composable
@@ -678,8 +574,8 @@ private fun MouseControls(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = modifier) {
         if (showHostHeader) {
             HidHostHeader(
-                title = "Trackpad targets",
-                disconnectedTitle = "Trackpad ready",
+                title = "Choose a paired Mac",
+                disconnectedTitle = "Connect a Mac",
                 connectedTitle = "Trackpad connected",
                 icon = Icons.Outlined.Mouse,
                 state = state,
@@ -1427,8 +1323,15 @@ private fun Trackpad(
     }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = modifier) {
         Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = if (enabled) 0.62f else 0.38f),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (enabled) 0.46f else 0.18f)),
+            color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = if (enabled) 0.82f else 0.48f),
+            border = BorderStroke(
+                1.dp,
+                if (enabled) {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
+                } else {
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f)
+                },
+            ),
             shape = MaterialTheme.shapes.extraLarge,
             modifier = Modifier
                 .weight(1f)
@@ -1437,13 +1340,6 @@ private fun Trackpad(
                 .testTag(TrackpadTestTag)
         ) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.extraLarge)) {
-            if (!controlsOpen && (!enabled || dragLockEnabled)) {
-                TrackpadCenterHint(
-                    enabled = enabled,
-                    dragLockEnabled = dragLockEnabled,
-                    modifier = Modifier.align(Alignment.Center),
-                )
-            }
             RawTrackpadTouchLayer(
                 enabled = enabled,
                 sensitivity = sensitivity,
@@ -1507,6 +1403,22 @@ private fun Trackpad(
                     val color = if (last.isStylus) stylusTraceColor else traceColor
                     drawCircle(color.copy(alpha = alpha), radius = if (last.isStylus) 7f else 9f, center = last.position)
                 }
+            }
+            if (!controlsOpen && !idleBlanked) {
+                TrackpadSurfaceDecoration(modifier = Modifier.matchParentSize())
+                TrackpadGestureStrip(
+                    enabled = enabled,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(start = 18.dp, end = 18.dp, bottom = 22.dp),
+                )
+            }
+            if (!controlsOpen && (tracePoints.isEmpty() || !enabled || dragLockEnabled)) {
+                TrackpadCenterHint(
+                    enabled = enabled,
+                    dragLockEnabled = dragLockEnabled,
+                    modifier = Modifier.align(Alignment.Center),
+                )
             }
             if (controlsOpen) {
                 TrackpadGuardHint(
@@ -1606,11 +1518,53 @@ private fun TrackpadCenterHint(
             text = if (enabled) {
                 "One finger moves. Two fingers scroll. Tap with two fingers for right click."
             } else {
-                "Choose a paired target above, then use this surface as your Mac pointer."
+                "Choose a paired Mac above, then use this surface as your Mac pointer."
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun TrackpadGestureStrip(
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = if (enabled) 0.58f else 0.36f),
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.32f)),
+        shape = MaterialTheme.shapes.large,
+        modifier = modifier.widthIn(max = 520.dp),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+        ) {
+            TrackpadGestureChip("Tap", "click")
+            TrackpadGestureChip("2 fingers", "scroll")
+            TrackpadGestureChip("Back", "controls")
+        }
+    }
+}
+
+@Composable
+private fun TrackpadGestureChip(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
         )
     }
 }

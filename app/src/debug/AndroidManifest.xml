@@ -13,6 +13,6 @@
         <activity
             android:name=".GestureTestActivity"
             android:exported="false"
-            android:theme="@style/Theme.DeckBridge" />
+            android:theme="@style/Theme.Codecks" />
     </application>
 </manifest>

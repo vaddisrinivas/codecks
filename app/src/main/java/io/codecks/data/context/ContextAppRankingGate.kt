@@ -6,7 +6,6 @@ import android.app.UiModeManager
 import android.content.Context
 import android.content.res.Configuration
 import android.os.PowerManager
-import java.time.LocalTime
 
 data class ContextAppRankingGateResult(
     val allowed: Boolean,
@@ -16,7 +15,7 @@ data class ContextAppRankingGateResult(
 class ContextAppRankingGate(
     private val context: Context,
 ) {
-    fun evaluate(now: LocalTime = LocalTime.now()): ContextAppRankingGateResult {
+    fun evaluate(): ContextAppRankingGateResult {
         val powerManager = context.getSystemService(PowerManager::class.java)
         if (powerManager?.isInteractive == false) {
             return blocked("Skipped: phone screen is off/locked")
@@ -37,17 +36,12 @@ class ContextAppRankingGate(
             return blocked("Skipped: sleep/DND mode")
         }
 
-        if (now.hour in SLEEP_HOURS) {
-            return blocked("Skipped: quiet sleep hours")
-        }
-
         return ContextAppRankingGateResult(allowed = true, reason = "Allowed")
     }
 
     private fun blocked(reason: String) = ContextAppRankingGateResult(allowed = false, reason = reason)
 
     private companion object {
-        val SLEEP_HOURS = setOf(0, 1, 2, 3, 4, 5)
         val sleepInterruptionFilters = setOf(
             NotificationManager.INTERRUPTION_FILTER_NONE,
             NotificationManager.INTERRUPTION_FILTER_ALARMS,

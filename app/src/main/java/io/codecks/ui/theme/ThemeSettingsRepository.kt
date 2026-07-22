@@ -11,14 +11,14 @@ import kotlinx.coroutines.flow.map
 
 private val Context.themeDataStore by preferencesDataStore(name = "theme_settings")
 
-enum class DeckBridgeThemeMode(val label: String, val description: String) {
+enum class CodecksThemeMode(val label: String, val description: String) {
     System("System", "Follow Android light and dark mode"),
     Light("Light", "Bright Material surfaces"),
     Dark("Dark", "Dark Material surfaces"),
     Oled("OLED black", "Pure black surfaces for trackpad-heavy use"),
 }
 
-enum class DeckBridgeAccent(val label: String) {
+enum class CodecksAccent(val label: String) {
     Blue("Blue"),
     Cyan("Cyan"),
     Green("Green"),
@@ -29,19 +29,19 @@ enum class DeckBridgeAccent(val label: String) {
     Lime("Lime"),
 }
 
-enum class DeckBridgeSurfaceStyle(val label: String, val description: String) {
+enum class CodecksSurfaceStyle(val label: String, val description: String) {
     Balanced("Balanced", "Material surfaces with calm contrast"),
     Crisp("Crisp", "More separation between cards, rows, and fields"),
     Colorful("Colorful", "More accent color in active controls"),
 }
 
-enum class DeckBridgeBorderStyle(val label: String, val description: String) {
+enum class CodecksBorderStyle(val label: String, val description: String) {
     Subtle("Subtle", "Soft outlines"),
     Visible("Visible", "Clear control borders"),
     Strong("Strong", "High-contrast borders for every control"),
 }
 
-enum class DeckBridgeShapeStyle(val label: String, val description: String) {
+enum class CodecksShapeStyle(val label: String, val description: String) {
     Native("Native", "Google-style rounded controls"),
     Compact("Compact", "Sharper utility controls"),
     Soft("Soft", "Softer cards and sheets"),
@@ -60,9 +60,9 @@ enum class CodecksDeckStyle(val label: String, val description: String) {
         "Arcade Neon",
         "Electric lime, cyan, magenta, and orange with a punchier control-deck glow.",
     ),
-    OneUiWidgetGrid(
-        "One UI Widget Grid",
-        "Dark rounded widget tiles, big icons, tiny labels, almost no toy keycap effect.",
+    OneUiGrid(
+        "One UI Grid",
+        "Dark rounded tiles, big icons, tiny labels, almost no toy keycap effect.",
     ),
     StreamDeckPro(
         "Codecks Green",
@@ -78,22 +78,22 @@ enum class CodecksDeckStyle(val label: String, val description: String) {
     ),
 }
 
-data class DeckBridgeThemeSettings(
-    val mode: DeckBridgeThemeMode = DeckBridgeThemeMode.Oled,
-    val accent: DeckBridgeAccent = DeckBridgeAccent.Green,
-    val surfaceStyle: DeckBridgeSurfaceStyle = DeckBridgeSurfaceStyle.Balanced,
-    val borderStyle: DeckBridgeBorderStyle = DeckBridgeBorderStyle.Visible,
-    val shapeStyle: DeckBridgeShapeStyle = DeckBridgeShapeStyle.Soft,
+data class CodecksThemeSettings(
+    val mode: CodecksThemeMode = CodecksThemeMode.Oled,
+    val accent: CodecksAccent = CodecksAccent.Green,
+    val surfaceStyle: CodecksSurfaceStyle = CodecksSurfaceStyle.Balanced,
+    val borderStyle: CodecksBorderStyle = CodecksBorderStyle.Visible,
+    val shapeStyle: CodecksShapeStyle = CodecksShapeStyle.Soft,
     val deckStyle: CodecksDeckStyle = CodecksDeckStyle.StreamDeckPro,
     val iconPack: CodecksIconPack = CodecksIconPack.Tabler,
 )
 
-val CodecksReleaseThemeSettings = DeckBridgeThemeSettings(
-    mode = DeckBridgeThemeMode.Oled,
-    accent = DeckBridgeAccent.Green,
-    surfaceStyle = DeckBridgeSurfaceStyle.Balanced,
-    borderStyle = DeckBridgeBorderStyle.Visible,
-    shapeStyle = DeckBridgeShapeStyle.Soft,
+val CodecksReleaseThemeSettings = CodecksThemeSettings(
+    mode = CodecksThemeMode.Oled,
+    accent = CodecksAccent.Green,
+    surfaceStyle = CodecksSurfaceStyle.Balanced,
+    borderStyle = CodecksBorderStyle.Visible,
+    shapeStyle = CodecksShapeStyle.Soft,
     deckStyle = CodecksDeckStyle.StreamDeckPro,
     iconPack = CodecksIconPack.Tabler,
 )
@@ -107,14 +107,14 @@ internal fun resolvePersistedDeckStyle(
     deckStyleRevision: Int,
 ): CodecksDeckStyle = when {
     deckStyleRevision < CURRENT_DECK_STYLE_REVISION -> CodecksDeckStyle.StreamDeckPro
-    !userSelectedDeckStyle && savedDeckStyle in setOf(null, CodecksDeckStyle.OneUiWidgetGrid, CodecksDeckStyle.CodexMicroGlass) -> CodecksDeckStyle.StreamDeckPro
+    !userSelectedDeckStyle && savedDeckStyle in setOf(null, CodecksDeckStyle.OneUiGrid, CodecksDeckStyle.CodexMicroGlass) -> CodecksDeckStyle.StreamDeckPro
     savedDeckStyle != null -> savedDeckStyle
     else -> CodecksDeckStyle.StreamDeckPro
 }
 
-fun DeckBridgeThemeSettings.resolveForCodecksRelease(
+fun CodecksThemeSettings.resolveForCodecksRelease(
     customizationEnabled: Boolean,
-): DeckBridgeThemeSettings =
+): CodecksThemeSettings =
     if (customizationEnabled) this else CodecksReleaseThemeSettings.copy(
         accent = accent,
         surfaceStyle = surfaceStyle,
@@ -125,54 +125,59 @@ fun DeckBridgeThemeSettings.resolveForCodecksRelease(
     )
 
 class ThemeSettingsRepository(private val context: Context) {
-    val settings: Flow<DeckBridgeThemeSettings> = context.themeDataStore.data.map { preferences ->
+    val settings: Flow<CodecksThemeSettings> = context.themeDataStore.data.map { preferences ->
         val useCodecksGreenDefaults = (preferences[VISUAL_SYSTEM_REVISION] ?: 0) < CURRENT_VISUAL_SYSTEM_REVISION
         val savedDeckStyle = preferences[DECK_STYLE]
-            ?.let { saved -> CodecksDeckStyle.entries.firstOrNull { it.name == saved } }
+            ?.let { saved ->
+                if (saved == "OneUiWidgetGrid") {
+                    CodecksDeckStyle.OneUiGrid
+                } else {
+                    CodecksDeckStyle.entries.firstOrNull { it.name == saved }
+                }
+            }
         val userSelectedDeckStyle = preferences[DECK_STYLE_USER_SELECTED] == true
         val deckStyleRevision = preferences[DECK_STYLE_REVISION] ?: 0
-        DeckBridgeThemeSettings(
-            mode = if (useCodecksGreenDefaults) DeckBridgeThemeMode.Oled else preferences[MODE]?.let { saved -> DeckBridgeThemeMode.entries.firstOrNull { it.name == saved } }
-                ?: DeckBridgeThemeMode.Oled,
-            accent = if (useCodecksGreenDefaults) DeckBridgeAccent.Green else preferences[ACCENT]?.let { saved -> DeckBridgeAccent.entries.firstOrNull { it.name == saved } }
-                ?: DeckBridgeAccent.Green,
-            surfaceStyle = if (useCodecksGreenDefaults) DeckBridgeSurfaceStyle.Balanced else preferences[SURFACE_STYLE]?.let { saved -> DeckBridgeSurfaceStyle.entries.firstOrNull { it.name == saved } }
-                ?: DeckBridgeSurfaceStyle.Balanced,
-            borderStyle = if (useCodecksGreenDefaults) DeckBridgeBorderStyle.Visible else preferences[BORDER_STYLE]?.let { saved -> DeckBridgeBorderStyle.entries.firstOrNull { it.name == saved } }
-                ?: DeckBridgeBorderStyle.Visible,
-            shapeStyle = if (useCodecksGreenDefaults) DeckBridgeShapeStyle.Soft else preferences[SHAPE_STYLE]?.let { saved -> DeckBridgeShapeStyle.entries.firstOrNull { it.name == saved } }
-                ?: DeckBridgeShapeStyle.Soft,
+        CodecksThemeSettings(
+            mode = if (useCodecksGreenDefaults) CodecksThemeMode.Oled else preferences[MODE]?.let { saved -> CodecksThemeMode.entries.firstOrNull { it.name == saved } }
+                ?: CodecksThemeMode.Oled,
+            accent = if (useCodecksGreenDefaults) CodecksAccent.Green else preferences[ACCENT]?.let { saved -> CodecksAccent.entries.firstOrNull { it.name == saved } }
+                ?: CodecksAccent.Green,
+            surfaceStyle = if (useCodecksGreenDefaults) CodecksSurfaceStyle.Balanced else preferences[SURFACE_STYLE]?.let { saved -> CodecksSurfaceStyle.entries.firstOrNull { it.name == saved } }
+                ?: CodecksSurfaceStyle.Balanced,
+            borderStyle = if (useCodecksGreenDefaults) CodecksBorderStyle.Visible else preferences[BORDER_STYLE]?.let { saved -> CodecksBorderStyle.entries.firstOrNull { it.name == saved } }
+                ?: CodecksBorderStyle.Visible,
+            shapeStyle = if (useCodecksGreenDefaults) CodecksShapeStyle.Soft else preferences[SHAPE_STYLE]?.let { saved -> CodecksShapeStyle.entries.firstOrNull { it.name == saved } }
+                ?: CodecksShapeStyle.Soft,
             deckStyle = if (useCodecksGreenDefaults) CodecksDeckStyle.StreamDeckPro else resolvePersistedDeckStyle(savedDeckStyle, userSelectedDeckStyle, deckStyleRevision),
             iconPack = if (useCodecksGreenDefaults) CodecksIconPack.Tabler else preferences[ICON_PACK]
                 ?.let { saved -> CodecksIconPack.entries.firstOrNull { it.name == saved } }
-                ?.takeUnless { it == CodecksIconPack.FontAwesome }
                 ?: CodecksIconPack.Tabler,
         )
     }
 
-    val mode: Flow<DeckBridgeThemeMode> = context.themeDataStore.data.map { preferences ->
+    val mode: Flow<CodecksThemeMode> = context.themeDataStore.data.map { preferences ->
         preferences[MODE]?.let { saved ->
-            DeckBridgeThemeMode.entries.firstOrNull { it.name == saved }
-        } ?: DeckBridgeThemeMode.Oled
+            CodecksThemeMode.entries.firstOrNull { it.name == saved }
+        } ?: CodecksThemeMode.Oled
     }
 
-    suspend fun setMode(mode: DeckBridgeThemeMode) {
+    suspend fun setMode(mode: CodecksThemeMode) {
         context.themeDataStore.edit { it[MODE] = mode.name }
     }
 
-    suspend fun setAccent(accent: DeckBridgeAccent) {
+    suspend fun setAccent(accent: CodecksAccent) {
         context.themeDataStore.edit { it[ACCENT] = accent.name }
     }
 
-    suspend fun setSurfaceStyle(style: DeckBridgeSurfaceStyle) {
+    suspend fun setSurfaceStyle(style: CodecksSurfaceStyle) {
         context.themeDataStore.edit { it[SURFACE_STYLE] = style.name }
     }
 
-    suspend fun setBorderStyle(style: DeckBridgeBorderStyle) {
+    suspend fun setBorderStyle(style: CodecksBorderStyle) {
         context.themeDataStore.edit { it[BORDER_STYLE] = style.name }
     }
 
-    suspend fun setShapeStyle(style: DeckBridgeShapeStyle) {
+    suspend fun setShapeStyle(style: CodecksShapeStyle) {
         context.themeDataStore.edit { it[SHAPE_STYLE] = style.name }
     }
 
@@ -191,11 +196,11 @@ class ThemeSettingsRepository(private val context: Context) {
     suspend fun migrateToCurrentVisualSystem() {
         context.themeDataStore.edit { preferences ->
             if ((preferences[VISUAL_SYSTEM_REVISION] ?: 0) >= CURRENT_VISUAL_SYSTEM_REVISION) return@edit
-            preferences[MODE] = DeckBridgeThemeMode.Oled.name
-            preferences[ACCENT] = DeckBridgeAccent.Green.name
-            preferences[SURFACE_STYLE] = DeckBridgeSurfaceStyle.Balanced.name
-            preferences[BORDER_STYLE] = DeckBridgeBorderStyle.Visible.name
-            preferences[SHAPE_STYLE] = DeckBridgeShapeStyle.Soft.name
+            preferences[MODE] = CodecksThemeMode.Oled.name
+            preferences[ACCENT] = CodecksAccent.Green.name
+            preferences[SURFACE_STYLE] = CodecksSurfaceStyle.Balanced.name
+            preferences[BORDER_STYLE] = CodecksBorderStyle.Visible.name
+            preferences[SHAPE_STYLE] = CodecksShapeStyle.Soft.name
             preferences[DECK_STYLE] = CodecksDeckStyle.StreamDeckPro.name
             preferences[DECK_STYLE_USER_SELECTED] = false
             preferences[DECK_STYLE_REVISION] = CURRENT_DECK_STYLE_REVISION

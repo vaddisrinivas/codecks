@@ -118,6 +118,9 @@ private class FakeActionRepository : ActionRepository {
     override fun observeFavorites(): Flow<List<DeckAction>> = MutableStateFlow(listOf(action))
     override fun allActions(): List<DeckAction> = listOf(action)
     override suspend fun saveFavorites(actions: List<DeckAction>) = Unit
+    override suspend fun exportLayout(): Result<String> = Result.success("")
+    override suspend fun validateLayout(payload: String): Result<Unit> = Result.success(Unit)
+    override suspend fun importLayout(payload: String): Result<Unit> = Result.success(Unit)
     override suspend fun run(action: DeckAction): Result<String> = Result.success("${action.label} ok")
     override suspend fun test(action: DeckAction): Result<String> = Result.success("${action.label} verified")
 }
@@ -129,6 +132,10 @@ private class FakeConnectionRepository : ConnectionRepository {
     override suspend fun save(host: String, port: Int, user: String) = Unit
     override suspend fun generateKey(): Result<String> = Result.success("key")
     override suspend fun publicKey(): String = "key"
+    override suspend fun trustHostKey(): Result<String> = Result.success("trusted")
+    override suspend fun confirmPendingHostKey(): Result<String> = Result.success("confirmed")
+    override suspend fun rotateKey(): Result<String> = Result.success("rotated")
+    override suspend fun resetTrust(): Result<String> = Result.success("reset")
     override suspend fun installKey(password: String): Result<String> = Result.success("installed")
     override suspend fun test(password: String?): Result<String> = Result.success("connected")
     override suspend fun runAction(actionId: String, dangerous: Boolean): Result<String> = Result.success("ran")
@@ -136,6 +143,11 @@ private class FakeConnectionRepository : ConnectionRepository {
         lastCommand = command
         return Result.success("command ok")
     }
+    override suspend fun runCommandWithInput(command: String, stdin: String): Result<String> = runCommand(command)
+    override suspend fun validateCommandSyntax(command: String): Result<String> = Result.success("syntax ok")
+    override suspend fun runCommandSecret(command: String): Result<String> = runCommand(command)
+    override suspend fun selectTarget(targetId: String): Result<String> = Result.success("selected")
+    override suspend fun removeTarget(targetId: String): Result<String> = Result.success("removed")
     override suspend fun runCommandOnTarget(targetId: String, command: String): Result<String> {
         targetCommands += targetId to command
         return runCommand(command)

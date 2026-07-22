@@ -58,14 +58,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import io.codecks.core.design.DeckBridgeDesignTokens
+import io.codecks.core.design.CodecksDesignTokens
 import io.codecks.ui.theme.CodecksDeckStyle
 
 @Composable
 fun DeckPage(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
-    maxWidth: androidx.compose.ui.unit.Dp = DeckBridgeDesignTokens.Size.sheetMaxWidth,
+    maxWidth: androidx.compose.ui.unit.Dp = CodecksDesignTokens.Size.sheetMaxWidth,
     content: LazyListScope.() -> Unit,
 ) {
     Box(
@@ -95,10 +95,10 @@ fun DeckSectionLabel(
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier
             .padding(
-                start = DeckBridgeDesignTokens.Spacing.lg,
-                end = DeckBridgeDesignTokens.Spacing.lg,
-                top = DeckBridgeDesignTokens.Spacing.xl,
-                bottom = DeckBridgeDesignTokens.Spacing.sm,
+                start = CodecksDesignTokens.Spacing.lg,
+                end = CodecksDesignTokens.Spacing.lg,
+                top = CodecksDesignTokens.Spacing.xl,
+                bottom = CodecksDesignTokens.Spacing.sm,
             )
             .semantics { heading() },
     )
@@ -116,7 +116,7 @@ fun DeckEmptyState(
         shape = MaterialTheme.shapes.large,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = DeckBridgeDesignTokens.Spacing.page, vertical = DeckBridgeDesignTokens.Spacing.page),
+            .padding(horizontal = CodecksDesignTokens.Spacing.page, vertical = CodecksDesignTokens.Spacing.page),
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -179,7 +179,7 @@ fun DeckControlTile(
             deckStyle = deckStyle,
             onClick = onClick,
             onLongClick = onLongClick,
-            modifier = modifier.heightIn(min = DeckBridgeDesignTokens.Size.controlTileMinHeight),
+            modifier = modifier.heightIn(min = CodecksDesignTokens.Size.controlTileMinHeight),
         )
         return
     }
@@ -193,7 +193,7 @@ fun DeckControlTile(
         showLabel = showLabel,
         onClick = onClick,
         onLongClick = onLongClick,
-        modifier = modifier.heightIn(min = DeckBridgeDesignTokens.Size.controlTileMinHeight),
+        modifier = modifier.heightIn(min = CodecksDesignTokens.Size.controlTileMinHeight),
     )
 }
 
@@ -219,7 +219,7 @@ private fun FlatDeckTile(
             CodecksDeckStyle.AuroraGlass -> 24.dp
             CodecksDeckStyle.CandyPop -> 26.dp
             CodecksDeckStyle.ArcadeNeon -> 18.dp
-            CodecksDeckStyle.OneUiWidgetGrid -> 22.dp
+            CodecksDeckStyle.OneUiGrid -> 22.dp
             CodecksDeckStyle.StreamDeckPro -> 20.dp
             CodecksDeckStyle.NothingMonoDeck -> 18.dp
             CodecksDeckStyle.CodexMicroGlass -> 20.dp
@@ -370,7 +370,7 @@ private fun flatDeckTileColors(
             glassMid = Color(0xFF071512),
             glassAlpha = 0.96f,
         )
-        CodecksDeckStyle.OneUiWidgetGrid -> FlatDeckTileColors(
+        CodecksDeckStyle.OneUiGrid -> FlatDeckTileColors(
             container = Brush.verticalGradient(
                 listOf(
                     Color.White.copy(alpha = if (active) 0.13f else 0.075f),
@@ -613,7 +613,7 @@ fun DeckFilterPill(
             },
         ),
         modifier = modifier
-            .heightIn(min = DeckBridgeDesignTokens.Size.minTouchTarget)
+            .heightIn(min = CodecksDesignTokens.Size.minTouchTarget)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
     ) {
         Row(

@@ -1,6 +1,6 @@
 # Codecks Artifact Builder Skill
 
-Use this skill when the user chats with Codecks AI to create, test, or refine anything custom: deck buttons, full decks, automation recipes, Mac scripts, app-specific control sets, trackpad background widgets, or workflow shortcuts.
+Use this skill when the user prompts Codecks AI to create, test, or refine anything custom: deck buttons, full decks, automation recipes, Mac scripts, app-specific control sets, trackpad background panels, or workflow shortcuts.
 
 ## Inputs
 - User request in natural language.
@@ -17,10 +17,10 @@ Create a single `definition` with a short title, clear description, safety metad
 Create a deck with 4-12 actions. Use consistent naming and button intent. Good templates include Browser, Media, Meetings, Window Manager, Developer, Presentation, System Controls, Finder, Terminal, and Focus.
 
 ### Automation
-Create one recipe with trigger intent in the title/description and steps that reuse the same action definition model. V1 automations are manual-testable; background triggers can be described but must not be assumed active unless the schema supports them.
+Create one rule with trigger intent in the title/description and steps that reuse the same action definition model. Rules are manual-testable; background triggers can be described but must not be assumed active unless the schema supports them.
 
-### Clock Or Background Widget
-If the user asks for a clock, notification background, trackpad visual, or OLED background, create a button/action only if it is meant to change app settings. Otherwise explain through the artifact description what app-side widget is requested and use a safe no-op shell step such as `printf 'Trackpad clock style requested'`.
+### Clock Or Background Panel
+If the user asks for a clock, notification background, trackpad visual, or OLED background, create a button/action only if it is meant to change app settings. Otherwise explain through the draft description what app-side panel is requested and use a safe no-op shell step such as `printf 'Trackpad clock style requested'`.
 
 ## Step Types
 - `open_url`: requires `url`.

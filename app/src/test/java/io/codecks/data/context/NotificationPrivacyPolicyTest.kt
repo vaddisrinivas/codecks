@@ -11,7 +11,7 @@ class NotificationPrivacyPolicyTest {
     fun defaultSettings_redactTitleAndBody() {
         val preview = NotificationPrivacyPolicy.apply(
             raw = raw(title = "Message", text = "Lunch moved"),
-            settings = NotificationPrivacySettings(),
+            settings = NotificationPrivacySettings(allowedPackages = setOf("com.example.messages")),
             ownPackage = "io.codecks",
         )
 
@@ -25,7 +25,7 @@ class NotificationPrivacyPolicyTest {
     fun showContent_keepsBoundedTitleAndBody() {
         val preview = NotificationPrivacyPolicy.apply(
             raw = raw(title = "A".repeat(100), text = "B".repeat(140)),
-            settings = NotificationPrivacySettings(showContent = true),
+            settings = NotificationPrivacySettings(showContent = true, allowedPackages = setOf("com.example.messages")),
             ownPackage = "io.codecks",
         )
 

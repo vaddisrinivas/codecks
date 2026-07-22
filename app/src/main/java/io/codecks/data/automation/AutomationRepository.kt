@@ -40,9 +40,9 @@ interface AutomationRepository {
     suspend fun recordRun(recipeId: String, result: ActionResult)
     suspend fun recordTest(recipeId: String, result: ActionResult, revision: String) = Unit
     suspend fun clearPendingApproval(recipeId: String) = Unit
-    suspend fun exportRecipes(): Result<String> = Result.failure(UnsupportedOperationException("Automation export is unavailable"))
-    suspend fun validateRecipes(payload: String): Result<Unit> = Result.success(Unit)
-    suspend fun importRecipes(payload: String): Result<Unit> = Result.failure(UnsupportedOperationException("Automation import is unavailable"))
+    suspend fun exportRecipes(): Result<String>
+    suspend fun validateRecipes(payload: String): Result<Unit>
+    suspend fun importRecipes(payload: String): Result<Unit>
     suspend fun resetDefaults()
 }
 

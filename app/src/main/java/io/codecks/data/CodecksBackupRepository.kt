@@ -33,8 +33,16 @@ class CodecksBackupRepository @Inject constructor(
         require(deck.startsWith("{") && automations.startsWith("{")) { "Invalid Codecks backup" }
         actionRepository.validateLayout(deck).getOrThrow()
         automationRepository.validateRecipes(automations).getOrThrow()
-        actionRepository.importLayout(deck).getOrThrow()
-        automationRepository.importRecipes(automations).getOrThrow()
+        val previousDeck = actionRepository.exportLayout().getOrThrow()
+        val previousAutomations = automationRepository.exportRecipes().getOrThrow()
+        try {
+            actionRepository.importLayout(deck).getOrThrow()
+            automationRepository.importRecipes(automations).getOrThrow()
+        } catch (error: Throwable) {
+            runCatching { actionRepository.importLayout(previousDeck).getOrThrow() }
+            runCatching { automationRepository.importRecipes(previousAutomations).getOrThrow() }
+            throw error
+        }
     }
 
     private companion object {

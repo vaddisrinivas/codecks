@@ -28,16 +28,16 @@ val ConnectionHealth.isReady: Boolean
 
 fun ConnectionHealth.statusLabel(): String =
     when (kind) {
-        ConnectionHealthKind.NotConfigured -> "Setup"
-        ConnectionHealthKind.Scanning -> "Scanning"
-        ConnectionHealthKind.Verifying -> "Verify"
-        ConnectionHealthKind.Connecting -> "Connecting"
-        ConnectionHealthKind.Testing -> "Testing"
+        ConnectionHealthKind.NotConfigured -> "Setup needed"
+        ConnectionHealthKind.Scanning -> "Checking…"
+        ConnectionHealthKind.Verifying -> "Checking…"
+        ConnectionHealthKind.Connecting -> "Connecting…"
+        ConnectionHealthKind.Testing -> "Checking…"
         ConnectionHealthKind.Ready -> "Ready"
-        ConnectionHealthKind.NeedsFingerprint -> "Trust"
-        ConnectionHealthKind.NeedsKey -> "Install key"
-        ConnectionHealthKind.AuthFailed -> "Auth"
-        ConnectionHealthKind.FingerprintMismatch -> "Trust changed"
+        ConnectionHealthKind.NeedsFingerprint -> "Setup needed"
+        ConnectionHealthKind.NeedsKey -> "Setup needed"
+        ConnectionHealthKind.AuthFailed -> "Failed"
+        ConnectionHealthKind.FingerprintMismatch -> "Failed"
         ConnectionHealthKind.Offline -> "Offline"
     }
 
@@ -52,7 +52,7 @@ fun simpleConnectionHealth(connectionReady: Boolean): ConnectionHealth =
         ConnectionHealth(
             kind = ConnectionHealthKind.NotConfigured,
             title = "Mac not configured",
-            detail = "Add your Mac once to run Deck, Trackpad, and Automations.",
+            detail = "Add your Mac once to run Deck, Trackpad, and Rules.",
             actionHint = "Open connection setup.",
         )
     }
@@ -68,14 +68,14 @@ fun connectionHealth(
         !config.isConfigured -> ConnectionHealth(
             kind = ConnectionHealthKind.NotConfigured,
             title = "Mac not configured",
-            detail = "Add your Mac once to run Deck, Trackpad, and Automations.",
+            detail = "Add your Mac once to run Deck, Trackpad, and Rules.",
             actionHint = "Scan or enter your Mac hostname.",
         )
         config.hostKey.isBlank() -> ConnectionHealth(
             kind = ConnectionHealthKind.NeedsFingerprint,
-            title = "Fingerprint not trusted",
-            detail = "Verify the Mac fingerprint before saving this target.",
-            actionHint = "Verify fingerprint.",
+            title = "Mac not trusted",
+            detail = "Trust this Mac before saving it.",
+            actionHint = "Trust this Mac.",
         )
         !config.hasKey -> ConnectionHealth(
             kind = ConnectionHealthKind.NeedsKey,
@@ -101,12 +101,12 @@ private fun ConnectionOperation.toHealthOrNull(): ConnectionHealth? =
         ConnectionOperation.Scanning -> ConnectionHealth(
             kind = ConnectionHealthKind.Scanning,
             title = "Looking for your Mac",
-            detail = "Scanning this network for SSH targets.",
+            detail = "Checking this network for Macs with Remote Login.",
         )
         ConnectionOperation.Verifying -> ConnectionHealth(
             kind = ConnectionHealthKind.Verifying,
-            title = "Reading Mac fingerprint",
-            detail = "Do not trust this target until the fingerprint matches your Mac.",
+            title = "Checking this Mac",
+            detail = "Confirm this is your Mac before saving it.",
         )
         ConnectionOperation.Connecting -> ConnectionHealth(
             kind = ConnectionHealthKind.Connecting,
@@ -128,7 +128,7 @@ private fun String.toConnectionHealth(): ConnectionHealth {
             "man-in-the-middle" in normalized ||
             "remote host identification" in normalized -> ConnectionHealth(
                 kind = ConnectionHealthKind.FingerprintMismatch,
-                title = "Mac fingerprint changed",
+                title = "Mac trust changed",
                 detail = this,
                 actionHint = "Reset trust only after checking the Mac.",
             )

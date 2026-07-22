@@ -104,7 +104,7 @@ fun HomeScreen(
     val deckActionSlots = remember(renderLayout, visibleSlotIndices) {
         buildHomeDeckSlots(renderLayout, visibleSlotIndices)
     }
-        .filterNot { it.action.id == "clipboard" }
+        .filterNot { it.action.id in bottomNavShortcutIds }
     val runningActionId = (state.actionStatus as? ActionStatus.Running)?.actionId
     val lastResults = remember(state.activity) {
         state.activity.distinctBy(ActionEvent::actionId).associateBy(ActionEvent::actionId)
@@ -347,7 +347,7 @@ private fun connectionToneColor(kind: ConnectionHealthKind): Color =
 
 private fun ConnectionHealth.deckLabel(): String =
     when (kind) {
-        ConnectionHealthKind.Ready -> "Live"
+        ConnectionHealthKind.Ready -> "Ready"
         ConnectionHealthKind.Scanning -> "Scan"
         ConnectionHealthKind.Verifying -> "Verify"
         ConnectionHealthKind.Connecting -> "Pair"
@@ -671,6 +671,8 @@ internal data class HomeDeckSlot(
     val columnSpan: Int = 1,
 )
 
+private val bottomNavShortcutIds = setOf("trackpad", "keyboard", "clipboard", "automations", "settings_shortcut")
+
 internal fun buildHomeDeckSlots(
     layout: DeckLayout,
     visibleSlotIndices: List<Int>,
@@ -744,9 +746,9 @@ private fun DeckConnectionHint() {
         ) {
             Icon(Icons.Outlined.Computer, contentDescription = null)
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Mac commands are locked", style = MaterialTheme.typography.labelLarge)
+                Text("Mac controls are locked", style = MaterialTheme.typography.labelLarge)
                 Text(
-                    "Setup and local controls still work. Connect your Mac to unlock command tiles.",
+                    "Setup and local buttons still work. Connect your Mac to unlock Mac buttons.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }

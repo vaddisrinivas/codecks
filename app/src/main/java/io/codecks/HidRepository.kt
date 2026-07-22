@@ -159,7 +159,7 @@ class DefaultHidRepository @Inject constructor(
                 hosts = prioritizeHosts(hosts, nextSelected),
                 selectedHostAddress = nextSelected,
                 status = if (state.selectedHostAddress != null && nextSelected == null) {
-                    "Saved Bluetooth target unavailable"
+                    "Saved Mac unavailable"
                 } else {
                     state.status
                 },

@@ -350,7 +350,7 @@ class HomeViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     actionStatus = ActionStatus.Failed("ai", message),
-                    activity = listOf(ActionEvent("ai", "AI creator", message, false)) + it.activity.take(49),
+                    activity = listOf(ActionEvent("ai", "AI Builder", message, false)) + it.activity.take(49),
                 )
             }
             return
@@ -360,7 +360,7 @@ class HomeViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     actionStatus = ActionStatus.Failed("ai", message),
-                    activity = listOf(ActionEvent("ai", "AI creator", message, false)) + it.activity.take(49),
+                    activity = listOf(ActionEvent("ai", "AI Builder", message, false)) + it.activity.take(49),
                 )
             }
             return
@@ -369,7 +369,7 @@ class HomeViewModel @Inject constructor(
         val slots = current.actions.openDeckSlots(generatedActions.size)
         if (slots.size < generatedActions.size) {
             reportDeckFull(
-                label = "AI creator",
+                label = "AI Builder",
                 message = "Deck needs ${generatedActions.size} empty slot(s). Empty slots before saving this draft.",
             )
             return
@@ -393,7 +393,7 @@ class HomeViewModel @Inject constructor(
                 it.copy(
                     actionStatus = ActionStatus.Succeeded("ai_deck", message),
                     activity = listOf(
-                        ActionEvent("ai_deck", "AI creator", message, true),
+                        ActionEvent("ai_deck", "AI Builder", message, true),
                     ) + it.activity.take(49),
                 )
             }
@@ -402,21 +402,21 @@ class HomeViewModel @Inject constructor(
 
     fun saveArtifact(artifact: AiArtifact) {
         val generatedActions = aiGeneratedContentPlanner.deckActionsFromArtifact(artifact).getOrElse { error ->
-            val message = error.message ?: "Artifact cannot be saved"
+            val message = error.message ?: "Draft cannot be saved"
             _uiState.update {
                 it.copy(
-                    actionStatus = ActionStatus.Failed("ai_artifact", message),
-                    activity = listOf(ActionEvent("ai_artifact", "AI artifact", message, false)) + it.activity.take(49),
+                    actionStatus = ActionStatus.Failed("ai_draft", message),
+                    activity = listOf(ActionEvent("ai_draft", "AI draft", message, false)) + it.activity.take(49),
                 )
             }
             return
         }
         if (generatedActions.isEmpty()) {
-            val message = "Artifact did not include deck controls"
+            val message = "Draft did not include Deck buttons"
             _uiState.update {
                 it.copy(
-                    actionStatus = ActionStatus.Failed("ai_artifact", message),
-                    activity = listOf(ActionEvent("ai_artifact", "AI artifact", message, false)) + it.activity.take(49),
+                    actionStatus = ActionStatus.Failed("ai_draft", message),
+                    activity = listOf(ActionEvent("ai_draft", "AI draft", message, false)) + it.activity.take(49),
                 )
             }
             return
@@ -425,8 +425,8 @@ class HomeViewModel @Inject constructor(
         val slots = current.actions.openDeckSlots(generatedActions.size)
         if (slots.size < generatedActions.size) {
             reportDeckFull(
-                label = "AI artifact",
-                message = "Deck needs ${generatedActions.size} empty slot(s). Empty slots before saving this artifact.",
+                label = "AI draft",
+                message = "Deck needs ${generatedActions.size} empty slot(s). Empty slots before saving this draft.",
             )
             return
         }
@@ -445,8 +445,8 @@ class HomeViewModel @Inject constructor(
             actionRepository.saveLayout(nextLayout)
             _uiState.update {
                 it.copy(
-                    actionStatus = ActionStatus.Succeeded("ai_artifact", message),
-                    activity = listOf(ActionEvent("ai_artifact", "AI artifact", message, true)) + it.activity.take(49),
+                    actionStatus = ActionStatus.Succeeded("ai_draft", message),
+                    activity = listOf(ActionEvent("ai_draft", "AI draft", message, true)) + it.activity.take(49),
                 )
             }
         }

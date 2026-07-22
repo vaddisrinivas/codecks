@@ -13,7 +13,7 @@ class AutomationsUiRecoveryTest {
         assertTrue(source.contains("""label = "When""""))
         assertTrue(source.contains("""label = "If""""))
         assertTrue(source.contains("""label = "Then""""))
-        assertTrue(source.contains("Test before enable."))
+        assertTrue(source.contains("Test before enabling."))
         assertTrue(source.contains("SAFE_COMMAND_TEMPLATES"))
         assertTrue(source.contains("AutomationHistoryDialog"))
         assertTrue(source.contains("TestPreviewCard"))

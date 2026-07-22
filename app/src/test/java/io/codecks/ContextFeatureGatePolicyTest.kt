@@ -10,7 +10,7 @@ class ContextFeatureGatePolicyTest {
     fun contextCollectorsStayInertWhenReleaseFlagsAreOff() {
         val source = File("src/main/java/io/codecks/MainActivity.kt").readText()
 
-        assertTrue(source.contains("val contextFeaturesEnabled = featureFlags.focusedEnabled(FeatureFlag.ContextDeck)"))
+        assertTrue(source.contains("featureFlags.focusedEnabled(FeatureFlag.Labs) && featureFlags.focusedEnabled(FeatureFlag.ContextDeck)"))
         assertTrue(source.contains("val phoneNotificationFlow = remember(contextFeaturesEnabled)"))
         assertTrue(source.contains("if (contextFeaturesEnabled) {\n            PhoneNotificationBackplane.notifications"))
         assertTrue(source.contains("flowOf(emptyList<NotificationPreview>())"))

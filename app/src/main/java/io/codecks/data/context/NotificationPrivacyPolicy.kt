@@ -59,7 +59,7 @@ object NotificationPrivacyPolicy {
     ): NotificationPreview? {
         if (!settings.showOnTrackpad) return null
         if (raw.packageName == ownPackage) return null
-        if (settings.allowedPackages.isNotEmpty() && raw.packageName !in settings.allowedPackages) return null
+        if (raw.packageName !in settings.allowedPackages) return null
         if (settings.hideSensitiveApps && raw.looksSensitive()) return null
         if (raw.title.isBlank() && raw.text.isBlank()) return null
 
@@ -97,6 +97,6 @@ object NotificationPrivacyPolicy {
         return sensitivePackageMarkers.any(normalizedPackage::contains) ||
             sensitiveLabelMarkers.any(normalizedSource::contains) ||
             sensitiveContentMarkers.any(normalizedContent::contains) ||
-            Regex("\\b\\d{6,8}\\b").containsMatchIn(normalizedContent)
+            Regex("""\b\d(?:[\s-]?\d){3,7}\b""").containsMatchIn(normalizedContent)
     }
 }

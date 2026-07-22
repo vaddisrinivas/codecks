@@ -106,7 +106,7 @@ class AutomationTriggerWorker(
     }
 
     companion object {
-        private const val UNIQUE_WORK_NAME = "deckbridge_automation_triggers"
+        private const val UNIQUE_WORK_NAME = "codecks_automation_triggers"
 
         fun enqueue(context: Context) {
             val request = PeriodicWorkRequestBuilder<AutomationTriggerWorker>(15, TimeUnit.MINUTES)

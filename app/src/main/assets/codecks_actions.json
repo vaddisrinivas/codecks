@@ -4,7 +4,7 @@
   {"id":"settings_shortcut","label":"Settings","kind":"app","route":"settings","description":"Open Codecks settings."},
   {"id":"detect_mac","label":"Detect Mac","kind":"app","route":"setup_scan","description":"Open setup and scan for SSH hosts."},
   {"id":"trackpad","label":"Trackpad","kind":"app","route":"trackpad","description":"Open Trackpad."},
-  {"id":"automations","label":"Automate","kind":"app","route":"automations","description":"Open Automations."},
+  {"id":"automations","label":"Rules","kind":"app","route":"automations","description":"Open Rules."},
   {"id":"keyboard","label":"Text","kind":"app","route":"keyboard","description":"Type or paste text into the frontmost Mac app."},
   {"id":"clipboard","label":"Clipboard","kind":"app","route":"clipboard","description":"Send clipboard text between phone and Mac."},
   {"id":"profiles","label":"Profiles","kind":"app","route":"layout_builder","description":"Open layout controls."},

@@ -106,7 +106,7 @@ abstract class LiveAiProvider(
             throw AiProviderException.UnsupportedModel("Unsupported model ${request.modelId} for ${spec.label}")
         }
         if (request.draftKind != DraftKind.ContextApps && !model.supportsStructuredDrafts) {
-            throw AiProviderException.UnsupportedModel("${model.label} is not enabled for strict AI Creator V2 drafts")
+            throw AiProviderException.UnsupportedModel("${model.label} cannot create Codecks drafts. Choose another model.")
         }
         val key = requireKey()
         val response =

@@ -7,7 +7,7 @@ import org.junit.Test
 class AutomationCatalogTest {
     @Test
     fun focusedAutomationActions_existInBundledActionCatalog() {
-        val catalog = File("src/main/assets/deckbridge_actions.json")
+        val catalog = File("src/main/assets/codecks_actions.json")
         val catalogText = catalog.readText()
         val actionIds = Regex(""""id"\s*:\s*"([^"]+)"""")
             .findAll(catalogText)

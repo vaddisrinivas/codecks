@@ -17,11 +17,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 @Singleton
 class MdnsFirstSshDiscovery @Inject constructor(
     @param:ApplicationContext private val context: Context,
-    private val lanSshDiscovery: LanSshDiscovery,
 ) : SshDiscovery {
     override suspend fun scan(port: Int): List<String> {
-        val mdnsHosts = discoverMdnsHosts(port)
-        return mdnsHosts.ifEmpty { lanSshDiscovery.scan(port) }
+        return discoverMdnsHosts(port)
     }
 
     private suspend fun discoverMdnsHosts(port: Int): List<String> = withContext(Dispatchers.Main.immediate) {
@@ -60,7 +58,9 @@ class MdnsFirstSshDiscovery @Inject constructor(
 
         discovered
             .distinctBy { it.serviceName }
-            .mapNotNull { service -> manager.resolveHost(service, port) }
+            .mapNotNull { service ->
+                withTimeoutOrNull(RESOLVE_TIMEOUT_MS) { manager.resolveHost(service, port) }
+            }
             .distinct()
             .sorted()
     }
@@ -88,5 +88,6 @@ class MdnsFirstSshDiscovery @Inject constructor(
         const val SSH_SERVICE_TYPE = "_ssh._tcp"
         const val DISCOVERY_WINDOW_MS = 2_200L
         const val STOP_TIMEOUT_MS = 500L
+        const val RESOLVE_TIMEOUT_MS = 900L
     }
 }

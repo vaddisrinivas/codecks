@@ -15,6 +15,8 @@ data class ContextDeckInteraction(
 )
 
 object ContextDeckInteractionStore {
+    private val lock = Any()
+
     fun record(
         context: Context,
         type: String,
@@ -22,17 +24,21 @@ object ContextDeckInteractionStore {
         label: String,
         atMillis: Long = System.currentTimeMillis(),
     ) {
-        val prefs = context.applicationContext.getSharedPreferences(INTERACTION_PREFS, Context.MODE_PRIVATE)
-        val current = decode(prefs.getString(KEY_EVENTS, null))
-        val next = (current + ContextDeckInteraction(type, target, label, atMillis)).takeLast(MAX_EVENTS)
-        prefs.edit().putString(KEY_EVENTS, encode(next).toString()).apply()
+        synchronized(lock) {
+            val prefs = context.applicationContext.getSharedPreferences(INTERACTION_PREFS, Context.MODE_PRIVATE)
+            val current = decode(prefs.getString(KEY_EVENTS, null))
+            val next = (current + ContextDeckInteraction(type, target, label, atMillis)).takeLast(MAX_EVENTS)
+            prefs.edit().putString(KEY_EVENTS, encode(next).toString()).apply()
+        }
     }
 
     fun recent(context: Context): List<ContextDeckInteraction> =
         decode(context.applicationContext.getSharedPreferences(INTERACTION_PREFS, Context.MODE_PRIVATE).getString(KEY_EVENTS, null))
 
-    private fun encode(events: List<ContextDeckInteraction>): JSONArray =
-        JSONArray().apply {
+    private fun encode(events: List<ContextDeckInteraction>): JSONObject =
+        JSONObject().apply {
+            put("schemaVersion", SCHEMA_VERSION)
+            put("events", JSONArray().apply {
             events.forEach { event ->
                 put(
                     JSONObject()
@@ -42,11 +48,17 @@ object ContextDeckInteractionStore {
                         .put("atMillis", event.atMillis),
                 )
             }
+            })
         }
 
     private fun decode(raw: String?): List<ContextDeckInteraction> =
         runCatching {
-            val array = JSONArray(raw ?: "[]")
+            val trimmed = raw?.trim().orEmpty()
+            val array = if (trimmed.startsWith("{")) {
+                JSONObject(trimmed).optJSONArray("events") ?: JSONArray()
+            } else {
+                JSONArray(trimmed.ifBlank { "[]" })
+            }
             List(array.length()) { index -> array.optJSONObject(index) }
                 .mapNotNull { json ->
                     val type = json?.optString("type").orEmpty()
@@ -63,4 +75,5 @@ object ContextDeckInteractionStore {
         }.getOrDefault(emptyList())
 
     private const val MAX_EVENTS = 200
+    private const val SCHEMA_VERSION = 1
 }

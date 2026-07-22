@@ -7,6 +7,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.codecks.core.actions.ActionResult
 import io.codecks.core.actions.ActionResultStatus
+import io.codecks.domain.privacy.DiagnosticRedactor
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
@@ -32,8 +33,9 @@ class DefaultRunHistoryRepository @Inject constructor(
     }
 
     override suspend fun record(result: ActionResult) {
+        val redacted = result.redactedForStorage()
         context.runHistoryDataStore.edit { preferences ->
-            val next = (listOf(result) + decodeResults(preferences[RESULTS].orEmpty()))
+            val next = (listOf(redacted) + decodeResults(preferences[RESULTS].orEmpty()))
                 .distinctBy { "${it.actionId}:${it.timestampMillis}" }
                 .take(MAX_RESULTS)
             preferences[RESULTS] = encodeResults(next)
@@ -56,7 +58,7 @@ class InMemoryRunHistoryRepository(
     override val results: Flow<List<ActionResult>> = state
 
     override suspend fun record(result: ActionResult) {
-        state.value = (listOf(result) + state.value)
+        state.value = (listOf(result.redactedForStorage()) + state.value)
             .distinctBy { "${it.actionId}:${it.timestampMillis}" }
             .take(MAX_RESULTS)
     }
@@ -67,6 +69,14 @@ class InMemoryRunHistoryRepository(
 }
 
 private const val MAX_RESULTS = 50
+private const val MAX_STORED_LOG_LENGTH = 1_200
+
+private fun ActionResult.redactedForStorage(): ActionResult =
+    copy(
+        message = DiagnosticRedactor.redact(message, maxLength = 240),
+        logs = DiagnosticRedactor.redact(logs, maxLength = MAX_STORED_LOG_LENGTH),
+        target = target?.let { DiagnosticRedactor.redact(it, maxLength = 80) },
+    )
 
 private fun encodeResults(results: List<ActionResult>): String {
     val array = JSONArray()

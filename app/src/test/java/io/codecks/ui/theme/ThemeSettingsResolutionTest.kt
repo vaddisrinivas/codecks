@@ -6,17 +6,17 @@ import org.junit.Test
 class ThemeSettingsResolutionTest {
     @Test
     fun localOnlyReleaseKeepsPlayfulCustomizationButLocksOledMode() {
-        val saved = DeckBridgeThemeSettings(
-            mode = DeckBridgeThemeMode.Light,
-            accent = DeckBridgeAccent.Amber,
-            surfaceStyle = DeckBridgeSurfaceStyle.Colorful,
-            borderStyle = DeckBridgeBorderStyle.Strong,
-            shapeStyle = DeckBridgeShapeStyle.Soft,
-            deckStyle = CodecksDeckStyle.OneUiWidgetGrid,
+        val saved = CodecksThemeSettings(
+            mode = CodecksThemeMode.Light,
+            accent = CodecksAccent.Amber,
+            surfaceStyle = CodecksSurfaceStyle.Colorful,
+            borderStyle = CodecksBorderStyle.Strong,
+            shapeStyle = CodecksShapeStyle.Soft,
+            deckStyle = CodecksDeckStyle.OneUiGrid,
         )
 
         assertEquals(
-            saved.copy(mode = DeckBridgeThemeMode.Oled),
+            saved.copy(mode = CodecksThemeMode.Oled),
             saved.resolveForCodecksRelease(customizationEnabled = false),
         )
     }
@@ -24,9 +24,9 @@ class ThemeSettingsResolutionTest {
     @Test
     fun streamDeckAndTablerAreTheReleaseDefaults() {
         assertEquals(CodecksDeckStyle.StreamDeckPro, CodecksReleaseThemeSettings.deckStyle)
-        assertEquals(CodecksDeckStyle.StreamDeckPro, DeckBridgeThemeSettings().deckStyle)
+        assertEquals(CodecksDeckStyle.StreamDeckPro, CodecksThemeSettings().deckStyle)
         assertEquals(CodecksIconPack.Tabler, CodecksReleaseThemeSettings.iconPack)
-        assertEquals(CodecksIconPack.Tabler, DeckBridgeThemeSettings().iconPack)
+        assertEquals(CodecksIconPack.Tabler, CodecksThemeSettings().iconPack)
     }
 
     @Test
@@ -63,12 +63,12 @@ class ThemeSettingsResolutionTest {
 
     @Test
     fun customizationFlagCanRestoreSavedThemeCombinationsLater() {
-        val saved = DeckBridgeThemeSettings(
-            mode = DeckBridgeThemeMode.Dark,
-            accent = DeckBridgeAccent.Green,
-            surfaceStyle = DeckBridgeSurfaceStyle.Balanced,
-            borderStyle = DeckBridgeBorderStyle.Subtle,
-            shapeStyle = DeckBridgeShapeStyle.Compact,
+        val saved = CodecksThemeSettings(
+            mode = CodecksThemeMode.Dark,
+            accent = CodecksAccent.Green,
+            surfaceStyle = CodecksSurfaceStyle.Balanced,
+            borderStyle = CodecksBorderStyle.Subtle,
+            shapeStyle = CodecksShapeStyle.Compact,
         )
 
         assertEquals(
@@ -79,17 +79,17 @@ class ThemeSettingsResolutionTest {
 
     @Test
     fun localOnlyReleaseKeepsDeckStyleChoice() {
-        val saved = DeckBridgeThemeSettings(
-            mode = DeckBridgeThemeMode.Light,
-            accent = DeckBridgeAccent.Amber,
-            surfaceStyle = DeckBridgeSurfaceStyle.Colorful,
-            borderStyle = DeckBridgeBorderStyle.Strong,
-            shapeStyle = DeckBridgeShapeStyle.Soft,
+        val saved = CodecksThemeSettings(
+            mode = CodecksThemeMode.Light,
+            accent = CodecksAccent.Amber,
+            surfaceStyle = CodecksSurfaceStyle.Colorful,
+            borderStyle = CodecksBorderStyle.Strong,
+            shapeStyle = CodecksShapeStyle.Soft,
             deckStyle = CodecksDeckStyle.NothingMonoDeck,
         )
 
         assertEquals(
-            saved.copy(mode = DeckBridgeThemeMode.Oled),
+            saved.copy(mode = CodecksThemeMode.Oled),
             saved.resolveForCodecksRelease(customizationEnabled = false),
         )
     }

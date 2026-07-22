@@ -16,33 +16,9 @@ interface FeatureFlagRepository {
 }
 
 data class Entitlement(
-    val tier: EntitlementTier,
-    val status: EntitlementStatus,
-    val offlineGrace: OfflineGrace = OfflineGrace.None,
+    val localOnly: Boolean = true,
 ) {
-    fun allows(gate: FeatureGate): Boolean =
-        status in setOf(EntitlementStatus.Active, EntitlementStatus.Trialing) &&
-            tier == EntitlementTier.Premium &&
-            gate == FeatureGate.AiBuilder
-}
-
-enum class EntitlementTier {
-    Free,
-    Premium,
-}
-
-enum class EntitlementStatus {
-    Free,
-    Trialing,
-    Active,
-    Expired,
-    Refunded,
-    OfflineGrace,
-}
-
-sealed interface OfflineGrace {
-    data object None : OfflineGrace
-    data class Active(val expiresAtEpochMillis: Long) : OfflineGrace
+    fun allows(gate: FeatureGate): Boolean = localOnly && gate == FeatureGate.AiBuilder
 }
 
 enum class FeatureFlag {

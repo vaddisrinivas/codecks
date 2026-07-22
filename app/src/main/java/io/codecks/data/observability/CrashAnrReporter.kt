@@ -50,6 +50,6 @@ class PrivacyCrashAnrReporter(
     }
 
     private companion object {
-        const val TAG = "DeckBridgeObs"
+        const val TAG = "CodecksObs"
     }
 }

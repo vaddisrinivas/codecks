@@ -55,7 +55,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import io.codecks.core.design.DeckBridgeDesignTokens
+import io.codecks.core.design.CodecksDesignTokens
 import io.codecks.ui.designsystem.CodecksDeckEdgeGlowBackground
 import io.codecks.ui.designsystem.CodecksPanel
 import io.codecks.ui.designsystem.DeckEmptyState
@@ -131,11 +131,11 @@ fun AutomationsScreen(
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     contentPadding = PaddingValues(
-                        horizontal = DeckBridgeDesignTokens.Spacing.xxl,
-                        vertical = DeckBridgeDesignTokens.Spacing.sm,
+                        horizontal = CodecksDesignTokens.Spacing.xxl,
+                        vertical = CodecksDesignTokens.Spacing.sm,
                     ),
-                    horizontalArrangement = Arrangement.spacedBy(DeckBridgeDesignTokens.Spacing.lg),
-                    verticalArrangement = Arrangement.spacedBy(DeckBridgeDesignTokens.Spacing.xs),
+                    horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.lg),
+                    verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.xs),
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     items(visibleItems, key = AutomationItem::id) { item ->
@@ -205,7 +205,7 @@ fun AutomationsScreen(
     }
     editItem?.let { item ->
         CreateAutomationDialog(
-            title = "Edit automation",
+            title = "Edit rule",
             initial = item.toDraftInput(),
             lastTestPreview = item.lastTestLabel,
             lastTestSucceeded = item.lastTestSucceeded,
@@ -253,20 +253,14 @@ private fun AutomationHeader(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = "Rules",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = "$enabledCount on · $visibleCount shown · $triggerMonitorLabel",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        Text(
+            text = "$enabledCount enabled · $visibleCount shown · $triggerMonitorLabel",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
+        )
         DeckActionButton(
             label = "New rule",
             onClick = onCreate,
@@ -285,7 +279,7 @@ private fun AutomationHeader(
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             DeckActionButton(
-                label = "Dry check",
+                label = "Check now",
                 onClick = onCheckTriggers,
                 enabled = controlsReady,
                 icon = Icons.Outlined.Bolt,
@@ -303,7 +297,7 @@ private fun AutomationHeader(
 
 @Composable
 private fun CreateAutomationDialog(
-    title: String = "Create automation",
+    title: String = "Create rule",
     initial: AutomationDraftInput = AutomationDraftInput(
         title = "",
         triggerType = AutomationTriggerDraftType.Manual,
@@ -347,7 +341,7 @@ private fun CreateAutomationDialog(
                 )
                 AutomationSectionHeader(
                     label = "When",
-                    help = "Pick the event or schedule that makes this automation eligible.",
+                    help = "Pick the event or schedule that makes this rule eligible.",
                 )
                 androidx.compose.foundation.lazy.LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -443,7 +437,7 @@ private fun CreateAutomationDialog(
                 }
                 AutomationSectionHeader(
                     label = "Then",
-                    help = "Use a safe template or write a reviewed Mac command. Test before enable.",
+                    help = "Use a safe template or write a reviewed Mac command. Test before enabling.",
                 )
                 androidx.compose.foundation.lazy.LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -600,10 +594,10 @@ private fun AutomationRow(
     val enabled = item.enabled && controlsReady && !running
     val status = automationStatus(item, running, connectionHealth)
     val ifLine = when {
-        item.lastTestSucceeded == true -> "Dry run passed"
-        item.lastTestSucceeded == false -> "Dry run failed; fix before enabling"
+        item.lastTestSucceeded == true -> "Test passed"
+        item.lastTestSucceeded == false -> "Test failed; fix before enabling"
         item.canEnable -> "Approved and ready"
-        item.enabled -> "Enabled; run a dry check when changed"
+        item.enabled -> "Enabled; test again when changed"
         else -> "Paused until checked"
     }
     CodecksPanel(
@@ -644,13 +638,13 @@ private fun AutomationRow(
                     IconButton(onClick = onRun, enabled = enabled) {
                         Icon(
                             Icons.Outlined.PlayArrow,
-                            contentDescription = "Run automation",
+                            contentDescription = "Run rule",
                             tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
                 IconButton(onClick = onOptions) {
-                    Icon(Icons.Outlined.Edit, contentDescription = "Edit automation")
+                    Icon(Icons.Outlined.Edit, contentDescription = "Edit rule")
                 }
             }
             AutomationRuleLine("WHEN", item.triggerLabel)
@@ -786,7 +780,7 @@ private fun AutomationOptionsDialog(
                 }
                 if (!canEnable) {
                     Text(
-                        "Validate first. Enable unlocks after a passing result for this exact automation.",
+                        "Test first. Enable unlocks after a passing result for this exact rule.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -831,7 +825,7 @@ private fun AutomationOptionsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onTest) { Text("Validate") }
+            TextButton(onClick = onTest) { Text("Test") }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Done") }
@@ -856,7 +850,7 @@ private fun AutomationHistoryDialog(
                 Text(item.label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 if (item.runHistory.isEmpty()) {
                     Text(
-                        "No runs yet. Validation results are shown separately from real executions.",
+                        "No runs yet. Test results are shown separately from real runs.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
@@ -899,8 +893,8 @@ private fun formatAutomationTime(timestampMillis: Long): String =
 @Composable
 private fun EmptyAutomations(hasFilter: Boolean) {
     DeckEmptyState(
-        title = if (hasFilter) "No matching actions" else "No automations yet",
-        body = if (hasFilter) "Try another search or category." else "Create an automation with AI or add one from the deck library.",
+        title = if (hasFilter) "No matching rules" else "No rules yet",
+        body = if (hasFilter) "Try another search or category." else "Create a rule with AI or add one from the deck library.",
         icon = if (hasFilter) Icons.Outlined.Search else Icons.Outlined.Bolt,
         modifier = Modifier.padding(top = 8.dp),
     )
@@ -929,7 +923,7 @@ private val SAFE_COMMAND_TEMPLATES = listOf(
     AutomationCommandTemplate("Open Safari", "Open Safari", "open -a Safari"),
     AutomationCommandTemplate("Open Downloads", "Open Downloads", "open ~/Downloads"),
     AutomationCommandTemplate("Notify", "Show notification", "osascript -e 'display notification \"Done\" with title \"Codecks\"'"),
-    AutomationCommandTemplate("Say ready", "Say ready", "say 'Codecks automation ran'"),
+    AutomationCommandTemplate("Say ready", "Say ready", "say 'Codecks rule ran'"),
 )
 
 private fun AutomationTriggerDraftType.presets(): List<String> = when (this) {

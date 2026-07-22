@@ -47,7 +47,7 @@ class DefaultAutomationTriggerEngine internal constructor(
             dueRecipes = due,
             checkedCount = enabledTriggeredRecipes.size,
             message = when {
-                enabledTriggeredRecipes.isEmpty() -> "No enabled trigger automations"
+                enabledTriggeredRecipes.isEmpty() -> "No enabled scheduled rules"
                 due.isEmpty() -> "Checked ${enabledTriggeredRecipes.size} triggers"
                 else -> "${due.size} trigger${if (due.size == 1) "" else "s"} matched"
             },

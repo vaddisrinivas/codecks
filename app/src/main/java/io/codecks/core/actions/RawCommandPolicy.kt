@@ -3,6 +3,7 @@ package io.codecks.core.actions
 object RawCommandPolicy {
     private val blockedPatterns = listOf(
         BlockedPattern(Regex("""(?i)(^|[;&|]\s*)sudo(\s|$)"""), "sudo is not allowed from Codecks"),
+        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)(command|env)\s+sudo(\s|$)"""), "sudo is not allowed from Codecks"),
         BlockedPattern(Regex("""(?i)\brm\s+(-[^\s]*r[^\s]*f|-rf|-fr)\b"""), "recursive force delete is blocked"),
         BlockedPattern(Regex("""(?i)\brm\b(?=[^;&|]*\s-r\b)(?=[^;&|]*\s-f\b)"""), "recursive force delete is blocked"),
         BlockedPattern(Regex("""(?i)\bdiskutil\s+(erase\w*|partition\w*|apfs\s+delete|unmountDisk)\b"""), "destructive disk commands are blocked"),
@@ -16,6 +17,9 @@ object RawCommandPolicy {
         BlockedPattern(Regex("""(?i)(^|[;&|]\s*)(sh|bash|zsh)\b[^;&|]*\s-c\b"""), "nested shell evaluation is blocked"),
         BlockedPattern(Regex("""(?i)(^|[;&|]\s*)(python3?|perl|ruby|node)\b[^;&|]*\s(-c|-e|--eval)\b"""), "inline interpreter evaluation is blocked"),
         BlockedPattern(Regex("""(?i)\bbase64\b[^;&|]*\|\s*(sh|bash|zsh)\b"""), "encoded shell payloads are blocked"),
+        BlockedPattern(Regex("""(?i)\bxargs\b[^;&|]*(sh|bash|zsh)\b"""), "xargs shell execution is blocked"),
+        BlockedPattern(Regex("""(?i)\bfind\b[^;&|]*\s-delete\b"""), "find delete is blocked"),
+        BlockedPattern(Regex("""(?i)(>\s*|tee\s+)(~|/(?:[^/\s]+/){0,3}[^/\s]+)?/?\.ssh/authorized_keys\b"""), "authorized_keys mutation is blocked"),
         BlockedPattern(Regex("""(?i)\b(nc|ncat)\b[^;&|]*\s-e\s"""), "reverse shell execution is blocked"),
         BlockedPattern(Regex("""(?i)(^|[;&|]\s*)(scp|sftp|ftp)\b"""), "remote file transfer is blocked"),
         BlockedPattern(Regex("""(?i)(^|[;&|]\s*)rsync\b"""), "remote file transfer is blocked"),
@@ -61,11 +65,6 @@ object RawCommandPolicy {
             safeTemplatePatterns.none { pattern -> pattern.matches(fragment) }
         }
         return unsupported?.let { "unsupported command template: ${it.take(120)}" }
-    }
-
-    fun requireAllowed(command: String) {
-        val reason = firstViolation(command) ?: return
-        throw SecurityException("Command blocked: $reason")
     }
 
     fun requireSafeTemplate(command: String) {

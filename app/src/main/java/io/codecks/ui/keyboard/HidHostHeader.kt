@@ -96,15 +96,40 @@ fun HidHostHeader(
     val visibleTarget = selectedHost?.label?.cleanHidHostLabel()
     val health = state.hidHealth(permissionGranted)
     val canConnectSelected = health.kind == HidHealthKind.ReadyToConnect && selectedHost != null
-    val statusLabel = visibleTarget ?: if (state.isConnected) connectedTitle else if (permissionGranted) health.title else disconnectedTitle
+    val statusLabel = when {
+        state.isConnected -> visibleTarget ?: connectedTitle
+        !permissionGranted -> health.title
+        visibleTarget != null -> visibleTarget
+        else -> disconnectedTitle
+    }
     val statusText = when {
         state.isConnected -> "Connected"
         canConnectSelected -> "Tap to connect"
         else -> health.statusLabel() + " · " + health.detail
     }
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    val action: (@Composable () -> Unit)? = when {
+        health.kind == HidHealthKind.PermissionMissing -> {
+            {
+                DeckActionButton(
+                    label = "Allow Bluetooth",
+                    onClick = onRequestPermission,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                )
+            }
+        }
+        health.kind == HidHealthKind.Stopped || health.kind == HidHealthKind.Failed -> {
+            {
+                DeckActionButton(
+                    label = "Start input",
+                    onClick = onStart,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                )
+            }
+        }
+        else -> null
+    }
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier.fillMaxWidth(),
     ) {
         Surface(
@@ -115,7 +140,7 @@ fun HidHostHeader(
                 if (canConnectSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
             ),
             modifier = Modifier
-                .weight(1f)
+                .fillMaxWidth()
                 .heightIn(min = 56.dp)
                 .then(
                     if (canConnectSelected) {
@@ -157,26 +182,17 @@ fun HidHostHeader(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                IconButton(onClick = { pickerOpen = true }) {
-                    Icon(Icons.Outlined.Bluetooth, contentDescription = "Choose target")
-                }
-                IconButton(onClick = onRefreshHosts) {
-                    Icon(Icons.Outlined.Refresh, contentDescription = "Refresh targets")
+                if (permissionGranted) {
+                    IconButton(onClick = { pickerOpen = true }) {
+                        Icon(Icons.Outlined.Bluetooth, contentDescription = "Choose Mac")
+                    }
+                    IconButton(onClick = onRefreshHosts) {
+                        Icon(Icons.Outlined.Refresh, contentDescription = "Refresh Macs")
+                    }
                 }
             }
         }
-        when {
-            health.kind == HidHealthKind.PermissionMissing -> DeckActionButton(
-                label = "Allow",
-                onClick = onRequestPermission,
-                modifier = Modifier.widthIn(min = 96.dp, max = 112.dp).heightIn(min = 48.dp),
-            )
-            health.kind == HidHealthKind.Stopped || health.kind == HidHealthKind.Failed -> DeckActionButton(
-                label = "Start",
-                onClick = onStart,
-                modifier = Modifier.widthIn(min = 96.dp, max = 112.dp).heightIn(min = 48.dp),
-            )
-        }
+        action?.invoke()
     }
 
     if (pickerOpen) {
@@ -225,7 +241,7 @@ private fun HidHostPickerDialog(
             if (hosts.isEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        "No compatible targets found yet.",
+                        "No paired Macs found yet.",
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Text(
@@ -240,7 +256,7 @@ private fun HidHostPickerDialog(
                         modifier = Modifier.widthIn(min = 160.dp).heightIn(min = 56.dp),
                     )
                     DeckActionButton(
-                        label = "Add device",
+                        label = "Add Mac",
                         onClick = onAddDevice,
                         icon = Icons.Outlined.Bluetooth,
                         modifier = Modifier.widthIn(min = 160.dp).heightIn(min = 56.dp),
@@ -266,7 +282,7 @@ private fun HidHostPickerDialog(
         },
         dismissButton = {
             TextButton(onClick = onAddDevice) {
-                Text("Add device")
+                Text("Add Mac")
             }
         },
     )
@@ -301,7 +317,7 @@ private fun HidHostTargetRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = if (remembered) "Saved target" else "Available",
+                    text = if (remembered) "Saved Mac" else "Available",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -309,7 +325,7 @@ private fun HidHostTargetRow(
                 )
             }
             DeckActionButton(
-                label = if (remembered) "Reconnect" else "Use",
+                label = if (remembered) "Reconnect" else "Select Mac",
                 onClick = onConnect,
                 modifier = Modifier.width(124.dp).heightIn(min = 48.dp),
             )

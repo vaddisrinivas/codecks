@@ -5,17 +5,13 @@ import io.codecks.core.actions.ActionResultStatus
 import io.codecks.core.actions.ActionRunner
 import io.codecks.core.actions.ActionSpec
 import io.codecks.data.ai.AiArtifactRepository
-import io.codecks.data.ai.AiCredentialImporter
 import io.codecks.data.ai.AiHttpClient
 import io.codecks.data.ai.AiHttpRequest
 import io.codecks.data.ai.AiHttpResponse
 import io.codecks.data.ai.AiProviderFactory
-import io.codecks.data.ai.ImportedAiCredential
 import io.codecks.data.ai.InMemorySecureApiKeyStore
 import io.codecks.data.ai.SecretValue
 import io.codecks.domain.features.Entitlement
-import io.codecks.domain.features.EntitlementStatus
-import io.codecks.domain.features.EntitlementTier
 import io.codecks.domain.features.FakeEntitlementRepository
 import io.codecks.domain.ai.AiArtifact
 import io.codecks.domain.ai.AiArtifactAction
@@ -36,7 +32,7 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AiProviderSettingsControllerTest {
-    private val premium = Entitlement(EntitlementTier.Premium, EntitlementStatus.Active)
+    private val localOnly = Entitlement(localOnly = true)
 
     @Test
     fun providerSelectionResetsModelAndKeyInput() = runTest {
@@ -65,7 +61,7 @@ class AiProviderSettingsControllerTest {
         assertEquals("", state.apiKeyInput)
         assertTrue(state.hasSavedKey)
         assertEquals(AiProviderTestStatus.Success, state.testStatus)
-        assertEquals("Connected to OpenAI", state.message)
+        assertEquals("OpenAI ready", state.message)
         assertFalse(state.message.orEmpty().contains("sk-test-secret"))
     }
 
@@ -85,60 +81,24 @@ class AiProviderSettingsControllerTest {
     }
 
     @Test
-    fun freeEntitlementBlocksProviderTest() = runTest {
+    fun localOnlyEntitlementDoesNotBlockProviderTest() = runTest {
         val controller = controllerIn(
             scope = this,
-            entitlement = Entitlement(EntitlementTier.Free, EntitlementStatus.Free),
+            entitlement = Entitlement(localOnly = false),
         )
 
         controller.setApiKey("sk-test-secret")
-        controller.testProvider()
-        runCurrent()
-
-        assertEquals(AiProviderTestStatus.Failure, controller.uiState.value.testStatus)
-        assertEquals("AI Creator is not enabled", controller.uiState.value.message)
-    }
-
-    @Test
-    fun importFromMacRequiresExplicitSaveBeforeProviderTest() = runTest {
-        val controller = controllerIn(
-            scope = this,
-            importer = FakeAiCredentialImporter(
-                ImportedAiCredential(
-                    providerId = "openai",
-                    key = SecretValue.of("sk-imported-secret"),
-                    baseUrl = null,
-                    source = "Mac env OPENAI_API_KEY",
-                ),
-            ),
-        )
-
-        controller.importFromMac()
-        runCurrent()
-
-        assertFalse(controller.uiState.value.hasSavedKey)
-        assertEquals("Mac env OPENAI_API_KEY", controller.uiState.value.pendingImportedCredential?.source)
-        assertTrue(controller.uiState.value.message.orEmpty().contains("Tap Save imported key"))
-
-        controller.testProvider()
-        runCurrent()
-
-        assertEquals(AiProviderTestStatus.Failure, controller.uiState.value.testStatus)
-        assertEquals("Save an API key before testing", controller.uiState.value.message)
-
-        controller.confirmImportedCredential()
+        controller.saveApiKey()
         runCurrent()
         controller.testProvider()
         runCurrent()
 
-        assertTrue(controller.uiState.value.hasSavedKey)
-        assertEquals(null, controller.uiState.value.pendingImportedCredential)
         assertEquals(AiProviderTestStatus.Success, controller.uiState.value.testStatus)
-        assertFalse(controller.uiState.value.message.orEmpty().contains("sk-imported-secret"))
+        assertEquals("OpenAI ready", controller.uiState.value.message)
     }
 
     @Test
-    fun generateDraftStoresArtifactAndTestsFromChat() = runTest {
+    fun generateDraftStoresArtifactAndTestsFromBuilderPrompt() = runTest {
         val artifacts = InMemoryAiArtifactRepository()
         val runner = RecordingActionRunner()
         val controller = controllerIn(
@@ -163,7 +123,6 @@ class AiProviderSettingsControllerTest {
         val artifact = controller.uiState.value.artifacts.single()
         assertEquals("Open Docs", artifact.title)
         assertEquals("open 'https://docs.example.com'", artifact.actions.single().command)
-        assertTrue(controller.uiState.value.messages.any { it.artifactId == artifact.id })
         val history = controller.uiState.value.generationHistory.single()
         assertEquals("openai", history.providerId)
         assertEquals("gpt-5.5", history.modelId)
@@ -175,7 +134,7 @@ class AiProviderSettingsControllerTest {
 
         assertEquals(emptyList<String>(), runner.commands)
         assertEquals(AiArtifactTestStatus.Succeeded, controller.uiState.value.artifacts.single().lastTest?.status)
-        assertTrue(controller.uiState.value.artifacts.single().lastTest?.message.orEmpty().contains("dry run passed"))
+        assertTrue(controller.uiState.value.artifacts.single().lastTest?.message.orEmpty().contains("passed the safety check"))
     }
 
     @Test
@@ -280,10 +239,9 @@ class AiProviderSettingsControllerTest {
 
     private fun controllerIn(
         scope: TestScope,
-        entitlement: Entitlement = premium,
+        entitlement: Entitlement = localOnly,
         artifactRepository: AiArtifactRepository? = null,
         actionRunner: ActionRunner? = null,
-        importer: AiCredentialImporter? = null,
         responses: MutableList<AiHttpResponse> = mutableListOf(AiHttpResponse(200, """{"data":[{"id":"gpt-5-mini"}]}""")),
     ): AiProviderSettingsController {
         val keyStore = InMemorySecureApiKeyStore()
@@ -301,7 +259,6 @@ class AiProviderSettingsControllerTest {
             scope = TestScope(StandardTestDispatcher(scope.testScheduler)),
             artifactRepository = artifactRepository,
             actionRunner = actionRunner,
-            macCredentialImporter = importer,
         )
     }
 }
@@ -311,13 +268,6 @@ private fun openAiReadyActionResponse(id: String, title: String, url: String): A
         200,
         """{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"{\"schemaVersion\":2,\"status\":\"ready\",\"message\":\"Ready\",\"questions\":[],\"assumptions\":[],\"proposal\":{\"id\":\"$id\",\"title\":\"$title\",\"description\":\"Open the docs workspace\",\"requiredCapabilities\":[],\"target\":{\"type\":\"AnyConnected\",\"id\":null},\"safety\":{\"level\":\"Normal\",\"requiresConfirmation\":false,\"confirmationTitle\":null,\"confirmationBody\":null},\"steps\":[{\"id\":\"step-1\",\"type\":\"open_url\",\"label\":\"Open docs\",\"url\":\"$url\",\"text\":null,\"delayMs\":null,\"templateId\":null,\"requiresConfirmation\":false}]}}"}]}]}""",
     )
-
-private class FakeAiCredentialImporter(
-    private val credential: ImportedAiCredential,
-) : AiCredentialImporter {
-    override suspend fun importCredential(providerId: String): Result<ImportedAiCredential> =
-        Result.success(credential.copy(providerId = providerId))
-}
 
 private class InMemoryAiArtifactRepository : AiArtifactRepository {
     private val state = MutableStateFlow<List<AiArtifact>>(emptyList())

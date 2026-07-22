@@ -69,7 +69,7 @@ class ConnectionHealthTest {
                 error = null,
             ).statusLabel(),
         )
-        assertEquals("Setup", connectionHealth(ConnectionConfig(), ConnectionOperation.Idle, error = null).statusLabel())
+        assertEquals("Setup needed", connectionHealth(ConnectionConfig(), ConnectionOperation.Idle, error = null).statusLabel())
         assertEquals("Offline", connectionHealth(ConnectionConfig(), ConnectionOperation.Idle, "No route to host").statusLabel())
     }
 }

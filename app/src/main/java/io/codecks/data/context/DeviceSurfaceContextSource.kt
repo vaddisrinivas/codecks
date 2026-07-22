@@ -34,10 +34,12 @@ class DeviceSurfaceContextSource(
         val keyboardConnected = InputDevice.getDeviceIds()
             .asSequence()
             .mapNotNull { id -> InputDevice.getDevice(id) }
+            .filterNot { it.isVirtual }
             .any { device -> device.sources and InputDevice.SOURCE_KEYBOARD == InputDevice.SOURCE_KEYBOARD }
         val pointerConnected = InputDevice.getDeviceIds()
             .asSequence()
             .mapNotNull { id -> InputDevice.getDevice(id) }
+            .filterNot { it.isVirtual }
             .any { device ->
                 device.sources and InputDevice.SOURCE_MOUSE == InputDevice.SOURCE_MOUSE ||
                     device.sources and InputDevice.SOURCE_TOUCHPAD == InputDevice.SOURCE_TOUCHPAD

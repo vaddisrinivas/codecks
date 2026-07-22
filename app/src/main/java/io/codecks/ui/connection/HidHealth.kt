@@ -28,14 +28,14 @@ val HidHealth.canSendInput: Boolean
 
 fun HidHealth.statusLabel(): String =
     when (kind) {
-        HidHealthKind.PermissionMissing -> "Allow"
-        HidHealthKind.Unavailable -> "Unavailable"
-        HidHealthKind.Stopped -> "Start"
-        HidHealthKind.Starting -> "Starting"
-        HidHealthKind.ReadyNoTarget -> "Choose"
-        HidHealthKind.ReadyToConnect -> "Configured"
-        HidHealthKind.Reconnecting -> "Retrying"
-        HidHealthKind.Connecting -> "Connecting"
+        HidHealthKind.PermissionMissing -> "Setup needed"
+        HidHealthKind.Unavailable -> "Offline"
+        HidHealthKind.Stopped -> "Setup needed"
+        HidHealthKind.Starting -> "Connecting…"
+        HidHealthKind.ReadyNoTarget -> "Setup needed"
+        HidHealthKind.ReadyToConnect -> "Ready"
+        HidHealthKind.Reconnecting -> "Connecting…"
+        HidHealthKind.Connecting -> "Connecting…"
         HidHealthKind.Connected -> "Connected"
         HidHealthKind.Failed -> "Failed"
     }
@@ -54,28 +54,28 @@ fun HidState.hidHealth(permissionGranted: Boolean): HidHealth {
         lifecycle == HidLifecycle.Unavailable || normalized == "bluetooth unavailable" -> HidHealth(
             kind = HidHealthKind.Unavailable,
             title = "Bluetooth unavailable",
-            detail = "This device cannot expose the HID mouse and keyboard service right now.",
+            detail = "This phone cannot act as a Bluetooth mouse and keyboard right now.",
             actionHint = "Check Bluetooth and device support.",
         )
         lifecycle == HidLifecycle.Failed || "failed" in normalized -> HidHealth(
             kind = HidHealthKind.Failed,
-            title = "Bluetooth HID failed",
-            detail = status.ifBlank { "The HID service failed to start or connect." },
-            actionHint = "Restart Bluetooth HID.",
+            title = "Bluetooth input failed",
+            detail = status.ifBlank { "Bluetooth mouse and keyboard input failed to start or connect." },
+            actionHint = "Restart Bluetooth input.",
         )
         isConnected || lifecycle == HidLifecycle.Connected -> HidHealth(
             kind = HidHealthKind.Connected,
-            title = target?.let { "Connected to $it" } ?: "Bluetooth target connected",
-            detail = "Trackpad and keyboard events can send to the saved HID target.",
+            title = target?.let { "Connected to $it" } ?: "Connected to Mac",
+            detail = "Trackpad and keyboard input can send to this Mac.",
         )
         normalized.startsWith("connecting ") -> HidHealth(
             kind = HidHealthKind.Connecting,
-            title = target?.let { "Connecting to $it" } ?: "Connecting Bluetooth target",
+            title = target?.let { "Connecting to $it" } ?: "Connecting to Mac",
             detail = status,
         )
         normalized.startsWith("reconnecting ") || reconnectAttempt > 0 -> HidHealth(
             kind = HidHealthKind.Reconnecting,
-            title = target?.let { "Reconnecting to $it" } ?: "Reconnecting Bluetooth target",
+            title = target?.let { "Reconnecting to $it" } ?: "Reconnecting to Mac",
             detail = nextReconnectDetail(),
             actionHint = "Keep Codecks open once; the foreground session keeps retrying.",
         )
@@ -83,31 +83,31 @@ fun HidState.hidHealth(permissionGranted: Boolean): HidHealth {
             "opening" in normalized ||
             "registering" in normalized -> HidHealth(
             kind = HidHealthKind.Starting,
-            title = "Starting Bluetooth HID",
+            title = "Starting Bluetooth input",
             detail = "Registering Codecks as a Bluetooth mouse and keyboard.",
         )
         !isReady -> HidHealth(
             kind = HidHealthKind.Stopped,
-            title = "Bluetooth HID stopped",
-            detail = "Start the HID service before using Trackpad mouse and keyboard.",
-            actionHint = "Start Bluetooth HID.",
+            title = "Bluetooth input stopped",
+            detail = "Start Bluetooth input before using Trackpad mouse and keyboard.",
+            actionHint = "Start Bluetooth input.",
         )
         selectedHostAddress == null && hosts.isEmpty() -> HidHealth(
             kind = HidHealthKind.ReadyNoTarget,
-            title = "Pair a Mac target",
-            detail = "HID service is ready, but no compatible paired Mac target is saved.",
-            actionHint = "Pair your Mac, then refresh targets.",
+            title = "Pair a Mac",
+            detail = "Bluetooth is ready, but no paired Mac is saved.",
+            actionHint = "Pair your Mac, then refresh Macs.",
         )
         selectedHostAddress == null -> HidHealth(
             kind = HidHealthKind.ReadyNoTarget,
-            title = "Choose a Mac target",
-            detail = "HID service is ready. Pick which paired Mac should receive Trackpad input.",
-            actionHint = "Choose a Bluetooth target.",
+            title = "Choose a Mac",
+            detail = "Bluetooth input is ready. Pick which paired Mac should receive Trackpad input.",
+            actionHint = "Choose a paired Mac.",
         )
         else -> HidHealth(
             kind = HidHealthKind.ReadyToConnect,
-            title = target?.let { "$it configured" } ?: "Bluetooth target configured",
-            detail = "Saved HID target is configured but not connected.",
+            title = target?.let { "$it ready" } ?: "Mac ready",
+            detail = "Bluetooth is configured but not connected.",
             actionHint = "Tap to reconnect.",
         )
     }

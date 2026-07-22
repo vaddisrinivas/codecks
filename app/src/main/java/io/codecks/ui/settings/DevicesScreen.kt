@@ -57,12 +57,12 @@ fun DevicesScreen(
                 groupCount = state.groups.size,
             )
         }
-        item { DeckSectionLabel("Targets") }
+        item { DeckSectionLabel("Your Macs") }
         if (state.devices.isEmpty()) {
             item {
                 DeckEmptyState(
-                    title = "No Mac targets yet",
-                    body = "Add a Mac once. Codecks saves it as a reusable target for Deck, Trackpad, AI, and Automations.",
+                    title = "No Macs yet",
+                    body = "Add a Mac once. Codecks saves it for Deck, Trackpad, AI Builder, and Rules.",
                     icon = Icons.Outlined.Computer,
                 )
             }
@@ -76,7 +76,7 @@ fun DevicesScreen(
         }
         item { DeckSectionLabel("Groups") }
         if (state.groups.isEmpty()) {
-            item { InfoCard("Groups appear after at least one Mac target is saved.") }
+            item { InfoCard("Groups appear after at least one Mac is saved.") }
         } else {
             items(state.groups, key = { it.id.value }) { group ->
                 GroupRow(group)
@@ -88,7 +88,7 @@ fun DevicesScreen(
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
                 DeckActionButton(
-                    label = "Refresh",
+                    label = "Refresh Macs",
                     onClick = onRefresh,
                     icon = Icons.Outlined.Refresh,
                     modifier = Modifier.weight(1f).heightIn(min = 56.dp),
@@ -131,7 +131,7 @@ private fun DevicesHero(
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
-                Text("Targets & groups", style = MaterialTheme.typography.titleLarge)
+                Text("Macs", style = MaterialTheme.typography.titleLarge)
                 Text(
                     "$readyCount/$deviceCount ready · $groupCount groups",
                     style = MaterialTheme.typography.bodyMedium,
@@ -171,10 +171,10 @@ private fun DeviceRow(
                 trailingContent = {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         if (current) {
-                            Icon(Icons.Outlined.CheckCircle, contentDescription = "Current target", tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Outlined.CheckCircle, contentDescription = "Selected Mac", tint = MaterialTheme.colorScheme.primary)
                         }
                         DeckActionButton(
-                            label = if (current) "Current" else "Use",
+                            label = if (current) "Selected" else "Select Mac",
                             onClick = onSelect,
                             enabled = !current,
                             modifier = Modifier.heightIn(min = 48.dp),
@@ -203,7 +203,7 @@ private fun GroupRow(group: DeviceGroup) {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
             headlineContent = { Text(group.name) },
-            supportingContent = { Text("${group.memberIds.size} target${if (group.memberIds.size == 1) "" else "s"}") },
+            supportingContent = { Text("${group.memberIds.size} Mac${if (group.memberIds.size == 1) "" else "s"}") },
             leadingContent = { StatusIcon(Icons.Outlined.Workspaces, ready = true) },
         )
     }

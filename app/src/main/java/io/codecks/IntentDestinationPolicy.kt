@@ -19,7 +19,7 @@ object InternalIntentAuth {
         return created
     }
 
-    private const val PREFS_NAME = "deckbridge.internal_intents"
+    private const val PREFS_NAME = "codecks.internal_intents"
     private const val KEY_TOKEN = "destination_token"
 }
 

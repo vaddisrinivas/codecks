@@ -25,13 +25,8 @@ import androidx.compose.material.icons.outlined.Web
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
 import compose.icons.FeatherIcons
-import compose.icons.FontAwesomeIcons
 import compose.icons.TablerIcons
 import compose.icons.feathericons.*
-import compose.icons.fontawesomeicons.Brands
-import compose.icons.fontawesomeicons.Solid
-import compose.icons.fontawesomeicons.brands.Github
-import compose.icons.fontawesomeicons.solid.*
 import compose.icons.tablericons.*
 import io.codecks.domain.ActionIcon
 import io.codecks.domain.DeckAction
@@ -67,7 +62,7 @@ private fun resolveActionIcon(icon: ActionIcon, pack: CodecksIconPack): ImageVec
             ActionIcon.Browser -> Icons.Outlined.Web
             ActionIcon.Control -> Icons.Outlined.Tune
             ActionIcon.Finder -> Icons.Outlined.Computer
-            ActionIcon.Github -> FontAwesomeIcons.Brands.Github
+            ActionIcon.Github -> Icons.Outlined.Apps
             ActionIcon.Keyboard -> Icons.Outlined.Keyboard
             ActionIcon.Lock -> Icons.Outlined.Lock
             ActionIcon.Mouse -> Icons.Outlined.Mouse
@@ -126,82 +121,52 @@ private fun resolveActionIcon(icon: ActionIcon, pack: CodecksIconPack): ImageVec
             ActionIcon.Emoji -> TablerIcons.Stars
             ActionIcon.Empty -> TablerIcons.Plus
         }
-
-        CodecksIconPack.FontAwesome -> when (icon) {
-            ActionIcon.Add -> FontAwesomeIcons.Solid.Plus
-            ActionIcon.Apps -> FontAwesomeIcons.Solid.ThLarge
-            ActionIcon.Browser -> FontAwesomeIcons.Solid.Globe
-            ActionIcon.Control -> FontAwesomeIcons.Solid.SlidersH
-            ActionIcon.Finder -> FontAwesomeIcons.Solid.Desktop
-            ActionIcon.Github -> FontAwesomeIcons.Brands.Github
-            ActionIcon.Keyboard -> FontAwesomeIcons.Solid.Keyboard
-            ActionIcon.Lock -> FontAwesomeIcons.Solid.Lock
-            ActionIcon.Mouse -> FontAwesomeIcons.Solid.MousePointer
-            ActionIcon.Notifications -> FontAwesomeIcons.Solid.Bell
-            ActionIcon.Play -> FontAwesomeIcons.Solid.Play
-            ActionIcon.Screenshot -> FontAwesomeIcons.Solid.Camera
-            ActionIcon.Search -> FontAwesomeIcons.Solid.Search
-            ActionIcon.Terminal -> FontAwesomeIcons.Solid.Terminal
-            ActionIcon.Volume -> FontAwesomeIcons.Solid.VolumeUp
-            ActionIcon.Party -> FontAwesomeIcons.Solid.Magic
-            ActionIcon.Sparkle -> FontAwesomeIcons.Solid.Magic
-            ActionIcon.Emoji -> FontAwesomeIcons.Solid.Magic
-            ActionIcon.Empty -> FontAwesomeIcons.Solid.Plus
-        }
     }
 
 private fun CodecksIconPack.arrowLeft(): ImageVector = when (this) {
     CodecksIconPack.Material -> Icons.AutoMirrored.Outlined.ArrowBack
     CodecksIconPack.Feather -> FeatherIcons.ArrowLeft
     CodecksIconPack.Tabler -> TablerIcons.ArrowLeft
-    CodecksIconPack.FontAwesome -> FontAwesomeIcons.Solid.ArrowLeft
 }
 
 private fun CodecksIconPack.arrowRight(): ImageVector = when (this) {
     CodecksIconPack.Material -> Icons.AutoMirrored.Outlined.ArrowForward
     CodecksIconPack.Feather -> FeatherIcons.ArrowRight
     CodecksIconPack.Tabler -> TablerIcons.ArrowRight
-    CodecksIconPack.FontAwesome -> FontAwesomeIcons.Solid.ArrowRight
 }
 
 private fun CodecksIconPack.fullscreen(): ImageVector = when (this) {
     CodecksIconPack.Material -> Icons.Outlined.Fullscreen
     CodecksIconPack.Feather -> FeatherIcons.Maximize
     CodecksIconPack.Tabler -> TablerIcons.Maximize
-    CodecksIconPack.FontAwesome -> FontAwesomeIcons.Solid.Expand
 }
 
 private fun CodecksIconPack.automations(): ImageVector = when (this) {
     CodecksIconPack.Material -> Icons.Outlined.AutoAwesome
     CodecksIconPack.Feather -> FeatherIcons.Zap
     CodecksIconPack.Tabler -> TablerIcons.Stars
-    CodecksIconPack.FontAwesome -> FontAwesomeIcons.Solid.Magic
 }
 
 private fun CodecksIconPack.missionControl(): ImageVector = when (this) {
     CodecksIconPack.Material -> Icons.Outlined.Apps
     CodecksIconPack.Feather -> FeatherIcons.Command
     CodecksIconPack.Tabler -> TablerIcons.LayoutGrid
-    CodecksIconPack.FontAwesome -> FontAwesomeIcons.Solid.Th
 }
 
 private fun CodecksIconPack.newTab(): ImageVector = when (this) {
     CodecksIconPack.Material -> Icons.Outlined.Tab
     CodecksIconPack.Feather -> FeatherIcons.PlusSquare
     CodecksIconPack.Tabler -> TablerIcons.LayoutGridAdd
-    CodecksIconPack.FontAwesome -> FontAwesomeIcons.Solid.PlusSquare
 }
 
 private fun CodecksIconPack.mute(): ImageVector = when (this) {
     CodecksIconPack.Material -> Icons.AutoMirrored.Outlined.VolumeOff
     CodecksIconPack.Feather -> FeatherIcons.VolumeX
     CodecksIconPack.Tabler -> TablerIcons.Volume3
-    CodecksIconPack.FontAwesome -> FontAwesomeIcons.Solid.VolumeMute
 }
 
 private fun CodecksIconPack.volumeDown(): ImageVector = when (this) {
     CodecksIconPack.Material -> Icons.AutoMirrored.Outlined.VolumeDown
     CodecksIconPack.Feather -> FeatherIcons.Volume1
     CodecksIconPack.Tabler -> TablerIcons.Volume
-    CodecksIconPack.FontAwesome -> FontAwesomeIcons.Solid.VolumeDown
 }

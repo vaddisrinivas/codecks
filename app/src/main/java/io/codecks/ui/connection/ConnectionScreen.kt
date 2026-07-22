@@ -51,6 +51,7 @@ fun ConnectionScreen(
     onPasswordChange: (String) -> Unit,
     onSelectHost: (String) -> Unit,
     onScan: () -> Unit,
+    onScanLocalNetwork: () -> Unit = {},
     onVerifyHostKey: () -> Unit,
     onConfirmHostKey: () -> Unit,
     onAuthorize: () -> Unit,
@@ -90,9 +91,10 @@ fun ConnectionScreen(
         }
             if (!state.config.isReady) {
                 item {
-                    SetupChecklist(
-                        hidHealth = hidHealth,
-                        onOpenHidSetup = onOpenHidSetup,
+                    MacPairingStepper(
+                        state = state,
+                        trustedEndpoint = trustedEndpoint,
+                        canAuthorize = canAuthorize,
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
                 }
@@ -101,7 +103,7 @@ fun ConnectionScreen(
                 SectionTitle(
                     title = if (state.config.isReady) "Mac" else "Find your Mac",
                     body = if (state.config.isReady) {
-                        "Saved target"
+                        "Saved Mac"
                     } else {
                         "Turn on Remote Login in Mac System Settings, then scan or enter the Mac hostname or IP address."
                     },
@@ -137,7 +139,7 @@ fun ConnectionScreen(
                                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                             ),
                             headlineContent = { Text(state.host.ifBlank { "Saved Mac" }) },
-                            supportingContent = { Text("Current target") },
+                            supportingContent = { Text("Selected Mac") },
                             leadingContent = {
                                 Icon(Icons.Outlined.Computer, contentDescription = null)
                             },
@@ -152,24 +154,35 @@ fun ConnectionScreen(
                         )
                     }
                 } else {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.padding(horizontal = 16.dp),
                     ) {
-                        OutlinedTextField(
-                            value = state.host,
-                            onValueChange = onHostChange,
-                            label = { Text("Mac hostname or IP") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            OutlinedTextField(
+                                value = state.host,
+                                onValueChange = onHostChange,
+                                label = { Text("Mac hostname or IP") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                            DeckActionButton(
+                                label = "Scan",
+                                onClick = onScan,
+                                enabled = state.operation == ConnectionOperation.Idle,
+                                icon = Icons.Outlined.Refresh,
+                                modifier = Modifier.widthIn(min = 112.dp, max = 136.dp).heightIn(min = 56.dp),
+                            )
+                        }
                         DeckActionButton(
-                            label = "Scan",
-                            onClick = onScan,
+                            label = "Scan local network",
+                            onClick = onScanLocalNetwork,
                             enabled = state.operation == ConnectionOperation.Idle,
-                            icon = Icons.Outlined.Refresh,
-                            modifier = Modifier.widthIn(min = 112.dp, max = 136.dp).heightIn(min = 56.dp),
+                            icon = Icons.Outlined.SettingsEthernet,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                         )
                     }
                 }
@@ -187,7 +200,7 @@ fun ConnectionScreen(
                 item {
                     SectionTitle(
                         title = "Authorize once",
-                        body = "Verify the Mac fingerprint first. Then enter your Mac login once to install the Codecks key.",
+                        body = "Trust this Mac, then enter your Mac login once so Codecks can save its control key.",
                     )
                 }
                 item {
@@ -214,7 +227,7 @@ fun ConnectionScreen(
                 }
                 item {
                     DeckActionButton(
-                        label = if (trustedEndpoint) "Fingerprint verified" else "Verify fingerprint",
+                        label = if (trustedEndpoint) "Mac trusted" else "Trust this Mac",
                         onClick = onVerifyHostKey,
                         enabled = state.host.isNotBlank() &&
                             state.user.isNotBlank() &&
@@ -236,7 +249,7 @@ fun ConnectionScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                             DeckActionButton(
-                                label = "Trust this fingerprint",
+                                label = "Confirm this is my Mac",
                                 onClick = onConfirmHostKey,
                                 enabled = state.operation == ConnectionOperation.Idle,
                                 icon = Icons.Outlined.CheckCircle,
@@ -326,6 +339,106 @@ fun ConnectionScreen(
 }
 
 @Composable
+private fun MacPairingStepper(
+    state: ConnectionUiState,
+    trustedEndpoint: Boolean,
+    canAuthorize: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val hasMac = state.host.isNotBlank()
+    val done = state.config.isReady
+    val steps = listOf(
+        PairingStep(
+            number = 1,
+            title = "Find",
+            detail = if (hasMac) state.host else "Scan or enter your Mac.",
+            complete = hasMac,
+            active = !hasMac,
+        ),
+        PairingStep(
+            number = 2,
+            title = "Trust",
+            detail = when {
+                trustedEndpoint -> "This Mac is trusted."
+                hasMac -> "Confirm this is your Mac."
+                else -> "Choose a Mac first."
+            },
+            complete = trustedEndpoint,
+            active = hasMac && !trustedEndpoint,
+        ),
+        PairingStep(
+            number = 3,
+            title = "Authorize",
+            detail = when {
+                state.config.hasKey -> "Codecks key is saved."
+                canAuthorize -> "Enter your Mac password once."
+                trustedEndpoint -> "Enter your Mac password once."
+                else -> "Trust the Mac first."
+            },
+            complete = state.config.hasKey,
+            active = trustedEndpoint && !state.config.hasKey,
+        ),
+        PairingStep(
+            number = 4,
+            title = "Done",
+            detail = if (done) "Deck, Trackpad, and Rules can use this Mac." else "Test connection after authorizing.",
+            complete = done,
+            active = state.config.hasKey && !done,
+        ),
+    )
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = MaterialTheme.shapes.large,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(14.dp)) {
+            Text("Connect a Mac", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            steps.forEach { step ->
+                PairingStepRow(step)
+            }
+        }
+    }
+}
+
+private data class PairingStep(
+    val number: Int,
+    val title: String,
+    val detail: String,
+    val complete: Boolean,
+    val active: Boolean,
+)
+
+@Composable
+private fun PairingStepRow(step: PairingStep) {
+    val color = when {
+        step.complete -> MaterialTheme.colorScheme.primary
+        step.active -> MaterialTheme.colorScheme.onSurface
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Surface(
+            color = if (step.complete) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+            contentColor = if (step.complete) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+            shape = MaterialTheme.shapes.small,
+        ) {
+            Text(
+                text = if (step.complete) "✓" else step.number.toString(),
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(step.title, style = MaterialTheme.typography.labelLarge, color = color)
+            Text(step.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
 private fun SetupChecklist(
     hidHealth: HidHealth?,
     onOpenHidSetup: () -> Unit,
@@ -336,8 +449,8 @@ private fun SetupChecklist(
         listOf(
             "1. Put phone and Mac on same network",
             "2. Enable Remote Login on Mac",
-            "3. Trust fingerprint, then install key once",
-            "4. Pair HID for Trackpad mouse/keyboard",
+            "3. Trust this Mac, then authorize once",
+            "4. Pair Trackpad mouse/keyboard",
         ).forEachIndexed { index, item ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -350,7 +463,7 @@ private fun SetupChecklist(
         }
         if (hidHealth != null && !hidHealth.canSendInput) {
             DeckActionButton(
-                label = "Open HID setup",
+                label = "Open Trackpad setup",
                 onClick = onOpenHidSetup,
                 icon = Icons.Outlined.Computer,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
@@ -381,19 +494,19 @@ private fun ConnectionRepairPanel(
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Mac repair", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(
-                    "Start with Test. Rotate only when the key is stale. Reset trust only after checking the Mac fingerprint.",
+                    "Start with Test. Rotate only when the key is stale. Reset Mac trust only if this Mac changed.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             ConnectionHealthRow(
                 icon = Icons.Outlined.Computer,
-                title = "Target",
+                title = "Mac",
                 value = "${state.config.user}@${state.config.host}:${state.config.port}",
             )
             ConnectionHealthRow(
                 icon = Icons.Outlined.CheckCircle,
-                title = "Fingerprint",
+                title = "Mac trust",
                 value = if (state.config.hostKey.isNotBlank()) "Trusted" else "Needs verification",
             )
             ConnectionHealthRow(
@@ -465,9 +578,9 @@ private fun UnifiedSetupStatus(
     val macReady = macHealth.isReady
     val hidReady = hidHealth?.canSendInput
     val title = when {
-        macReady && hidReady == true -> "Mac ready / HID ready"
-        macReady && hidReady == false -> "Mac ready / HID needs setup"
-        !macReady && hidReady == true -> "Mac setup needed / HID ready"
+        macReady && hidReady == true -> "Mac ready / Trackpad ready"
+        macReady && hidReady == false -> "Mac ready / Trackpad setup needed"
+        !macReady && hidReady == true -> "Mac setup needed / Trackpad ready"
         else -> "Setup needed"
     }
     Surface(
@@ -510,14 +623,14 @@ private fun UnifiedSetupStatus(
             )
             hidHealth?.let { health ->
                 ReadinessLine(
-                    label = "HID",
+                    label = "Trackpad",
                     ready = health.canSendInput,
                     status = health.statusLabel(),
                     detail = health.detail,
                 )
                 if (!health.canSendInput) {
                     DeckActionButton(
-                        label = "Open HID setup",
+                        label = "Open Trackpad setup",
                         onClick = onOpenHidSetup,
                         icon = Icons.Outlined.Computer,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),

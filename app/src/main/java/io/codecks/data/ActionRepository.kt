@@ -31,15 +31,18 @@ interface ActionRepository {
     fun observeFavorites(): Flow<List<DeckAction>>
     fun layout(): DeckLayout = DeckLayout.fromActions(favorites())
     fun observeLayout(): Flow<DeckLayout> = observeFavorites().map { DeckLayout.fromActions(it) }
+    fun catalogActions(): List<DeckAction> = allActions()
+    suspend fun customActions(): List<DeckAction> = emptyList()
     fun allActions(): List<DeckAction>
+    fun observeAllActions(): Flow<List<DeckAction>> = observeFavorites()
     fun deckTemplates(): List<DeckTemplate> = DeckTemplateCatalog.templates
     fun actionsForTemplate(templateId: String): List<DeckAction> = emptyList()
     fun templateForActiveApp(activeApp: String): DeckTemplate? = DeckTemplateCatalog.matchActiveApp(activeApp)
     suspend fun saveFavorites(actions: List<DeckAction>)
     suspend fun saveLayout(layout: DeckLayout) = saveFavorites(layout.actions)
-    suspend fun exportLayout(): Result<String> = Result.failure(UnsupportedOperationException("Deck export is unavailable"))
-    suspend fun validateLayout(payload: String): Result<Unit> = Result.success(Unit)
-    suspend fun importLayout(payload: String): Result<Unit> = Result.failure(UnsupportedOperationException("Deck import is unavailable"))
+    suspend fun exportLayout(): Result<String>
+    suspend fun validateLayout(payload: String): Result<Unit>
+    suspend fun importLayout(payload: String): Result<Unit>
     suspend fun run(action: DeckAction): Result<String>
     suspend fun test(action: DeckAction): Result<String>
 }
@@ -62,10 +65,12 @@ class DefaultActionRepository @Inject constructor(
             },
         ).normalized()
     }
+    @Volatile
+    private var cachedLayout: DeckLayout? = null
 
-    override fun favorites(): List<DeckAction> = defaultLayout.actions
+    override fun favorites(): List<DeckAction> = layout().actions
 
-    override fun layout(): DeckLayout = defaultLayout
+    override fun layout(): DeckLayout = cachedLayout ?: defaultLayout
 
     override fun observeFavorites(): Flow<List<DeckAction>> =
         observeLayout().map { it.actions }
@@ -81,10 +86,25 @@ class DefaultActionRepository @Inject constructor(
                 }
                 ?.takeIf { it.slots.isNotEmpty() }
                 ?: defaultLayout
-            withNextWaveUtilitySlots(storedLayout)
+            withNextWaveUtilitySlots(storedLayout).also { cachedLayout = it }
         }
 
-    override fun allActions(): List<DeckAction> = actions
+    override fun catalogActions(): List<DeckAction> = actions
+
+    override suspend fun customActions(): List<DeckAction> =
+        context.deckDataStore.data.first()[FAVORITES]
+            ?.let(::decodeLayout)
+            ?.let(::withNextWaveUtilitySlots)
+            ?.also { cachedLayout = it }
+            ?.actions
+            ?.filterNot { action -> byId.containsKey(action.id) }
+            .orEmpty()
+
+    override fun allActions(): List<DeckAction> =
+        (actions + layout().actions.filterNot { byId.containsKey(it.id) }).distinctBy(DeckAction::id)
+
+    override fun observeAllActions(): Flow<List<DeckAction>> =
+        observeLayout().map { layout -> (actions + layout.actions.filterNot { byId.containsKey(it.id) }).distinctBy(DeckAction::id) }
 
     override fun deckTemplates(): List<DeckTemplate> = DeckTemplateCatalog.templates
 
@@ -110,6 +130,7 @@ class DefaultActionRepository @Inject constructor(
             }
             preferences[FAVORITES] = encodeLayout(normalized)
         }
+        cachedLayout = normalized
     }
 
     private fun withNextWaveUtilitySlots(layout: DeckLayout): DeckLayout {
@@ -160,12 +181,7 @@ class DefaultActionRepository @Inject constructor(
             if (testCommand != null) {
                 connectionRepository.runCommand(testCommand)
             } else if (command != null) {
-                connectionRepository.runCommand(
-                    "tmp=\"\${TMPDIR:-/tmp}/deckbridge_test_\$\$.zsh\"; " +
-                        "printf %s ${shellQuote(command)} > \"\$tmp\"; " +
-                        "zsh -n \"\$tmp\"; status=\$?; rm -f \"\$tmp\"; " +
-                        "[ \$status -eq 0 ] && printf ${shellQuote("${action.label} script verified")} || exit \$status",
-                )
+                connectionRepository.validateCommandSyntax(command)
             } else {
                 Result.failure(IllegalStateException("${action.label} has no test command"))
             }
@@ -322,7 +338,7 @@ class ActionCatalog @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) {
     fun load(): List<DeckAction> {
-        val json = context.assets.open("deckbridge_actions.json").bufferedReader().use { it.readText() }
+        val json = context.assets.open("codecks_actions.json").bufferedReader().use { it.readText() }
         val array = JSONArray(json)
         return buildList(array.length()) {
             repeat(array.length()) { index ->

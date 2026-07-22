@@ -69,12 +69,12 @@ object PhoneNotificationBackplane {
             context.contentResolver,
             "enabled_notification_listeners",
         ).orEmpty()
-        val component = ComponentName(context, DeckBridgeNotificationListenerService::class.java)
+        val component = ComponentName(context, CodecksNotificationListenerService::class.java)
         return enabled.split(':').any { ComponentName.unflattenFromString(it) == component }
     }
 }
 
-class DeckBridgeNotificationListenerService : NotificationListenerService() {
+class CodecksNotificationListenerService : NotificationListenerService() {
     override fun onListenerConnected() {
         publish(activeNotifications.orEmpty())
     }

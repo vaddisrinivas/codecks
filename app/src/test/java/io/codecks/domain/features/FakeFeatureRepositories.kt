@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class FakeEntitlementRepository(
-    initialEntitlement: Entitlement = Entitlement(EntitlementTier.Free, EntitlementStatus.Free),
+    initialEntitlement: Entitlement = Entitlement(localOnly = true),
     private val refreshResult: Result<Entitlement> = Result.success(initialEntitlement),
 ) : EntitlementRepository {
     private val current = MutableStateFlow(initialEntitlement)

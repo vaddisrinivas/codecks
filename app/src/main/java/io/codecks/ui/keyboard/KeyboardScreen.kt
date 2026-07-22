@@ -54,7 +54,7 @@ import io.codecks.HidState
 import io.codecks.domain.DeckAction
 import io.codecks.ui.designsystem.DeckActionButton
 import io.codecks.ui.designsystem.DeckFilterPill
-import io.codecks.ui.home.CustomActionRow
+import io.codecks.ui.icons.imageVector
 
 private data class KeyControl(
     val label: String,
@@ -167,7 +167,7 @@ fun KeyboardScreen(
                 ) {
                     if (showHostHeader) {
                         HidHostHeader(
-                            title = "Keyboard targets",
+                            title = "Choose a paired Mac",
                             disconnectedTitle = "Keyboard ready",
                             connectedTitle = "Keyboard connected",
                             icon = Icons.Outlined.Keyboard,
@@ -193,11 +193,10 @@ fun KeyboardScreen(
                         onClearText = onClearText,
                         onUseSnippet = onUseSnippet,
                     )
-                    CustomActionRow(
+                    KeyboardCustomActions(
                         actions = customActions.take(4),
                         onAction = onCustomAction,
                         selectedActionId = selectedActionId,
-                        contentPadding = PaddingValues(end = 16.dp),
                     )
                 }
                 KeyboardQuickPanel(
@@ -217,7 +216,7 @@ fun KeyboardScreen(
             ) {
                 if (showHostHeader) {
                     HidHostHeader(
-                        title = "Keyboard targets",
+                        title = "Choose a paired Mac",
                         disconnectedTitle = "Keyboard ready",
                         connectedTitle = "Keyboard connected",
                         icon = Icons.Outlined.Keyboard,
@@ -243,11 +242,10 @@ fun KeyboardScreen(
                     onClearText = onClearText,
                     onUseSnippet = onUseSnippet,
                 )
-                CustomActionRow(
-                    actions = customActions.take(8),
+                KeyboardCustomActions(
+                    actions = customActions.take(4),
                     onAction = onCustomAction,
                     selectedActionId = selectedActionId,
-                    contentPadding = PaddingValues(end = 16.dp),
                 )
                 KeyboardQuickPanel(
                     enabled = state.isConnected,
@@ -257,6 +255,39 @@ fun KeyboardScreen(
                     onModeChange = { mode = it },
                     onToggleMore = { controlsOpen = !controlsOpen },
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun KeyboardCustomActions(
+    actions: List<DeckAction>,
+    onAction: (DeckAction) -> Unit,
+    selectedActionId: String?,
+    modifier: Modifier = Modifier,
+) {
+    if (actions.isEmpty()) return
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Text("Mac shortcuts", style = MaterialTheme.typography.labelLarge)
+        actions.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                row.forEach { action ->
+                    DeckActionButton(
+                        label = action.label,
+                        onClick = { onAction(action) },
+                        icon = action.icon.imageVector(),
+                        selected = action.id == selectedActionId,
+                        enabled = true,
+                        modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                    )
+                }
+                if (row.size == 1) {
+                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }
@@ -389,23 +420,29 @@ private fun Composer(
         shape = MaterialTheme.shapes.large,
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.padding(12.dp),
         ) {
             OutlinedTextField(
                 value = text,
                 onValueChange = onTextChange,
-                label = { Text("Text to type on Mac") },
-                minLines = 3,
-                maxLines = 6,
+                placeholder = { Text("Text to type on Mac") },
+                minLines = 2,
+                maxLines = 4,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Text(
-                text = "Status: $status",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text("Delivery", style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Delivery",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = status,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 KeyboardDeliveryMode.entries.forEach { mode ->
                     DeckFilterPill(
@@ -418,9 +455,9 @@ private fun Composer(
             }
             Text(
                 text = when (deliveryMode) {
-                    KeyboardDeliveryMode.Auto -> "Auto uses Bluetooth for short ASCII and Mac pasteboard for long, multiline, or unicode text."
-                    KeyboardDeliveryMode.BluetoothTyping -> if (connected) "Types keystrokes over Bluetooth HID." else "Connect Bluetooth first."
-                    KeyboardDeliveryMode.MacClipboardPaste -> "Writes Mac clipboard over SSH, then pastes into the front app."
+                    KeyboardDeliveryMode.Auto -> "Auto picks Bluetooth for short text, pasteboard for longer text."
+                    KeyboardDeliveryMode.BluetoothTyping -> if (connected) "Types over Bluetooth." else "Connect Bluetooth first."
+                    KeyboardDeliveryMode.MacClipboardPaste -> "Pastes through the Mac clipboard."
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -453,17 +490,24 @@ private fun SnippetRow(
     snippets: List<String>,
     onUseSnippet: (String) -> Unit,
 ) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        snippets.forEach { snippet ->
-            DeckFilterPill(
-                label = snippet.take(24),
-                selected = false,
-                onClick = { onUseSnippet(snippet) },
-                modifier = Modifier.heightIn(min = 44.dp),
-            )
+        snippets.take(4).chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                row.forEach { snippet ->
+                    DeckFilterPill(
+                        label = snippet.take(24),
+                        selected = false,
+                        onClick = { onUseSnippet(snippet) },
+                        modifier = Modifier.weight(1f).heightIn(min = 44.dp),
+                    )
+                }
+                if (row.size == 1) {
+                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.weight(1f))
+                }
+            }
         }
     }
 }

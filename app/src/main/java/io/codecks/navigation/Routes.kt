@@ -41,7 +41,7 @@ fun NavKey.title(): String = when (this) {
     MouseRoute -> "Trackpad"
     KeyboardRoute -> "Keyboard"
     ClipboardRoute -> "Clipboard"
-    AutomationsRoute -> "Automations"
+    AutomationsRoute -> "Rules"
     SettingsRoute -> "Settings"
     EditorRoute -> "Edit Deck"
     AiBuilderRoute -> "AI"

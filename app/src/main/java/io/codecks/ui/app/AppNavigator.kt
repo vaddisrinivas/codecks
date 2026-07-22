@@ -39,8 +39,8 @@ fun routeEnabled(
 ): Boolean = when (route) {
     HomeRoute -> flags.enabled(FeatureFlag.Deck)
     MouseRoute -> flags.enabled(FeatureFlag.Trackpad)
-    KeyboardRoute -> flags.enabled(FeatureFlag.Trackpad)
-    ClipboardRoute -> flags.enabled(FeatureFlag.Trackpad)
+    KeyboardRoute -> flags.enabled(FeatureFlag.Keyboard)
+    ClipboardRoute -> flags.enabled(FeatureFlag.Clipboard)
     AutomationsRoute -> flags.enabled(FeatureFlag.Automations)
     AiBuilderRoute -> flags.enabled(FeatureFlag.Ai)
     AiProviderRoute -> flags.enabled(FeatureFlag.Ai)
@@ -60,6 +60,9 @@ fun guardRoute(
     routeEnabled(fallback, flags) -> fallback
     else -> SettingsRoute
 }
+
+fun launchRouteForRestoredTop(route: NavKey): NavKey =
+    if (route in setOf(EditorRoute, RunLogRoute, CommandPaletteRoute, AiProviderRoute)) HomeRoute else route
 
 fun destinationRequestToRoute(
     destinationRequest: String?,
@@ -88,10 +91,10 @@ private val PrimaryTab.summary: String
     get() = when (this) {
         PrimaryTab.Deck -> "Run your command keys"
         PrimaryTab.Trackpad -> "Control the Mac pointer"
-        PrimaryTab.Keyboard -> "Type into your Mac"
-        PrimaryTab.Clipboard -> "Sync clipboard"
+        PrimaryTab.Keyboard -> "Type to your Mac"
+        PrimaryTab.Clipboard -> "Move clipboard text"
         PrimaryTab.Automations -> "Safe local workflows"
-        PrimaryTab.Ai -> "Chat, create, accept"
+        PrimaryTab.Ai -> "Create safe actions"
         PrimaryTab.Settings -> "Controls, theme, setup"
     }
 

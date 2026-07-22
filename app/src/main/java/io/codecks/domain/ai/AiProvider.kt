@@ -51,7 +51,7 @@ class AiBuilder(
     suspend fun validateDraft(draft: ActionDraft): Result<ValidationResult> {
         val entitlement = entitlementRepository.currentEntitlement()
         if (!entitlement.allows(FeatureGate.AiBuilder)) {
-            return Result.failure(AiBuilderUnavailable("AI Creator requires premium entitlement"))
+            return Result.failure(AiBuilderUnavailable("AI Builder is unavailable. Check AI settings and try again."))
         }
         return Result.success(validator.validate(draft))
     }
@@ -59,7 +59,7 @@ class AiBuilder(
     suspend fun requestDraft(request: DraftRequest): Result<ActionDraftJson> {
         val entitlement = entitlementRepository.currentEntitlement()
         if (!entitlement.allows(FeatureGate.AiBuilder)) {
-            return Result.failure(AiBuilderUnavailable("AI Creator requires premium entitlement"))
+            return Result.failure(AiBuilderUnavailable("AI Builder is unavailable. Check AI settings and try again."))
         }
         return provider.draftAction(request)
     }
@@ -67,7 +67,7 @@ class AiBuilder(
     suspend fun requestValidatedDraft(request: DraftRequest): Result<GeneratedDraft> {
         val entitlement = entitlementRepository.currentEntitlement()
         if (!entitlement.allows(FeatureGate.AiBuilder)) {
-            return Result.failure(AiBuilderUnavailable("AI Creator requires premium entitlement"))
+            return Result.failure(AiBuilderUnavailable("AI Builder is unavailable. Check AI settings and try again."))
         }
         return requestValidatedDraftOnce(request).recoverCatching { error ->
             if (error !is SemanticDraftValidationException || request.repairInstructions.isNotBlank()) {

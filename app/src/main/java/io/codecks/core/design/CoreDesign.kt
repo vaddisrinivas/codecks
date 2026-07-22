@@ -18,7 +18,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import io.codecks.core.actions.ButtonState
 
-object DeckBridgeDesignTokens {
+object CodecksDesignTokens {
     object Spacing {
         val xxs = 2.dp
         val xs = 4.dp
@@ -51,7 +51,7 @@ object DeckBridgeDesignTokens {
     }
 }
 
-enum class DeckBridgeHapticToken {
+enum class CodecksHapticToken {
     Confirm,
     Reject,
     Boundary,
@@ -59,7 +59,7 @@ enum class DeckBridgeHapticToken {
 }
 
 @Composable
-fun DeckBridgeStateChip(
+fun CodecksStateChip(
     label: String,
     state: ButtonState,
     modifier: Modifier = Modifier,
@@ -94,7 +94,7 @@ fun DeckBridgeStateChip(
 }
 
 @Composable
-fun DeckBridgeListRow(
+fun CodecksListRow(
     icon: ImageVector,
     title: String,
     summary: String,
@@ -111,7 +111,7 @@ fun DeckBridgeListRow(
 }
 
 @Composable
-fun DeckBridgeIconLabel(
+fun CodecksIconLabel(
     icon: ImageVector,
     label: String,
     modifier: Modifier = Modifier,

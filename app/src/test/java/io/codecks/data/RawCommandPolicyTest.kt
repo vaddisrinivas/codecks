@@ -7,7 +7,7 @@ import org.junit.Test
 
 class RawCommandPolicyTest {
     @Test
-    fun allowsExpectedDeckBridgeCommands() {
+    fun allowsExpectedCodecksCommands() {
         val commands = listOf(
             "pbcopy",
             "pbpaste",
@@ -16,7 +16,7 @@ class RawCommandPolicyTest {
             "open -a Calendar",
             "open -a 'Google Chrome'",
             "osascript -e 'tell application \"System Events\" to key code 126'",
-            "python3 -m py_compile '/tmp/deckbridge_action.py'",
+            "python3 -m py_compile '/tmp/codecks_action.py'",
         )
 
         commands.forEach { command ->
@@ -34,7 +34,7 @@ class RawCommandPolicyTest {
             "open -a Calendar",
             "open -a 'Google Chrome'",
             "osascript -e 'tell application \"System Events\" to key code 126'",
-            "python3 -m py_compile '/tmp/deckbridge_action.py'",
+            "python3 -m py_compile '/tmp/codecks_action.py'",
             "sleep 0.5",
             "caffeinate -u -t 30",
             "pbpaste 2>/dev/null | head -c 4096",
@@ -58,6 +58,24 @@ class RawCommandPolicyTest {
                 "/Users/example/.local/bin/secret-wrapper printenv LITELLM_API_KEY",
             ) != null,
         )
+    }
+
+    @Test
+    fun safeTemplateAllowlist_rejectsPolicyBypassShapes() {
+        val commands = listOf(
+            "command sudo whoami",
+            "env sudo whoami",
+            "find . -delete",
+            "printf hi > ~/.ssh/authorized_keys",
+            "printf hi | tee ~/.ssh/authorized_keys",
+            "S=sudo; \$S whoami",
+            "printf hi | xargs sh",
+            "osascript -e 'tell app \"System Events\" to keystroke \"secret\"'",
+        )
+
+        commands.forEach { command ->
+            assertTrue(command, RawCommandPolicy.firstAllowlistViolation(command) != null)
+        }
     }
 
     @Test

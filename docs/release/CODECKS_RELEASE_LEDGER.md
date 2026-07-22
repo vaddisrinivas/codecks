@@ -1,12 +1,12 @@
 # Codecks local-only release ledger
 
-Updated: July 21, 2026
+Updated: July 22, 2026
 
 | Contract | Public-release value |
 | --- | --- |
 | Product | Codecks |
 | Application ID | `app.codecks` |
-| Version | `0.1.10` (`versionCode` 11) |
+| Version | `0.1.11` (`versionCode` 12) |
 | Minimum Android | 9 / API 28 |
 | Target Android | API 37 |
 | Default mode | Local-only; no account, billing, hosted backend, database, analytics, or cloud sync |
@@ -32,9 +32,6 @@ Updated: July 21, 2026
 | --- | --- | --- |
 | `MainActivity` | Exported | Launcher only; internal destination extras require an app-private token |
 | `HidSessionService` | Not exported | Foreground connected-device service; starts only after Bluetooth permission |
-| `DeckWidgetProvider` | Exported when optional feature is compiled on | Receives protected AppWidget system broadcasts; off by default |
-| `DeckTileService` | Exported when feature is compiled on | `android.permission.BIND_QUICK_SETTINGS_TILE`; off by default |
-| `DeckBridgeNotificationListenerService` | Exported when optional feature is compiled on | `android.permission.BIND_NOTIFICATION_LISTENER_SERVICE`; off by default |
-| `WidgetLaunchActivity` | Not exported | Explicit immutable `PendingIntent` only; off by default |
+| `CodecksNotificationListenerService` | Exported when optional feature is compiled on | `android.permission.BIND_NOTIFICATION_LISTENER_SERVICE`; off by default |
 
 Any change to these values requires a privacy-ledger update and release test.

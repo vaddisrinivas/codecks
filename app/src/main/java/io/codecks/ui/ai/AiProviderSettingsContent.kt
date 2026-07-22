@@ -36,9 +36,8 @@ internal fun LazyListScope.aiProviderSettingsItems(
     onApiKeyChanged: (String) -> Unit,
     onBaseUrlChanged: (String) -> Unit,
     onSaveApiKey: () -> Unit,
-    onConfirmImportedCredential: () -> Unit,
     onTest: () -> Unit,
-    onRefreshEntitlement: () -> Unit,
+    @Suppress("UNUSED_PARAMETER") onRefreshEntitlement: () -> Unit,
 ) {
     item {
         AiProviderSummary(
@@ -76,7 +75,7 @@ internal fun LazyListScope.aiProviderSettingsItems(
                 state.selectedProvider.models.forEach { model ->
                     val modelEnabled = state.draftKind == DraftKind.ContextApps || model.supportsStructuredDrafts
                     DeckFilterPill(
-                        label = if (modelEnabled) model.label else "${model.label} · not V2",
+                        label = if (modelEnabled) model.label else "${model.label} · draft unavailable",
                         selected = state.selectedModelId == model.id,
                         onClick = { onModelSelected(model.id) },
                         enabled = modelEnabled,
@@ -92,24 +91,10 @@ internal fun LazyListScope.aiProviderSettingsItems(
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         ) {
             Text(
-                text = "Paste a provider key here. Codecks does not read API keys from your Mac over SSH.",
+                text = "Paste an AI key here. Codecks does not read API keys from your Mac over SSH.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            state.pendingImportedCredential?.let { credential ->
-                Text(
-                    text = "Found key from ${credential.source}. Nothing saved yet.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                DeckActionButton(
-                    label = "Save imported key",
-                    onClick = onConfirmImportedCredential,
-                    enabled = !state.isImportingFromMac,
-                    icon = Icons.Outlined.Key,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                )
-            }
             if (state.selectedProvider == AiProviderChoice.LiteLLM) {
                 OutlinedTextField(
                     value = state.baseUrlInput,
@@ -149,50 +134,18 @@ internal fun LazyListScope.aiProviderSettingsItems(
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 DeckActionButton(
-                    label = "Save key",
+                    label = "Save API key",
                     onClick = onSaveApiKey,
                     enabled = state.apiKeyInput.isNotBlank(),
                     icon = Icons.Outlined.Key,
                     modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                 )
                 DeckActionButton(
-                    label = if (state.testStatus == AiProviderTestStatus.Running) "Testing" else "Test key",
+                    label = if (state.testStatus == AiProviderTestStatus.Running) "Testing" else "Test API key",
                     onClick = onTest,
-                    enabled = state.hasSavedKey && state.premiumAllowed && state.testStatus != AiProviderTestStatus.Running,
+                    enabled = state.hasSavedKey && state.testStatus != AiProviderTestStatus.Running,
                     icon = Icons.Outlined.Science,
                     modifier = Modifier.weight(1f).heightIn(min = 56.dp),
-                )
-            }
-        }
-    }
-    item {
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp),
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(14.dp),
-            ) {
-                Icon(
-                    if (state.premiumAllowed) Icons.Outlined.CheckCircle else Icons.Outlined.ErrorOutline,
-                    contentDescription = null,
-                    tint = if (state.premiumAllowed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
-                    Text("AI access", style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        if (state.premiumAllowed) "AI Creator enabled" else "AI Creator unavailable",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                DeckActionButton(
-                    label = "Refresh",
-                    onClick = onRefreshEntitlement,
-                    modifier = Modifier.heightIn(min = 48.dp).weight(0.7f),
                 )
             }
         }
@@ -228,7 +181,6 @@ private fun AiProviderSummary(
                 )
                 Text(
                     when {
-                        !state.premiumAllowed -> "AI Creator is not enabled"
                         state.hasSavedKey -> "Encrypted key saved"
                         else -> "Save an API key before generating"
                     },

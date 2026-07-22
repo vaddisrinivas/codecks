@@ -20,11 +20,11 @@ fun codecksReadiness(
     val title = when {
         macReady && trackpadReady -> "Codecks ready"
         macReady -> "Deck ready · Trackpad offline"
-        trackpadReady -> "Trackpad ready · Mac commands offline"
+        trackpadReady -> "Trackpad ready · Mac controls offline"
         else -> "Finish Codecks setup"
     }
     val detail = buildList {
-        add(if (macReady) "Mac commands ready" else "Mac commands: ${connectionHealth.statusLabel()}")
+        add(if (macReady) "Mac controls ready" else "Mac controls: ${connectionHealth.statusLabel()}")
         add(if (trackpadReady) "Trackpad ready" else "Trackpad: ${hidHealth.statusLabel()}")
         add(if (aiReady) "AI ready" else "AI optional")
     }.joinToString(" · ")

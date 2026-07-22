@@ -76,7 +76,7 @@ class AutomationsViewModel @Inject constructor(
     fun toggle(recipeId: String, enabled: Boolean) {
         val recipe = recipes.firstOrNull { it.id == recipeId } ?: return
         if (enabled && !recipe.hasCurrentSuccessfulTest()) {
-            _uiState.update { it.copy(message = "Validate this automation successfully before enabling it") }
+            _uiState.update { it.copy(message = "Test this rule successfully before enabling it") }
             return
         }
         viewModelScope.launch {
@@ -141,7 +141,7 @@ class AutomationsViewModel @Inject constructor(
         val title = input.title.trim()
         val command = input.command.trim()
         if (title.isBlank()) {
-            _uiState.update { it.copy(message = "Name the automation first") }
+            _uiState.update { it.copy(message = "Name the rule first") }
             return
         }
         if (command.isBlank()) {
@@ -204,7 +204,7 @@ class AutomationsViewModel @Inject constructor(
 
     fun saveGeneratedDraft(draft: GeneratedDraft): Boolean {
         val recipe = aiGeneratedContentPlanner.automationRecipeFromDraft(draft).getOrElse { error ->
-            _uiState.update { it.copy(message = error.message ?: "Automation draft cannot be saved") }
+            _uiState.update { it.copy(message = error.message ?: "Rule draft cannot be saved") }
             return true
         } ?: return false
         viewModelScope.launch {
@@ -216,7 +216,7 @@ class AutomationsViewModel @Inject constructor(
 
     fun saveArtifact(artifact: AiArtifact): Boolean {
         val recipe = aiGeneratedContentPlanner.automationRecipeFromArtifact(artifact).getOrElse { error ->
-            _uiState.update { it.copy(message = error.message ?: "Automation artifact cannot be saved") }
+            _uiState.update { it.copy(message = error.message ?: "Rule draft cannot be saved") }
             return true
         } ?: return false
         viewModelScope.launch {
@@ -305,7 +305,7 @@ class AutomationsViewModel @Inject constructor(
             actionId = recipe.id,
             title = recipe.title,
             status = ActionResultStatus.Succeeded,
-            message = "Automation completed",
+            message = "Rule completed",
         )
         recipe.steps.forEach { step ->
             val result = actionRunner.run(step, allowDangerous = allowDangerous)
@@ -325,7 +325,7 @@ class AutomationsViewModel @Inject constructor(
                 actionId = recipe.id,
                 title = recipe.title,
                 status = ActionResultStatus.Failed,
-                message = "Recipe has no actions",
+                message = "Rule has no buttons",
             )
         }
         val blocked = recipe.steps.firstNotNullOfOrNull { step ->
@@ -345,7 +345,7 @@ class AutomationsViewModel @Inject constructor(
             actionId = recipe.id,
             title = recipe.title,
             status = ActionResultStatus.Succeeded,
-            message = "${recipe.title} dry run passed. ${recipe.steps.size} action(s) checked. No Mac command was executed.$suffix",
+            message = "${recipe.title} passed the safety check. ${recipe.steps.size} step(s) checked. No Mac command ran.$suffix",
         )
     }
 }

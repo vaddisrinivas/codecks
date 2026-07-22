@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.codecks.data.ConnectionConfig
 import io.codecks.data.ConnectionRepository
+import io.codecks.data.LanSshDiscovery
 import io.codecks.data.SshDiscovery
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,6 +39,7 @@ data class ConnectionUiState(
 class ConnectionViewModel @Inject constructor(
     private val connectionRepository: ConnectionRepository,
     private val sshDiscovery: SshDiscovery,
+    private val lanSshDiscovery: LanSshDiscovery = LanSshDiscovery(),
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ConnectionUiState())
     val uiState: StateFlow<ConnectionUiState> = _uiState.asStateFlow()
@@ -113,7 +115,7 @@ class ConnectionViewModel @Inject constructor(
                     it.copy(
                         operation = ConnectionOperation.Idle,
                         pendingFingerprint = message,
-                        message = "$message. Trust it only if this matches your Mac.",
+                        message = "$message. Confirm only if this is your Mac.",
                         error = null,
                     )
                 }
@@ -121,7 +123,7 @@ class ConnectionViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         operation = ConnectionOperation.Idle,
-                        error = error.message ?: "Could not verify Mac fingerprint",
+                        error = error.message ?: "Could not check this Mac",
                     )
                 }
             }
@@ -135,12 +137,12 @@ class ConnectionViewModel @Inject constructor(
                 it.copy(operation = ConnectionOperation.Verifying, message = null, error = null)
             }
             connectionRepository.confirmPendingHostKey()
-                .onSuccess { message ->
+                .onSuccess {
                     _uiState.update {
                         it.copy(
                             operation = ConnectionOperation.Idle,
                             pendingFingerprint = null,
-                            message = message,
+                            message = "Mac trusted. You can save this Mac now.",
                             error = null,
                         )
                     }
@@ -149,7 +151,7 @@ class ConnectionViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             operation = ConnectionOperation.Idle,
-                            error = error.message ?: "Could not trust Mac fingerprint",
+                            error = error.message ?: "Could not trust this Mac",
                         )
                     }
                 }
@@ -157,13 +159,33 @@ class ConnectionViewModel @Inject constructor(
     }
 
     fun scan() {
+        scanWith(
+            discovery = sshDiscovery,
+            emptyMessage = "No Mac advertising SSH found. Enter hostname/IP, or run local network scan.",
+            scanningMessage = null,
+        )
+    }
+
+    fun scanLocalNetwork() {
+        scanWith(
+            discovery = lanSshDiscovery,
+            emptyMessage = "No Macs found on this local network",
+            scanningMessage = "Checking this network for Macs. This may contact devices on your Wi‑Fi.",
+        )
+    }
+
+    private fun scanWith(
+        discovery: SshDiscovery,
+        emptyMessage: String,
+        scanningMessage: String?,
+    ) {
         if (_uiState.value.operation != ConnectionOperation.Idle) return
         viewModelScope.launch {
             _uiState.update {
-                it.copy(operation = ConnectionOperation.Scanning, message = null, error = null)
+                it.copy(operation = ConnectionOperation.Scanning, message = scanningMessage, error = null)
             }
             val port = _uiState.value.port.toIntOrNull() ?: 22
-            val hosts = runCatching { sshDiscovery.scan(port) }
+            val hosts = runCatching { discovery.scan(port) }
                 .onFailure { error ->
                     _uiState.update { it.copy(error = error.message ?: "Could not scan this network") }
                 }
@@ -174,9 +196,9 @@ class ConnectionViewModel @Inject constructor(
                     host = state.host.ifBlank { hosts.singleOrNull().orEmpty() },
                     operation = ConnectionOperation.Idle,
                     message = when {
-                        hosts.isEmpty() -> "No Mac with Remote Login found"
+                        hosts.isEmpty() -> emptyMessage
                         hosts.size == 1 -> "Mac found"
-                        else -> "${hosts.size} compatible devices found"
+                        else -> "${hosts.size} Macs found"
                     },
                 )
             }
@@ -273,12 +295,12 @@ class ConnectionViewModel @Inject constructor(
                 it.copy(operation = ConnectionOperation.Verifying, message = null, error = null)
             }
             connectionRepository.resetTrust()
-                .onSuccess { message ->
+                .onSuccess {
                     _uiState.update {
                         it.copy(
                             operation = ConnectionOperation.Idle,
                             pendingFingerprint = null,
-                            message = message,
+                            message = "Mac trust reset. Trust this Mac again before running controls.",
                             error = null,
                         )
                     }
@@ -287,7 +309,7 @@ class ConnectionViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             operation = ConnectionOperation.Idle,
-                            error = error.message ?: "Could not reset Mac fingerprint",
+                            error = error.message ?: "Could not reset Mac trust",
                         )
                     }
                 }

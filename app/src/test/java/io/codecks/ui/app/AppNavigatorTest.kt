@@ -6,10 +6,12 @@ import io.codecks.navigation.AiBuilderRoute
 import io.codecks.navigation.AiProviderRoute
 import io.codecks.navigation.AutomationsRoute
 import io.codecks.navigation.ClipboardRoute
+import io.codecks.navigation.CommandPaletteRoute
 import io.codecks.navigation.EditorRoute
 import io.codecks.navigation.HomeRoute
 import io.codecks.navigation.KeyboardRoute
 import io.codecks.navigation.MouseRoute
+import io.codecks.navigation.RunLogRoute
 import io.codecks.navigation.SettingsRoute
 import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
@@ -110,6 +112,16 @@ class AppNavigatorTest {
 
         assertFalse(routeEnabled(DeletedRoute, enabled))
         assertEquals(SettingsRoute, guardRoute(DeletedRoute, enabled))
+    }
+
+    @Test
+    fun launchRouteForRestoredTop_dropsTransientScreens() {
+        listOf(EditorRoute, RunLogRoute, CommandPaletteRoute, AiProviderRoute).forEach { route ->
+            assertEquals(HomeRoute, launchRouteForRestoredTop(route))
+        }
+        listOf(HomeRoute, MouseRoute, KeyboardRoute, ClipboardRoute, AutomationsRoute, AiBuilderRoute, SettingsRoute).forEach { route ->
+            assertEquals(route, launchRouteForRestoredTop(route))
+        }
     }
 }
 
