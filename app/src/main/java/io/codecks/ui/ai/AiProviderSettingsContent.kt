@@ -73,7 +73,7 @@ internal fun LazyListScope.aiProviderSettingsItems(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
             ) {
                 state.selectedProvider.models.forEach { model ->
-                    val modelEnabled = state.draftKind == DraftKind.ContextApps || model.supportsStructuredDrafts
+                    val modelEnabled = model.supportsStructuredDrafts
                     DeckFilterPill(
                         label = if (modelEnabled) model.label else "${model.label} · draft unavailable",
                         selected = state.selectedModelId == model.id,

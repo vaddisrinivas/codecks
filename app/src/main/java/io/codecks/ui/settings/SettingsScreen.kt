@@ -320,7 +320,7 @@ fun SettingsScreen(
                         )
                     }
                 }
-                if (featureFlags.isOn(FeatureFlag.ContextDeck)) {
+                if (featureFlags.isOn(FeatureFlag.SmartDeck)) {
                     item { SectionLabel("Notification privacy") }
                     item {
                         SettingsRow(
@@ -1373,7 +1373,7 @@ private fun SetupChecklist(
             statusLabel = hidHealth.statusLabel(),
             onClick = onBluetooth,
         )
-        if (featureFlags.isOn(FeatureFlag.ContextDeck)) {
+        if (featureFlags.isOn(FeatureFlag.SmartDeck)) {
             SetupRow(
                 title = "Notification access",
                 summary = if (notificationAccessReady) {
@@ -1467,7 +1467,15 @@ private fun FeatureFlagPanel(
             add(FlagSpec(FeatureFlag.Clipboard, "Clipboard controls", "Clipboard surface and sync settings", Icons.Outlined.ContentPaste))
             add(FlagSpec(FeatureFlag.Labs, "Labs", "Experimental inputs stay hidden unless enabled", Icons.Outlined.Terminal))
             if (labsEnabled) {
-                add(FlagSpec(FeatureFlag.ContextDeck, "Labs: context signals", "Experimental notification privacy and local context lanes", Icons.Outlined.AutoAwesome))
+                add(FlagSpec(FeatureFlag.SmartSuggestions, "Smart suggestions", "Local deterministic suggestions; no AI ranking", Icons.Outlined.AutoAwesome))
+                add(FlagSpec(FeatureFlag.SmartDeck, "Smart Deck", "Temporary Deck suggestion row", Icons.Outlined.GridView))
+                add(FlagSpec(FeatureFlag.SmartKeyboard, "Smart Keyboard", "Future keyboard suggestions", Icons.Outlined.Keyboard))
+                add(FlagSpec(FeatureFlag.SmartClipboard, "Smart Clipboard", "Future clipboard classification", Icons.Outlined.ContentPaste))
+                add(FlagSpec(FeatureFlag.SmartRules, "Smart Rules", "Future rule drafts", Icons.Outlined.Psychology))
+                add(FlagSpec(FeatureFlag.SmartSettings, "Smart Settings", "Future settings recommendations", Icons.Outlined.Settings))
+                add(FlagSpec(FeatureFlag.SmartTrackpadSuggest, "Smart Trackpad suggest", "Future trackpad destination hints", Icons.Outlined.Mouse))
+                add(FlagSpec(FeatureFlag.SmartTrackpadSnap, "Smart Trackpad snap", "Future optional pointer snap", Icons.Outlined.Mouse))
+                add(FlagSpec(FeatureFlag.SmartOcr, "Smart OCR", "Future local OCR fallback", Icons.Outlined.Search))
                 add(FlagSpec(FeatureFlag.LabAirMouse, "Labs: Air mouse", "Tilt phone to move pointer", Icons.Outlined.Mouse))
                 add(FlagSpec(FeatureFlag.LabAirTouch, "Labs: S Pen air touch", "Experimental fake-monitor calibration", Icons.Outlined.Mouse))
                 add(FlagSpec(FeatureFlag.LabBackTap, "Labs: back tap", "Device back tap can click", Icons.Outlined.Mouse))

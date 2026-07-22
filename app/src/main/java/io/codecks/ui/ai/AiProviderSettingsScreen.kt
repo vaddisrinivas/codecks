@@ -236,14 +236,7 @@ fun AiProviderSettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val providerSettingsOpen = mode == AiWorkspaceMode.ProviderSettings
-    val draftKinds = remember(contextAppsEnabled) {
-        DraftKind.entries.filter { contextAppsEnabled || it != DraftKind.ContextApps }
-    }
-    LaunchedEffect(contextAppsEnabled, state.draftKind) {
-        if (!contextAppsEnabled && state.draftKind == DraftKind.ContextApps) {
-            onDraftKindChanged(DraftKind.Action)
-        }
-    }
+    val draftKinds = remember { DraftKind.entries }
     val currentArtifact = state.generatedArtifactId
         ?.let { id -> state.artifacts.firstOrNull { it.id == id } }
     val previousArtifacts = state.artifacts.filterNot { it.id == currentArtifact?.id }

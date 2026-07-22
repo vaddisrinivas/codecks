@@ -796,7 +796,6 @@ private val DraftKind.label: String
         DraftKind.Action -> "Button"
         DraftKind.Deck -> "Deck"
         DraftKind.Automation -> "Rule"
-        DraftKind.ContextApps -> "Context apps"
     }
 
 private val DraftKind.skillLabel: String
@@ -804,7 +803,6 @@ private val DraftKind.skillLabel: String
         DraftKind.Action -> "Button"
         DraftKind.Deck -> "Deck"
         DraftKind.Automation -> "Rule"
-        DraftKind.ContextApps -> "Context"
     }
 
 private val DraftKind.skillDescription: String
@@ -812,7 +810,6 @@ private val DraftKind.skillDescription: String
         DraftKind.Action -> "Create one safe Deck button from a plain-English task."
         DraftKind.Deck -> "Create a grouped Deck of related buttons."
         DraftKind.Automation -> "Create a disabled rule from a task."
-        DraftKind.ContextApps -> "Suggest context-aware app/action lanes from local signals."
     }
 
 private val DraftKind.placeholder: String
@@ -820,5 +817,4 @@ private val DraftKind.placeholder: String
         DraftKind.Action -> "Open Linear and start my daily standup note"
         DraftKind.Deck -> "Build a coding deck with browser, terminal, GitHub, music, and focus controls"
         DraftKind.Automation -> "When I start a meeting, open notes, calendar, and mute media"
-        DraftKind.ContextApps -> "Suggest the best phone apps for my current work context"
     }

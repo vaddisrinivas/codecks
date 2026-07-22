@@ -65,24 +65,19 @@ import io.codecks.domain.ActionKind
 import io.codecks.domain.ActionStatus
 import io.codecks.domain.DeckAction
 import io.codecks.data.ai.AndroidSecureApiKeyStore
-import io.codecks.data.ai.AiProviderFactory
 import io.codecks.data.clipboard.ClipboardSettingsRepository
 import io.codecks.data.clipboard.ClipboardSyncSettings
 import io.codecks.data.ConnectionRepository
 import io.codecks.data.CodecksBackupRepository
 import io.codecks.data.features.LocalFeatureFlagRepository
-import io.codecks.data.context.ContextAppInventory
-import io.codecks.data.context.ContextAppRankingGate
-import io.codecks.data.context.DeviceSurfaceContextSource
-import io.codecks.data.context.UsageStatsContextSource
 import io.codecks.data.context.NotificationPreview
 import io.codecks.data.context.ContextFeatureStatus
 import io.codecks.data.context.NotificationPrivacySettings
 import io.codecks.data.context.NotificationPrivacySettingsRepository
 import io.codecks.data.context.PhoneNotificationBackplane
+import io.codecks.data.smart.SmartContextRepository
+import io.codecks.data.smart.SmartLearningStore
 import io.codecks.domain.ai.AiProviderCatalog
-import io.codecks.domain.ai.DraftKind
-import io.codecks.domain.ai.DraftRequest
 import io.codecks.domain.clipboard.ClipboardSyncMode
 import io.codecks.navigation.AutomationsRoute
 import io.codecks.navigation.ClipboardRoute
@@ -116,6 +111,7 @@ import io.codecks.ui.clipboard.ClipboardViewModel
 import io.codecks.ui.editor.DeckEditorScreen
 import io.codecks.ui.home.HomeScreen
 import io.codecks.ui.home.HomeViewModel
+import io.codecks.ui.home.SmartDeckSuggestionUi
 import io.codecks.ui.keyboard.KeyboardScreen
 import io.codecks.ui.keyboard.KeyboardViewModel
 import io.codecks.ui.mouse.MouseScreen
@@ -143,16 +139,11 @@ import io.codecks.domain.features.FeatureFlag
 import io.codecks.domain.features.FeatureFlaggedEntitlementRepository
 import io.codecks.domain.features.DEFAULT_FEATURE_FLAGS
 import io.codecks.domain.features.LocalOnlyEntitlementRepository
-import io.codecks.domain.context.AiContextRanker
-import io.codecks.domain.context.ContextApp
-import io.codecks.domain.context.ContextAppPromptBuilder
-import io.codecks.domain.context.ContextAppRanker
-import io.codecks.domain.context.ContextAppSuggestionParser
-import io.codecks.domain.context.ContextDeckTileRanker
-import io.codecks.domain.context.RankedContextApp
-import io.codecks.domain.context.RecentContextApp
-import io.codecks.domain.context.SurfaceContext
-import io.codecks.domain.context.UserContextSnapshot
+import io.codecks.domain.smart.DeterministicSmartEngine
+import io.codecks.domain.smart.SmartActionRef
+import io.codecks.domain.smart.SmartConfidenceLabel
+import io.codecks.domain.smart.SmartFeedback
+import io.codecks.domain.smart.SmartFeedbackType
 import io.codecks.domain.privacy.DiagnosticRedactor
 import io.codecks.BuildConfig
 import javax.inject.Inject
@@ -160,9 +151,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.withContext
-
-private const val CONTEXT_APP_RANK_INTERVAL_MS = 15 * 60 * 1000L
-private const val CONTEXT_APP_RANK_MODEL_ID = "gpt-5.5"
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -317,10 +305,10 @@ private fun CodecksApp(
     }
     val featureFlagRepository = remember(appContext) { LocalFeatureFlagRepository(appContext) }
     val featureFlags by featureFlagRepository.flags.collectAsStateWithLifecycle(initialValue = emptyMap())
-    val contextFeaturesEnabled =
-        featureFlags.focusedEnabled(FeatureFlag.Labs) && featureFlags.focusedEnabled(FeatureFlag.ContextDeck)
-    val phoneNotificationFlow = remember(contextFeaturesEnabled) {
-        if (contextFeaturesEnabled) {
+    val smartDeckEnabled =
+        featureFlags.focusedEnabled(FeatureFlag.SmartSuggestions) && featureFlags.focusedEnabled(FeatureFlag.SmartDeck)
+    val phoneNotificationFlow = remember(smartDeckEnabled) {
+        if (smartDeckEnabled) {
             PhoneNotificationBackplane.notifications
         } else {
             flowOf(emptyList<NotificationPreview>())
@@ -389,9 +377,9 @@ private fun CodecksApp(
     val notificationPrivacySettings by notificationPrivacySettingsRepository.settings.collectAsStateWithLifecycle(
         initialValue = NotificationPrivacySettings(),
     )
-    LaunchedEffect(notificationPrivacySettings, contextFeaturesEnabled) {
+    LaunchedEffect(notificationPrivacySettings, smartDeckEnabled) {
         PhoneNotificationBackplane.updatePrivacySettings(
-            if (contextFeaturesEnabled) {
+            if (smartDeckEnabled) {
                 notificationPrivacySettings
             } else {
                 NotificationPrivacySettings(showOnTrackpad = false)
@@ -413,12 +401,12 @@ private fun CodecksApp(
         bluetoothPermissionRefresh += 1
         if (it) hidRepository.start()
     }
-    val notificationAccessReady = contextFeaturesEnabled && PhoneNotificationBackplane.isEnabled(appContext)
+    val notificationAccessReady = smartDeckEnabled && PhoneNotificationBackplane.isEnabled(appContext)
     val contextFeatureStatus = ContextFeatureStatus(
         compiledIntoBuild = true,
         componentEnabled = BuildConfig.OPTIONAL_CONTEXT_SURFACES_ENABLED,
         specialAccessGranted = PhoneNotificationBackplane.isEnabled(appContext),
-        runtimeFeatureEnabled = contextFeaturesEnabled,
+        runtimeFeatureEnabled = smartDeckEnabled,
         privacyLaneEnabled = notificationPrivacySettings.showOnTrackpad,
         allowedPackageCount = notificationPrivacySettings.allowedPackages.size,
     )
@@ -434,189 +422,58 @@ private fun CodecksApp(
     val visibleDeckSlots = homeState.actions.withIndex().filter { it.value.visibleForFlags(featureFlags) }
     val visibleDeckActions = visibleDeckSlots.map { it.value }
     val customRowActions = visibleDeckActions.filterNot { it.id in setOf("blank", "add_button") }
-    var launchableApps by remember { mutableStateOf<List<ContextApp>>(emptyList()) }
-    var recentUsageApps by remember { mutableStateOf<List<RecentContextApp>>(emptyList()) }
-    var surfaceContext by remember { mutableStateOf(SurfaceContext()) }
-    var contextScheduleTick by remember { mutableStateOf(0) }
-    LaunchedEffect(contextFeaturesEnabled) {
-        if (!contextFeaturesEnabled) return@LaunchedEffect
-        while (true) {
-            delay(CONTEXT_APP_RANK_INTERVAL_MS)
-            contextScheduleTick += 1
+    val smartContextRepository = remember(appContext) { SmartContextRepository(appContext) }
+    val smartLearningStore = remember(appContext) { SmartLearningStore(appContext) }
+    val smartEngine = remember { DeterministicSmartEngine() }
+    var smartRefreshTick by remember { mutableIntStateOf(0) }
+    var hiddenSmartCandidateIds by remember { mutableStateOf(emptySet<String>()) }
+    var neverSmartKeys by remember { mutableStateOf(emptySet<String>()) }
+    val smartContext = remember(
+        smartDeckEnabled,
+        currentRoute,
+        connectionState.config,
+        homeState.activeMacApp,
+        homeState.connectionReady,
+        homeState.activity,
+        phoneNotifications,
+        smartRefreshTick,
+    ) {
+        if (!smartDeckEnabled || currentRoute != HomeRoute) {
+            null
+        } else {
+            smartContextRepository.current(
+                currentSurface = currentRoute.title(),
+                selectedMacId = "${connectionState.config.user}@${connectionState.config.host}:${connectionState.config.port}",
+                macConnected = homeState.connectionReady,
+                activeMacApp = homeState.activeMacApp,
+                recentActionIds = homeState.activity.filter { it.succeeded }.map { it.actionId },
+                notificationSourceKeys = phoneNotifications.map { it.source },
+            )
         }
     }
-    LaunchedEffect(appContext, contextScheduleTick, contextFeaturesEnabled) {
-        if (!contextFeaturesEnabled) return@LaunchedEffect
-        val surface = DeviceSurfaceContextSource(appContext).current()
-        surfaceContext = SurfaceContext(
-            label = surface.label,
-            desktopMode = surface.kind.name == "Desktop",
-            externalDisplayConnected = surface.externalDisplayConnected,
-            keyboardConnected = surface.keyboardConnected,
-            pointerConnected = surface.pointerConnected,
+    val smartSuggestions = remember(smartContext, homeState.allActions, visibleDeckActions, hiddenSmartCandidateIds, neverSmartKeys, smartRefreshTick) {
+        val context = smartContext ?: return@remember emptyList()
+        val visibleIds = visibleDeckActions.map(DeckAction::id).toSet()
+        val actionById = homeState.allActions.associateBy(DeckAction::id)
+        val storedFeedback = smartLearningStore.summary()
+        val feedback = storedFeedback.copy(
+            hiddenCandidateIds = storedFeedback.hiddenCandidateIds + hiddenSmartCandidateIds,
+            neverAppActionKeys = storedFeedback.neverAppActionKeys + neverSmartKeys,
         )
-    }
-    val contextSnapshot = remember(contextFeaturesEnabled, homeState.activeMacApp, homeState.connectionReady, phoneNotifications, recentUsageApps, surfaceContext, contextScheduleTick) {
-        if (contextFeaturesEnabled) {
-            UserContextSnapshot(
-                activeMacApp = homeState.activeMacApp,
-                macConnected = homeState.connectionReady,
-                notificationSources = phoneNotifications.map { it.source },
-                recentApps = recentUsageApps,
-                surface = surfaceContext,
-                hourOfDay = LocalDateTime.now().hour,
+        smartEngine.suggest(
+            context = context,
+            actions = homeState.allActions
+                .filterNot { it.id in visibleIds }
+                .map(DeckAction::toSmartActionRef),
+            feedback = feedback,
+        ).candidates.mapNotNull { candidate ->
+            val action = candidate.actionId?.let(actionById::get) ?: return@mapNotNull null
+            SmartDeckSuggestionUi(
+                candidateId = candidate.id,
+                action = action,
+                reason = candidate.reason,
+                confidence = candidate.confidenceLabel.productLabel(),
             )
-        } else {
-            UserContextSnapshot(
-                activeMacApp = homeState.activeMacApp,
-                macConnected = homeState.connectionReady,
-                notificationSources = emptyList(),
-                recentApps = emptyList(),
-                surface = SurfaceContext(),
-                hourOfDay = LocalDateTime.now().hour,
-            )
-        }
-    }
-    val contextRankedActions = remember(contextFeaturesEnabled, contextSnapshot, visibleDeckActions, homeState.allActions) {
-        if (contextFeaturesEnabled) {
-            AiContextRanker.rank(
-                snapshot = contextSnapshot,
-                actions = (visibleDeckActions + homeState.allActions).distinctBy { it.id },
-            )
-        } else {
-            emptyList()
-        }
-    }
-    var aiRankedApps by remember { mutableStateOf<List<RankedContextApp>?>(null) }
-    var contextAppStatus by remember { mutableStateOf("Local ranking ready") }
-    LaunchedEffect(appContext, contextFeaturesEnabled) {
-        if (!contextFeaturesEnabled) {
-            launchableApps = emptyList()
-            return@LaunchedEffect
-        }
-        while (true) {
-            launchableApps = withContext(Dispatchers.IO) {
-                ContextAppInventory(appContext).launchableApps()
-            }
-            delay(CONTEXT_APP_RANK_INTERVAL_MS)
-        }
-    }
-    LaunchedEffect(appContext, launchableApps, contextFeaturesEnabled) {
-        if (!contextFeaturesEnabled) {
-            recentUsageApps = emptyList()
-            return@LaunchedEffect
-        }
-        while (true) {
-            recentUsageApps = withContext(Dispatchers.IO) {
-                UsageStatsContextSource(appContext).recentApps(launchableApps)
-            }
-            delay(CONTEXT_APP_RANK_INTERVAL_MS)
-        }
-    }
-    val fallbackRankedApps = remember(contextFeaturesEnabled, contextSnapshot, launchableApps) {
-        if (contextFeaturesEnabled) {
-            ContextAppRanker.rank(contextSnapshot, launchableApps)
-        } else {
-            emptyList()
-        }
-    }
-    val contextAppPrompt = remember(contextFeaturesEnabled, contextSnapshot, launchableApps) {
-        if (contextFeaturesEnabled) {
-            ContextAppPromptBuilder.build(contextSnapshot, launchableApps)
-        } else {
-            ""
-        }
-    }
-    val explainableAppPackages = remember(fallbackRankedApps) {
-        fallbackRankedApps.map { it.app.packageName }.toSet()
-    }
-    val safeAiRankedApps = remember(aiRankedApps, explainableAppPackages) {
-        aiRankedApps
-            ?.filter { it.app.packageName in explainableAppPackages }
-            .orEmpty()
-    }
-    val contextRankedApps = if (contextFeaturesEnabled) {
-        safeAiRankedApps.takeIf { it.isNotEmpty() } ?: fallbackRankedApps
-    } else {
-        emptyList()
-    }
-    val contextDeckTiles = remember(contextFeaturesEnabled, contextSnapshot, launchableApps, visibleDeckActions, homeState.allActions) {
-        if (contextFeaturesEnabled) {
-            ContextDeckTileRanker.rank(
-                snapshot = contextSnapshot,
-                apps = launchableApps,
-                actions = (visibleDeckActions + homeState.allActions).distinctBy { it.id },
-            )
-        } else {
-            emptyList()
-        }
-    }
-    LaunchedEffect(contextAppPrompt, launchableApps, fallbackRankedApps, aiProviderReady, contextFeaturesEnabled) {
-        if (!contextFeaturesEnabled) {
-            aiRankedApps = null
-            contextAppStatus = "Context Deck is off"
-            return@LaunchedEffect
-        }
-        if (launchableApps.isEmpty()) {
-            contextAppStatus = "Collecting installed apps…"
-            return@LaunchedEffect
-        }
-        if (!aiProviderReady) {
-            aiRankedApps = null
-            contextAppStatus = "Schedule ranking active • local until AI key is added"
-            return@LaunchedEffect
-        }
-        while (true) {
-            val gate = ContextAppRankingGate(appContext).evaluate()
-            if (!gate.allowed) {
-                aiRankedApps = null
-                contextAppStatus = "${gate.reason} • next check in 15 min"
-                delay(CONTEXT_APP_RANK_INTERVAL_MS)
-                continue
-            }
-            contextAppStatus = "Scheduled AI app ranking with GPT-5.5…"
-            val keyStore = AndroidSecureApiKeyStore(appContext)
-            val providerSpec = AiProviderCatalog.all.firstOrNull { spec ->
-                spec.models.any { it.id == CONTEXT_APP_RANK_MODEL_ID } && keyStore.hasKey(spec.providerId)
-            }
-            if (providerSpec == null) {
-                aiRankedApps = null
-                contextAppStatus = "Schedule ranking active • local until an AI key is added"
-            } else {
-                val result = runCatching {
-                    withContext(Dispatchers.IO) {
-                        val provider = AiProviderFactory(
-                            keyStore = keyStore,
-                            liteLlmBaseUrl = BuildConfig.LITELLM_BASE_URL,
-                        ).create(providerSpec.providerId)
-                        val raw = provider.draftAction(
-                            DraftRequest(
-                                prompt = contextAppPrompt,
-                                modelId = CONTEXT_APP_RANK_MODEL_ID,
-                                draftKind = DraftKind.ContextApps,
-                            ),
-                        ).getOrThrow()
-                        val locallyExplainedPackages = fallbackRankedApps.map { it.app.packageName }.toSet()
-                        ContextAppSuggestionParser.parse(raw.json, launchableApps)
-                            .filter { it.app.packageName in locallyExplainedPackages }
-                            .take(8)
-                    }
-                }
-                result
-                    .onSuccess { ranked ->
-                        aiRankedApps = ranked
-                        contextAppStatus = if (ranked.isEmpty()) {
-                            "Scheduled AI had no locally explainable app matches • using local"
-                        } else {
-                            "Scheduled AI ranked ${ranked.size} apps"
-                        }
-                    }
-                    .onFailure { error ->
-                        aiRankedApps = null
-                        contextAppStatus = "${error.message ?: "AI app ranking failed"} • using local"
-                    }
-            }
-            delay(CONTEXT_APP_RANK_INTERVAL_MS)
         }
     }
     val localOnlyV1 = BuildConfig.LOCAL_ONLY_V1
@@ -636,9 +493,7 @@ private fun CodecksApp(
     LaunchedEffect(currentRoute) {
         val keyStore = AndroidSecureApiKeyStore(appContext)
         aiProviderReady = runCatching {
-            AiProviderCatalog.all.any { spec ->
-                spec.models.any { it.id == CONTEXT_APP_RANK_MODEL_ID } && keyStore.hasKey(spec.providerId)
-            }
+            AiProviderCatalog.all.any { spec -> keyStore.hasKey(spec.providerId) }
         }.getOrDefault(false)
     }
     DisposableEffect(currentRoute, hidState.isConnected) {
@@ -660,6 +515,23 @@ private fun CodecksApp(
 
     fun openTrackpad() {
         navigate(MouseRoute, topLevel = true)
+    }
+
+    fun recordSmartFeedback(suggestion: SmartDeckSuggestionUi, type: SmartFeedbackType) {
+        val context = smartContext ?: return
+        val appKey = context.activeMacApp?.lowercase()?.replace(Regex("[^a-z0-9._:-]+"), "_")?.trim('_')
+        val feedback = SmartFeedback(
+            candidateId = suggestion.candidateId,
+            actionId = suggestion.action.id,
+            appKey = appKey,
+            type = type,
+            success = null,
+            coarseHourBucket = context.hourBucket,
+            contextKeys = context.sanitizedKeys(),
+            atMillis = System.currentTimeMillis(),
+        )
+        smartLearningStore.record(feedback)
+        smartRefreshTick += 1
     }
 
     LaunchedEffect(featureFlags, currentRoute) {
@@ -875,6 +747,33 @@ private fun CodecksApp(
                                 runLogActionFilter = actionId
                                 navigate(RunLogRoute)
                             },
+                            smartSuggestions = smartSuggestions,
+                            onRunSmartSuggestion = { suggestion ->
+                                recordSmartFeedback(suggestion, SmartFeedbackType.Run)
+                                handleAction(suggestion.action)
+                            },
+                            onPinSmartSuggestion = { suggestion ->
+                                recordSmartFeedback(suggestion, SmartFeedbackType.Pin)
+                                homeViewModel.pinAction(suggestion.action)
+                            },
+                            onHideSmartSuggestion = { suggestion ->
+                                hiddenSmartCandidateIds = hiddenSmartCandidateIds + suggestion.candidateId
+                                recordSmartFeedback(suggestion, SmartFeedbackType.Hide)
+                            },
+                            onExplainSmartSuggestion = { suggestion ->
+                                recordSmartFeedback(suggestion, SmartFeedbackType.Why)
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("${suggestion.confidence}: ${suggestion.reason}")
+                                }
+                            },
+                            onNeverSmartSuggestionForApp = { suggestion ->
+                                val context = smartContext
+                                val appKey = context?.activeMacApp?.lowercase()?.replace(Regex("[^a-z0-9._:-]+"), "_")?.trim('_')
+                                if (!appKey.isNullOrBlank()) {
+                                    neverSmartKeys = neverSmartKeys + "$appKey:${suggestion.action.id}"
+                                }
+                                recordSmartFeedback(suggestion, SmartFeedbackType.NeverForApp)
+                            },
                             focusedActionId = focusedDeckActionId,
                             deckStyle = themeSettings.deckStyle,
                         )
@@ -910,7 +809,7 @@ private fun CodecksApp(
                                 phoneNotifications = phoneNotifications,
                                 laptopNotifications = laptopNotifications,
                                 phoneNotificationAccessReady = notificationAccessReady,
-                                phoneNotificationLaneEnabled = contextFeaturesEnabled && notificationPrivacySettings.showOnTrackpad,
+                                phoneNotificationLaneEnabled = smartDeckEnabled && notificationPrivacySettings.showOnTrackpad,
                                 onOpenNotificationSettings = {
                                     appContext.startActivity(
                                         Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
@@ -1161,7 +1060,7 @@ private fun CodecksApp(
                                 focusedDeckActionId = actionId
                                 navigate(HomeRoute)
                             },
-                            contextAppsEnabled = contextFeaturesEnabled,
+                            contextAppsEnabled = smartDeckEnabled,
                             onSaveDraft = { draft ->
                                 if (!automationsViewModel.saveGeneratedDraft(draft)) {
                                     homeViewModel.saveGeneratedDraft(draft)
@@ -1199,7 +1098,7 @@ private fun CodecksApp(
                                 focusedDeckActionId = actionId
                                 navigate(HomeRoute)
                             },
-                            contextAppsEnabled = contextFeaturesEnabled,
+                            contextAppsEnabled = smartDeckEnabled,
                         )
                     }
                 },
@@ -1291,6 +1190,24 @@ private fun KeyboardDestination(
 }
 
 private fun shellQuote(value: String): String = "'${value.replace("'", "'\"'\"'")}'"
+
+private fun DeckAction.toSmartActionRef(): SmartActionRef =
+    SmartActionRef(
+        id = id,
+        title = label,
+        description = description,
+        commandType = kind.name,
+        route = route,
+        requiresMac = kind == ActionKind.Ssh,
+        dangerous = dangerous,
+    )
+
+private fun SmartConfidenceLabel.productLabel(): String =
+    when (this) {
+        SmartConfidenceLabel.VeryLikely -> "Very likely"
+        SmartConfidenceLabel.Likely -> "Likely"
+        SmartConfidenceLabel.Possible -> "Possible"
+    }
 
 private fun shareDebugBundle(
     context: Context,

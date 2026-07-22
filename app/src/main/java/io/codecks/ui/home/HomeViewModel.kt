@@ -337,6 +337,35 @@ class HomeViewModel @Inject constructor(
         updateCustomDeck(favoriteLayout.replacingAction(slot, copy).resizing(slot, 1), listOf(copy), pendingUndo = null)
     }
 
+    fun pinAction(action: DeckAction) {
+        val currentActions = favoriteLayout.actions
+        if (currentActions.any { it.id == action.id }) {
+            _uiState.update {
+                it.copy(
+                    actionStatus = ActionStatus.Succeeded(action.id, "${action.label} is already pinned"),
+                    activity = listOf(ActionEvent(action.id, "Smart Deck", "${action.label} is already pinned", true)) + it.activity.take(49),
+                )
+            }
+            return
+        }
+        val slot = currentActions.firstOpenDeckSlot()
+        if (slot == null) {
+            reportDeckFull("Smart Deck", "Deck is full. Empty a slot before pinning ${action.label}.")
+            return
+        }
+        val next = favoriteLayout.replacingAction(slot, action).resizing(slot, 1)
+        updateCustomDeck(next, listOf(action), pendingUndo = null)
+        viewModelScope.launch {
+            actionRepository.saveLayout(next)
+            _uiState.update {
+                it.copy(
+                    actionStatus = ActionStatus.Succeeded(action.id, "${action.label} pinned"),
+                    activity = listOf(ActionEvent(action.id, "Smart Deck", "${action.label} pinned", true)) + it.activity.take(49),
+                )
+            }
+        }
+    }
+
     fun saveDeck() {
         viewModelScope.launch {
             actionRepository.saveLayout(favoriteLayout)

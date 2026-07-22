@@ -123,7 +123,15 @@ val validateReleaseSurface by tasks.registering {
                 add("Optional context surfaces must default disabled")
             }
             listOf(
-                "FeatureFlag.ContextDeck to false",
+                "FeatureFlag.SmartSuggestions to false",
+                "FeatureFlag.SmartDeck to false",
+                "FeatureFlag.SmartKeyboard to false",
+                "FeatureFlag.SmartClipboard to false",
+                "FeatureFlag.SmartRules to false",
+                "FeatureFlag.SmartSettings to false",
+                "FeatureFlag.SmartTrackpadSuggest to false",
+                "FeatureFlag.SmartTrackpadSnap to false",
+                "FeatureFlag.SmartOcr to false",
                 "FeatureFlag.Labs to false",
             ).filterNot { it in featureDefaults }.forEach { expectedDefault ->
                 add("Local-only feature default must remain release-off: $expectedDefault")
@@ -161,8 +169,8 @@ android {
         applicationId = "app.codecks"
         minSdk = 28
         targetSdk = 37
-        versionCode = 14
-        versionName = "0.1.13"
+        versionCode = 15
+        versionName = "0.1.14"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["optionalContextSurfacesEnabled"] = optionalContextSurfacesEnabled.get()

@@ -44,7 +44,8 @@ class AppNavigatorTest {
             FeatureFlag.Automations to false,
             FeatureFlag.Ai to false,
             FeatureFlag.AiBuilder to false,
-            FeatureFlag.ContextDeck to false,
+            FeatureFlag.SmartSuggestions to false,
+            FeatureFlag.SmartDeck to false,
             FeatureFlag.Keyboard to false,
             FeatureFlag.Clipboard to false,
         )
@@ -82,7 +83,15 @@ class AppNavigatorTest {
     @Test
     fun defaultFlags_keepNonCoreLaunchPagesOff() {
         listOf(
-            FeatureFlag.ContextDeck,
+            FeatureFlag.SmartSuggestions,
+            FeatureFlag.SmartDeck,
+            FeatureFlag.SmartKeyboard,
+            FeatureFlag.SmartClipboard,
+            FeatureFlag.SmartRules,
+            FeatureFlag.SmartSettings,
+            FeatureFlag.SmartTrackpadSuggest,
+            FeatureFlag.SmartTrackpadSnap,
+            FeatureFlag.SmartOcr,
             FeatureFlag.Labs,
         ).forEach { flag ->
             assertFalse("$flag should stay behind a flag", DEFAULT_FEATURE_FLAGS[flag] == true)
@@ -107,7 +116,8 @@ class AppNavigatorTest {
     @Test
     fun guardRoute_keepsDeletedSurfacesBlockedEvenWhenTheirFlagsAreOn() {
         val enabled = DEFAULT_FEATURE_FLAGS + mapOf(
-            FeatureFlag.ContextDeck to true,
+            FeatureFlag.SmartSuggestions to true,
+            FeatureFlag.SmartDeck to true,
         )
 
         assertFalse(routeEnabled(DeletedRoute, enabled))

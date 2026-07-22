@@ -247,7 +247,7 @@ class AiProviderSettingsController(
                 _uiState.update { it.copy(message = "Save an API key before generating") }
                 return@launch
             }
-            if (state.draftKind != DraftKind.ContextApps && !state.selectedModel.supportsStructuredDrafts) {
+            if (!state.selectedModel.supportsStructuredDrafts) {
                 _uiState.update {
                     it.copy(message = "${state.selectedModel.label} cannot create Codecks drafts. Choose another model.")
                 }

@@ -291,7 +291,7 @@ class AiProviderContractTest {
         val provider = GeminiProvider(keyStore, httpClient)
 
         provider.test().getOrThrow()
-        provider.draftAction(DraftRequest("rank apps", "gemini-2.5-flash", DraftKind.ContextApps)).getOrThrow()
+        provider.draftAction(DraftRequest("make action", "gemini-2.5-flash")).getOrThrow()
 
         assertFalse(httpClient.requests.first().url.contains("key="))
         assertEquals("secret", httpClient.requests.first().headers["x-goog-api-key"])

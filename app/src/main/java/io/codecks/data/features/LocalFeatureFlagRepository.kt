@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 private const val PREFS_NAME = "codecks.features"
 private const val KEY_FEATURE_FLAG_PREFIX = "feature_flag."
 private const val KEY_FEATURE_FLAG_VERSION = "feature_flag_schema_version"
-private const val FEATURE_FLAG_SCHEMA_VERSION = 4
+private const val FEATURE_FLAG_SCHEMA_VERSION = 5
 
 class LocalFeatureFlagRepository(
     context: Context? = null,
@@ -55,7 +55,15 @@ class LocalFeatureFlagRepository(
         if (version >= FEATURE_FLAG_SCHEMA_VERSION) return
         prefs.edit().apply {
             listOf(
-                FeatureFlag.ContextDeck,
+                FeatureFlag.SmartSuggestions,
+                FeatureFlag.SmartDeck,
+                FeatureFlag.SmartKeyboard,
+                FeatureFlag.SmartClipboard,
+                FeatureFlag.SmartRules,
+                FeatureFlag.SmartSettings,
+                FeatureFlag.SmartTrackpadSuggest,
+                FeatureFlag.SmartTrackpadSnap,
+                FeatureFlag.SmartOcr,
                 FeatureFlag.Labs,
                 FeatureFlag.LabAirMouse,
                 FeatureFlag.LabAirTouch,

@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.1.14 — 2026-07-22
+
+Smart foundation release.
+
+- Added default-off Smart flags for Deck, Keyboard, Clipboard, Rules, Settings, Trackpad suggest/snap, and OCR.
+- Added Smart system, privacy, and evaluation docs.
+- Added a pure deterministic Smart engine with typed context, candidates, risks, confidence labels, policy, expiry, and unavailable states.
+- Added bounded local learning that stores only IDs, coarse buckets, success/failure, and sanitized context keys.
+- Added a temporary Smart Deck suggestion row behind Smart flags: Run, Pin, Hide, Why, and Never for this app.
+- Removed the old Context Deck/App AI ranking path so local Smart ranking never calls an LLM.
+- Kept pinned Deck buttons fixed; Smart can only pin into an empty slot after the user taps Pin.
+- Verified unit tests, lint/check, managed emulator tests, debug build, and bundled Mac action verifier.
+
+## 0.1.13 — 2026-07-22
+
+Safety hardening release.
+
+- Added revision-bound review/test state for custom Mac commands and Rules.
+- Fixed reviewed custom-command execution through the SSH path.
+- Kept accepted AI buttons and Rules disabled/unverified until tested.
+- Added emulator and macOS action-verifier gates to release workflows.
+
 ## 0.1.12 — 2026-07-22
 
 Trackpad gesture, Mac action, and AI command reliability release.

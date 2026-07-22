@@ -105,7 +105,7 @@ abstract class LiveAiProvider(
         if (model == null) {
             throw AiProviderException.UnsupportedModel("Unsupported model ${request.modelId} for ${spec.label}")
         }
-        if (request.draftKind != DraftKind.ContextApps && !model.supportsStructuredDrafts) {
+        if (!model.supportsStructuredDrafts) {
             throw AiProviderException.UnsupportedModel("${model.label} cannot create Codecks drafts. Choose another model.")
         }
         val key = requireKey()
@@ -210,23 +210,15 @@ abstract class LiveAiProvider(
             "temperature" to 0.2,
             "system" to systemPrompt(request),
             "messages" to listOf(mapOf("role" to "user", "content" to request.prompt)),
-            "tools" to if (request.draftKind == DraftKind.ContextApps) {
-                emptyList<Map<String, Any>>()
-            } else {
-                listOf(
-                    mapOf(
-                        "name" to ANTHROPIC_DRAFT_TOOL_NAME,
-                        "description" to "Return one AI Creator V2 draft envelope. Do not execute anything.",
-                        "input_schema" to StrictJsonSchemaAdapter.expandNullableTypeArrays(schemaFor(request)),
-                        "strict" to true,
-                    ),
-                )
-            },
-            "tool_choice" to if (request.draftKind == DraftKind.ContextApps) {
-                mapOf("type" to "auto")
-            } else {
-                mapOf("type" to "tool", "name" to ANTHROPIC_DRAFT_TOOL_NAME)
-            },
+            "tools" to listOf(
+                mapOf(
+                    "name" to ANTHROPIC_DRAFT_TOOL_NAME,
+                    "description" to "Return one AI Creator V2 draft envelope. Do not execute anything.",
+                    "input_schema" to StrictJsonSchemaAdapter.expandNullableTypeArrays(schemaFor(request)),
+                    "strict" to true,
+                ),
+            ),
+            "tool_choice" to mapOf("type" to "tool", "name" to ANTHROPIC_DRAFT_TOOL_NAME),
         )
 
     private fun buildGeminiRequest(request: DraftRequest): String =
@@ -274,19 +266,17 @@ abstract class LiveAiProvider(
                 appendLine("Repair instructions:")
                 appendLine(request.repairInstructions)
             }
-            if (request.draftKind != DraftKind.ContextApps) {
-                appendLine("AI Creator V2 contract: status must be ready, needs_input, unsupported, or refused.")
-                appendLine("If request is ambiguous, return needs_input with short questions and proposal null.")
-                appendLine("Use command steps when typed steps or built-in templates cannot express the request.")
-                appendLine("Commands may use shell, SSH tools, scripts, or AppleScript, but never include destructive, credential-extraction, or data-exfiltration behavior.")
-                appendLine("Mark risky commands Dangerous, require confirmation, and explain the concrete risk in confirmationBody.")
-                appendLine("Capability enum values: ${ActionCapability.entries.joinToString { it.name }}.")
-                appendLine("Target type enum values: AnyConnected, ActiveDevice, DeviceId, GroupId.")
-                appendLine("Safety level enum values: Normal, Dangerous.")
-                appendLine("Step types: ${AiActionCatalog.stepTypes.sorted().joinToString()}.")
-                appendLine("For template steps, use built-in template IDs: ${AiActionCatalog.templateIds.sorted().joinToString()}.")
-                appendLine("Codecks validates commands, shows them for review, and saves accepted artifacts disabled until tested and enabled.")
-            }
+            appendLine("AI Creator V2 contract: status must be ready, needs_input, unsupported, or refused.")
+            appendLine("If request is ambiguous, return needs_input with short questions and proposal null.")
+            appendLine("Use command steps when typed steps or built-in templates cannot express the request.")
+            appendLine("Commands may use shell, SSH tools, scripts, or AppleScript, but never include destructive, credential-extraction, or data-exfiltration behavior.")
+            appendLine("Mark risky commands Dangerous, require confirmation, and explain the concrete risk in confirmationBody.")
+            appendLine("Capability enum values: ${ActionCapability.entries.joinToString { it.name }}.")
+            appendLine("Target type enum values: AnyConnected, ActiveDevice, DeviceId, GroupId.")
+            appendLine("Safety level enum values: Normal, Dangerous.")
+            appendLine("Step types: ${AiActionCatalog.stepTypes.sorted().joinToString()}.")
+            appendLine("For template steps, use built-in template IDs: ${AiActionCatalog.templateIds.sorted().joinToString()}.")
+            appendLine("Codecks validates commands, shows them for review, and saves accepted artifacts disabled until tested and enabled.")
             if (request.agentContext.isNotBlank()) {
                 appendLine()
                 appendLine("Bundled Codecks agent pack:")
@@ -299,7 +289,6 @@ abstract class LiveAiProvider(
             DraftKind.Action -> "action_draft_v2"
             DraftKind.Automation -> "automation_draft_v2"
             DraftKind.Deck -> "deck_draft_v2"
-            DraftKind.ContextApps -> "context_app_suggestions"
         }
 
     private fun jsonSchemaConfig(request: DraftRequest): Map<String, Any> =
@@ -311,34 +300,7 @@ abstract class LiveAiProvider(
             DraftKind.Automation,
             DraftKind.Deck,
             -> AiDraftSchemaV2.schemaFor(request.draftKind)
-            DraftKind.ContextApps -> contextAppsSchema()
         }
-
-    private fun contextAppsSchema(): Map<String, Any> =
-        mapOf(
-            "type" to "object",
-            "additionalProperties" to false,
-            "required" to listOf("schemaVersion", "reason", "apps"),
-            "properties" to mapOf(
-                "schemaVersion" to mapOf("type" to "integer"),
-                "reason" to mapOf("type" to "string"),
-                "apps" to mapOf(
-                    "type" to "array",
-                    "minItems" to 1,
-                    "maxItems" to 8,
-                    "items" to mapOf(
-                        "type" to "object",
-                        "additionalProperties" to false,
-                        "required" to listOf("packageName", "label", "reason"),
-                        "properties" to mapOf(
-                            "packageName" to mapOf("type" to "string"),
-                            "label" to mapOf("type" to "string"),
-                            "reason" to mapOf("type" to "string"),
-                        ),
-                    ),
-                ),
-            ),
-        )
 
     private fun actionSchema(): Map<String, Any> =
         mapOf(
@@ -560,12 +522,7 @@ abstract class LiveAiProvider(
                         }
                     }
                 }
-                if (request.draftKind != DraftKind.ContextApps) {
-                    throw AiProviderException.MalformedJson("Anthropic response did not include a draft tool result")
-                }
-                chunks.joinToString("").ifBlank {
-                    throw AiProviderException.MalformedJson("Anthropic response did not include a draft tool result")
-                }
+                throw AiProviderException.MalformedJson("Anthropic response did not include a draft tool result")
             }
             AiProviderId.Gemini -> {
                 val candidate = root.array("candidates").first().asObject()

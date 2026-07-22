@@ -91,6 +91,12 @@ fun HomeScreen(
     onDuplicateAction: (DeckAction) -> Unit = {},
     onRemoveAction: (DeckAction) -> Unit = {},
     onOpenRunLog: (String?) -> Unit = {},
+    smartSuggestions: List<SmartDeckSuggestionUi> = emptyList(),
+    onRunSmartSuggestion: (SmartDeckSuggestionUi) -> Unit = {},
+    onPinSmartSuggestion: (SmartDeckSuggestionUi) -> Unit = {},
+    onHideSmartSuggestion: (SmartDeckSuggestionUi) -> Unit = {},
+    onExplainSmartSuggestion: (SmartDeckSuggestionUi) -> Unit = {},
+    onNeverSmartSuggestionForApp: (SmartDeckSuggestionUi) -> Unit = {},
     onRemoveSlot: (Int) -> Unit = { slot ->
         state.deckLayout.slots.getOrNull(slot)?.action?.let(onRemoveAction)
     },
@@ -122,6 +128,12 @@ fun HomeScreen(
         onOpenConnection = onOpenConnection,
         onEditDeck = onEditDeck,
         onOpenPalette = onOpenPalette,
+        smartSuggestions = smartSuggestions,
+        onRunSmartSuggestion = onRunSmartSuggestion,
+        onPinSmartSuggestion = onPinSmartSuggestion,
+        onHideSmartSuggestion = onHideSmartSuggestion,
+        onExplainSmartSuggestion = onExplainSmartSuggestion,
+        onNeverSmartSuggestionForApp = onNeverSmartSuggestionForApp,
         onOpenOptions = { slot ->
             if (shouldShowActionOptions(slot.action, locked = false)) optionsSlot = slot
         },
@@ -178,6 +190,12 @@ private fun CodecksKeybedDeck(
     onOpenConnection: () -> Unit,
     onEditDeck: () -> Unit,
     onOpenPalette: () -> Unit,
+    smartSuggestions: List<SmartDeckSuggestionUi>,
+    onRunSmartSuggestion: (SmartDeckSuggestionUi) -> Unit,
+    onPinSmartSuggestion: (SmartDeckSuggestionUi) -> Unit,
+    onHideSmartSuggestion: (SmartDeckSuggestionUi) -> Unit,
+    onExplainSmartSuggestion: (SmartDeckSuggestionUi) -> Unit,
+    onNeverSmartSuggestionForApp: (SmartDeckSuggestionUi) -> Unit,
     onOpenOptions: (HomeDeckSlot) -> Unit,
     deckStyle: CodecksDeckStyle,
     modifier: Modifier = Modifier,
@@ -198,13 +216,14 @@ private fun CodecksKeybedDeck(
             else -> 4.dp
         }
         val headerHeight = if (maxHeight < 640.dp) 36.dp else 42.dp
+        val suggestionHeight = if (smartSuggestions.isNotEmpty()) 104.dp else 0.dp
         val gapX = when {
             maxWidth >= 900.dp -> 12.dp
             maxWidth >= 600.dp -> 10.dp
             else -> 6.dp
         }
         val usableWidth = (maxWidth - framePadding * 2f).coerceAtLeast(280.dp)
-        val usableHeight = (maxHeight - framePadding * 2f - headerHeight - 4.dp).coerceAtLeast(280.dp)
+        val usableHeight = (maxHeight - framePadding * 2f - headerHeight - suggestionHeight - 8.dp).coerceAtLeast(280.dp)
         val keyWidth = ((usableWidth - gapX * 3f) / 4f).coerceAtLeast(68.dp)
         val gapY = when {
             maxHeight >= 900.dp -> 12.dp
@@ -283,6 +302,15 @@ private fun CodecksKeybedDeck(
                     }
                 }
             }
+            SmartSuggestionRow(
+                suggestions = smartSuggestions,
+                onRun = onRunSmartSuggestion,
+                onPin = onPinSmartSuggestion,
+                onHide = onHideSmartSuggestion,
+                onWhy = onExplainSmartSuggestion,
+                onNeverForApp = onNeverSmartSuggestionForApp,
+                modifier = Modifier.width(keybedWidth),
+            )
             Column(
                 verticalArrangement = Arrangement.spacedBy(gapY),
                 modifier = Modifier.width(keybedWidth),
@@ -356,6 +384,60 @@ private fun ConnectionHealth.deckLabel(): String =
         ConnectionHealthKind.Offline -> "Retry"
         ConnectionHealthKind.NotConfigured -> "Setup"
     }
+
+@Composable
+private fun SmartSuggestionRow(
+    suggestions: List<SmartDeckSuggestionUi>,
+    onRun: (SmartDeckSuggestionUi) -> Unit,
+    onPin: (SmartDeckSuggestionUi) -> Unit,
+    onHide: (SmartDeckSuggestionUi) -> Unit,
+    onWhy: (SmartDeckSuggestionUi) -> Unit,
+    onNeverForApp: (SmartDeckSuggestionUi) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (suggestions.isEmpty()) return
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(vertical = 4.dp),
+        modifier = modifier.height(104.dp),
+    ) {
+        items(suggestions, key = SmartDeckSuggestionUi::candidateId) { suggestion ->
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                shape = MaterialTheme.shapes.large,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.28f)),
+                modifier = Modifier.widthIn(min = 220.dp, max = 280.dp),
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                ) {
+                    Text(
+                        text = "${suggestion.confidence}: ${suggestion.action.label}",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = suggestion.reason,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = { onRun(suggestion) }) { Text("Run") }
+                        TextButton(onClick = { onPin(suggestion) }) { Text("Pin") }
+                        TextButton(onClick = { onHide(suggestion) }) { Text("Hide") }
+                        TextButton(onClick = { onWhy(suggestion) }) { Text("Why") }
+                        TextButton(onClick = { onNeverForApp(suggestion) }) { Text("Never") }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun LandscapeDeckLayout(
@@ -666,6 +748,13 @@ internal data class HomeDeckSlot(
     val action: DeckAction,
     val id: String = "slot-${slot + 1}",
     val columnSpan: Int = 1,
+)
+
+data class SmartDeckSuggestionUi(
+    val candidateId: String,
+    val action: DeckAction,
+    val reason: String,
+    val confidence: String,
 )
 
 private val bottomNavShortcutIds = setOf("trackpad", "keyboard", "clipboard", "automations", "settings_shortcut")

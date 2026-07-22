@@ -7,17 +7,20 @@ import org.junit.Test
 
 class ContextFeatureGatePolicyTest {
     @Test
-    fun contextCollectorsStayInertWhenReleaseFlagsAreOff() {
+    fun smartCollectorsStayInertWhenReleaseFlagsAreOff() {
         val source = File("src/main/java/io/codecks/MainActivity.kt").readText()
 
-        assertTrue(source.contains("featureFlags.focusedEnabled(FeatureFlag.Labs) && featureFlags.focusedEnabled(FeatureFlag.ContextDeck)"))
-        assertTrue(source.contains("val phoneNotificationFlow = remember(contextFeaturesEnabled)"))
-        assertTrue(source.contains("if (contextFeaturesEnabled) {\n            PhoneNotificationBackplane.notifications"))
+        assertTrue(source.contains("featureFlags.focusedEnabled(FeatureFlag.SmartSuggestions) && featureFlags.focusedEnabled(FeatureFlag.SmartDeck)"))
+        assertTrue(source.contains("val phoneNotificationFlow = remember(smartDeckEnabled)"))
+        assertTrue(source.contains("if (smartDeckEnabled) {\n            PhoneNotificationBackplane.notifications"))
         assertTrue(source.contains("flowOf(emptyList<NotificationPreview>())"))
-        assertTrue(source.contains("val notificationAccessReady = contextFeaturesEnabled && PhoneNotificationBackplane.isEnabled(appContext)"))
-        assertTrue(source.contains("if (!contextFeaturesEnabled) return@LaunchedEffect"))
-        assertTrue(source.contains("if (contextFeaturesEnabled) {\n            ContextAppRanker.rank"))
-        assertTrue(source.contains("if (contextFeaturesEnabled) {\n            ContextDeckTileRanker.rank"))
+        assertTrue(source.contains("val notificationAccessReady = smartDeckEnabled && PhoneNotificationBackplane.isEnabled(appContext)"))
+        assertTrue(source.contains("val smartContext = remember("))
+        assertTrue(source.contains("if (!smartDeckEnabled || currentRoute != HomeRoute)"))
+        assertTrue(source.contains("DeterministicSmartEngine"))
+        assertFalse(source.contains("FeatureFlag.ContextDeck"))
+        assertFalse(source.contains("ContextDeckTileRanker.rank"))
+        assertFalse(source.contains("DraftKind.ContextApps"))
         assertFalse(source.contains("PhoneNotificationBackplane.events.collectAsStateWithLifecycle"))
     }
 }

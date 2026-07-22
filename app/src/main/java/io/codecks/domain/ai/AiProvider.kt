@@ -20,7 +20,6 @@ enum class DraftKind {
     Action,
     Automation,
     Deck,
-    ContextApps,
 }
 
 data class ActionDraftJson(

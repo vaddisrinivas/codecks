@@ -16,7 +16,6 @@ class StructuredDraftParser {
                 DraftKind.Action -> GeneratedDraft.Action(parseActionDraft(root))
                 DraftKind.Automation -> GeneratedDraft.Automation(parseAutomationDraft(root))
                 DraftKind.Deck -> GeneratedDraft.Deck(parseDeckDraft(root))
-                DraftKind.ContextApps -> throw IllegalArgumentException("Context app suggestions are parsed by ContextAppSuggestionParser")
             }
         }.recoverCatching { error ->
             when (error) {
@@ -146,7 +145,6 @@ class StructuredDraftParser {
             )
             DraftKind.Automation -> GeneratedDraft.Automation(parseV2Automation(request, proposal, metadata))
             DraftKind.Deck -> GeneratedDraft.Deck(parseV2Deck(request, proposal, metadata))
-            DraftKind.ContextApps -> throw IllegalArgumentException("Context app suggestions are parsed by ContextAppSuggestionParser")
         }
     }
 

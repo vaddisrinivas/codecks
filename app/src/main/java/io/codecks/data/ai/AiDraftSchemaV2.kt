@@ -39,7 +39,6 @@ internal object AiDraftSchemaV2 {
                 "description" to string(),
                 "actions" to array(definitionSchema(), minItems = 1, maxItems = 12),
             )
-            DraftKind.ContextApps -> error("Context app suggestions use the context-app schema")
         }
 
     private fun definitionSchema(): Map<String, Any> =
