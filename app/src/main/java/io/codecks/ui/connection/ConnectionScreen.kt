@@ -381,7 +381,7 @@ private fun MacPairingStepper(
         PairingStep(
             number = 4,
             title = "Done",
-            detail = if (done) "Deck, Trackpad, and Rules can use this Mac." else "Test connection after authorizing.",
+            detail = if (done) "Deck, Clipboard, and Rules can use this Mac." else "Test connection after authorizing.",
             complete = done,
             active = state.config.hasKey && !done,
         ),

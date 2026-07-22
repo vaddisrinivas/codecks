@@ -106,9 +106,7 @@ fun HomeScreen(
     }
         .filterNot { it.action.id in bottomNavShortcutIds }
     val runningActionId = (state.actionStatus as? ActionStatus.Running)?.actionId
-    val lastResults = remember(state.activity) {
-        state.activity.distinctBy(ActionEvent::actionId).associateBy(ActionEvent::actionId)
-    }
+    val currentResult = state.actionStatus.takeIf { it !is ActionStatus.Idle }
     var optionsSlot by remember { mutableStateOf<HomeDeckSlot?>(null) }
     CodecksKeybedDeck(
         activeDeckLabel = activeTemplateTitle(state.activeTemplateId, state.deckTemplates),
@@ -116,7 +114,7 @@ fun HomeScreen(
         connectionHealth = connectionHealth,
         slots = deckActionSlots,
         runningActionId = runningActionId,
-        lastResults = lastResults,
+        currentResult = currentResult,
         focusedActionId = focusedActionId,
         onAction = onAction,
         onEditSlot = onEditSlot,
@@ -172,7 +170,7 @@ private fun CodecksKeybedDeck(
     connectionHealth: ConnectionHealth,
     slots: List<HomeDeckSlot>,
     runningActionId: String?,
-    lastResults: Map<String, ActionEvent>,
+    currentResult: ActionStatus?,
     focusedActionId: String?,
     onAction: (DeckAction) -> Unit,
     onEditSlot: (Int) -> Unit,
@@ -296,7 +294,6 @@ private fun CodecksKeybedDeck(
                             val openSlot = action.id == "add_button" || action.id == "blank"
                             val running = runningActionId == action.id
                             val selected = focusedActionId == action.id
-                            val lastResult = lastResults[action.id]
                             val enabled = openSlot || isDeckActionEnabled(action, connectionReady)
                             DeckControlTile(
                                 label = if (openSlot) "Tap to assign" else action.label,
@@ -304,8 +301,8 @@ private fun CodecksKeybedDeck(
                                 state = when {
                                     running -> DeckComponentState.Running
                                     selected -> DeckComponentState.Selected
-                                    !openSlot && lastResult?.succeeded == true -> DeckComponentState.Succeeded
-                                    !openSlot && lastResult?.succeeded == false -> DeckComponentState.Failure
+                                    !openSlot && currentResult is ActionStatus.Succeeded && currentResult.actionId == action.id -> DeckComponentState.Succeeded
+                                    !openSlot && currentResult is ActionStatus.Failed && currentResult.actionId == action.id -> DeckComponentState.Failure
                                     !enabled -> DeckComponentState.Disabled
                                     else -> DeckComponentState.Idle
                                 },

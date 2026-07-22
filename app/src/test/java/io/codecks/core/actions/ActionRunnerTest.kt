@@ -85,8 +85,9 @@ class ActionRunnerTest {
     }
 
     @Test
-    fun generatedShellCommand_blocksUnsupportedTemplates() = runTest {
-        val runner = testRunner()
+    fun generatedShellCommand_runsFreeCommandAfterReview() = runTest {
+        val connection = FakeConnectionRepository()
+        val runner = testRunner(connection = connection)
 
         val result = runner.run(
             ActionSpec.ShellCommand(
@@ -98,7 +99,60 @@ class ActionRunnerTest {
             allowDangerous = true,
         )
 
-        assertEquals(ActionResultStatus.Failed, result.status)
+        assertEquals(ActionResultStatus.Succeeded, result.status)
+        assertEquals("echo hello", connection.lastCommand)
+    }
+
+    @Test
+    fun exactBundledDeckCommand_usesBundledExecutionPath() = runTest {
+        val connection = FakeConnectionRepository()
+        val runner = testRunner(connection = connection)
+
+        val result = runner.run(
+            ActionSpec.DeckActionSpec(
+                DeckAction("finder", "Finder", ActionKind.Ssh, ActionIcon.Finder, command = "open -a Finder"),
+            ),
+        )
+
+        assertEquals(ActionResultStatus.Succeeded, result.status)
+        assertEquals("open -a Finder", connection.lastBundledCommand)
+    }
+
+    @Test
+    fun dangerousBundledDeckCommand_runsAfterExplicitApproval() = runTest {
+        val connection = FakeConnectionRepository()
+        val runner = testRunner(connection = connection)
+        val action = DeckAction(
+            "finder",
+            "Finder",
+            ActionKind.Ssh,
+            ActionIcon.Finder,
+            command = "open -a Finder",
+            dangerous = true,
+        )
+
+        val blocked = runner.run(ActionSpec.DeckActionSpec(action))
+        val approved = runner.run(ActionSpec.DeckActionSpec(action), allowDangerous = true)
+
+        assertEquals(ActionResultStatus.RequiresConfirmation, blocked.status)
+        assertEquals(ActionResultStatus.Succeeded, approved.status)
+        assertEquals("open -a Finder", connection.lastBundledCommand)
+    }
+
+    @Test
+    fun customDeckCommand_usesReviewedCustomExecutionPath() = runTest {
+        val connection = FakeConnectionRepository()
+        val runner = testRunner(connection = connection)
+
+        val result = runner.run(
+            ActionSpec.DeckActionSpec(
+                DeckAction("finder", "Finder", ActionKind.Ssh, ActionIcon.Finder, command = "echo changed"),
+            ),
+        )
+
+        assertEquals(ActionResultStatus.Succeeded, result.status)
+        assertEquals(null, connection.lastBundledCommand)
+        assertEquals("echo changed", connection.lastCommand)
     }
 
     private fun testRunner(
@@ -113,7 +167,7 @@ class ActionRunnerTest {
 }
 
 private class FakeActionRepository : ActionRepository {
-    private val action = DeckAction("finder", "Finder", ActionKind.Ssh, ActionIcon.Finder)
+    private val action = DeckAction("finder", "Finder", ActionKind.Ssh, ActionIcon.Finder, command = "open -a Finder")
     override fun favorites(): List<DeckAction> = listOf(action)
     override fun observeFavorites(): Flow<List<DeckAction>> = MutableStateFlow(listOf(action))
     override fun allActions(): List<DeckAction> = listOf(action)
@@ -127,6 +181,7 @@ private class FakeActionRepository : ActionRepository {
 
 private class FakeConnectionRepository : ConnectionRepository {
     var lastCommand: String? = null
+    var lastBundledCommand: String? = null
     val targetCommands = mutableListOf<Pair<String, String>>()
     override val config = MutableStateFlow(ConnectionConfig("mac.local", 22, "user", hasKey = true, hostKey = "key"))
     override suspend fun save(host: String, port: Int, user: String) = Unit
@@ -143,6 +198,10 @@ private class FakeConnectionRepository : ConnectionRepository {
         lastCommand = command
         return Result.success("command ok")
     }
+    override suspend fun runBundledCommand(command: String): Result<String> {
+        lastBundledCommand = command
+        return Result.success("bundled command ok")
+    }
     override suspend fun runCommandWithInput(command: String, stdin: String): Result<String> = runCommand(command)
     override suspend fun validateCommandSyntax(command: String): Result<String> = Result.success("syntax ok")
     override suspend fun runCommandSecret(command: String): Result<String> = runCommand(command)
@@ -151,6 +210,11 @@ private class FakeConnectionRepository : ConnectionRepository {
     override suspend fun runCommandOnTarget(targetId: String, command: String): Result<String> {
         targetCommands += targetId to command
         return runCommand(command)
+    }
+    override suspend fun runBundledCommandOnTarget(targetId: String, command: String): Result<String> {
+        targetCommands += targetId to command
+        lastBundledCommand = command
+        return Result.success("bundled command ok")
     }
     override suspend fun runActionOnTarget(targetId: String, actionId: String, dangerous: Boolean): Result<String> =
         runAction(actionId, dangerous)

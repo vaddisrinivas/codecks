@@ -1,6 +1,8 @@
 package io.codecks.data.device
 
 import io.codecks.data.ConnectionRepository
+import io.codecks.data.ConnectionConfig
+import io.codecks.data.ConnectionTarget
 import io.codecks.domain.device.Capability
 import io.codecks.domain.device.DeviceGroup
 import io.codecks.domain.device.DeviceGroupId
@@ -50,15 +52,21 @@ class LocalDeviceRepository @Inject constructor(
 
     override suspend fun currentDeviceId(): DeviceId? {
         val config = connectionRepository.config.first()
-        if (!config.isConfigured) return null
-        return DeviceId(currentDeviceIdValue(config.host, config.user))
+        return resolveCurrentTargetDeviceId(config, connectionRepository.savedTargets())
     }
+}
 
-    private fun currentDeviceIdValue(host: String, user: String): String =
-        "mac_${user}_${host}"
-            .lowercase()
-            .map { if (it.isLetterOrDigit()) it else '_' }
-            .joinToString("")
-            .trim('_')
-            .ifBlank { "mac_current" }
+internal fun resolveCurrentTargetDeviceId(
+    config: ConnectionConfig,
+    targets: List<ConnectionTarget>,
+): DeviceId? {
+    if (!config.isConfigured) return null
+    return targets
+        .firstOrNull { target ->
+            target.host == config.host &&
+                target.port == config.port &&
+                target.user == config.user
+        }
+        ?.id
+        ?.let(::DeviceId)
 }

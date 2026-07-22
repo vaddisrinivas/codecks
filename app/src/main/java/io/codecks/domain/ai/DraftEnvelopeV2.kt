@@ -23,12 +23,13 @@ class AiDraftProposalUnavailable(
     },
 )
 
-object ApprovedAiActionCatalog {
+object AiActionCatalog {
     val stepTypes: Set<String> = setOf(
         V2StepTypes.OpenUrl,
         V2StepTypes.ClipboardText,
         V2StepTypes.Delay,
         V2StepTypes.Template,
+        V2StepTypes.Command,
     )
 
     val templateIds: Set<String> = setOf(
@@ -40,7 +41,6 @@ object ApprovedAiActionCatalog {
         "mac.screenshot",
         "mac.full_screen",
         "mac.new_tab",
-        "mac.play_pause",
         "mac.volume_up",
         "mac.volume_down",
         "mac.mute",
@@ -56,7 +56,6 @@ object ApprovedAiActionCatalog {
             "mac.screenshot" -> "osascript -e 'tell application \"System Events\" to key code 20 using {command down, shift down}'"
             "mac.full_screen" -> "osascript -e 'tell application \"System Events\" to key code 3 using {control down, command down}'"
             "mac.new_tab" -> "osascript -e 'tell application \"System Events\" to key code 17 using command down'"
-            "mac.play_pause" -> "osascript -e 'tell application \"System Events\" to key code 49'"
             "mac.volume_up" -> "osascript -e 'set volume output volume ((output volume of (get volume settings)) + 10)'"
             "mac.volume_down" -> "osascript -e 'set volume output volume ((output volume of (get volume settings)) - 10)'"
             "mac.mute" -> "osascript -e 'set volume with output muted'"
@@ -69,4 +68,5 @@ object V2StepTypes {
     const val ClipboardText = "clipboard_text"
     const val Delay = "delay"
     const val Template = "template"
+    const val Command = "command"
 }

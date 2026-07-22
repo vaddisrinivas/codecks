@@ -1,11 +1,11 @@
 # Codecks Artifact Builder Skill
 
-Use this skill when the user prompts Codecks AI to create, test, or refine anything custom: deck buttons, full decks, automation recipes, Mac scripts, app-specific control sets, trackpad background panels, or workflow shortcuts.
+Use this skill when the user prompts Codecks AI to create or refine a deck button, deck, or rule.
 
 ## Inputs
 - User request in natural language.
 - Draft kind requested by the app: `action`, `deck`, or `automation`.
-- Supported capabilities: `Advanced`, `Browser`, `Clipboard`, `HidKeyboard`, `HidMouse`, `Media`, `Shell`, `Ssh`.
+- Supported capabilities are supplied by the app for the current phone and Mac.
 - Target selector from the app: any connected Mac, current device, device id, or group id.
 
 ## Artifact Types
@@ -20,33 +20,27 @@ Create a deck with 4-12 actions. Use consistent naming and button intent. Good t
 Create one rule with trigger intent in the title/description and steps that reuse the same action definition model. Rules are manual-testable; background triggers can be described but must not be assumed active unless the schema supports them.
 
 ### Clock Or Background Panel
-If the user asks for a clock, notification background, trackpad visual, or OLED background, create a button/action only if it is meant to change app settings. Otherwise explain through the draft description what app-side panel is requested and use a safe no-op shell step such as `printf 'Trackpad clock style requested'`.
+If the user asks for an app-only visual or setting, explain that it needs an app feature instead of substituting a no-op command.
 
 ## Step Types
 - `open_url`: requires `url`.
-- `clipboard_text`: requires `value`.
+- `clipboard_text`: requires `text`.
 - `delay`: requires `delayMs`.
-- `shell` or `ssh_action`: requires `value`.
-- `hid_key`: requires `value` naming the key/chord.
+- `template`: requires one built-in `templateId`.
+- `command`: requires readable shell, script, SSH-tool, or AppleScript text in `command`.
 
-## Mac Script Patterns
-- Open URL: use `open 'https://example.com'` or the `open_url` step.
-- Copy text: use `clipboard_text` or `printf %s 'text' | pbcopy`.
-- Screenshot: `screencapture -x ~/Desktop/codecks-$(date +%Y%m%d-%H%M%S).png`.
-- Caffeinate: `caffeinate -dimsu -t 3600 >/dev/null 2>&1 &`.
-- Run Apple Shortcut: `shortcuts run 'Shortcut Name'`.
-- Open app: `open -a 'App Name'`.
-- Chrome new tab: `osascript -e 'tell application "Google Chrome" to make new tab at end of tabs of front window'`.
-- Finder home: `open ~`.
-- Mission Control via HID is better than shell when Bluetooth HID is available.
+## Built-in Mac Templates
+Use supplied IDs when one exactly matches. Otherwise generate a `command` step. The app blocks destructive/exfiltration patterns, displays the command for review, and saves accepted work disabled until testing.
 
 ## Quality Rules
 - Titles: 2-4 words, button-ready.
 - Descriptions: one sentence, direct.
 - IDs: lowercase stable slugs with dots or underscores.
-- Commands must be testable and should fail loudly when appropriate.
+- Commands must fail clearly when prerequisites are missing.
 - Do not generate more than 12 deck actions.
-- If a command might delete, close, overwrite, purchase, send, share, expose private data, or change security settings, set `safety.requiresConfirmation` to true and `safety.level` to `Dangerous`.
+- If an action might close, overwrite, purchase, send, share, expose private data, or change settings, set `safety.requiresConfirmation` to true and `safety.level` to `Dangerous`.
+- Dangerous proposals must explain the concrete consequence in `safety.confirmationBody`.
+- Return `unsupported` only when neither a typed step nor a command can provide the behavior.
 
 ## Response
 Return only the schema JSON requested by the app.

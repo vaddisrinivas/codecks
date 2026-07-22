@@ -273,14 +273,29 @@ class StructuredDraftParser {
             V2StepTypes.Template -> {
                 val templateId = root.optString("templateId")?.ifBlank { null }
                     ?: throw IllegalArgumentException("template step requires templateId")
-                val command = ApprovedAiActionCatalog.commandFor(templateId)
-                    ?: throw IllegalArgumentException("Unsupported approved template $templateId")
+                val command = AiActionCatalog.commandFor(templateId)
+                    ?: throw IllegalArgumentException("Unsupported built-in template $templateId")
                 ActionStep(
                     id = id,
                     type = ActionStepTypes.Shell,
                     label = label.ifBlank { templateId },
                     value = command,
                     requiredCapabilities = listOf(ActionCapability.Advanced),
+                    confirmedDangerous = requiresConfirmation,
+                )
+            }
+            V2StepTypes.Command -> {
+                val command = root.optString("command")?.ifBlank { null }
+                    ?: throw IllegalArgumentException("command step requires command")
+                io.codecks.core.actions.RawCommandPolicy.firstViolation(command)?.let { reason ->
+                    throw IllegalArgumentException("Command blocked: $reason")
+                }
+                ActionStep(
+                    id = id,
+                    type = ActionStepTypes.Shell,
+                    label = label,
+                    value = command,
+                    requiredCapabilities = listOf(ActionCapability.Advanced, ActionCapability.Shell, ActionCapability.Ssh),
                     confirmedDangerous = requiresConfirmation,
                 )
             }

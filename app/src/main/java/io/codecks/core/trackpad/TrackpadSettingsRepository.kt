@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.codecks.HidCommand
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
@@ -22,6 +23,9 @@ data class TrackpadSettings(
     val naturalScroll: Boolean = true,
     val scrollRailEnabled: Boolean = true,
     val scrollRailInverted: Boolean = false,
+    val precisionScrollRailEnabled: Boolean = true,
+    val precisionScrollSpeed: Float = 0.28f,
+    val precisionScrollAcceleration: Float = 0.25f,
     val railSide: TrackpadRailSide = TrackpadRailSide.Right,
     val rotation: TrackpadRotation = TrackpadRotation.Deg0,
     val hapticsEnabled: Boolean = true,
@@ -41,11 +45,28 @@ data class TrackpadSettings(
     val airTouchEnabled: Boolean = false,
     val backTapEnabled: Boolean = false,
     val volumeKeysEnabled: Boolean = false,
+    val twoFingerDoubleTapAction: TrackpadGestureAction = TrackpadGestureAction.WindowSwitcher,
+    val threeFingerDoubleTapAction: TrackpadGestureAction = TrackpadGestureAction.AppSwitcher,
+    val threeFingerHoldAction: TrackpadGestureAction = TrackpadGestureAction.WindowSwitcher,
+    val fourFingerDoubleTapAction: TrackpadGestureAction = TrackpadGestureAction.MissionControl,
+    val fourFingerHoldAction: TrackpadGestureAction = TrackpadGestureAction.ShowDesktop,
+    val multiFingerHoldMillis: Int = 520,
 )
 
 enum class TrackpadRailSide {
     Left,
     Right,
+}
+
+enum class TrackpadGestureAction(val label: String, val command: HidCommand?) {
+    None("None", null),
+    WindowSwitcher("Same-app window", HidCommand.WindowSwitcher),
+    AppSwitcher("Switch app", HidCommand.AppSwitcher),
+    MissionControl("Mission Control", HidCommand.MissionControl),
+    ShowDesktop("Show desktop", HidCommand.ShowDesktop),
+    Spotlight("Spotlight", HidCommand.Spotlight),
+    PlayPause("Play / pause", HidCommand.MediaPlayPause),
+    Screenshot("Screenshot area", HidCommand.ScreenshotArea),
 }
 
 enum class TrackpadRotation(val label: String) {
@@ -78,6 +99,9 @@ class TrackpadSettingsRepository @Inject constructor(
             naturalScroll = preferences[NATURAL_SCROLL] ?: true,
             scrollRailEnabled = preferences[SCROLL_RAIL_ENABLED] ?: true,
             scrollRailInverted = preferences[SCROLL_RAIL_INVERTED] ?: false,
+            precisionScrollRailEnabled = preferences[PRECISION_SCROLL_RAIL_ENABLED] ?: true,
+            precisionScrollSpeed = preferences[PRECISION_SCROLL_SPEED]?.coerceIn(0.1f, 0.75f) ?: 0.28f,
+            precisionScrollAcceleration = preferences[PRECISION_SCROLL_ACCELERATION]?.coerceIn(0f, 1f) ?: 0.25f,
             railSide = preferences[RAIL_SIDE]?.let(::enumValueOrNull) ?: TrackpadRailSide.Right,
             rotation = preferences[ROTATION]?.let(::enumValueOrNull) ?: TrackpadRotation.Deg0,
             hapticsEnabled = preferences[HAPTICS_ENABLED] ?: true,
@@ -100,6 +124,17 @@ class TrackpadSettingsRepository @Inject constructor(
             airTouchEnabled = preferences[AIR_TOUCH_ENABLED] ?: false,
             backTapEnabled = preferences[BACK_TAP_ENABLED] ?: false,
             volumeKeysEnabled = preferences[VOLUME_KEYS_ENABLED] ?: false,
+            twoFingerDoubleTapAction = preferences[TWO_FINGER_DOUBLE_TAP_ACTION]
+                ?.let(::enumValueOrNull) ?: TrackpadGestureAction.WindowSwitcher,
+            threeFingerDoubleTapAction = preferences[THREE_FINGER_DOUBLE_TAP_ACTION]
+                ?.let(::enumValueOrNull) ?: TrackpadGestureAction.AppSwitcher,
+            threeFingerHoldAction = preferences[THREE_FINGER_HOLD_ACTION]
+                ?.let(::enumValueOrNull) ?: TrackpadGestureAction.WindowSwitcher,
+            fourFingerDoubleTapAction = preferences[FOUR_FINGER_DOUBLE_TAP_ACTION]
+                ?.let(::enumValueOrNull) ?: TrackpadGestureAction.MissionControl,
+            fourFingerHoldAction = preferences[FOUR_FINGER_HOLD_ACTION]
+                ?.let(::enumValueOrNull) ?: TrackpadGestureAction.ShowDesktop,
+            multiFingerHoldMillis = preferences[MULTI_FINGER_HOLD_MS]?.coerceIn(350, 1_000) ?: 520,
         )
     }
 
@@ -112,6 +147,9 @@ class TrackpadSettingsRepository @Inject constructor(
                 naturalScroll = preferences[NATURAL_SCROLL] ?: true,
                 scrollRailEnabled = preferences[SCROLL_RAIL_ENABLED] ?: true,
                 scrollRailInverted = preferences[SCROLL_RAIL_INVERTED] ?: false,
+                precisionScrollRailEnabled = preferences[PRECISION_SCROLL_RAIL_ENABLED] ?: true,
+                precisionScrollSpeed = preferences[PRECISION_SCROLL_SPEED]?.coerceIn(0.1f, 0.75f) ?: 0.28f,
+                precisionScrollAcceleration = preferences[PRECISION_SCROLL_ACCELERATION]?.coerceIn(0f, 1f) ?: 0.25f,
                 railSide = preferences[RAIL_SIDE]?.let(::enumValueOrNull) ?: TrackpadRailSide.Right,
                 rotation = preferences[ROTATION]?.let(::enumValueOrNull) ?: TrackpadRotation.Deg0,
                 hapticsEnabled = preferences[HAPTICS_ENABLED] ?: true,
@@ -134,6 +172,17 @@ class TrackpadSettingsRepository @Inject constructor(
                 airTouchEnabled = preferences[AIR_TOUCH_ENABLED] ?: false,
                 backTapEnabled = preferences[BACK_TAP_ENABLED] ?: false,
                 volumeKeysEnabled = preferences[VOLUME_KEYS_ENABLED] ?: false,
+                twoFingerDoubleTapAction = preferences[TWO_FINGER_DOUBLE_TAP_ACTION]
+                    ?.let(::enumValueOrNull) ?: TrackpadGestureAction.WindowSwitcher,
+                threeFingerDoubleTapAction = preferences[THREE_FINGER_DOUBLE_TAP_ACTION]
+                    ?.let(::enumValueOrNull) ?: TrackpadGestureAction.AppSwitcher,
+                threeFingerHoldAction = preferences[THREE_FINGER_HOLD_ACTION]
+                    ?.let(::enumValueOrNull) ?: TrackpadGestureAction.WindowSwitcher,
+                fourFingerDoubleTapAction = preferences[FOUR_FINGER_DOUBLE_TAP_ACTION]
+                    ?.let(::enumValueOrNull) ?: TrackpadGestureAction.MissionControl,
+                fourFingerHoldAction = preferences[FOUR_FINGER_HOLD_ACTION]
+                    ?.let(::enumValueOrNull) ?: TrackpadGestureAction.ShowDesktop,
+                multiFingerHoldMillis = preferences[MULTI_FINGER_HOLD_MS]?.coerceIn(350, 1_000) ?: 520,
             )
             val next = transform(current)
             preferences[POINTER_SPEED] = next.pointerSpeed.coerceIn(0.3f, 1.35f)
@@ -142,6 +191,9 @@ class TrackpadSettingsRepository @Inject constructor(
             preferences[NATURAL_SCROLL] = next.naturalScroll
             preferences[SCROLL_RAIL_ENABLED] = next.scrollRailEnabled
             preferences[SCROLL_RAIL_INVERTED] = next.scrollRailInverted
+            preferences[PRECISION_SCROLL_RAIL_ENABLED] = next.precisionScrollRailEnabled
+            preferences[PRECISION_SCROLL_SPEED] = next.precisionScrollSpeed.coerceIn(0.1f, 0.75f)
+            preferences[PRECISION_SCROLL_ACCELERATION] = next.precisionScrollAcceleration.coerceIn(0f, 1f)
             preferences[RAIL_SIDE] = next.railSide.name
             preferences[ROTATION] = next.rotation.name
             preferences[HAPTICS_ENABLED] = next.hapticsEnabled
@@ -164,6 +216,12 @@ class TrackpadSettingsRepository @Inject constructor(
             preferences[AIR_TOUCH_ENABLED] = next.airTouchEnabled
             preferences[BACK_TAP_ENABLED] = next.backTapEnabled
             preferences[VOLUME_KEYS_ENABLED] = next.volumeKeysEnabled
+            preferences[TWO_FINGER_DOUBLE_TAP_ACTION] = next.twoFingerDoubleTapAction.name
+            preferences[THREE_FINGER_DOUBLE_TAP_ACTION] = next.threeFingerDoubleTapAction.name
+            preferences[THREE_FINGER_HOLD_ACTION] = next.threeFingerHoldAction.name
+            preferences[FOUR_FINGER_DOUBLE_TAP_ACTION] = next.fourFingerDoubleTapAction.name
+            preferences[FOUR_FINGER_HOLD_ACTION] = next.fourFingerHoldAction.name
+            preferences[MULTI_FINGER_HOLD_MS] = next.multiFingerHoldMillis.coerceIn(350, 1_000)
         }
     }
 
@@ -178,6 +236,9 @@ class TrackpadSettingsRepository @Inject constructor(
         val NATURAL_SCROLL = booleanPreferencesKey("natural_scroll")
         val SCROLL_RAIL_ENABLED = booleanPreferencesKey("scroll_rail_enabled")
         val SCROLL_RAIL_INVERTED = booleanPreferencesKey("scroll_rail_inverted")
+        val PRECISION_SCROLL_RAIL_ENABLED = booleanPreferencesKey("precision_scroll_rail_enabled")
+        val PRECISION_SCROLL_SPEED = floatPreferencesKey("precision_scroll_speed")
+        val PRECISION_SCROLL_ACCELERATION = floatPreferencesKey("precision_scroll_acceleration")
         val RAIL_SIDE = stringPreferencesKey("rail_side")
         val ROTATION = stringPreferencesKey("rotation")
         val HAPTICS_ENABLED = booleanPreferencesKey("haptics_enabled")
@@ -197,6 +258,12 @@ class TrackpadSettingsRepository @Inject constructor(
         val AIR_TOUCH_ENABLED = booleanPreferencesKey("air_touch_enabled")
         val BACK_TAP_ENABLED = booleanPreferencesKey("back_tap_enabled")
         val VOLUME_KEYS_ENABLED = booleanPreferencesKey("volume_keys_enabled")
+        val TWO_FINGER_DOUBLE_TAP_ACTION = stringPreferencesKey("two_finger_double_tap_action")
+        val THREE_FINGER_DOUBLE_TAP_ACTION = stringPreferencesKey("three_finger_double_tap_action")
+        val THREE_FINGER_HOLD_ACTION = stringPreferencesKey("three_finger_hold_action")
+        val FOUR_FINGER_DOUBLE_TAP_ACTION = stringPreferencesKey("four_finger_double_tap_action")
+        val FOUR_FINGER_HOLD_ACTION = stringPreferencesKey("four_finger_hold_action")
+        val MULTI_FINGER_HOLD_MS = intPreferencesKey("multi_finger_hold_ms")
     }
 }
 

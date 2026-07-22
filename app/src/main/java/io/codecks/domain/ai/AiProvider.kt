@@ -130,7 +130,7 @@ class SemanticDraftValidationException(
             errors.take(MAX_REPAIR_ERRORS).forEach { error ->
                 appendLine("- ${error.path}: ${error.message}")
             }
-            appendLine("Do not add shell commands or unapproved templates.")
+            appendLine("Commands are allowed. Keep them reviewable and fix only the reported safety or schema errors.")
         }
 
     private companion object {

@@ -51,10 +51,17 @@ class DefaultActionRunner @Inject constructor(
         if (action.kind == ActionKind.Local) {
             return action.failure(LocalActionException(action.route.orEmpty()).message ?: "Open ${action.route.orEmpty()}")
         }
+        val isBundled = actionRepository.catalogActions().any { bundled ->
+            bundled.id == action.id && bundled.command == action.command
+        }
+        RawCommandPolicy.firstViolation(action.command.orEmpty())?.let { reason ->
+            return action.failure("Command blocked: $reason")
+        }
         return executeSsh(
             spec = spec,
             command = action.command,
             catalogActionId = action.id.takeIf { action.command == null },
+            bundledCommand = isBundled,
         )
     }
 
@@ -63,9 +70,6 @@ class DefaultActionRunner @Inject constructor(
             return spec.failure("Command blocked: $reason")
         }
         if (spec.trustLevel == ShellTrustLevel.Generated) {
-            RawCommandPolicy.firstAllowlistViolation(spec.command)?.let { reason ->
-                return spec.failure("Generated command is outside Codecks safe templates: $reason")
-            }
             if (!allowDangerous) {
                 return ActionResult(
                     actionId = spec.id,
@@ -75,13 +79,14 @@ class DefaultActionRunner @Inject constructor(
                 )
             }
         }
-        return executeSsh(spec = spec, command = spec.command, catalogActionId = null)
+        return executeSsh(spec = spec, command = spec.command, catalogActionId = null, bundledCommand = false)
     }
 
     private suspend fun executeSsh(
         spec: ActionSpec,
         command: String?,
         catalogActionId: String?,
+        bundledCommand: Boolean = false,
     ): ActionResult {
         val plan = ExecutionPlanner(deviceRepository, transportRegistry).plan(
             actionId = spec.id,
@@ -99,7 +104,11 @@ class DefaultActionRunner @Inject constructor(
                     connectionRepository.runActionOnTarget(targetId, catalogActionId, spec.dangerous).getOrThrow()
                 } else {
                     val shellCommand = executionPlan.steps.firstOrNull().orEmpty()
-                    connectionRepository.runCommandOnTarget(targetId, shellCommand).getOrThrow()
+                    if (bundledCommand) {
+                        connectionRepository.runBundledCommandOnTarget(targetId, shellCommand).getOrThrow()
+                    } else {
+                        connectionRepository.runCommandOnTarget(targetId, shellCommand).getOrThrow()
+                    }
                 }
             },
         )

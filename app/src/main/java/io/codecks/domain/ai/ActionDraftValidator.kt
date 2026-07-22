@@ -42,6 +42,7 @@ class ActionDraftValidator(
             rejectUnboundedRetry(path, step.retry, errors)
             rejectInvalidUrl(path, step, errors)
             rejectRawShellWithoutAdvanced(path, definition, step, errors)
+            rejectRiskWithoutExplanation(path, definition, step, errors)
             rejectDangerousStepWithoutConfirmation(path, definition, step, errors)
         }
 
@@ -115,6 +116,9 @@ class ActionDraftValidator(
         }
         if (safety.requiresConfirmation && safety.confirmationTitle.isNullOrBlank()) {
             errors += ValidationError("safety.confirmationTitle", "Confirmation title is required")
+        }
+        if (safety.requiresConfirmation && safety.confirmationBody.isNullOrBlank()) {
+            errors += ValidationError("safety.confirmationBody", "Explain the risk before asking for confirmation")
         }
     }
 
@@ -204,6 +208,25 @@ class ActionDraftValidator(
     ) {
         if (definition.safety.level == SafetyLevel.Dangerous && !step.confirmedDangerous) {
             errors += ValidationError("$path.confirmedDangerous", "Dangerous steps require confirmation metadata")
+        }
+    }
+
+    private fun rejectRiskWithoutExplanation(
+        path: String,
+        definition: ActionDefinition,
+        step: ActionStep,
+        errors: MutableList<ValidationError>,
+    ) {
+        if (step.type !in setOf(ActionStepTypes.Shell, ActionStepTypes.SshAction)) return
+        val reason = CommandRiskClassifier.reason(step.value.orEmpty()) ?: return
+        if (definition.safety.level != SafetyLevel.Dangerous ||
+            !definition.safety.requiresConfirmation ||
+            definition.safety.confirmationBody.isNullOrBlank()
+        ) {
+            errors += ValidationError(
+                "$path.safety",
+                "This command $reason. Mark it Dangerous and explain that consequence in confirmationBody",
+            )
         }
     }
 }

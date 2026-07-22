@@ -1,7 +1,7 @@
 package io.codecks.data.ai
 
 import io.codecks.domain.ai.ActionCapability
-import io.codecks.domain.ai.ApprovedAiActionCatalog
+import io.codecks.domain.ai.AiActionCatalog
 import io.codecks.domain.ai.CURRENT_DRAFT_ENVELOPE_VERSION
 import io.codecks.domain.ai.DraftEnvelopeStatus
 import io.codecks.domain.ai.DraftKind
@@ -64,12 +64,13 @@ internal object AiDraftSchemaV2 {
     private fun stepSchema(): Map<String, Any> =
         obj(
             "id" to string(),
-            "type" to enumString(ApprovedAiActionCatalog.stepTypes.sorted()),
+            "type" to enumString(AiActionCatalog.stepTypes.sorted()),
             "label" to string(),
             "url" to nullableString(),
             "text" to nullableString(),
             "delayMs" to nullableInteger(),
-            "templateId" to nullableEnumString(ApprovedAiActionCatalog.templateIds.sorted()),
+            "templateId" to nullableEnumString(AiActionCatalog.templateIds.sorted()),
+            "command" to nullableCommandString(),
             "requiresConfirmation" to bool(),
         )
 
@@ -103,6 +104,9 @@ internal object AiDraftSchemaV2 {
         array(string(), maxItems = maxItems)
 
     private fun string(): Map<String, Any> = mapOf("type" to "string", "maxLength" to 600)
+
+    private fun nullableCommandString(): Map<String, Any> =
+        mapOf("type" to listOf("string", "null"), "maxLength" to 8_000)
 
     private fun nullableString(): Map<String, Any> = mapOf("type" to listOf("string", "null"), "maxLength" to 1200)
 

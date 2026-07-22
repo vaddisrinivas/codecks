@@ -623,6 +623,9 @@ private fun AiArtifactReviewPanel(
                     review.riskLevel.name
                 },
             )
+            review.riskReason?.let { reason ->
+                AiReviewLine(label = "Why this is risky", value = reason)
+            }
             AiReviewLine(label = "Mac", value = review.target)
             review.trigger?.let { trigger -> AiReviewLine(label = "Trigger", value = trigger) }
             AiReviewList(

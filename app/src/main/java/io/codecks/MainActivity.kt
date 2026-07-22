@@ -713,6 +713,21 @@ private fun CodecksApp(
                 "decor" -> Unit
                 "setup_scan" -> navigate(SettingsRoute)
                 "list_apps_panel" -> Unit
+                "hid_media_play_pause" -> if (hidState.isConnected) {
+                    hidRepository.send(HidCommand.MediaPlayPause)
+                } else {
+                    scope.launch { snackbarHostState.showSnackbar("Connect Mac input first") }
+                }
+                "hid_media_next" -> if (hidState.isConnected) {
+                    hidRepository.send(HidCommand.MediaNext)
+                } else {
+                    scope.launch { snackbarHostState.showSnackbar("Connect Mac input first") }
+                }
+                "hid_media_previous" -> if (hidState.isConnected) {
+                    hidRepository.send(HidCommand.MediaPrevious)
+                } else {
+                    scope.launch { snackbarHostState.showSnackbar("Connect Mac input first") }
+                }
                 else -> Unit
             }
         } else if (action.dangerous) {
@@ -773,7 +788,7 @@ private fun CodecksApp(
                 TextButton(
                     onClick = {
                         pendingDangerousAction = null
-                        homeViewModel.run(action)
+                        homeViewModel.run(action, allowDangerous = true)
                     },
                 ) {
                     Text("Run")

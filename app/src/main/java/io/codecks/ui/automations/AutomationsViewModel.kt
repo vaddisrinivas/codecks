@@ -358,8 +358,6 @@ private fun ActionSpec.validationError(): String? = when (this) {
     is ActionSpec.ShellCommand -> {
         when {
             command.isBlank() -> "Command is empty"
-            trustLevel == ShellTrustLevel.Generated ->
-                RawCommandPolicy.firstAllowlistViolation(command)?.let { "Needs manual review: $it" }
             else -> RawCommandPolicy.firstViolation(command)?.let { "Blocked command: $it" }
         }
     }

@@ -134,7 +134,42 @@ class StructuredDraftParserV2Test {
         )
 
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("Unsupported approved template"))
+        assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("Unsupported built-in template"))
+    }
+
+    @Test
+    fun freeCommand_compilesWhenHardSafetyPolicyAllowsIt() {
+        val result = parser.parse(
+            DraftRequest("show front app", "gpt-5.5", DraftKind.Action),
+            ActionDraftJson(
+                """
+                {
+                  "schemaVersion": 2,
+                  "status": "ready",
+                  "message": "Ready",
+                  "questions": [],
+                  "assumptions": [],
+                  "proposal": {
+                    "id": "front_app",
+                    "title": "Front App",
+                    "description": "Print the frontmost app.",
+                    "requiredCapabilities": ["Shell", "Ssh"],
+                    "target": {"type": "AnyConnected", "id": null},
+                    "safety": {"level": "Normal", "requiresConfirmation": false, "confirmationTitle": null, "confirmationBody": null},
+                    "steps": [{
+                      "id": "run", "type": "command", "label": "Read front app",
+                      "url": null, "text": null, "delayMs": null, "templateId": null,
+                      "command": "osascript -e 'tell application \"System Events\" to get name of first application process whose frontmost is true'",
+                      "requiresConfirmation": false
+                    }]
+                  }
+                }
+                """.trimIndent(),
+            ),
+        ).getOrThrow() as GeneratedDraft.Action
+
+        assertEquals(ActionStepTypes.Shell, result.draft.definition.steps.single().type)
+        assertTrue(result.draft.definition.steps.single().value.orEmpty().contains("frontmost"))
     }
 
     @Test

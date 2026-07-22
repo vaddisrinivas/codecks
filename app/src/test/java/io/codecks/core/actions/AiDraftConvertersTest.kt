@@ -37,6 +37,7 @@ class AiDraftConvertersTest {
                         level = SafetyLevel.Dangerous,
                         requiresConfirmation = true,
                         confirmationTitle = "Open external docs?",
+                        confirmationBody = "This opens a site outside Codecks.",
                     ),
                     steps = listOf(
                         ActionStep(
@@ -54,6 +55,7 @@ class AiDraftConvertersTest {
         assertEquals(listOf("Use browser docs"), artifact.review.assumptions)
         assertEquals("Active Mac", artifact.review.target)
         assertTrue(artifact.review.requiresConfirmation)
+        assertEquals("This opens a site outside Codecks.", artifact.review.riskReason)
         assertEquals(listOf("Browser"), artifact.review.requiredCapabilities)
         assertEquals("Open URL", artifact.review.steps.single().type)
         assertEquals("https://docs.example.com", artifact.review.steps.single().summary)
@@ -88,6 +90,7 @@ class AiDraftConvertersTest {
                 level = SafetyLevel.Dangerous,
                 requiresConfirmation = true,
                 confirmationTitle = "Open external docs?",
+                confirmationBody = "This opens a site outside Codecks.",
             ),
             steps = listOf(
                 ActionStep(

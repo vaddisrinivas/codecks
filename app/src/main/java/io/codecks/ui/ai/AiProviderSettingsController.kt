@@ -560,5 +560,5 @@ private fun String.aiDryRunError(): String? =
     when {
         isBlank() -> "Test failed: generated button has an empty command."
         length > 8_000 -> "Test failed: generated command is too large."
-        else -> RawCommandPolicy.firstAllowlistViolation(this)?.let { "Needs manual review: $it" }
+        else -> RawCommandPolicy.firstViolation(this)?.let { "Blocked: $it" }
     }

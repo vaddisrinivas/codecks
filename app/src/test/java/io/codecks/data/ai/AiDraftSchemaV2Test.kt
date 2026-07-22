@@ -15,12 +15,12 @@ class AiDraftSchemaV2Test {
     }
 
     @Test
-    fun v2Schema_doesNotExposeRawCommandFields() {
+    fun v2Schema_exposesReviewedFreeCommandField() {
         val schemaText = jsonObject("schema" to AiDraftSchemaV2.schemaFor(DraftKind.Action))
 
         assertFalse(schemaText.contains("\"shell\""))
         assertFalse(schemaText.contains("\"ssh_action\""))
-        assertFalse(schemaText.contains("\"command\""))
+        assertTrue(schemaText.contains("\"command\""))
         assertFalse(schemaText.contains("\"value\""))
         assertTrue(schemaText.contains("\"templateId\""))
         assertTrue(schemaText.contains("\"mac.focus_ping_30\""))

@@ -17,7 +17,7 @@ class AiGeneratedContentPlanner @Inject constructor() {
 
     fun deckActionsFromArtifact(artifact: AiArtifact): Result<List<DeckAction>> = runCatching {
         artifact.actions.mapIndexed { index, action ->
-            action.command.requireGeneratedSafeTemplate()
+            action.command.requireGeneratedAllowed()
             DeckAction(
                 id = "${artifact.id}_${action.id}_$index",
                 label = action.title,
@@ -47,7 +47,7 @@ class AiGeneratedContentPlanner @Inject constructor() {
             enabled = false,
             trigger = AutomationTrigger.Manual,
             steps = artifact.actions.map { action ->
-                action.command.requireGeneratedSafeTemplate()
+                action.command.requireGeneratedAllowed()
                 ActionSpec.ShellCommand(
                     id = action.id,
                     title = action.title,
@@ -61,8 +61,8 @@ class AiGeneratedContentPlanner @Inject constructor() {
     }
 }
 
-private fun String.requireGeneratedSafeTemplate() {
-    RawCommandPolicy.firstAllowlistViolation(this)?.let { reason ->
-        error("Generated command needs manual review: $reason")
+private fun String.requireGeneratedAllowed() {
+    RawCommandPolicy.firstViolation(this)?.let { reason ->
+        error("Generated command blocked: $reason")
     }
 }

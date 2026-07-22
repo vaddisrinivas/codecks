@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.12 — 2026-07-22
+
+Trackpad gesture, Mac action, and AI command reliability release.
+
+- Added configurable two-, three-, and four-finger double-tap and hold actions.
+- Added separate fast and precision scroll rails with adjustable slow speed and acceleration.
+- Fixed trackpad overlays blocking gestures and prevented rail releases from producing stray clicks.
+- Fixed bundled Mac actions, explicit dangerous-action confirmation, and Bluetooth HID media controls.
+- Allowed AI to propose reviewable custom commands while retaining hard command blocking, concrete risk explanations, and disabled-until-tested saves.
+- Simplified Settings into Mac actions and Mac input, removing the duplicate readiness section.
+- Refreshed the untouched default Deck with decorative controls while preserving customized Decks.
+- Added emulator interaction coverage and bundled Mac action syntax verification.
+
 ## 0.1.9 — 2026-07-21
 
 UI rescue and creation-flow cleanup release.

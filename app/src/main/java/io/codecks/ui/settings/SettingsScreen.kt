@@ -2,6 +2,7 @@ package io.codecks.ui.settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -67,6 +69,7 @@ import io.codecks.data.context.ContextFeatureStatus
 import io.codecks.data.context.NotificationPrivacySettings
 import io.codecks.core.trackpad.TrackpadClockStyle
 import io.codecks.core.trackpad.TrackpadFloatingMenuLayout
+import io.codecks.core.trackpad.TrackpadGestureAction
 import io.codecks.core.trackpad.TrackpadRailSide
 import io.codecks.core.trackpad.TrackpadRotation
 import io.codecks.core.trackpad.TrackpadSettings
@@ -192,10 +195,19 @@ fun SettingsScreen(
                 item {
                     SettingsRow(
                         icon = Icons.Outlined.Link,
-                        title = "Mac control channel",
-                        summary = connectionHealth.detail,
+                        title = "Mac actions",
+                        summary = "Deck, clipboard, and Rules over a secure connection. ${connectionHealth.detail}",
                         value = connectionHealth.statusLabel(),
                         onClick = { macConnectionOpen = !macConnectionOpen },
+                    )
+                }
+                item {
+                    SettingsRow(
+                        icon = Icons.Outlined.Mouse,
+                        title = "Mac input",
+                        summary = "Trackpad and Text over Bluetooth. ${hidHealth.detail}",
+                        value = hidHealth.statusLabel(),
+                        onClick = onBluetooth,
                     )
                 }
                 if (macConnectionOpen && connectionState != null) {
@@ -230,28 +242,6 @@ fun SettingsScreen(
                         value = if (fullscreen) "On" else "Off",
                         onClick = onFullscreen,
                     )
-                }
-                item { SectionLabel("Readiness") }
-                item {
-                    CodecksPanel(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    ) {
-                        SetupChecklist(
-                            connectionReady = connectionReady,
-                            connectionHealth = connectionHealth,
-                            hidState = hidState,
-                            bluetoothPermissionGranted = bluetoothPermissionGranted,
-                            notificationAccessReady = notificationAccessReady,
-                            aiProviderReady = aiProviderReady,
-                            automationsReady = automationsReady,
-                            featureFlags = featureFlags,
-                            onConnection = { macConnectionOpen = true },
-                            onBluetooth = onBluetooth,
-                            onNotificationAccess = onNotificationAccess,
-                            onAiBuilder = onAiBuilder,
-                            onAutomations = onAutomations,
-                        )
-                    }
                 }
                 item { SectionLabel("Local data") }
                 item {
@@ -290,15 +280,6 @@ fun SettingsScreen(
                         title = "Restore local backup",
                         summary = "Replace Deck and Rules from a Codecks backup file",
                         onClick = onImportBackup,
-                    )
-                }
-                item {
-                    SettingsRow(
-                        icon = Icons.Outlined.Mouse,
-                        title = "Trackpad Mac",
-                        summary = hidHealth.detail,
-                        value = hidHealth.statusLabel(),
-                        onClick = onBluetooth,
                     )
                 }
                 item { SectionLabel("Trackpad") }
@@ -514,7 +495,7 @@ private fun MacConnectionSettingsPanel(
         Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(14.dp)) {
             Text("Connect a Mac", style = MaterialTheme.typography.titleMedium)
             Text(
-                "One setup flow for Deck, Trackpad, and Rules. Your password is used once; Codecks keeps a secure key after pairing.",
+                "One setup flow for Deck, Clipboard, and Rules. Your password is used once; Codecks keeps a secure key after pairing.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -837,6 +818,37 @@ private fun TrackpadSettingsPanel(
                 checked = settings.scrollRailEnabled,
                 onCheckedChange = { value -> onChange { it.copy(scrollRailEnabled = value) } },
             )
+            SettingSwitch(
+                label = "Slow scroll rail",
+                checked = settings.precisionScrollRailEnabled,
+                onCheckedChange = { value -> onChange { it.copy(precisionScrollRailEnabled = value) } },
+            )
+            Text("Custom gestures", style = MaterialTheme.typography.labelLarge)
+            GestureActionPicker(
+                label = "Two-finger double tap",
+                selected = settings.twoFingerDoubleTapAction,
+                onSelected = { action -> onChange { it.copy(twoFingerDoubleTapAction = action) } },
+            )
+            GestureActionPicker(
+                label = "Three-finger double tap",
+                selected = settings.threeFingerDoubleTapAction,
+                onSelected = { action -> onChange { it.copy(threeFingerDoubleTapAction = action) } },
+            )
+            GestureActionPicker(
+                label = "Three-finger hold",
+                selected = settings.threeFingerHoldAction,
+                onSelected = { action -> onChange { it.copy(threeFingerHoldAction = action) } },
+            )
+            GestureActionPicker(
+                label = "Four-finger double tap",
+                selected = settings.fourFingerDoubleTapAction,
+                onSelected = { action -> onChange { it.copy(fourFingerDoubleTapAction = action) } },
+            )
+            GestureActionPicker(
+                label = "Four-finger hold",
+                selected = settings.fourFingerHoldAction,
+                onSelected = { action -> onChange { it.copy(fourFingerHoldAction = action) } },
+            )
             Text("Hand alignment", style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 TrackpadRailSide.entries.forEach { side ->
@@ -872,6 +884,18 @@ private fun TrackpadSettingsPanel(
                     onValueChange = { value -> onChange { it.copy(scrollSpeed = value) } },
                 )
                 SettingSlider(
+                    label = "Slow rail speed",
+                    value = settings.precisionScrollSpeed,
+                    valueRange = 0.1f..0.75f,
+                    onValueChange = { value -> onChange { it.copy(precisionScrollSpeed = value) } },
+                )
+                SettingSlider(
+                    label = "Slow rail acceleration",
+                    value = settings.precisionScrollAcceleration,
+                    valueRange = 0f..1f,
+                    onValueChange = { value -> onChange { it.copy(precisionScrollAcceleration = value) } },
+                )
+                SettingSlider(
                     label = "Background opacity",
                     value = settings.backgroundOpacity,
                     valueRange = 0.05f..0.72f,
@@ -882,6 +906,12 @@ private fun TrackpadSettingsPanel(
                     value = settings.doubleTapTimeoutMillis.toFloat(),
                     valueRange = 350f..900f,
                     onValueChange = { value -> onChange { it.copy(doubleTapTimeoutMillis = value.toInt()) } },
+                )
+                SettingSlider(
+                    label = "Gesture hold ${settings.multiFingerHoldMillis}ms",
+                    value = settings.multiFingerHoldMillis.toFloat(),
+                    valueRange = 350f..1_000f,
+                    onValueChange = { value -> onChange { it.copy(multiFingerHoldMillis = value.toInt()) } },
                 )
                 Text("Clock style", style = MaterialTheme.typography.labelLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -916,6 +946,30 @@ private fun TrackpadSettingsPanel(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GestureActionPicker(
+    label: String,
+    selected: TrackpadGestureAction,
+    onSelected: (TrackpadGestureAction) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        ) {
+            TrackpadGestureAction.entries.forEach { action ->
+                DeckFilterPill(
+                    label = action.label,
+                    selected = selected == action,
+                    onClick = { onSelected(action) },
+                    modifier = Modifier.heightIn(min = 48.dp),
+                )
             }
         }
     }

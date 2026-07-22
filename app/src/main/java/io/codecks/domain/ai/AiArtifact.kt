@@ -30,6 +30,7 @@ data class AiArtifactReview(
     val assumptions: List<String> = emptyList(),
     val riskLevel: AiArtifactRiskLevel = AiArtifactRiskLevel.Normal,
     val requiresConfirmation: Boolean = false,
+    val riskReason: String? = null,
     val target: String = "Any connected Mac",
     val trigger: String? = null,
     val requiredCapabilities: List<String> = emptyList(),

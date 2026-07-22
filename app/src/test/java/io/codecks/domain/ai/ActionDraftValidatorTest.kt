@@ -25,6 +25,10 @@ class ActionDraftValidatorTest {
             validDefinition().copy(steps = listOf(ActionStep("retry", ActionStepTypes.Delay, retry = RetryPolicy(99, 0)))),
             validDefinition().copy(steps = listOf(ActionStep("shell", ActionStepTypes.Shell, value = "rm -rf /"))),
             validDefinition().copy(safety = SafetyMetadata(SafetyLevel.Dangerous), steps = listOf(ActionStep("x", ActionStepTypes.Delay))),
+            validDefinition().copy(
+                safety = SafetyMetadata(SafetyLevel.Dangerous, requiresConfirmation = true, confirmationTitle = "Run?"),
+                steps = listOf(ActionStep("x", ActionStepTypes.Delay, delayMs = 1, confirmedDangerous = true)),
+            ),
             validDefinition().copy(steps = listOf(ActionStep("open", ActionStepTypes.OpenUrl))),
             validDefinition().copy(steps = listOf(ActionStep("delay", ActionStepTypes.Delay))),
             validDefinition().copy(steps = listOf(ActionStep("clip", ActionStepTypes.ClipboardText))),
@@ -51,6 +55,33 @@ class ActionDraftValidatorTest {
         steps.forEach { step ->
             assertEquals(ValidationResult.Valid, validator.validate(validDefinition().copy(steps = listOf(step))))
         }
+    }
+
+    @Test
+    fun validate_requiresRiskExplanationForRiskyFreeCommand() {
+        val risky = validDefinition().copy(
+            requiredCapabilities = listOf(ActionCapability.Advanced),
+            steps = listOf(
+                ActionStep(
+                    "stop",
+                    ActionStepTypes.Shell,
+                    value = "kill 1234",
+                    requiredCapabilities = listOf(ActionCapability.Advanced),
+                ),
+            ),
+        )
+        assertTrue(validator.validate(risky) is ValidationResult.Invalid)
+
+        val explained = risky.copy(
+            safety = SafetyMetadata(
+                level = SafetyLevel.Dangerous,
+                requiresConfirmation = true,
+                confirmationTitle = "Stop process?",
+                confirmationBody = "This stops process 1234 and may interrupt its work.",
+            ),
+            steps = risky.steps.map { it.copy(confirmedDangerous = true) },
+        )
+        assertEquals(ValidationResult.Valid, validator.validate(explained))
     }
 
     private fun validDefinition(): ActionDefinition =

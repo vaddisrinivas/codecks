@@ -21,6 +21,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -75,6 +76,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -88,6 +90,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -112,11 +115,14 @@ import io.codecks.core.trackpad.TrackpadRailSide
 import io.codecks.core.trackpad.TrackpadRotation
 import io.codecks.core.trackpad.TrackpadSettings
 import io.codecks.core.trackpad.TrackpadGestureEngine
+import io.codecks.core.trackpad.TrackpadMultiTapDetector
+import io.codecks.core.trackpad.TrackpadPrecisionScrollAccumulator
 import io.codecks.core.trackpad.TrackpadGestureEvent
 import io.codecks.core.trackpad.TrackpadGestureSample
 import io.codecks.core.trackpad.TrackpadMotionMode
 import io.codecks.core.trackpad.isTrackpadScrollZone
 import io.codecks.core.trackpad.trackpadPointerGain
+import io.codecks.core.trackpad.shouldTriggerTrackpadHold
 import java.time.format.DateTimeFormatter
 
 @Composable
@@ -160,6 +166,7 @@ fun MouseScreen(
     onAirTouchRecenter: () -> Unit = {},
     onAirTouchSampleConfirmed: (target: Offset, observed: Offset) -> Unit = { _, _ -> },
     onTapCorrection: () -> Unit = {},
+    onGestureDiagnostic: (TrackpadGestureSample) -> Unit = {},
     onOpenNotificationSettings: () -> Unit = {},
     onExitTrackpad: () -> Unit = {},
     sessionPinned: Boolean = false,
@@ -177,6 +184,7 @@ fun MouseScreen(
     val quietModeEnabled = settings.quietModeEnabled
     val idleBlankTimeoutMillis = settings.idleBlankTimeoutMillis
     val scrollRailEnabled = settings.scrollRailEnabled
+    val precisionScrollRailEnabled = settings.precisionScrollRailEnabled
     val verticalRailDirection = if (settings.scrollRailInverted) ScrollRailDirection.Inverted else ScrollRailDirection.Direct
     val railSide = settings.railSide
     val rotation = settings.rotation
@@ -300,6 +308,15 @@ fun MouseScreen(
                     traceEnabled = traceEnabled,
                     stylusEnabled = sPenPrecisionEnabled,
                     scrollRailEnabled = scrollRailEnabled,
+                    precisionScrollRailEnabled = precisionScrollRailEnabled,
+                    precisionScrollSpeed = settings.precisionScrollSpeed,
+                    precisionScrollAcceleration = settings.precisionScrollAcceleration,
+                    twoFingerDoubleTapCommand = settings.twoFingerDoubleTapAction.command,
+                    threeFingerDoubleTapCommand = settings.threeFingerDoubleTapAction.command,
+                    threeFingerHoldCommand = settings.threeFingerHoldAction.command,
+                    fourFingerDoubleTapCommand = settings.fourFingerDoubleTapAction.command,
+                    fourFingerHoldCommand = settings.fourFingerHoldAction.command,
+                    multiFingerHoldMillis = settings.multiFingerHoldMillis,
                     railSide = railSide,
                     rotation = rotation,
                     hapticsEnabled = hapticsEnabled,
@@ -332,6 +349,7 @@ fun MouseScreen(
                     acceleration = acceleration,
                     enabled = state.isConnected,
                     onTapCorrection = onTapCorrection,
+                    onGestureDiagnostic = onGestureDiagnostic,
                     modifier = Modifier.fillMaxSize(),
                 )
                 MouseInputMode.AirTouch -> AirTouchSurface(
@@ -1275,6 +1293,15 @@ private fun Trackpad(
     traceEnabled: Boolean,
     stylusEnabled: Boolean,
     scrollRailEnabled: Boolean,
+    precisionScrollRailEnabled: Boolean,
+    precisionScrollSpeed: Float,
+    precisionScrollAcceleration: Float,
+    twoFingerDoubleTapCommand: HidCommand?,
+    threeFingerDoubleTapCommand: HidCommand?,
+    threeFingerHoldCommand: HidCommand?,
+    fourFingerDoubleTapCommand: HidCommand?,
+    fourFingerHoldCommand: HidCommand?,
+    multiFingerHoldMillis: Int,
     railSide: TrackpadRailSide,
     rotation: TrackpadRotation,
     hapticsEnabled: Boolean,
@@ -1292,6 +1319,7 @@ private fun Trackpad(
     sessionPinned: Boolean,
     onDoubleTap: () -> Unit,
     onTapCorrection: () -> Unit = {},
+    onGestureDiagnostic: (TrackpadGestureSample) -> Unit = {},
     sensitivity: Float,
     acceleration: Float,
     enabled: Boolean,
@@ -1345,6 +1373,16 @@ private fun Trackpad(
                 sensitivity = sensitivity,
                 acceleration = acceleration,
                 dragLockEnabled = dragLockEnabled,
+                scrollRailEnabled = scrollRailEnabled,
+                precisionScrollRailEnabled = precisionScrollRailEnabled,
+                precisionScrollSpeed = precisionScrollSpeed,
+                precisionScrollAcceleration = precisionScrollAcceleration,
+                twoFingerDoubleTapCommand = twoFingerDoubleTapCommand,
+                threeFingerDoubleTapCommand = threeFingerDoubleTapCommand,
+                threeFingerHoldCommand = threeFingerHoldCommand,
+                fourFingerDoubleTapCommand = fourFingerDoubleTapCommand,
+                fourFingerHoldCommand = fourFingerHoldCommand,
+                multiFingerHoldMillis = multiFingerHoldMillis,
                 railSide = railSide,
                 onDoubleTap = onDoubleTap,
                 onActivity = ::recordTrackpadActivity,
@@ -1360,7 +1398,14 @@ private fun Trackpad(
                 onPress = onPress,
                 onReleaseButtons = onReleaseButtons,
                 onGestureSample = { sample ->
-                    if (sample.classification == "left_click" || sample.classification == "right_click") {
+                    onGestureDiagnostic(sample)
+                    if (sample.classification == "left_click" ||
+                        sample.classification == "right_click" ||
+                        sample.classification.startsWith("tap_waiting:") ||
+                        sample.classification.startsWith("double_tap:") ||
+                        sample.classification.startsWith("hold:") ||
+                        sample.classification.startsWith("scroll:")
+                    ) {
                         latestTapSample = sample
                         latestTapFeedbackVisible = true
                     }
@@ -1381,8 +1426,16 @@ private fun Trackpad(
                         tracePoints.clear()
                     }
                 },
-                modifier = Modifier.matchParentSize(),
+                modifier = Modifier
+                    .matchParentSize()
+                    .zIndex(1f),
             )
+            if (scrollRailEnabled) {
+                TrackpadRailMarker(label = "SCROLL", side = railSide, strong = true)
+            }
+            if (precisionScrollRailEnabled) {
+                TrackpadRailMarker(label = "SLOW", side = railSide.opposite(), strong = false)
+            }
             Canvas(modifier = Modifier.matchParentSize()) {
                 val now = SystemClock.uptimeMillis()
                 tracePoints.zipWithNext().forEach { (start, end) ->
@@ -1441,7 +1494,8 @@ private fun Trackpad(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .padding(top = 72.dp, start = 18.dp, end = 18.dp)
-                        .widthIn(max = 420.dp),
+                        .widthIn(max = 420.dp)
+                        .zIndex(2f),
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -1449,20 +1503,22 @@ private fun Trackpad(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     ) {
                         Text(
-                            text = latestTapSample?.diagnosticSummary() ?: "Tap recorded",
+                            text = latestTapSample?.feedbackLabel() ?: "Gesture recognized",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
                         )
-                        TextButton(
-                            onClick = {
-                                onTapCorrection()
-                                latestTapFeedbackVisible = false
-                            },
-                        ) {
-                            Text("Wrong click")
+                        if (latestTapSample?.classification in setOf("left_click", "right_click")) {
+                            TextButton(
+                                onClick = {
+                                    onTapCorrection()
+                                    latestTapFeedbackVisible = false
+                                },
+                            ) {
+                                Text("Wrong click")
+                            }
                         }
                     }
                 }
@@ -1477,6 +1533,31 @@ private fun Trackpad(
         }
         }
     }
+}
+
+private fun TrackpadGestureSample.feedbackLabel(): String = when {
+    classification == "left_click" -> "Left click"
+    classification == "right_click" -> "Two-finger right click"
+    classification.startsWith("tap_waiting:") ->
+        "${classification.substringAfter(':')}-finger tap · tap again"
+    classification.startsWith("scroll:") ->
+        if (classification.endsWith("slow")) "Slow scroll" else "Fast scroll"
+    classification.startsWith("double_tap:") ->
+        "Double tap · ${classification.substringAfter(':').gestureCommandLabel()}"
+    classification.startsWith("hold:") ->
+        "Hold · ${classification.substringAfter(':').gestureCommandLabel()}"
+    else -> diagnosticSummary()
+}
+
+private fun String.gestureCommandLabel(): String = when (this) {
+    HidCommand.WindowSwitcher.name -> "same-app window"
+    HidCommand.AppSwitcher.name -> "switch app"
+    HidCommand.MissionControl.name -> "Mission Control"
+    HidCommand.ShowDesktop.name -> "show desktop"
+    HidCommand.Spotlight.name -> "Spotlight"
+    HidCommand.MediaPlayPause.name -> "play / pause"
+    HidCommand.ScreenshotArea.name -> "screenshot"
+    else -> replace(Regex("([a-z])([A-Z])"), "$1 $2").lowercase()
 }
 
 @Composable
@@ -1967,11 +2048,46 @@ private fun railStep(
 }
 
 @Composable
+private fun BoxScope.TrackpadRailMarker(
+    label: String,
+    side: TrackpadRailSide,
+    strong: Boolean,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.primary.copy(alpha = if (strong) 0.14f else 0.08f),
+        contentColor = MaterialTheme.colorScheme.primary.copy(alpha = if (strong) 0.78f else 0.62f),
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier
+            .align(if (side == TrackpadRailSide.Left) Alignment.CenterStart else Alignment.CenterEnd)
+            .padding(horizontal = 5.dp)
+            .width(22.dp)
+            .height(72.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.rotate(-90f))
+        }
+    }
+}
+
+private fun TrackpadRailSide.opposite(): TrackpadRailSide =
+    if (this == TrackpadRailSide.Left) TrackpadRailSide.Right else TrackpadRailSide.Left
+
+@Composable
 private fun RawTrackpadTouchLayer(
     enabled: Boolean,
     sensitivity: Float,
     acceleration: Float,
     dragLockEnabled: Boolean,
+    scrollRailEnabled: Boolean,
+    precisionScrollRailEnabled: Boolean,
+    precisionScrollSpeed: Float,
+    precisionScrollAcceleration: Float,
+    twoFingerDoubleTapCommand: HidCommand?,
+    threeFingerDoubleTapCommand: HidCommand?,
+    threeFingerHoldCommand: HidCommand?,
+    fourFingerDoubleTapCommand: HidCommand?,
+    fourFingerHoldCommand: HidCommand?,
+    multiFingerHoldMillis: Int,
     railSide: TrackpadRailSide,
     rotation: TrackpadRotation,
     hapticsEnabled: Boolean,
@@ -2003,6 +2119,16 @@ private fun RawTrackpadTouchLayer(
             view.sensitivity = sensitivity
             view.acceleration = acceleration
             view.dragLockEnabled = dragLockEnabled
+            view.scrollRailEnabled = scrollRailEnabled
+            view.precisionScrollRailEnabled = precisionScrollRailEnabled
+            view.precisionScrollSpeed = precisionScrollSpeed
+            view.precisionScrollAcceleration = precisionScrollAcceleration
+            view.twoFingerDoubleTapCommand = twoFingerDoubleTapCommand
+            view.threeFingerDoubleTapCommand = threeFingerDoubleTapCommand
+            view.threeFingerHoldCommand = threeFingerHoldCommand
+            view.fourFingerDoubleTapCommand = fourFingerDoubleTapCommand
+            view.fourFingerHoldCommand = fourFingerHoldCommand
+            view.multiFingerHoldMillis = multiFingerHoldMillis.coerceIn(350, 1_000)
             view.railSide = railSide
             view.rotation = rotation
             view.hapticsEnabled = hapticsEnabled
@@ -2035,6 +2161,16 @@ private class RawTrackpadView(context: Context) : View(context) {
     var sensitivity: Float = 1f
     var acceleration: Float = 1f
     var dragLockEnabled: Boolean = false
+    var scrollRailEnabled: Boolean = true
+    var precisionScrollRailEnabled: Boolean = true
+    var precisionScrollSpeed: Float = 0.28f
+    var precisionScrollAcceleration: Float = 0.25f
+    var twoFingerDoubleTapCommand: HidCommand? = HidCommand.WindowSwitcher
+    var threeFingerDoubleTapCommand: HidCommand? = HidCommand.AppSwitcher
+    var threeFingerHoldCommand: HidCommand? = HidCommand.WindowSwitcher
+    var fourFingerDoubleTapCommand: HidCommand? = HidCommand.MissionControl
+    var fourFingerHoldCommand: HidCommand? = HidCommand.ShowDesktop
+    var multiFingerHoldMillis: Int = 520
     var railSide: TrackpadRailSide = TrackpadRailSide.Right
     var rotation: TrackpadRotation = TrackpadRotation.Deg0
     var hapticsEnabled: Boolean = true
@@ -2068,9 +2204,60 @@ private class RawTrackpadView(context: Context) : View(context) {
     private var pendingTapUpTimeMs = 0L
     private var tapDragArmedUntil = 0L
     private var scrollZonePointerId: Int? = null
+    private var scrollZoneMode: TrackpadScrollZone? = null
     private var lastScrollZoneY = 0f
     private var lastScrollZoneHapticY = 0f
+    private var scrollZoneFeedbackSent = false
+    private val standardScrollAccumulator = TrackpadPrecisionScrollAccumulator()
+    private val precisionScrollAccumulator = TrackpadPrecisionScrollAccumulator()
     private val gestureEngine = TrackpadGestureEngine()
+    private val multiTapDetector = TrackpadMultiTapDetector()
+    private var pendingMultiTapPointerCount = 0
+    private var pendingMultiTapSingle: (() -> Unit)? = null
+    private var pendingMultiTapSample: TrackpadGestureSample? = null
+    private val pendingMultiTapRunnable = Runnable {
+        if (hapticsEnabled && pendingMultiTapSingle != null) {
+            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+        }
+        pendingMultiTapSingle?.invoke()
+        pendingMultiTapSample?.let(onGestureSample)
+        pendingMultiTapSingle = null
+        pendingMultiTapSample = null
+        pendingMultiTapPointerCount = 0
+        multiTapDetector.reset()
+    }
+    private var pendingHoldPointerCount = 0
+    private var multiFingerHoldTriggered = false
+    private val multiFingerHoldRunnable = Runnable {
+        val pointerCount = pendingHoldPointerCount
+        val command = when (pointerCount) {
+            3 -> threeFingerHoldCommand
+            4 -> fourFingerHoldCommand
+            else -> null
+        }
+        if (enabledForInput && shouldTriggerTrackpadHold(
+                pointerCount = pointerCount,
+                activePointerCount = activePointers.size,
+                panDistanceSquared = totalPan.getDistanceSquared(),
+                movementThresholdPx = tapMovementThresholdPx,
+                hasCommand = command != null,
+            )
+        ) {
+            requireNotNull(command)
+            multiFingerHoldTriggered = true
+            cancelPendingMultiTap(invokeSingle = false)
+            if (hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            onCommand(command)
+            onGestureSample(
+                TrackpadGestureSample(
+                    maxPointers = pointerCount,
+                    panDistancePx = totalPan.getDistance(),
+                    durationMillis = SystemClock.uptimeMillis() - gestureStartedAtMs,
+                    classification = "hold:${command.name}",
+                ),
+            )
+        }
+    }
     private val pendingSingleTapRunnable = Runnable {
         if (enabledForInput && pendingTapUpTimeMs != 0L) {
             onLeftClick()
@@ -2110,6 +2297,7 @@ private class RawTrackpadView(context: Context) : View(context) {
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!enabledForInput) {
             cancelPendingTap()
+            cancelPendingMultiTap(invokeSingle = false)
             resetGesture()
             return false
         }
@@ -2122,12 +2310,18 @@ private class RawTrackpadView(context: Context) : View(context) {
                 addOrUpdatePointer(event, event.actionIndex)
                 maxPointers = maxOf(maxPointers, activePointers.size)
                 lastCentroid = centroid()
-                if (isInScrollZone(event.x)) {
+                val zone = scrollZoneAt(event.x)
+                if (zone != null) {
                     scrollZonePointerId = event.getPointerId(event.actionIndex)
+                    scrollZoneMode = zone
                     lastScrollZoneY = event.y
                     lastScrollZoneHapticY = event.y
                     if (hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                } else if (pendingTapUpTimeMs == 0L && !dragLockEnabled && event.eventTime <= tapDragArmedUntil) {
+                } else if (pendingTapUpTimeMs == 0L &&
+                    !dragLockEnabled &&
+                    tapDragArmedUntil > 0L &&
+                    event.eventTime <= tapDragArmedUntil
+                ) {
                     tapDragArmedUntil = 0L
                     startLeftDrag("TapDragStart")
                 } else {
@@ -2141,10 +2335,12 @@ private class RawTrackpadView(context: Context) : View(context) {
                 removeCallbacks(longPressRunnable)
                 tapDragArmedUntil = 0L
                 scrollZonePointerId = null
+                scrollZoneMode = null
                 addOrUpdatePointer(event, event.actionIndex)
                 updateAllPointers(event)
                 maxPointers = maxOf(maxPointers, activePointers.size, event.pointerCount)
                 lastCentroid = centroid()
+                scheduleMultiFingerHold(event.pointerCount)
                 return true
             }
 
@@ -2158,8 +2354,35 @@ private class RawTrackpadView(context: Context) : View(context) {
                         val position = Offset(event.getX(index), y)
                         onTrace(PointerTracePoint(position, event.eventTime, event.isStylusEvent()))
                         if (abs(deltaY) >= SCROLL_ZONE_DEADZONE_PX) {
-                            val rotatedScroll = Offset(0f, deltaY / SCROLL_ZONE_DIVISOR).rotated(rotation)
-                            onScroll(rotatedScroll.x, rotatedScroll.y)
+                            val scrollDelta = when (scrollZoneMode) {
+                                TrackpadScrollZone.Precision -> precisionScrollDelta(deltaY)
+                                TrackpadScrollZone.Standard -> standardScrollAccumulator.add(
+                                    delta = deltaY,
+                                    speed = 1f,
+                                    acceleration = 0f,
+                                    divisor = SCROLL_ZONE_DIVISOR,
+                                )
+                                null -> 0f
+                            }
+                            if (scrollDelta != 0f) {
+                                val rotatedScroll = Offset(0f, scrollDelta).rotated(rotation)
+                                onScroll(rotatedScroll.x, rotatedScroll.y)
+                                if (!scrollZoneFeedbackSent) {
+                                    scrollZoneFeedbackSent = true
+                                    onGestureSample(
+                                        TrackpadGestureSample(
+                                            maxPointers = 1,
+                                            panDistancePx = abs(deltaY),
+                                            durationMillis = event.eventTime - gestureStartedAtMs,
+                                            classification = if (scrollZoneMode == TrackpadScrollZone.Precision) {
+                                                "scroll:slow"
+                                            } else {
+                                                "scroll:fast"
+                                            },
+                                        ),
+                                    )
+                                }
+                            }
                             lastScrollZoneY = y
                             if (abs(y - lastScrollZoneHapticY) >= SCROLL_ZONE_HAPTIC_STEP_PX) {
                                 if (hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -2178,6 +2401,10 @@ private class RawTrackpadView(context: Context) : View(context) {
                     val stylus = stylusEnabled && event.isStylusEvent()
                     onTrace(PointerTracePoint(nextCentroid, event.eventTime, stylus))
                     totalPan += delta
+                    if (totalPan.getDistanceSquared() > tapMovementThresholdPx * tapMovementThresholdPx) {
+                        removeCallbacks(multiFingerHoldRunnable)
+                        pendingHoldPointerCount = 0
+                    }
                     if (!leftButtonHeld &&
                         maxPointers == 1 &&
                         totalPan.getDistanceSquared() > tapMovementThresholdPx * tapMovementThresholdPx
@@ -2207,6 +2434,8 @@ private class RawTrackpadView(context: Context) : View(context) {
             }
 
             MotionEvent.ACTION_POINTER_UP -> {
+                removeCallbacks(multiFingerHoldRunnable)
+                pendingHoldPointerCount = 0
                 if (leftButtonHeld) {
                     if (hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     onReleaseButtons()
@@ -2222,20 +2451,31 @@ private class RawTrackpadView(context: Context) : View(context) {
 
             MotionEvent.ACTION_UP -> {
                 removeCallbacks(longPressRunnable)
+                removeCallbacks(multiFingerHoldRunnable)
+                pendingHoldPointerCount = 0
                 maxPointers = maxOf(maxPointers, activePointers.size, event.pointerCount)
                 updateAllPointers(event, skipActionIndex = event.actionIndex)
+                if (scrollZonePointerId != null) {
+                    resetGesture()
+                    return true
+                }
                 if (leftButtonHeld) {
                     if (hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     onReleaseButtons()
                     resetGesture()
                     return true
                 }
-                finishGesture()
+                if (multiFingerHoldTriggered) {
+                    resetGesture()
+                    return true
+                }
+                finishGesture(event.eventTime)
                 return true
             }
 
             MotionEvent.ACTION_CANCEL -> {
                 cancelPendingTap()
+                removeCallbacks(multiFingerHoldRunnable)
                 if (leftButtonHeld) onReleaseButtons()
                 resetGesture()
                 return true
@@ -2303,16 +2543,53 @@ private class RawTrackpadView(context: Context) : View(context) {
         return sum / activePointers.size.toFloat()
     }
 
-    private fun finishGesture() {
+    private fun finishGesture(finishedAtMillis: Long) {
         val pointerCount = maxPointers
         val pan = totalPan
         val decision = gestureEngine.classifyGesture(
             maxPointers = pointerCount,
             totalPan = pan,
-            durationMillis = SystemClock.uptimeMillis() - gestureStartedAtMs,
+            durationMillis = finishedAtMillis - gestureStartedAtMs,
             dragLockEnabled = dragLockEnabled,
             tapMovementThresholdPx = tapMovementThresholdPx,
         )
+        val tapLike = pan.getDistanceSquared() <= tapMovementThresholdPx * tapMovementThresholdPx
+        val durationMillis = decision.sample.durationMillis
+        val holdCommand = when (pointerCount) {
+            3 -> threeFingerHoldCommand
+            4 -> fourFingerHoldCommand
+            else -> null
+        }
+        if (tapLike && holdCommand != null && durationMillis >= multiFingerHoldMillis.coerceIn(350, 1_000)) {
+            cancelPendingMultiTap(invokeSingle = false)
+            if (hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            onCommand(holdCommand)
+            onGestureSample(decision.sample.copy(classification = "hold:${holdCommand.name}"))
+            resetGesture()
+            return
+        }
+        val doubleTapCommand = when {
+            pointerCount == 2 && decision.event == TrackpadGestureEvent.RightClick -> twoFingerDoubleTapCommand
+            pointerCount == 3 && tapLike -> threeFingerDoubleTapCommand
+            pointerCount == 4 && tapLike -> fourFingerDoubleTapCommand
+            else -> null
+        }
+        if (doubleTapCommand != null) {
+            val singleAction: () -> Unit = when (val gesture = decision.event) {
+                TrackpadGestureEvent.RightClick -> onRightClick
+                is TrackpadGestureEvent.Command -> ({ onCommand(gesture.command) })
+                else -> ({})
+            }
+            handleMultiTapCandidate(
+                pointerCount = pointerCount,
+                command = doubleTapCommand,
+                singleAction = singleAction,
+                sample = decision.sample,
+                timestampMillis = finishedAtMillis,
+            )
+            resetGesture()
+            return
+        }
         onGestureSample(decision.sample)
         when (val gesture = decision.event) {
             TrackpadGestureEvent.LeftClick -> {
@@ -2349,6 +2626,7 @@ private class RawTrackpadView(context: Context) : View(context) {
 
     private fun resetGesture() {
         removeCallbacks(longPressRunnable)
+        removeCallbacks(multiFingerHoldRunnable)
         activePointers.clear()
         maxPointers = 0
         totalPan = Offset.Zero
@@ -2357,11 +2635,15 @@ private class RawTrackpadView(context: Context) : View(context) {
         lastPointerDelta = Offset.Zero
         pointerVelocity = Offset.Zero
         lastPointerMoveTimeMs = 0L
-                lastHoverPosition = null
-                leftButtonHeld = false
+        lastHoverPosition = null
+        leftButtonHeld = false
+        pendingHoldPointerCount = 0
+        multiFingerHoldTriggered = false
         scrollZonePointerId = null
+        scrollZoneMode = null
         lastScrollZoneY = 0f
         lastScrollZoneHapticY = 0f
+        scrollZoneFeedbackSent = false
     }
 
     private fun startLeftDrag(@Suppress("UNUSED_PARAMETER") label: String) {
@@ -2372,14 +2654,82 @@ private class RawTrackpadView(context: Context) : View(context) {
         onPress(1)
     }
 
-    private fun isInScrollZone(x: Float): Boolean =
-        isTrackpadScrollZone(
+    private fun scrollZoneAt(x: Float): TrackpadScrollZone? {
+        val standard = scrollRailEnabled && isTrackpadScrollZone(
             x = x,
             width = width,
             railSide = railSide,
             widthFraction = SCROLL_ZONE_WIDTH_FRACTION,
             minWidthPx = SCROLL_ZONE_MIN_WIDTH_PX,
         )
+        if (standard) return TrackpadScrollZone.Standard
+        val precision = precisionScrollRailEnabled && isTrackpadScrollZone(
+            x = x,
+            width = width,
+            railSide = railSide.opposite(),
+            widthFraction = SCROLL_ZONE_WIDTH_FRACTION,
+            minWidthPx = SCROLL_ZONE_MIN_WIDTH_PX,
+        )
+        return if (precision) TrackpadScrollZone.Precision else null
+    }
+
+    private fun precisionScrollDelta(deltaY: Float): Float {
+        return precisionScrollAccumulator.add(
+            delta = deltaY,
+            speed = precisionScrollSpeed,
+            acceleration = precisionScrollAcceleration,
+            divisor = SCROLL_ZONE_DIVISOR,
+        )
+    }
+
+    private fun handleMultiTapCandidate(
+        pointerCount: Int,
+        command: HidCommand,
+        singleAction: () -> Unit,
+        sample: TrackpadGestureSample,
+        timestampMillis: Long,
+    ) {
+        if (pendingMultiTapPointerCount != 0 && pendingMultiTapPointerCount != pointerCount) {
+            cancelPendingMultiTap(invokeSingle = true)
+        }
+        if (multiTapDetector.register(pointerCount, timestampMillis, doubleTapTimeoutMillis)) {
+            removeCallbacks(pendingMultiTapRunnable)
+            pendingMultiTapSingle = null
+            pendingMultiTapSample = null
+            pendingMultiTapPointerCount = 0
+            if (hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
+            onCommand(command)
+            onGestureSample(sample.copy(classification = "double_tap:${command.name}"))
+        } else {
+            pendingMultiTapPointerCount = pointerCount
+            pendingMultiTapSingle = singleAction
+            pendingMultiTapSample = sample
+            removeCallbacks(pendingMultiTapRunnable)
+            postDelayed(pendingMultiTapRunnable, doubleTapTimeoutMillis.toLong())
+            onGestureSample(sample.copy(classification = "tap_waiting:$pointerCount"))
+        }
+    }
+
+    private fun scheduleMultiFingerHold(pointerCount: Int) {
+        removeCallbacks(multiFingerHoldRunnable)
+        pendingHoldPointerCount = when (pointerCount) {
+            3 -> if (threeFingerHoldCommand != null) 3 else 0
+            4 -> if (fourFingerHoldCommand != null) 4 else 0
+            else -> 0
+        }
+        if (pendingHoldPointerCount != 0) {
+            postDelayed(multiFingerHoldRunnable, multiFingerHoldMillis.coerceIn(350, 1_000).toLong())
+        }
+    }
+
+    private fun cancelPendingMultiTap(invokeSingle: Boolean) {
+        removeCallbacks(pendingMultiTapRunnable)
+        if (invokeSingle) pendingMultiTapSingle?.invoke()
+        pendingMultiTapSingle = null
+        pendingMultiTapSample = null
+        pendingMultiTapPointerCount = 0
+        multiTapDetector.reset()
+    }
 
     private fun smartPointerDelta(delta: Offset, eventTimeMs: Long, dragging: Boolean, stylus: Boolean): Offset {
         val filtered = Offset(
@@ -2441,6 +2791,11 @@ private class RawTrackpadView(context: Context) : View(context) {
         removeCallbacks(pendingSingleTapRunnable)
         pendingTapUpTimeMs = 0L
     }
+}
+
+private enum class TrackpadScrollZone {
+    Standard,
+    Precision,
 }
 
 private fun MotionEvent.isStylusEvent(): Boolean {

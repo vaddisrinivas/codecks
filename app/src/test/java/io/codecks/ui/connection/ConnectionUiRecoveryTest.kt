@@ -21,10 +21,9 @@ class ConnectionUiRecoveryTest {
         assertTrue(source.contains("Use saved password"))
         assertTrue(source.contains("Save Mac"))
         assertTrue(source.contains("Open GitHub helper page"))
-        assertTrue(
-            source.indexOf("""SectionLabel("Connections")""") <
-                source.indexOf("""SectionLabel("Readiness")"""),
-        )
+        assertTrue(source.contains("Mac actions"))
+        assertTrue(source.contains("Mac input"))
+        assertFalse(source.contains("""SectionLabel("Readiness")"""))
         assertFalse(source.contains("Reading fingerprint"))
         assertFalse(source.contains("Trust manually"))
         assertFalse(source.contains("Pair Mac"))

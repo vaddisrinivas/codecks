@@ -177,7 +177,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun run(action: DeckAction) {
+    fun run(action: DeckAction, allowDangerous: Boolean = false) {
         if (_uiState.value.actionStatus is ActionStatus.Running) return
         if (action.kind == io.codecks.domain.ActionKind.Ssh && !_uiState.value.connectionReady) {
             val result = actionResult(action.id, action.label, "Connect your Mac first", false)
@@ -192,7 +192,7 @@ class HomeViewModel @Inject constructor(
         }
         viewModelScope.launch {
             _uiState.update { it.copy(actionStatus = ActionStatus.Running(action.id)) }
-            val result = actionRunner.run(action.toActionSpec(), allowDangerous = false)
+            val result = actionRunner.run(action.toActionSpec(), allowDangerous = allowDangerous)
             recordRun(result)
             when (result.status) {
                 ActionResultStatus.Succeeded -> {

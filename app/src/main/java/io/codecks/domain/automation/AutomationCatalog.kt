@@ -33,7 +33,7 @@ object AutomationCatalog {
                 id = "app_browser_deck",
                 actionId = "browser_deck",
                 title = "Browser Deck",
-                description = "Switch to browser controls when Safari, Chrome, Arc, or Firefox is frontmost.",
+                description = "Open the browser workspace when a browser is frontmost.",
                 trigger = AutomationTrigger.ActiveApp("Browser"),
                 actionsById = actionsById,
             ),

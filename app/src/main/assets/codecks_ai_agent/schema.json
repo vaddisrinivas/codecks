@@ -1,160 +1,30 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Codecks AI Artifact Schema",
-  "description": "Bundled schema used by Codecks AI to create buttons, decks, and automations.",
-  "definitions": {
-    "target": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": ["AnyConnected", "ActiveDevice", "DeviceId", "GroupId"]
-        },
-        "id": { "type": "string" }
-      }
+  "title": "Codecks AI Creator V2 Envelope",
+  "description": "The app supplies a stricter proposal schema for the requested artifact kind at runtime.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "status", "message", "questions", "assumptions", "proposal"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 2 },
+    "status": {
+      "type": "string",
+      "enum": ["ready", "needs_input", "unsupported", "refused"]
     },
-    "safety": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "level": { "type": "string", "enum": ["Normal", "Dangerous"] },
-        "requiresConfirmation": { "type": "boolean" },
-        "confirmationTitle": { "type": "string" },
-        "confirmationBody": { "type": "string" }
-      }
+    "message": { "type": "string" },
+    "questions": {
+      "type": "array",
+      "maxItems": 4,
+      "items": { "type": "string" }
     },
-    "step": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "type"],
-      "properties": {
-        "id": { "type": "string" },
-        "type": {
-          "type": "string",
-          "enum": ["open_url", "delay", "hid_key", "clipboard_text", "ssh_action", "shell"]
-        },
-        "label": { "type": "string" },
-        "value": { "type": "string" },
-        "url": { "type": "string" },
-        "delayMs": { "type": "integer" },
-        "requiredCapabilities": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "enum": ["Advanced", "Browser", "Clipboard", "HidKeyboard", "HidMouse", "Media", "Shell", "Ssh"]
-          }
-        },
-        "confirmedDangerous": { "type": "boolean" },
-        "retry": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "maxAttempts": { "type": "integer" },
-            "delayMs": { "type": "integer" }
-          }
-        }
-      }
+    "assumptions": {
+      "type": "array",
+      "maxItems": 8,
+      "items": { "type": "string" }
     },
-    "definition": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "title", "steps"],
-      "properties": {
-        "schemaVersion": { "type": "integer" },
-        "id": { "type": "string" },
-        "title": { "type": "string" },
-        "description": { "type": "string" },
-        "requiredCapabilities": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "enum": ["Advanced", "Browser", "Clipboard", "HidKeyboard", "HidMouse", "Media", "Shell", "Ssh"]
-          }
-        },
-        "variables": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["name", "label"],
-            "properties": {
-              "name": { "type": "string" },
-              "label": { "type": "string" },
-              "required": { "type": "boolean" },
-              "defaultValue": { "type": "string" }
-            }
-          }
-        },
-        "templates": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["id", "body"],
-            "properties": {
-              "id": { "type": "string" },
-              "body": { "type": "string" }
-            }
-          }
-        },
-        "target": { "$ref": "#/definitions/target" },
-        "safety": { "$ref": "#/definitions/safety" },
-        "steps": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "$ref": "#/definitions/step" }
-        }
-      }
-    },
-    "actionDraft": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["prompt", "definition"],
-      "properties": {
-        "schemaVersion": { "type": "integer" },
-        "prompt": { "type": "string" },
-        "providerModel": { "type": "string" },
-        "definition": { "$ref": "#/definitions/definition" }
-      }
-    },
-    "deckDraft": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["prompt", "id", "title", "actions"],
-      "properties": {
-        "schemaVersion": { "type": "integer" },
-        "prompt": { "type": "string" },
-        "id": { "type": "string" },
-        "title": { "type": "string" },
-        "description": { "type": "string" },
-        "actions": {
-          "type": "array",
-          "minItems": 1,
-          "maxItems": 12,
-          "items": { "$ref": "#/definitions/definition" }
-        }
-      }
-    },
-    "automationDraft": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["prompt", "id", "label", "category", "definition"],
-      "properties": {
-        "schemaVersion": { "type": "integer" },
-        "prompt": { "type": "string" },
-        "id": { "type": "string" },
-        "label": { "type": "string" },
-        "description": { "type": "string" },
-        "category": { "type": "string" },
-        "dangerous": { "type": "boolean" },
-        "definition": { "$ref": "#/definitions/definition" }
-      }
+    "proposal": {
+      "description": "Null unless status is ready. Runtime schema defines the exact typed proposal.",
+      "type": ["object", "null"]
     }
-  },
-  "oneOf": [
-    { "$ref": "#/definitions/actionDraft" },
-    { "$ref": "#/definitions/deckDraft" },
-    { "$ref": "#/definitions/automationDraft" }
-  ]
+  }
 }

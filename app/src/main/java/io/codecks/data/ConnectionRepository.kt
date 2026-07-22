@@ -105,6 +105,9 @@ interface ConnectionRepository {
     suspend fun runActionOnTarget(targetId: String, actionId: String, dangerous: Boolean): Result<String> =
         runAction(actionId, dangerous)
     suspend fun runCommandOnTarget(targetId: String, command: String): Result<String> = runCommand(command)
+    suspend fun runBundledCommand(command: String): Result<String> = runCommand(command)
+    suspend fun runBundledCommandOnTarget(targetId: String, command: String): Result<String> =
+        runCommandOnTarget(targetId, command)
 }
 
 @Singleton
@@ -351,6 +354,18 @@ class DefaultConnectionRepository @Inject constructor(
         }
     }
 
+    override suspend fun runBundledCommand(command: String): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val current = currentConfig()
+            require(current.isReady) { "Connect your Mac first" }
+            require(command.isNotBlank()) { "Command is empty" }
+            RawCommandPolicy.requireAllowed(command)
+            val result = runSsh(current, null, readPrivateKey(), command)
+            check(result.isSuccess) { result.summary }
+            result.summary
+        }
+    }
+
     override suspend fun runCommandRaw(command: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val current = currentConfig()
@@ -405,6 +420,20 @@ class DefaultConnectionRepository @Inject constructor(
                 require(target.isReady) { "Connect ${target.host} first" }
                 require(command.isNotBlank()) { "Command is empty" }
                 RawCommandPolicy.requireSafeTemplate(command)
+                val result = runSsh(target.toConfig(), null, readPrivateKey(), command)
+                check(result.isSuccess) { result.summary }
+                result.summary
+            }
+        }
+
+
+    override suspend fun runBundledCommandOnTarget(targetId: String, command: String): Result<String> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val target = targetById(targetId)
+                require(target.isReady) { "Connect ${target.host} first" }
+                require(command.isNotBlank()) { "Command is empty" }
+                RawCommandPolicy.requireAllowed(command)
                 val result = runSsh(target.toConfig(), null, readPrivateKey(), command)
                 check(result.isSuccess) { result.summary }
                 result.summary

@@ -71,6 +71,11 @@ object RawCommandPolicy {
         val reason = firstAllowlistViolation(command) ?: return
         throw SecurityException("Command blocked: $reason")
     }
+
+    fun requireAllowed(command: String) {
+        val reason = firstViolation(command) ?: return
+        throw SecurityException("Command blocked: $reason")
+    }
 }
 
 private data class BlockedPattern(

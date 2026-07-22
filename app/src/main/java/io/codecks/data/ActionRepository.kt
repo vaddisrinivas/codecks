@@ -86,7 +86,7 @@ class DefaultActionRepository @Inject constructor(
                 }
                 ?.takeIf { it.slots.isNotEmpty() }
                 ?: defaultLayout
-            withNextWaveUtilitySlots(storedLayout).also { cachedLayout = it }
+            upgradeLayout(storedLayout).also { cachedLayout = it }
         }
 
     override fun catalogActions(): List<DeckAction> = actions
@@ -94,7 +94,7 @@ class DefaultActionRepository @Inject constructor(
     override suspend fun customActions(): List<DeckAction> =
         context.deckDataStore.data.first()[FAVORITES]
             ?.let(::decodeLayout)
-            ?.let(::withNextWaveUtilitySlots)
+            ?.let(::upgradeLayout)
             ?.also { cachedLayout = it }
             ?.actions
             ?.filterNot { action -> byId.containsKey(action.id) }
@@ -135,6 +135,7 @@ class DefaultActionRepository @Inject constructor(
 
     private fun withNextWaveUtilitySlots(layout: DeckLayout): DeckLayout {
         val ids = layout.actions.map(DeckAction::id)
+        if (ids == PREVIOUS_DEFAULT_ACTION_IDS) return defaultLayout
         if ("keyboard" in ids || "clipboard" in ids) return layout
         if (ids != OLD_DEFAULT_ACTION_IDS) return layout
         val nextSlots = layout.slots +
@@ -143,6 +144,12 @@ class DefaultActionRepository @Inject constructor(
                 byId["clipboard"]?.let { DeckSlot(id = "slot-clipboard", action = it, columnSpan = 2) },
             )
         return layout.copy(slots = nextSlots).normalized()
+    }
+
+    private fun upgradeLayout(layout: DeckLayout): DeckLayout {
+        val ids = layout.actions.map(DeckAction::id)
+        if (ids == PREVIOUS_DEFAULT_ACTION_IDS || ids == OLD_DEFAULT_ACTION_IDS) return defaultLayout
+        return withNextWaveUtilitySlots(layout.normalized())
     }
 
     override suspend fun exportLayout(): Result<String> = runCatching {
@@ -167,7 +174,8 @@ class DefaultActionRepository @Inject constructor(
     override suspend fun run(action: DeckAction): Result<String> = when (action.kind) {
         ActionKind.Local -> Result.failure(LocalActionException(action.route.orEmpty()))
         ActionKind.Ssh -> if (action.command != null) {
-            connectionRepository.runCommand(action.command)
+            if (isBundled(action)) connectionRepository.runBundledCommand(action.command)
+            else connectionRepository.runCommand(action.command)
         } else {
             connectionRepository.runAction(action.id, action.dangerous)
         }
@@ -179,7 +187,8 @@ class DefaultActionRepository @Inject constructor(
             val testCommand = action.testCommand
             val command = action.command
             if (testCommand != null) {
-                connectionRepository.runCommand(testCommand)
+                if (isBundled(action)) connectionRepository.runBundledCommand(testCommand)
+                else connectionRepository.runCommand(testCommand)
             } else if (command != null) {
                 connectionRepository.validateCommandSyntax(command)
             } else {
@@ -187,6 +196,9 @@ class DefaultActionRepository @Inject constructor(
             }
         }
     }
+
+    private fun isBundled(action: DeckAction): Boolean =
+        byId[action.id]?.let { bundled -> bundled.command == action.command } == true
 
     private fun encodeLayout(layout: DeckLayout): String = JSONObject().apply {
         put("schemaVersion", FAVORITES_SCHEMA_VERSION)
@@ -270,7 +282,7 @@ class DefaultActionRepository @Inject constructor(
         val DEFAULT_SLOT_SPECS = listOf(
             DefaultSlotSpec("finder"), DefaultSlotSpec("terminal"), DefaultSlotSpec("spotlight"), DefaultSlotSpec("screenshot"),
             DefaultSlotSpec("mission"), DefaultSlotSpec("space_left"), DefaultSlotSpec("space_right"), DefaultSlotSpec("full_screen"),
-            DefaultSlotSpec("prev_app"), DefaultSlotSpec("next_app"), DefaultSlotSpec("new_tab"), DefaultSlotSpec("play_pause"),
+            DefaultSlotSpec("confetti"), DefaultSlotSpec("sparkle"), DefaultSlotSpec("new_tab"), DefaultSlotSpec("screensaver"),
             DefaultSlotSpec("mute"), DefaultSlotSpec("vol_down"), DefaultSlotSpec("vol_up"), DefaultSlotSpec("lock_mac"),
             DefaultSlotSpec("keyboard", columnSpan = 2), DefaultSlotSpec("clipboard", columnSpan = 2),
             DefaultSlotSpec("trackpad", columnSpan = 3), DefaultSlotSpec("automations"),
@@ -281,6 +293,13 @@ class DefaultActionRepository @Inject constructor(
             "prev_app", "next_app", "new_tab", "play_pause",
             "mute", "vol_down", "vol_up", "lock_mac",
             "trackpad", "automations",
+        )
+        val PREVIOUS_DEFAULT_ACTION_IDS = listOf(
+            "finder", "terminal", "spotlight", "screenshot",
+            "mission", "space_left", "space_right", "full_screen",
+            "prev_app", "next_app", "new_tab", "play_pause",
+            "mute", "vol_down", "vol_up", "lock_mac",
+            "keyboard", "clipboard", "trackpad", "automations",
         )
         val FAVORITES = stringPreferencesKey("favorite_action_ids")
         val FAVORITES_QUARANTINE = stringPreferencesKey("favorite_action_ids_quarantine")

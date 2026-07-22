@@ -54,7 +54,7 @@ class AiGeneratedContentPlannerTest {
         )
 
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("manual review"))
+        assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("blocked"))
     }
 
     @Test

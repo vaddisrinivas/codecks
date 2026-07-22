@@ -52,7 +52,7 @@ fun simpleConnectionHealth(connectionReady: Boolean): ConnectionHealth =
         ConnectionHealth(
             kind = ConnectionHealthKind.NotConfigured,
             title = "Mac not configured",
-            detail = "Add your Mac once to run Deck, Trackpad, and Rules.",
+            detail = "Add your Mac once to run Deck, Clipboard, and Rules.",
             actionHint = "Open connection setup.",
         )
     }
@@ -68,7 +68,7 @@ fun connectionHealth(
         !config.isConfigured -> ConnectionHealth(
             kind = ConnectionHealthKind.NotConfigured,
             title = "Mac not configured",
-            detail = "Add your Mac once to run Deck, Trackpad, and Rules.",
+            detail = "Add your Mac once to run Deck, Clipboard, and Rules.",
             actionHint = "Scan or enter your Mac hostname.",
         )
         config.hostKey.isBlank() -> ConnectionHealth(

@@ -64,9 +64,9 @@ class TrackpadGestureEngine {
             maxPointers == 3 && pan == DominantPan.Left -> TrackpadGestureEvent.Command(HidCommand.SpaceLeft)
             maxPointers == 3 && pan == DominantPan.Down -> TrackpadGestureEvent.Command(HidCommand.AppExpose)
             maxPointers == 3 && pan == DominantPan.Up -> TrackpadGestureEvent.Command(HidCommand.MissionControl)
-            maxPointers == 3 && totalPan.getDistanceSquared() < 256f -> TrackpadGestureEvent.Command(HidCommand.ShowDesktop)
-            maxPointers > 2 && totalPan.getDistanceSquared() < 196f -> TrackpadGestureEvent.None
-            maxPointers == 2 && totalPan.getDistanceSquared() < 196f -> TrackpadGestureEvent.RightClick
+            maxPointers == 3 && totalPan.getDistanceSquared() < tapDistanceSquared -> TrackpadGestureEvent.Command(HidCommand.ShowDesktop)
+            maxPointers > 2 && totalPan.getDistanceSquared() < tapDistanceSquared -> TrackpadGestureEvent.None
+            maxPointers == 2 && totalPan.getDistanceSquared() < tapDistanceSquared -> TrackpadGestureEvent.RightClick
             totalPan.getDistanceSquared() < tapDistanceSquared && !dragLockEnabled -> TrackpadGestureEvent.LeftClick
             else -> TrackpadGestureEvent.None
         }

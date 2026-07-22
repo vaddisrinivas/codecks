@@ -32,7 +32,7 @@ fun GeneratedDraft.toAiArtifact(promptOverride: String? = null): Result<AiArtifa
     val definitions = actionDefinitions()
     val actions = definitions.mapIndexed { index, definition ->
         val command = definition.toCommand().getOrThrow()
-        command.requireGeneratedSafeTemplate()
+        command.requireGeneratedAllowed()
         AiArtifactAction(
             id = generatedActionId(definition.id, index, definitions.size),
             title = definition.title,
@@ -58,7 +58,7 @@ fun GeneratedDraft.toAutomationRecipe(): Result<AutomationRecipe> = runCatching 
 
 fun ActionDefinition.toDeckAction(index: Int, count: Int): Result<DeckAction> = runCatching {
     val command = toCommand().getOrThrow()
-    command.requireGeneratedSafeTemplate()
+    command.requireGeneratedAllowed()
     DeckAction(
         id = generatedActionId(id, index, count),
         label = title,
@@ -76,7 +76,7 @@ fun ActionDefinition.toDeckAction(index: Int, count: Int): Result<DeckAction> = 
 fun ActionDefinition.toAutomationRecipe(prompt: String): Result<AutomationRecipe> = runCatching {
     val convertedSteps = steps.map { step ->
         val command = step.toCommandFragment()
-        command.requireGeneratedSafeTemplate()
+        command.requireGeneratedAllowed()
         ActionSpec.ShellCommand(
             id = "${id}_${step.label.ifBlank { step.id }}".slug(),
             title = step.label.ifBlank { title },
@@ -164,6 +164,11 @@ private fun GeneratedDraft.toAiArtifactReview(): AiArtifactReview {
         assumptions = metadata().assumptions,
         riskLevel = if (requiresConfirmation) AiArtifactRiskLevel.Dangerous else AiArtifactRiskLevel.Normal,
         requiresConfirmation = requiresConfirmation,
+        riskReason = definitions
+            .mapNotNull { it.safety.confirmationBody?.takeIf(String::isNotBlank) }
+            .distinct()
+            .joinToString(" ")
+            .ifBlank { null },
         target = definitions.map { it.target.reviewLabel() }.distinct().joinToString().ifBlank { "Any connected Mac" },
         trigger = when (this) {
             is GeneratedDraft.Automation -> "Manual trigger until explicitly enabled"
@@ -259,8 +264,8 @@ private fun String.slug(): String =
 
 private fun shellQuote(value: String): String = "'${value.replace("'", "'\"'\"'")}'"
 
-private fun String.requireGeneratedSafeTemplate() {
-    RawCommandPolicy.firstAllowlistViolation(this)?.let { reason ->
-        error("Generated command needs manual review: $reason")
+private fun String.requireGeneratedAllowed() {
+    RawCommandPolicy.firstViolation(this)?.let { reason ->
+        error("Generated command blocked: $reason")
     }
 }
