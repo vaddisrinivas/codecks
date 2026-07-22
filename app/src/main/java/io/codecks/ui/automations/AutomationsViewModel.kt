@@ -9,10 +9,13 @@ import io.codecks.core.actions.ActionResultStatus
 import io.codecks.core.actions.ActionRunner
 import io.codecks.core.actions.ActionSpec
 import io.codecks.core.actions.ShellTrustLevel
+import io.codecks.core.actions.commandRevision
 import io.codecks.data.ConnectionRepository
 import io.codecks.core.actions.RawCommandPolicy
 import io.codecks.data.automation.AutomationRepository
 import io.codecks.data.automation.AutomationScheduler
+import io.codecks.domain.CommandOrigin
+import io.codecks.domain.CommandReview
 import io.codecks.domain.ai.AiArtifact
 import io.codecks.domain.ai.GeneratedDraft
 import io.codecks.domain.automation.AutomationCatalog
@@ -148,6 +151,10 @@ class AutomationsViewModel @Inject constructor(
             _uiState.update { it.copy(message = "Add a command to run") }
             return
         }
+        RawCommandPolicy.firstViolation(command)?.let { reason ->
+            _uiState.update { it.copy(message = "Command blocked: $reason") }
+            return
+        }
         val trigger = input.toTrigger().getOrElse { error ->
             _uiState.update { it.copy(message = error.message ?: "Check the trigger value") }
             return
@@ -159,14 +166,13 @@ class AutomationsViewModel @Inject constructor(
             enabled = input.enabled,
             trigger = trigger,
             steps = listOf(
-                ActionSpec.ShellCommand(
+                reviewedUserShellCommand(
                     id = "step_${title.slug()}",
                     title = title,
                     command = command,
-                    dangerous = RawCommandPolicy.firstViolation(command) != null,
                 ),
             ),
-            safety = AutomationSafety(requiresConfirmation = RawCommandPolicy.firstViolation(command) != null),
+            safety = AutomationSafety(requiresConfirmation = false),
         )
         viewModelScope.launch {
             automationRepository.save(recipe)
@@ -370,6 +376,31 @@ private fun ActionSpec.validationError(): String? = when (this) {
     is ActionSpec.LocalRoute -> if (route.isBlank()) "Route is empty" else null
 }
 
+private fun reviewedUserShellCommand(
+    id: String,
+    title: String,
+    command: String,
+): ActionSpec.ShellCommand {
+    val targetSelector = io.codecks.domain.device.TargetSelector.CurrentDevice
+    return ActionSpec.ShellCommand(
+        id = id,
+        title = title,
+        command = command,
+        trustLevel = ShellTrustLevel.UserReviewed,
+        dangerous = false,
+        targetSelector = targetSelector,
+        commandOrigin = CommandOrigin.UserAuthored,
+        review = CommandReview(
+            reviewedRevision = commandRevision(
+                command = command,
+                targetSelector = targetSelector,
+                origin = CommandOrigin.UserAuthored,
+                dangerous = false,
+            ),
+        ),
+    )
+}
+
 private fun AutomationRecipe.toUiItem(): AutomationItem {
     val lastRunSucceeded = lastRun?.status?.let { it == ActionResultStatus.Succeeded }
     val currentTest = lastTest.takeIf { lastTestRevision == revisionFingerprint() }
@@ -401,6 +432,7 @@ private fun AutomationRunSummary.toLabel(): String =
         ActionResultStatus.Succeeded -> "Last run OK"
         ActionResultStatus.Failed -> "Last run failed"
         ActionResultStatus.RequiresConfirmation -> "Needs confirmation"
+        ActionResultStatus.RequiresReview -> "Needs review"
     }
 
 private fun AutomationRunSummary.toTestLabel(): String =
@@ -408,6 +440,7 @@ private fun AutomationRunSummary.toTestLabel(): String =
         ActionResultStatus.Succeeded -> "Validation passed"
         ActionResultStatus.Failed -> "Validation failed: ${message.take(80)}"
         ActionResultStatus.RequiresConfirmation -> "Validation needs review"
+        ActionResultStatus.RequiresReview -> "Validation needs review"
     }
 
 private fun AutomationRunSummary.toHistoryItem(): AutomationHistoryItem =
@@ -417,7 +450,7 @@ private fun AutomationRunSummary.toHistoryItem(): AutomationHistoryItem =
         message = message,
         logs = logs,
         succeeded = status == ActionResultStatus.Succeeded,
-        needsApproval = status == ActionResultStatus.RequiresConfirmation,
+        needsApproval = status == ActionResultStatus.RequiresConfirmation || status == ActionResultStatus.RequiresReview,
     )
 
 private fun AutomationTrigger.toDraftType(): AutomationTriggerDraftType = when (this) {

@@ -4,9 +4,12 @@ import io.codecks.core.actions.ActionResult
 import io.codecks.core.actions.ActionResultStatus
 import io.codecks.core.actions.ActionRunner
 import io.codecks.core.actions.ActionSpec
+import io.codecks.core.actions.commandRevision
 import io.codecks.data.ConnectionConfig
 import io.codecks.data.ConnectionRepository
 import io.codecks.data.automation.AutomationRepository
+import io.codecks.domain.CommandOrigin
+import io.codecks.domain.CommandReview
 import io.codecks.domain.ai.ActionDefinition
 import io.codecks.domain.ai.ActionStep
 import io.codecks.domain.ai.ActionStepTypes
@@ -21,6 +24,7 @@ import io.codecks.domain.automation.AutomationSafety
 import io.codecks.domain.automation.AutomationTrigger
 import io.codecks.domain.automation.AutomationTriggerEngine
 import io.codecks.domain.automation.AutomationTriggerEvaluation
+import io.codecks.domain.automation.hasCurrentSuccessfulTest
 import io.codecks.domain.automation.revisionFingerprint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -275,9 +279,32 @@ class AutomationsViewModelTest {
         runCurrent()
 
         val recipe = repository.recipes.value.first { it.title == "Open Safari" }
+        val step = recipe.steps.single() as ActionSpec.ShellCommand
         assertTrue(recipe.trigger is AutomationTrigger.ActiveApp)
+        assertEquals(CommandOrigin.UserAuthored, step.commandOrigin)
+        assertEquals(step.commandRevision(), step.review.reviewedRevision)
         assertEquals("App: Safari", viewModel.uiState.value.automations.first { it.label == "Open Safari" }.triggerLabel)
         assertEquals("Open Safari saved", viewModel.uiState.value.message)
+    }
+
+    @Test
+    fun create_rejectsKnownBlockedCommand() = runTest(dispatcher) {
+        val repository = FakeAutomationRepository(emptyList())
+        val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
+        runCurrent()
+
+        viewModel.create(
+            AutomationDraftInput(
+                title = "Bad",
+                triggerType = AutomationTriggerDraftType.Manual,
+                triggerValue = "",
+                command = "rm -rf /tmp/codecks-danger",
+            ),
+        )
+        runCurrent()
+
+        assertEquals(emptyList<AutomationRecipe>(), repository.recipes.value)
+        assertTrue(viewModel.uiState.value.message.orEmpty().startsWith("Command blocked:"))
     }
 
     @Test
@@ -423,6 +450,83 @@ class AutomationsViewModelTest {
         assertEquals(AutomationTrigger.Manual, recipe.trigger)
         assertEquals("AI-created automation from: daily setup", recipe.description)
         assertEquals("Manual", viewModel.uiState.value.automations.single().triggerLabel)
+    }
+
+    @Test
+    fun generatedAutomationStep_persistsReviewedButUntestedRevision() = runTest(dispatcher) {
+        val repository = FakeAutomationRepository(emptyList())
+        val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
+        runCurrent()
+
+        val consumed = viewModel.saveArtifact(
+            AiArtifact(
+                id = "artifact-1",
+                kind = AiArtifactKind.Automation,
+                title = "Daily Setup",
+                prompt = "daily setup",
+                actions = listOf(
+                    AiArtifactAction("open", "Open Calendar", "open 'https://calendar.google.com'"),
+                ),
+            ),
+        )
+        runCurrent()
+
+        val step = repository.recipes.value.single().steps.single() as ActionSpec.ShellCommand
+        assertTrue(consumed)
+        assertEquals(CommandOrigin.AiGenerated, step.commandOrigin)
+        assertEquals(step.commandRevision(), step.review.reviewedRevision)
+        assertEquals(null, step.review.checkedRevision)
+        assertFalse(repository.recipes.value.single().hasCurrentSuccessfulTest())
+    }
+
+    @Test
+    fun editedReviewedCommand_invalidatesRuleTestRevision() = runTest(dispatcher) {
+        val command = "open -a Safari"
+        val original = AutomationRecipe(
+            id = "focus",
+            title = "Focus",
+            description = "Start focus",
+            enabled = false,
+            steps = listOf(
+                ActionSpec.ShellCommand(
+                    id = "focus",
+                    title = "Focus",
+                    command = command,
+                    commandOrigin = CommandOrigin.UserAuthored,
+                    review = CommandReview(
+                        reviewedRevision = commandRevision(
+                            command = command,
+                            targetSelector = io.codecks.domain.device.TargetSelector.CurrentDevice,
+                            origin = CommandOrigin.UserAuthored,
+                            dangerous = false,
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val repository = FakeAutomationRepository(listOf(original))
+        val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
+        runCurrent()
+        viewModel.test("focus")
+        runCurrent()
+        assertTrue(repository.recipes.value.single().hasCurrentSuccessfulTest())
+
+        viewModel.edit(
+            AutomationDraftInput(
+                recipeId = "focus",
+                title = "Focus",
+                triggerType = AutomationTriggerDraftType.Manual,
+                triggerValue = "",
+                command = "open -a Notes",
+                enabled = false,
+            ),
+        )
+        runCurrent()
+
+        val edited = repository.recipes.value.single()
+        assertEquals(null, edited.lastTest)
+        assertEquals(null, edited.lastTestRevision)
+        assertFalse(edited.hasCurrentSuccessfulTest())
     }
 }
 

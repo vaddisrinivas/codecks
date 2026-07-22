@@ -2235,7 +2235,7 @@ private class RawTrackpadView(context: Context) : View(context) {
             4 -> fourFingerHoldCommand
             else -> null
         }
-        if (enabledForInput && shouldTriggerTrackpadHold(
+        if (!multiFingerHoldTriggered && enabledForInput && shouldTriggerTrackpadHold(
                 pointerCount = pointerCount,
                 activePointerCount = activePointers.size,
                 panDistanceSquared = totalPan.getDistanceSquared(),
@@ -2644,6 +2644,8 @@ private class RawTrackpadView(context: Context) : View(context) {
         lastScrollZoneY = 0f
         lastScrollZoneHapticY = 0f
         scrollZoneFeedbackSent = false
+        standardScrollAccumulator.reset()
+        precisionScrollAccumulator.reset()
     }
 
     private fun startLeftDrag(@Suppress("UNUSED_PARAMETER") label: String) {

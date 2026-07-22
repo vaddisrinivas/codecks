@@ -20,6 +20,12 @@ data class DeckAction(
     val liveSafe: Boolean = false,
     val requiresTest: Boolean = false,
     val targetSelector: TargetSelector = TargetSelector.CurrentDevice,
+    val commandOrigin: CommandOrigin = CommandOrigin.Bundled,
+    val commandReview: CommandReview = CommandReview(),
+    val confirmationTitle: String? = null,
+    val confirmationBody: String? = null,
+    val riskReason: String? = null,
+    val executionAuthorization: ExecutionAuthorization = ExecutionAuthorization(),
 )
 
 enum class ActionIcon {

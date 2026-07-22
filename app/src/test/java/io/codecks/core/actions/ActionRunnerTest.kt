@@ -5,6 +5,8 @@ import io.codecks.data.ConnectionConfig
 import io.codecks.data.ConnectionRepository
 import io.codecks.domain.ActionIcon
 import io.codecks.domain.ActionKind
+import io.codecks.domain.CommandOrigin
+import io.codecks.domain.CommandReview
 import io.codecks.domain.DeckAction
 import io.codecks.domain.device.Capability
 import io.codecks.domain.device.DeviceGroup
@@ -35,7 +37,21 @@ class ActionRunnerTest {
         val connection = FakeConnectionRepository()
         val runner = testRunner(connection = connection)
 
-        val result = runner.run(ActionSpec.ShellCommand("hello", "Hello", "printf hi"))
+        val spec = ActionSpec.ShellCommand(
+            "hello",
+            "Hello",
+            "printf hi",
+            review = CommandReview(
+                reviewedRevision = commandRevision(
+                    command = "printf hi",
+                    targetSelector = TargetSelector.CurrentDevice,
+                    origin = CommandOrigin.UserAuthored,
+                    dangerous = false,
+                ),
+            ),
+        )
+
+        val result = runner.run(spec)
 
         assertEquals(ActionResultStatus.Succeeded, result.status)
         assertEquals("printf hi", connection.lastCommand)
@@ -58,6 +74,14 @@ class ActionRunnerTest {
                 title = "Hello",
                 command = "printf hi",
                 targetSelector = TargetSelector.AllCompatibleDevices,
+                review = CommandReview(
+                    reviewedRevision = commandRevision(
+                        command = "printf hi",
+                        targetSelector = TargetSelector.AllCompatibleDevices,
+                        origin = CommandOrigin.UserAuthored,
+                        dangerous = false,
+                    ),
+                ),
             ),
         )
 
@@ -80,7 +104,7 @@ class ActionRunnerTest {
             ),
         )
 
-        assertEquals(ActionResultStatus.RequiresConfirmation, result.status)
+        assertEquals(ActionResultStatus.RequiresReview, result.status)
         assertEquals(null, connection.lastCommand)
     }
 
@@ -89,15 +113,22 @@ class ActionRunnerTest {
         val connection = FakeConnectionRepository()
         val runner = testRunner(connection = connection)
 
-        val result = runner.run(
-            ActionSpec.ShellCommand(
-                id = "generated",
-                title = "Generated",
-                command = "echo hello",
-                trustLevel = ShellTrustLevel.Generated,
+        val spec = ActionSpec.ShellCommand(
+            id = "generated",
+            title = "Generated",
+            command = "echo hello",
+            trustLevel = ShellTrustLevel.Generated,
+            commandOrigin = CommandOrigin.AiGenerated,
+            review = CommandReview(
+                reviewedRevision = commandRevision(
+                    command = "echo hello",
+                    targetSelector = TargetSelector.CurrentDevice,
+                    origin = CommandOrigin.AiGenerated,
+                    dangerous = false,
+                ),
             ),
-            allowDangerous = true,
         )
+        val result = runner.run(spec)
 
         assertEquals(ActionResultStatus.Succeeded, result.status)
         assertEquals("echo hello", connection.lastCommand)
@@ -144,15 +175,54 @@ class ActionRunnerTest {
         val connection = FakeConnectionRepository()
         val runner = testRunner(connection = connection)
 
+        val command = "echo changed"
         val result = runner.run(
             ActionSpec.DeckActionSpec(
-                DeckAction("finder", "Finder", ActionKind.Ssh, ActionIcon.Finder, command = "echo changed"),
+                DeckAction(
+                    "finder",
+                    "Finder",
+                    ActionKind.Ssh,
+                    ActionIcon.Finder,
+                    command = command,
+                    commandOrigin = CommandOrigin.UserAuthored,
+                    commandReview = CommandReview(
+                        reviewedRevision = commandRevision(
+                            command = command,
+                            targetSelector = TargetSelector.CurrentDevice,
+                            origin = CommandOrigin.UserAuthored,
+                            dangerous = false,
+                        ),
+                    ),
+                ),
             ),
         )
 
         assertEquals(ActionResultStatus.Succeeded, result.status)
         assertEquals(null, connection.lastBundledCommand)
         assertEquals("echo changed", connection.lastCommand)
+    }
+
+    @Test
+    fun customDeckCommand_requiresMatchingReviewBeforeRunning() = runTest {
+        val connection = FakeConnectionRepository()
+        val runner = testRunner(connection = connection)
+
+        val result = runner.run(
+            ActionSpec.DeckActionSpec(
+                DeckAction(
+                    "finder",
+                    "Finder",
+                    ActionKind.Ssh,
+                    ActionIcon.Finder,
+                    command = "echo changed",
+                    commandOrigin = CommandOrigin.UserAuthored,
+                ),
+            ),
+        )
+
+        assertEquals(ActionResultStatus.RequiresReview, result.status)
+        assertEquals(null, connection.lastCommand)
+        assertEquals(null, connection.lastBundledCommand)
     }
 
     private fun testRunner(
@@ -208,6 +278,10 @@ private class FakeConnectionRepository : ConnectionRepository {
     override suspend fun selectTarget(targetId: String): Result<String> = Result.success("selected")
     override suspend fun removeTarget(targetId: String): Result<String> = Result.success("removed")
     override suspend fun runCommandOnTarget(targetId: String, command: String): Result<String> {
+        targetCommands += targetId to command
+        return runCommand(command)
+    }
+    override suspend fun runReviewedCommandOnTarget(targetId: String, command: String): Result<String> {
         targetCommands += targetId to command
         return runCommand(command)
     }

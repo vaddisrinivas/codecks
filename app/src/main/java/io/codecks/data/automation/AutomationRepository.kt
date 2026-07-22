@@ -11,6 +11,9 @@ import io.codecks.core.actions.ActionResultStatus
 import io.codecks.core.actions.ActionSpec
 import io.codecks.core.actions.ShellTrustLevel
 import io.codecks.data.ActionRepository
+import io.codecks.domain.CommandOrigin
+import io.codecks.domain.CommandReview
+import io.codecks.domain.ExecutionAuthorization
 import io.codecks.domain.automation.AutomationCatalog
 import io.codecks.domain.automation.AutomationRecipe
 import io.codecks.domain.automation.AutomationRunSummary
@@ -108,7 +111,7 @@ class DefaultAutomationRepository @Inject constructor(
                     recipe.copy(
                         lastRun = summary,
                         runHistory = (listOf(summary) + recipe.runHistory).take(MAX_RUN_HISTORY),
-                        pendingApproval = if (result.status == ActionResultStatus.RequiresConfirmation) summary else null,
+                        pendingApproval = if (result.status == ActionResultStatus.RequiresConfirmation || result.status == ActionResultStatus.RequiresReview) summary else null,
                     )
                 } else {
                     recipe
@@ -278,6 +281,7 @@ class DefaultAutomationRepository @Inject constructor(
                 put("title", action.label)
                 put("dangerous", action.dangerous)
                 put("target", targetSelector.toJson())
+                putCommonTrust(this@toJson)
             }
             is ActionSpec.CatalogAction -> {
                 put("type", "catalog")
@@ -285,6 +289,7 @@ class DefaultAutomationRepository @Inject constructor(
                 put("title", title)
                 put("dangerous", dangerous)
                 put("target", targetSelector.toJson())
+                putCommonTrust(this@toJson)
             }
             is ActionSpec.ShellCommand -> {
                 put("type", "shell")
@@ -294,6 +299,7 @@ class DefaultAutomationRepository @Inject constructor(
                 put("trustLevel", trustLevel.name)
                 put("dangerous", dangerous)
                 put("target", targetSelector.toJson())
+                putCommonTrust(this@toJson)
             }
             is ActionSpec.LocalRoute -> {
                 put("type", "local")
@@ -301,6 +307,7 @@ class DefaultAutomationRepository @Inject constructor(
                 put("title", title)
                 put("route", route)
                 put("target", targetSelector.toJson())
+                putCommonTrust(this@toJson)
             }
         }
     }
@@ -311,7 +318,18 @@ class DefaultAutomationRepository @Inject constructor(
         val dangerous = optBoolean("dangerous", false)
         val target = optJSONObject("target").toTargetSelector()
         return when (optString("type")) {
-            "deck", "catalog" -> ActionSpec.CatalogAction(id, title, dangerous, target)
+            "deck", "catalog" -> ActionSpec.CatalogAction(
+                id = id,
+                title = title,
+                dangerous = dangerous,
+                targetSelector = target,
+                commandOrigin = optCommandOrigin(CommandOrigin.Bundled),
+                review = optJSONObject("commandReview").toCommandReview(),
+                confirmationTitle = optString("confirmationTitle").takeIf(String::isNotBlank),
+                confirmationBody = optString("confirmationBody").takeIf(String::isNotBlank),
+                riskReason = optString("riskReason").takeIf(String::isNotBlank),
+                authorization = optJSONObject("executionAuthorization").toExecutionAuthorization(),
+            )
             "shell" -> ActionSpec.ShellCommand(
                 id = id,
                 title = title,
@@ -321,8 +339,25 @@ class DefaultAutomationRepository @Inject constructor(
                     ?: ShellTrustLevel.UserReviewed,
                 dangerous = dangerous,
                 targetSelector = target,
+                commandOrigin = optCommandOrigin(CommandOrigin.UserAuthored),
+                review = optJSONObject("commandReview").toCommandReview(),
+                confirmationTitle = optString("confirmationTitle").takeIf(String::isNotBlank),
+                confirmationBody = optString("confirmationBody").takeIf(String::isNotBlank),
+                riskReason = optString("riskReason").takeIf(String::isNotBlank),
+                authorization = optJSONObject("executionAuthorization").toExecutionAuthorization(),
             )
-            "local" -> ActionSpec.LocalRoute(id, title, optString("route"), target)
+            "local" -> ActionSpec.LocalRoute(
+                id = id,
+                title = title,
+                route = optString("route"),
+                targetSelector = target,
+                commandOrigin = optCommandOrigin(CommandOrigin.UserAuthored),
+                review = optJSONObject("commandReview").toCommandReview(),
+                confirmationTitle = optString("confirmationTitle").takeIf(String::isNotBlank),
+                confirmationBody = optString("confirmationBody").takeIf(String::isNotBlank),
+                riskReason = optString("riskReason").takeIf(String::isNotBlank),
+                authorization = optJSONObject("executionAuthorization").toExecutionAuthorization(),
+            )
             else -> null
         }
     }
@@ -362,6 +397,44 @@ private fun JSONObject.toAutomationRunSummary(): AutomationRunSummary =
         logs = optString("logs").ifBlank { optString("message") },
         timestampMillis = optLong("timestampMillis", System.currentTimeMillis()),
     )
+
+private fun JSONObject.putCommonTrust(spec: ActionSpec) {
+    put("commandOrigin", spec.commandOrigin.name)
+    put("commandReview", spec.review.toJson())
+    put("confirmationTitle", spec.confirmationTitle)
+    put("confirmationBody", spec.confirmationBody)
+    put("riskReason", spec.riskReason)
+    put("executionAuthorization", spec.authorization.toJson())
+}
+
+private fun CommandReview.toJson(): JSONObject = JSONObject().apply {
+    put("reviewedRevision", reviewedRevision)
+    put("checkedRevision", checkedRevision)
+}
+
+private fun JSONObject?.toCommandReview(): CommandReview {
+    if (this == null) return CommandReview()
+    return CommandReview(
+        reviewedRevision = optString("reviewedRevision").takeIf(String::isNotBlank),
+        checkedRevision = optString("checkedRevision").takeIf(String::isNotBlank),
+    )
+}
+
+private fun ExecutionAuthorization.toJson(): JSONObject = JSONObject().apply {
+    put("dangerousRevisionConfirmed", dangerousRevisionConfirmed)
+}
+
+private fun JSONObject?.toExecutionAuthorization(): ExecutionAuthorization {
+    if (this == null) return ExecutionAuthorization()
+    return ExecutionAuthorization(
+        dangerousRevisionConfirmed = optString("dangerousRevisionConfirmed").takeIf(String::isNotBlank),
+    )
+}
+
+private fun JSONObject.optCommandOrigin(fallback: CommandOrigin): CommandOrigin =
+    optString("commandOrigin").takeIf(String::isNotBlank)
+        ?.let { runCatching { CommandOrigin.valueOf(it) }.getOrNull() }
+        ?: fallback
 
 private fun TargetSelector.toJson(): JSONObject = JSONObject().apply {
     when (val selector = this@toJson) {

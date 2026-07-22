@@ -2,6 +2,8 @@ package io.codecks.core.actions
 
 import io.codecks.domain.ActionIcon
 import io.codecks.domain.ActionKind
+import io.codecks.domain.CommandOrigin
+import io.codecks.domain.CommandReview
 import io.codecks.domain.DeckAction
 import io.codecks.domain.ai.ActionDefinition
 import io.codecks.domain.ai.ActionStepTypes
@@ -59,6 +61,18 @@ fun GeneratedDraft.toAutomationRecipe(): Result<AutomationRecipe> = runCatching 
 fun ActionDefinition.toDeckAction(index: Int, count: Int): Result<DeckAction> = runCatching {
     val command = toCommand().getOrThrow()
     command.requireGeneratedAllowed()
+    val review = CommandReview(
+        reviewedRevision = commandRevision(
+            command = command,
+            targetSelector = target.toDeviceTargetSelector(),
+            origin = CommandOrigin.AiGenerated,
+            dangerous = true,
+            riskReason = safety.confirmationBody,
+            confirmationTitle = safety.confirmationTitle,
+            confirmationBody = safety.confirmationBody,
+        ),
+        checkedRevision = null,
+    )
     DeckAction(
         id = generatedActionId(id, index, count),
         label = title,
@@ -70,6 +84,11 @@ fun ActionDefinition.toDeckAction(index: Int, count: Int): Result<DeckAction> = 
         liveSafe = false,
         requiresTest = true,
         targetSelector = target.toDeviceTargetSelector(),
+        commandOrigin = CommandOrigin.AiGenerated,
+        commandReview = review,
+        confirmationTitle = safety.confirmationTitle,
+        confirmationBody = safety.confirmationBody,
+        riskReason = safety.confirmationBody,
     )
 }
 
@@ -84,6 +103,21 @@ fun ActionDefinition.toAutomationRecipe(prompt: String): Result<AutomationRecipe
             trustLevel = ShellTrustLevel.Generated,
             dangerous = safety.requiresConfirmation,
             targetSelector = target.toDeviceTargetSelector(),
+            commandOrigin = CommandOrigin.AiGenerated,
+            review = CommandReview(
+                reviewedRevision = commandRevision(
+                    command = command,
+                    targetSelector = target.toDeviceTargetSelector(),
+                    origin = CommandOrigin.AiGenerated,
+                    dangerous = safety.requiresConfirmation,
+                    riskReason = safety.confirmationBody,
+                    confirmationTitle = safety.confirmationTitle,
+                    confirmationBody = safety.confirmationBody,
+                ),
+            ),
+            confirmationTitle = safety.confirmationTitle,
+            confirmationBody = safety.confirmationBody,
+            riskReason = safety.confirmationBody,
         )
     }
     AutomationRecipe(

@@ -11,6 +11,7 @@ import io.codecks.domain.ai.SafetyLevel
 import io.codecks.domain.ai.SafetyMetadata
 import io.codecks.domain.ai.TargetSelector
 import io.codecks.domain.automation.AutomationTrigger
+import io.codecks.domain.CommandOrigin
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -68,6 +69,9 @@ class AiDraftConvertersTest {
         assertTrue(action.dangerous)
         assertFalse(action.liveSafe)
         assertTrue(action.requiresTest)
+        assertEquals(CommandOrigin.AiGenerated, action.commandOrigin)
+        assertEquals(action.commandRevision(), action.commandReview.reviewedRevision)
+        assertEquals(null, action.commandReview.checkedRevision)
     }
 
     @Test

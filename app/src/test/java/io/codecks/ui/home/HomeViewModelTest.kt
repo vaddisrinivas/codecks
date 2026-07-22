@@ -7,6 +7,7 @@ import io.codecks.core.actions.ActionResult
 import io.codecks.core.actions.ActionResultStatus
 import io.codecks.core.actions.ActionRunner
 import io.codecks.core.actions.ActionSpec
+import io.codecks.core.actions.commandRevision
 import io.codecks.domain.ActionIcon
 import io.codecks.domain.ActionKind
 import io.codecks.domain.ActionStatus
@@ -193,6 +194,7 @@ class HomeViewModelTest {
         val verified = viewModel.uiState.value.actions.single()
         assertTrue(verified.liveSafe)
         assertFalse(verified.requiresTest)
+        assertEquals(verified.commandRevision(), verified.commandReview.checkedRevision)
         assertEquals(listOf(verified), repository.savedFavorites)
     }
 

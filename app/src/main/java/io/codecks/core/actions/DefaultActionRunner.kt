@@ -5,7 +5,9 @@ import io.codecks.data.ConnectionRepository
 import io.codecks.data.LocalActionException
 import io.codecks.domain.ActionIcon
 import io.codecks.domain.ActionKind
+import io.codecks.domain.CommandOrigin
 import io.codecks.domain.DeckAction
+import io.codecks.domain.ExecutionAuthorization
 import io.codecks.domain.device.Capability
 import io.codecks.domain.device.DeviceRepository
 import io.codecks.domain.device.TransportRegistry
@@ -25,13 +27,22 @@ class DefaultActionRunner @Inject constructor(
     private val deviceRepository: DeviceRepository,
     private val transportRegistry: TransportRegistry,
 ) : ActionRunner {
-    override suspend fun run(spec: ActionSpec, allowDangerous: Boolean): ActionResult {
-        if (spec.dangerous && !allowDangerous) {
+    override suspend fun run(spec: ActionSpec, authorization: ExecutionAuthorization): ActionResult {
+        val revision = spec.dangerousConfirmationRevision()
+        if (spec.dangerous && authorization.dangerousRevisionConfirmed != revision) {
             return ActionResult(
                 actionId = spec.id,
                 title = spec.title,
                 status = ActionResultStatus.RequiresConfirmation,
                 message = "Confirmation required",
+            )
+        }
+        if (spec.requiresReview()) {
+            return ActionResult(
+                actionId = spec.id,
+                title = spec.title,
+                status = ActionResultStatus.RequiresReview,
+                message = "Review this command before running",
             )
         }
         return when (spec) {
@@ -41,7 +52,7 @@ class DefaultActionRunner @Inject constructor(
                     ?: return spec.failure("Action not found")
                 runDeckAction(ActionSpec.DeckActionSpec(action.copy(dangerous = action.dangerous || spec.dangerous)))
             }
-            is ActionSpec.ShellCommand -> runCommandSpec(spec, allowDangerous)
+            is ActionSpec.ShellCommand -> runCommandSpec(spec)
             is ActionSpec.LocalRoute -> spec.failure(LocalActionException(spec.route).message ?: "Open ${spec.route}")
         }
     }
@@ -65,19 +76,9 @@ class DefaultActionRunner @Inject constructor(
         )
     }
 
-    private suspend fun runCommandSpec(spec: ActionSpec.ShellCommand, allowDangerous: Boolean): ActionResult {
+    private suspend fun runCommandSpec(spec: ActionSpec.ShellCommand): ActionResult {
         RawCommandPolicy.firstViolation(spec.command)?.let { reason ->
             return spec.failure("Command blocked: $reason")
-        }
-        if (spec.trustLevel == ShellTrustLevel.Generated) {
-            if (!allowDangerous) {
-                return ActionResult(
-                    actionId = spec.id,
-                    title = spec.title,
-                    status = ActionResultStatus.RequiresConfirmation,
-                    message = "Review generated command before running",
-                )
-            }
         }
         return executeSsh(spec = spec, command = spec.command, catalogActionId = null, bundledCommand = false)
     }
@@ -107,7 +108,7 @@ class DefaultActionRunner @Inject constructor(
                     if (bundledCommand) {
                         connectionRepository.runBundledCommandOnTarget(targetId, shellCommand).getOrThrow()
                     } else {
-                        connectionRepository.runCommandOnTarget(targetId, shellCommand).getOrThrow()
+                        connectionRepository.runReviewedCommandOnTarget(targetId, shellCommand).getOrThrow()
                     }
                 }
             },
@@ -115,6 +116,12 @@ class DefaultActionRunner @Inject constructor(
         val result = executor.execute(plan)
         return spec.toActionResult(result)
     }
+}
+
+private fun ActionSpec.requiresReview(): Boolean {
+    if (commandOrigin == CommandOrigin.Bundled) return false
+    val revision = commandRevision() ?: return false
+    return review.reviewedRevision != revision
 }
 
 private fun DeckAction.success(message: String): ActionResult =
@@ -190,6 +197,12 @@ fun ActionSpec.toDeckAction(): DeckAction = when (this) {
         command = command,
         dangerous = dangerous,
         targetSelector = targetSelector,
+        commandOrigin = commandOrigin,
+        commandReview = review,
+        confirmationTitle = confirmationTitle,
+        confirmationBody = confirmationBody,
+        riskReason = riskReason,
+        executionAuthorization = authorization,
     )
     is ActionSpec.LocalRoute -> DeckAction(
         id,

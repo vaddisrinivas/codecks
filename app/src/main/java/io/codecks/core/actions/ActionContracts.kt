@@ -1,7 +1,10 @@
 package io.codecks.core.actions
 
 import io.codecks.domain.ActionIcon
+import io.codecks.domain.CommandOrigin
+import io.codecks.domain.CommandReview
 import io.codecks.domain.DeckAction
+import io.codecks.domain.ExecutionAuthorization
 import io.codecks.domain.device.TargetSelector
 
 data class Deck(
@@ -43,6 +46,12 @@ sealed interface ActionSpec {
     val title: String
     val dangerous: Boolean
     val targetSelector: TargetSelector
+    val commandOrigin: CommandOrigin
+    val review: CommandReview
+    val confirmationTitle: String?
+    val confirmationBody: String?
+    val riskReason: String?
+    val authorization: ExecutionAuthorization
 
     data class DeckActionSpec(
         val action: DeckAction,
@@ -51,6 +60,12 @@ sealed interface ActionSpec {
         override val title: String = action.label
         override val dangerous: Boolean = action.dangerous
         override val targetSelector: TargetSelector = action.targetSelector
+        override val commandOrigin: CommandOrigin = action.commandOrigin
+        override val review: CommandReview = action.commandReview
+        override val confirmationTitle: String? = action.confirmationTitle
+        override val confirmationBody: String? = action.confirmationBody
+        override val riskReason: String? = action.riskReason
+        override val authorization: ExecutionAuthorization = action.executionAuthorization
     }
 
     data class CatalogAction(
@@ -58,6 +73,12 @@ sealed interface ActionSpec {
         override val title: String,
         override val dangerous: Boolean = false,
         override val targetSelector: TargetSelector = TargetSelector.CurrentDevice,
+        override val commandOrigin: CommandOrigin = CommandOrigin.Bundled,
+        override val review: CommandReview = CommandReview(null, null),
+        override val confirmationTitle: String? = null,
+        override val confirmationBody: String? = null,
+        override val riskReason: String? = null,
+        override val authorization: ExecutionAuthorization = ExecutionAuthorization(),
     ) : ActionSpec
 
     data class ShellCommand(
@@ -67,6 +88,12 @@ sealed interface ActionSpec {
         val trustLevel: ShellTrustLevel = ShellTrustLevel.UserReviewed,
         override val dangerous: Boolean = false,
         override val targetSelector: TargetSelector = TargetSelector.CurrentDevice,
+        override val commandOrigin: CommandOrigin = CommandOrigin.UserAuthored,
+        override val review: CommandReview = CommandReview(null, null),
+        override val confirmationTitle: String? = null,
+        override val confirmationBody: String? = null,
+        override val riskReason: String? = null,
+        override val authorization: ExecutionAuthorization = ExecutionAuthorization(),
     ) : ActionSpec
 
     data class LocalRoute(
@@ -74,6 +101,12 @@ sealed interface ActionSpec {
         override val title: String,
         val route: String,
         override val targetSelector: TargetSelector = TargetSelector.CurrentDevice,
+        override val commandOrigin: CommandOrigin = CommandOrigin.UserAuthored,
+        override val review: CommandReview = CommandReview(null, null),
+        override val confirmationTitle: String? = null,
+        override val confirmationBody: String? = null,
+        override val riskReason: String? = null,
+        override val authorization: ExecutionAuthorization = ExecutionAuthorization(),
     ) : ActionSpec {
         override val dangerous: Boolean = false
     }
@@ -95,10 +128,22 @@ enum class ActionResultStatus {
     Succeeded,
     Failed,
     RequiresConfirmation,
+    RequiresReview,
 }
 
 interface ActionRunner {
-    suspend fun run(spec: ActionSpec, allowDangerous: Boolean = false): ActionResult
+    suspend fun run(spec: ActionSpec, authorization: ExecutionAuthorization = ExecutionAuthorization()): ActionResult =
+        run(spec, allowDangerous = false)
+
+    suspend fun run(spec: ActionSpec, allowDangerous: Boolean): ActionResult =
+        run(
+            spec = spec,
+            authorization = if (allowDangerous) {
+                ExecutionAuthorization(dangerousRevisionConfirmed = spec.dangerousConfirmationRevision())
+            } else {
+                ExecutionAuthorization()
+            },
+        )
 }
 
 fun DeckAction.toActionSpec(): ActionSpec = ActionSpec.DeckActionSpec(this)
@@ -111,3 +156,6 @@ fun DeckAction.toDeckButton(state: ButtonState = ButtonState.Idle): DeckButton =
         action = toActionSpec(),
         state = state,
     )
+
+fun ActionSpec.dangerousConfirmationRevision(): String =
+    commandRevision() ?: "${id}:${title.trim()}:dangerous=$dangerous"

@@ -2,6 +2,8 @@ package io.codecks.core.actions
 
 import io.codecks.domain.ActionIcon
 import io.codecks.domain.ActionKind
+import io.codecks.domain.CommandOrigin
+import io.codecks.domain.CommandReview
 import io.codecks.domain.DeckAction
 import io.codecks.domain.ai.AiArtifact
 import io.codecks.domain.ai.AiArtifactKind
@@ -18,6 +20,7 @@ class AiGeneratedContentPlanner @Inject constructor() {
     fun deckActionsFromArtifact(artifact: AiArtifact): Result<List<DeckAction>> = runCatching {
         artifact.actions.mapIndexed { index, action ->
             action.command.requireGeneratedAllowed()
+            val targetSelector = io.codecks.domain.device.TargetSelector.CurrentDevice
             DeckAction(
                 id = "${artifact.id}_${action.id}_$index",
                 label = action.title,
@@ -28,6 +31,18 @@ class AiGeneratedContentPlanner @Inject constructor() {
                 dangerous = action.dangerous,
                 liveSafe = false,
                 requiresTest = true,
+                targetSelector = targetSelector,
+                commandOrigin = CommandOrigin.AiGenerated,
+                commandReview = CommandReview(
+                    reviewedRevision = commandRevision(
+                        command = action.command,
+                        targetSelector = targetSelector,
+                        origin = CommandOrigin.AiGenerated,
+                        dangerous = action.dangerous,
+                        riskReason = artifact.review.riskReason,
+                    ),
+                ),
+                riskReason = artifact.review.riskReason,
             )
         }
     }
@@ -54,6 +69,17 @@ class AiGeneratedContentPlanner @Inject constructor() {
                     command = action.command,
                     trustLevel = ShellTrustLevel.Generated,
                     dangerous = action.dangerous,
+                    commandOrigin = CommandOrigin.AiGenerated,
+                    review = CommandReview(
+                        reviewedRevision = commandRevision(
+                            command = action.command,
+                            targetSelector = io.codecks.domain.device.TargetSelector.CurrentDevice,
+                            origin = CommandOrigin.AiGenerated,
+                            dangerous = action.dangerous,
+                            riskReason = artifact.review.riskReason,
+                        ),
+                    ),
+                    riskReason = artifact.review.riskReason,
                 )
             },
             safety = AutomationSafety(artifact.actions.any { it.dangerous }),

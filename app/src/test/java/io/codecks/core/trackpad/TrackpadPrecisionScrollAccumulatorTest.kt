@@ -32,4 +32,14 @@ class TrackpadPrecisionScrollAccumulatorTest {
         assertTrue(fastTotal > slowTotal)
         assertTrue(slowTotal > 0f)
     }
+
+    @Test
+    fun reset_clearsFractionalScrollBetweenGestures() {
+        val accumulator = TrackpadPrecisionScrollAccumulator()
+
+        assertEquals(0f, accumulator.add(delta = 1.5f, speed = 0.28f, acceleration = 0f), 0f)
+        accumulator.reset()
+
+        assertEquals(0f, accumulator.add(delta = 1.5f, speed = 0.28f, acceleration = 0f), 0f)
+    }
 }

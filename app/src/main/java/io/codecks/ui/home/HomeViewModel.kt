@@ -7,6 +7,7 @@ import io.codecks.core.actions.AiGeneratedContentPlanner
 import io.codecks.core.actions.ActionResult
 import io.codecks.core.actions.ActionResultStatus
 import io.codecks.core.actions.ActionRunner
+import io.codecks.core.actions.commandRevision
 import io.codecks.core.actions.toActionSpec
 import io.codecks.data.ActionRepository
 import io.codecks.data.ConnectionRepository
@@ -204,7 +205,8 @@ class HomeViewModel @Inject constructor(
                     }
                 }
                 ActionResultStatus.Failed,
-                ActionResultStatus.RequiresConfirmation -> {
+                ActionResultStatus.RequiresConfirmation,
+                ActionResultStatus.RequiresReview -> {
                     _uiState.update {
                         it.copy(
                             actionStatus = ActionStatus.Failed(action.id, result.message),
@@ -233,7 +235,11 @@ class HomeViewModel @Inject constructor(
             _uiState.update { it.copy(actionStatus = ActionStatus.Running(action.id)) }
             actionRepository.test(action)
                 .onSuccess { message ->
-                    val verifiedAction = action.copy(liveSafe = true, requiresTest = false)
+                    val verifiedAction = action.copy(
+                        liveSafe = true,
+                        requiresTest = false,
+                        commandReview = action.commandReview.copy(checkedRevision = action.commandRevision()),
+                    )
                     val verifiedLayout = favoriteLayout.replacingAction(action.id, verifiedAction)
                     updateCustomDeck(verifiedLayout, listOf(verifiedAction), pendingUndo = null)
                     actionRepository.saveLayout(verifiedLayout)

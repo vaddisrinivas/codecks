@@ -2,6 +2,8 @@ package io.codecks.domain.automation
 
 import io.codecks.core.actions.ActionResultStatus
 import io.codecks.core.actions.ActionSpec
+import io.codecks.core.actions.commandRevision
+import java.security.MessageDigest
 
 data class AutomationRecipe(
     val id: String,
@@ -21,13 +23,18 @@ data class AutomationRecipe(
 fun AutomationRecipe.revisionFingerprint(): String {
     val stepsToken = steps.joinToString("|") { step ->
         when (step) {
-            is ActionSpec.DeckActionSpec -> "deck:${step.id}:${step.action.command}:${step.dangerous}:${step.targetSelector}"
-            is ActionSpec.CatalogAction -> "catalog:${step.id}:${step.dangerous}:${step.targetSelector}"
-            is ActionSpec.ShellCommand -> "shell:${step.id}:${step.command}:${step.trustLevel}:${step.dangerous}:${step.targetSelector}"
-            is ActionSpec.LocalRoute -> "local:${step.id}:${step.route}:${step.targetSelector}"
+            is ActionSpec.DeckActionSpec -> "deck:${step.id}:${step.action.command}:${step.dangerous}:${step.targetSelector}:${step.commandRevision()}:${step.review.reviewedRevision}:${step.review.checkedRevision}"
+            is ActionSpec.CatalogAction -> "catalog:${step.id}:${step.dangerous}:${step.targetSelector}:${step.commandOrigin}:${step.review.reviewedRevision}:${step.review.checkedRevision}"
+            is ActionSpec.ShellCommand -> "shell:${step.id}:${step.command}:${step.trustLevel}:${step.dangerous}:${step.targetSelector}:${step.commandOrigin}:${step.commandRevision()}:${step.review.reviewedRevision}:${step.review.checkedRevision}:${step.riskReason}:${step.confirmationTitle}:${step.confirmationBody}"
+            is ActionSpec.LocalRoute -> "local:${step.id}:${step.route}:${step.targetSelector}:${step.commandOrigin}:${step.review.reviewedRevision}:${step.review.checkedRevision}"
         }
     }
-    return "${trigger}|$stepsToken|${safety.requiresConfirmation}".hashCode().toUInt().toString(16)
+    return sha256("${trigger}|$stepsToken|${safety.requiresConfirmation}")
+}
+
+private fun sha256(value: String): String {
+    val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))
+    return digest.joinToString(separator = "") { byte -> "%02x".format(byte) }
 }
 
 fun AutomationRecipe.hasCurrentSuccessfulTest(): Boolean =

@@ -8,7 +8,10 @@ import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.codecks.domain.ActionIcon
 import io.codecks.domain.ActionKind
+import io.codecks.domain.CommandOrigin
+import io.codecks.domain.CommandReview
 import io.codecks.domain.DeckAction
+import io.codecks.domain.ExecutionAuthorization
 import io.codecks.domain.deck.DeckLayout
 import io.codecks.domain.deck.DeckSlot
 import io.codecks.domain.deck.DeckTemplate
@@ -221,6 +224,12 @@ class DefaultActionRepository @Inject constructor(
                 put("liveSafe", action.liveSafe)
                 put("requiresTest", action.requiresTest)
                 put("target", action.targetSelector.toJson())
+                put("commandOrigin", action.commandOrigin.name)
+                put("commandReview", action.commandReview.toJson())
+                put("confirmationTitle", action.confirmationTitle)
+                put("confirmationBody", action.confirmationBody)
+                put("riskReason", action.riskReason)
+                put("executionAuthorization", action.executionAuthorization.toJson())
             })
         }
         })
@@ -265,6 +274,14 @@ class DefaultActionRepository @Inject constructor(
                     liveSafe = item.optBoolean("liveSafe"),
                     requiresTest = item.optBoolean("requiresTest"),
                     targetSelector = item.optJSONObject("target").toTargetSelector(),
+                    commandOrigin = item.optCommandOrigin(
+                        fallback = if (item.optString("command").isNotBlank()) CommandOrigin.UserAuthored else CommandOrigin.Bundled,
+                    ),
+                    commandReview = item.optJSONObject("commandReview").toCommandReview(),
+                    confirmationTitle = item.optString("confirmationTitle").takeIf(String::isNotBlank),
+                    confirmationBody = item.optString("confirmationBody").takeIf(String::isNotBlank),
+                    riskReason = item.optString("riskReason").takeIf(String::isNotBlank),
+                    executionAuthorization = item.optJSONObject("executionAuthorization").toExecutionAuthorization(),
                 )
             add(
                 DeckSlot(
@@ -278,7 +295,7 @@ class DefaultActionRepository @Inject constructor(
 
     private companion object {
         private const val TAG = "DeckStorage"
-        const val FAVORITES_SCHEMA_VERSION = 3
+        const val FAVORITES_SCHEMA_VERSION = 4
         val DEFAULT_SLOT_SPECS = listOf(
             DefaultSlotSpec("finder"), DefaultSlotSpec("terminal"), DefaultSlotSpec("spotlight"), DefaultSlotSpec("screenshot"),
             DefaultSlotSpec("mission"), DefaultSlotSpec("space_left"), DefaultSlotSpec("space_right"), DefaultSlotSpec("full_screen"),
@@ -334,6 +351,35 @@ private fun TargetSelector.toJson(): JSONObject = JSONObject().apply {
         }
     }
 }
+
+private fun CommandReview.toJson(): JSONObject = JSONObject().apply {
+    put("reviewedRevision", reviewedRevision)
+    put("checkedRevision", checkedRevision)
+}
+
+private fun JSONObject?.toCommandReview(): CommandReview {
+    if (this == null) return CommandReview()
+    return CommandReview(
+        reviewedRevision = optString("reviewedRevision").takeIf(String::isNotBlank),
+        checkedRevision = optString("checkedRevision").takeIf(String::isNotBlank),
+    )
+}
+
+private fun ExecutionAuthorization.toJson(): JSONObject = JSONObject().apply {
+    put("dangerousRevisionConfirmed", dangerousRevisionConfirmed)
+}
+
+private fun JSONObject?.toExecutionAuthorization(): ExecutionAuthorization {
+    if (this == null) return ExecutionAuthorization()
+    return ExecutionAuthorization(
+        dangerousRevisionConfirmed = optString("dangerousRevisionConfirmed").takeIf(String::isNotBlank),
+    )
+}
+
+private fun JSONObject.optCommandOrigin(fallback: CommandOrigin): CommandOrigin =
+    optString("commandOrigin").takeIf(String::isNotBlank)
+        ?.let { runCatching { CommandOrigin.valueOf(it) }.getOrNull() }
+        ?: fallback
 
 private fun JSONObject?.toTargetSelector(): TargetSelector {
     if (this == null) return TargetSelector.CurrentDevice
