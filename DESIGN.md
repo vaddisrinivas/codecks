@@ -8,8 +8,9 @@ Codecks is a local-first Mac control app. The UI should feel like a precise tool
 - **Button**: an item on the Deck. Avoid user-facing `action`, `tile`, or `key`.
 - **Deck**: a layout of buttons.
 - **Rule**: a When/If/Then automation. Avoid user-facing `recipe`, `workflow`, or `automation` except in explanatory text.
-- **Trackpad**: the remote-input surface.
-- **Pointer / Keyboard / Clipboard**: Trackpad modes.
+- **Trackpad**: the remote pointer and gesture surface.
+- **Keyboard**: the dedicated Mac typing and shortcut surface.
+- **Clipboard**: the dedicated phone-to-Mac text transfer surface.
 - **AI Builder**: creates draft buttons, decks, and rules. Avoid `chat`, `artifact`, and protocol version names.
 - **Run history**: completed button/rule records.
 - **Connect a Mac**: SSH setup workflow.
@@ -57,8 +58,8 @@ Avoid:
 
 ## Layout rules
 
-- Compact bottom navigation has exactly five destinations: Deck, Trackpad, Rules, AI, Settings.
-- Keyboard and Clipboard are Trackpad modes, not primary navigation.
+- Bottom navigation shows each enabled primary destination: Deck, Trackpad, Keyboard, Clipboard, Rules, AI, and Settings.
+- Keyboard and Clipboard are primary destinations, not Trackpad modes.
 - Use Material navigation components.
 - Keep all tap targets at least 48dp.
 - Use the 8dp grid: 8, 12, 16, 24, 32.
@@ -76,4 +77,3 @@ One draft at a time:
 5. Save disabled.
 
 No transcript UI. History is draft history, not conversation history.
-
