@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.18 — 2026-07-23
+
+Mac action release fix.
+
+- Fixed a second release-only JSch/R8 failure where top-level key-exchange classes such as `com.jcraft.jsch.DHEC256` were stripped.
+- Broadened the JSch keep rules to Android-relevant SSH algorithm, signature, userauth, compression, and JCE classes without keeping optional desktop integrations.
+
 ## 0.1.17 — 2026-07-23
 
 Release hardening and navigation cleanup.
