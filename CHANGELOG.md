@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.17 — 2026-07-23
+
+Release hardening and navigation cleanup.
+
+- Fixed the release-only SSH crash by keeping JSch's Android/JCE implementation classes through R8.
+- Changed phone navigation to four pinned destinations plus More: Deck, Trackpad, Keyboard, Clipboard, More.
+- Added a large-screen navigation rail for DeX/tablet layouts.
+- Reorganized Settings around Setup, Mac, Data and privacy, Control surfaces, Build, Appearance, and Support.
+- AI Builder now advertises only capabilities reported by currently ready devices.
+- AI draft previews are persisted before the workspace can clear them.
+- Smart Suggestions no longer expose Run for untested AI-generated commands.
+- Background-triggered Rules now fail closed until their current revision has a successful test.
+
 ## 0.1.16 — 2026-07-22
 
 Upgrade cleanup release.

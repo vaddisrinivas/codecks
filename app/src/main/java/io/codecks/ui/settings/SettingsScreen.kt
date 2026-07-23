@@ -192,7 +192,25 @@ fun SettingsScreen(
         modifier = modifier.background(MaterialTheme.colorScheme.background),
     ) {
                 item { SettingsHero(readiness = readiness) }
-                item { SectionLabel("Connections") }
+                item { SectionLabel("Setup") }
+                item {
+                    SetupChecklist(
+                        connectionReady = connectionReady,
+                        connectionHealth = connectionHealth,
+                        hidState = hidState,
+                        bluetoothPermissionGranted = bluetoothPermissionGranted,
+                        notificationAccessReady = notificationAccessReady,
+                        aiProviderReady = aiProviderReady,
+                        automationsReady = automationsReady,
+                        featureFlags = featureFlags,
+                        onConnection = { macConnectionOpen = !macConnectionOpen },
+                        onBluetooth = onBluetooth,
+                        onNotificationAccess = onNotificationAccess,
+                        onAiBuilder = onAiBuilder,
+                        onAutomations = onAutomations,
+                    )
+                }
+                item { SectionLabel("Mac") }
                 item {
                     SettingsRow(
                         icon = Icons.Outlined.Link,
@@ -244,7 +262,7 @@ fun SettingsScreen(
                         onClick = onFullscreen,
                     )
                 }
-                item { SectionLabel("Local data") }
+                item { SectionLabel("Data and privacy") }
                 item {
                     SettingsRow(
                         icon = Icons.Outlined.CheckCircle,
@@ -283,7 +301,7 @@ fun SettingsScreen(
                         onClick = onImportBackup,
                     )
                 }
-                item { SectionLabel("Trackpad") }
+                item { SectionLabel("Control surfaces") }
                 item {
                     TrackpadSettingsPanel(
                         settings = trackpadSettings,
@@ -322,7 +340,7 @@ fun SettingsScreen(
                     }
                 }
                 if (contextFeatureStatus.componentEnabled) {
-                    item { SectionLabel("Notification privacy") }
+                    item { SectionLabel("Notifications") }
                     item {
                         SettingsRow(
                             icon = Icons.Outlined.Notifications,
@@ -340,7 +358,7 @@ fun SettingsScreen(
                     }
                 }
                 if (featureFlags.isOn(FeatureFlag.SmartSuggestions) || featureFlags.isOn(FeatureFlag.SmartDeck)) {
-                    item { SectionLabel("Smart") }
+                    item { SectionLabel("Smart suggestions") }
                     item {
                         SettingsRow(
                             icon = Icons.Outlined.AutoAwesome,
@@ -362,7 +380,7 @@ fun SettingsScreen(
                     }
                 }
 
-                item { SectionLabel("Rules and AI") }
+                item { SectionLabel("Build") }
                 item {
                     SettingsRow(
                         icon = Icons.Outlined.Psychology,
@@ -381,23 +399,22 @@ fun SettingsScreen(
                         onClick = onAutomations,
                     )
                 }
-                item { SectionLabel("Deck style") }
+                item { SectionLabel("Appearance") }
                 item {
                     DeckStylePanel(
                         deckStyle = themeSettings.deckStyle,
                         onDeckStyleChange = onDeckStyleChange,
                     )
                 }
-                item { SectionLabel("Icon language") }
+                item { SectionLabel("Icons") }
                 item {
                     IconPackPanel(
                         iconPack = themeSettings.iconPack,
                         onIconPackChange = onIconPackChange,
                     )
                 }
-                item { SectionLabel("Support") }
                 if (developerOptionsEnabled) {
-                    item { SectionLabel("Developer mode") }
+                    item { SectionLabel("Advanced") }
                     item {
                         FeatureFlagPanel(
                             featureFlags = featureFlags,

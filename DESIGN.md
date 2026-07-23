@@ -58,7 +58,9 @@ Avoid:
 
 ## Layout rules
 
-- Bottom navigation shows each enabled primary destination: Deck, Trackpad, Keyboard, Clipboard, Rules, AI, and Settings.
+- Phone navigation shows five compact slots: Deck, Trackpad, Keyboard, Clipboard, and More by default.
+- More contains Rules, AI Builder, Run history, and Settings. Mac setup stays inside Settings. Future pages can be pinned into the compact slots instead of crowding the bar.
+- Large screens use a left navigation rail, not a seven-item bottom bar.
 - Keyboard and Clipboard are primary destinations, not Trackpad modes.
 - Use Material navigation components.
 - Keep all tap targets at least 48dp.

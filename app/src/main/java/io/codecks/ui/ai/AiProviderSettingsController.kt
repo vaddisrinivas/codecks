@@ -11,6 +11,7 @@ import io.codecks.data.ai.SecretValue
 import io.codecks.data.ai.SecureApiKeyStore
 import io.codecks.domain.ai.ActionCapability
 import io.codecks.domain.ai.ActionDraftValidator
+import io.codecks.domain.ai.AutomationDraftValidator
 import io.codecks.domain.ai.AiArtifact
 import io.codecks.domain.ai.AiArtifactTest
 import io.codecks.domain.ai.AiArtifactTestStatus
@@ -110,6 +111,7 @@ class AiProviderSettingsController(
     private val artifactRepository: AiArtifactRepository? = null,
     private val generationHistoryRepository: AiGenerationHistoryRepository? = null,
     private val actionRunner: ActionRunner? = null,
+    private val availableCapabilities: suspend () -> Set<ActionCapability> = { emptySet() },
     private val agentContext: String = "",
     private val initialSkillInstructions: String = "",
     private val localCommandHandler: suspend (String) -> AiLocalCommandResult? = { null },
@@ -261,18 +263,29 @@ class AiProviderSettingsController(
                 )
             }
             val provider = createProvider(state)
-            val builder = AiBuilder(provider, ActionDraftValidator(), entitlementRepository = entitlementRepository)
+            val deviceCapabilities = runCatching { availableCapabilities() }.getOrDefault(emptySet())
+            val builder = AiBuilder(
+                provider = provider,
+                validator = ActionDraftValidator(supportedCapabilities = deviceCapabilities),
+                automationValidator = AutomationDraftValidator(
+                    actionValidator = ActionDraftValidator(supportedCapabilities = deviceCapabilities),
+                ),
+                entitlementRepository = entitlementRepository,
+            )
             val request = DraftRequest(
                 prompt = refinementSource?.toRefinementPrompt(prompt) ?: prompt,
                 modelId = state.selectedModelId,
                 draftKind = state.draftKind,
-                availableCapabilities = ActionCapability.entries.toSet(),
+                availableCapabilities = deviceCapabilities,
                 agentContext = buildAgentContext(state.skillInstructions),
             )
             builder.requestValidatedDraft(request).fold(
                 onSuccess = { draft ->
                     draft.toAiArtifact(prompt).fold(
                         onSuccess = { artifact ->
+                            // A preview is a durable artifact, not transient UI state. Persist it
+                            // before recording its ID or allowing the UI to clear the composer.
+                            artifactRepository?.save(artifact)
                             recordGeneration(
                                 state = state,
                                 status = AiGenerationStatus.Ready,

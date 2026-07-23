@@ -56,6 +56,7 @@ import io.codecks.domain.ai.DraftRequest
 import io.codecks.domain.ai.FeatureGate
 import io.codecks.domain.ai.GeneratedDraft
 import io.codecks.domain.ai.SemanticDraftValidationException
+import io.codecks.domain.device.DeviceRepository
 import io.codecks.domain.features.Entitlement
 import io.codecks.domain.features.EntitlementRepository
 import io.codecks.ui.designsystem.DeckPage
@@ -78,6 +79,7 @@ fun AiProviderSettingsRoute(
     entitlementRepository: EntitlementRepository,
     contentPadding: PaddingValues,
     actionRunner: ActionRunner? = null,
+    deviceRepository: DeviceRepository? = null,
     mode: AiWorkspaceMode = AiWorkspaceMode.Workspace,
     availableActions: List<DeckAction> = emptyList(),
     onRunAction: (DeckAction) -> Unit = {},
@@ -148,6 +150,7 @@ fun AiProviderSettingsRoute(
         artifactRepository,
         generationHistoryRepository,
         actionRunner,
+        deviceRepository,
         agentPack,
         localCommandHandler,
     ) {
@@ -159,6 +162,9 @@ fun AiProviderSettingsRoute(
             artifactRepository = artifactRepository,
             generationHistoryRepository = generationHistoryRepository,
             actionRunner = actionRunner,
+            availableCapabilities = {
+                deviceRepository?.availableAiCapabilities().orEmpty()
+            },
             agentContext = buildString {
                 appendLine("# Bundled Codecks AI Agent")
                 appendLine(agentPack.agent.trim())

@@ -1,8 +1,9 @@
 package io.codecks.ui.app
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -11,16 +12,23 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.FullscreenExit
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -29,12 +37,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
 import io.codecks.navigation.HomeRoute
+import io.codecks.navigation.RunLogRoute
 import io.codecks.navigation.SettingsRoute
 import io.codecks.navigation.title
 
@@ -53,41 +67,59 @@ fun CodecksAppShell(
     onExitFullscreen: () -> Unit,
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    val currentTab = tabs.firstOrNull { it.route == currentRoute } ?: PrimaryTab.entries.firstOrNull { it.route == currentRoute }
-    val showBottomBar = !fullscreen && currentTab != null
+    val shellDestinations = rememberShellDestinations(tabs)
+    val currentDestination = shellDestinations.firstOrNull { it.route == currentRoute }
+    val showNavigation = !fullscreen && currentDestination != null
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            topBar = if (fullscreen || currentRoute == HomeRoute) {
-                {}
-            } else {
-                {
-                    CodecksTopBar(
-                        currentRoute = currentRoute,
-                        backStackSize = backStackSize,
-                        onBack = onBack,
-                        onOpenSettings = onOpenSettings,
-                        onRequestFullscreen = onRequestFullscreen,
-                    )
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val useRail = maxWidth >= 840.dp
+            Scaffold(
+                topBar = if (fullscreen || currentRoute == HomeRoute) {
+                    {}
+                } else {
+                    {
+                        CodecksTopBar(
+                            currentRoute = currentRoute,
+                            backStackSize = backStackSize,
+                            onBack = onBack,
+                            onOpenSettings = onOpenSettings,
+                            onRequestFullscreen = onRequestFullscreen,
+                        )
+                    }
+                },
+                bottomBar = {
+                    if (showNavigation && !useRail) {
+                        CodecksBottomBar(
+                            currentRoute = currentRoute,
+                            destinations = shellDestinations,
+                            onDestinationSelected = onDestinationSelected,
+                        )
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.background,
+                snackbarHost = { SnackbarHost(snackbarHostState) },
+            ) { contentPadding ->
+                Surface(
+                    color = MaterialTheme.colorScheme.background,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    if (showNavigation && useRail) {
+                        Row(modifier = Modifier.fillMaxSize()) {
+                            CodecksNavigationRail(
+                                currentRoute = currentRoute,
+                                destinations = shellDestinations,
+                                onDestinationSelected = onDestinationSelected,
+                                modifier = Modifier.padding(top = if (currentRoute == HomeRoute) 0.dp else 64.dp),
+                            )
+                            Box(modifier = Modifier.weight(1f).fillMaxSize()) {
+                                content(contentPadding)
+                            }
+                        }
+                    } else {
+                        content(contentPadding)
+                    }
                 }
-            },
-            bottomBar = {
-                if (showBottomBar) {
-                    CodecksBottomBar(
-                        currentTab = currentTab,
-                        tabs = tabs,
-                        onTabSelected = { tab -> onDestinationSelected(tab.route) },
-                    )
-                }
-            },
-            containerColor = MaterialTheme.colorScheme.background,
-            snackbarHost = { SnackbarHost(snackbarHostState) },
-        ) { contentPadding ->
-            Surface(
-                color = MaterialTheme.colorScheme.background,
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                content(contentPadding)
             }
         }
         if (fullscreen) {
@@ -101,57 +133,148 @@ fun CodecksAppShell(
     }
 }
 
+private data class ShellDestination(
+    val route: NavKey,
+    val label: String,
+    val icon: ImageVector,
+    val group: ShellGroup,
+)
+
+private enum class ShellGroup {
+    Control,
+    Build,
+    Manage,
+}
+
+@Composable
+private fun rememberShellDestinations(tabs: List<PrimaryTab>): List<ShellDestination> {
+    return tabs.map { tab ->
+        ShellDestination(
+            route = tab.route,
+            label = tab.label,
+            icon = tab.icon,
+            group = when (tab) {
+                PrimaryTab.Deck,
+                PrimaryTab.Trackpad,
+                PrimaryTab.Keyboard,
+                PrimaryTab.Clipboard -> ShellGroup.Control
+                PrimaryTab.Automations,
+                PrimaryTab.Ai -> ShellGroup.Build
+                PrimaryTab.Settings -> ShellGroup.Manage
+            },
+        )
+    } + ShellDestination(
+        route = RunLogRoute,
+        label = "Run history",
+        icon = Icons.Outlined.History,
+        group = ShellGroup.Manage,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CodecksBottomBar(
-    currentTab: PrimaryTab,
-    tabs: List<PrimaryTab>,
-    onTabSelected: (PrimaryTab) -> Unit,
+    currentRoute: NavKey,
+    destinations: List<ShellDestination>,
+    onDestinationSelected: (NavKey) -> Unit,
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    var moreOpen by rememberSaveable { mutableStateOf(false) }
+    val pinnedRoutes = listOf(HomeRoute, PrimaryTab.Trackpad.route, PrimaryTab.Keyboard.route, PrimaryTab.Clipboard.route)
+    val pinned = pinnedRoutes.mapNotNull { route -> destinations.firstOrNull { it.route == route } }
+        .ifEmpty { destinations.take(4) }
+    val moreDestinations = destinations.filterNot { destination -> pinned.any { it.route == destination.route } }
+    val moreSelected = moreDestinations.any { it.route == currentRoute }
+
+    NavigationBar(
         tonalElevation = 3.dp,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f)),
-        modifier = Modifier.fillMaxWidth(),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(96.dp)
-                .padding(start = 4.dp, top = 8.dp, end = 4.dp, bottom = 18.dp),
-        ) {
-            tabs.forEach { tab ->
-                val selected = currentTab == tab
-                Surface(
-                    onClick = { onTabSelected(tab) },
-                    color = if (selected) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerLow
-                    },
-                    contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    shape = MaterialTheme.shapes.large,
-                    modifier = Modifier.weight(1f).height(70.dp),
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(horizontal = 2.dp, vertical = 6.dp),
-                    ) {
-                        Icon(tab.icon, contentDescription = null, modifier = Modifier.size(24.dp))
-                        Text(
-                            tab.label,
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
+        pinned.forEach { destination ->
+            NavigationBarItem(
+                selected = currentRoute == destination.route,
+                onClick = { onDestinationSelected(destination.route) },
+                icon = { Icon(destination.icon, contentDescription = null) },
+                label = {
+                    Text(destination.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                },
+            )
+        }
+        NavigationBarItem(
+            selected = moreSelected,
+            onClick = { moreOpen = true },
+            icon = { Icon(Icons.Outlined.MoreHoriz, contentDescription = null) },
+            label = { Text("More") },
+        )
+    }
+    if (moreOpen) {
+        ModalBottomSheet(onDismissRequest = { moreOpen = false }) {
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+                Text(
+                    "More",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                )
+                moreDestinations.forEach { destination ->
+                    ListItem(
+                        headlineContent = { Text(destination.label) },
+                        supportingContent = { Text(destination.group.label) },
+                        leadingContent = { Icon(destination.icon, contentDescription = null) },
+                        modifier = Modifier.clickable {
+                            moreOpen = false
+                            onDestinationSelected(destination.route)
+                        },
+                    )
                 }
             }
         }
     }
 }
+
+@Composable
+private fun CodecksNavigationRail(
+    currentRoute: NavKey,
+    destinations: List<ShellDestination>,
+    onDestinationSelected: (NavKey) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    NavigationRail(
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = modifier.width(96.dp),
+    ) {
+        destinations.forEachIndexed { index, destination ->
+            if (index > 0 && destinations[index - 1].group != destination.group) {
+                Text(
+                    destination.group.label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+                )
+            } else if (index == 0) {
+                Text(
+                    destination.group.label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+                )
+            }
+            NavigationRailItem(
+                selected = currentRoute == destination.route,
+                onClick = { onDestinationSelected(destination.route) },
+                icon = { Icon(destination.icon, contentDescription = null) },
+                label = { Text(destination.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            )
+        }
+    }
+}
+
+private val ShellGroup.label: String
+    get() = when (this) {
+        ShellGroup.Control -> "Control"
+        ShellGroup.Build -> "Build"
+        ShellGroup.Manage -> "Manage"
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -18,6 +18,7 @@ import io.codecks.domain.ai.AiArtifactAction
 import io.codecks.domain.ai.AiArtifactKind
 import io.codecks.domain.ai.AiArtifactTest
 import io.codecks.domain.ai.AiArtifactTestStatus
+import io.codecks.domain.ai.ActionCapability
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -138,6 +139,56 @@ class AiProviderSettingsControllerTest {
     }
 
     @Test
+    fun generatedArtifactIsPersistedBeforeTheWorkspaceCanClearIt() = runTest {
+        val artifacts = InMemoryAiArtifactRepository()
+        val controller = controllerIn(
+            scope = this,
+            artifactRepository = artifacts,
+            responses = mutableListOf(openAiReadyActionResponse("draft.open", "Open Docs", "https://docs.example.com")),
+        )
+
+        controller.setApiKey("sk-test-secret")
+        controller.saveApiKey()
+        runCurrent()
+        controller.setPrompt("open docs")
+        controller.generateDraft()
+        runCurrent()
+
+        val generatedId = controller.uiState.value.generatedArtifactId
+        assertEquals(generatedId, artifacts.snapshot().single().id)
+
+        controller.markDraftSaved()
+        assertEquals(null, controller.uiState.value.generatedArtifactId)
+        assertEquals(generatedId, artifacts.snapshot().single().id)
+
+        val recreated = controllerIn(scope = this, artifactRepository = artifacts)
+        runCurrent()
+        assertEquals(generatedId, recreated.uiState.value.artifacts.single().id)
+    }
+
+    @Test
+    fun generationReceivesOnlyCapabilitiesReportedByTheCurrentDevices() = runTest {
+        val requests = mutableListOf<AiHttpRequest>()
+        val controller = controllerIn(
+            scope = this,
+            requests = requests,
+            availableCapabilities = { setOf(ActionCapability.Clipboard) },
+            responses = mutableListOf(openAiReadyActionResponse("draft.open", "Open Docs", "https://docs.example.com")),
+        )
+
+        controller.setApiKey("sk-test-secret")
+        controller.saveApiKey()
+        runCurrent()
+        controller.setPrompt("open docs")
+        controller.generateDraft()
+        runCurrent()
+
+        val payload = requests.single().body.orEmpty()
+        assertTrue(payload.contains("Supported capabilities: Clipboard."))
+        assertFalse(payload.contains("Supported capabilities: Advanced"))
+    }
+
+    @Test
     fun refineDraftCreatesReplacementWithoutMutatingSourceArtifact() = runTest {
         val controller = controllerIn(
             scope = this,
@@ -242,6 +293,8 @@ class AiProviderSettingsControllerTest {
         entitlement: Entitlement = localOnly,
         artifactRepository: AiArtifactRepository? = null,
         actionRunner: ActionRunner? = null,
+        availableCapabilities: suspend () -> Set<ActionCapability> = { emptySet() },
+        requests: MutableList<AiHttpRequest>? = null,
         responses: MutableList<AiHttpResponse> = mutableListOf(AiHttpResponse(200, """{"data":[{"id":"gpt-5-mini"}]}""")),
     ): AiProviderSettingsController {
         val keyStore = InMemorySecureApiKeyStore()
@@ -251,14 +304,17 @@ class AiProviderSettingsControllerTest {
                 AiProviderFactory(
                     keyStore = keyStore,
                     httpClient = object : AiHttpClient {
-                        override suspend fun execute(request: AiHttpRequest): AiHttpResponse =
-                            responses.removeAt(0)
+                        override suspend fun execute(request: AiHttpRequest): AiHttpResponse {
+                            requests?.add(request)
+                            return responses.removeAt(0)
+                        }
                     },
                 ),
             entitlementRepository = FakeEntitlementRepository(entitlement),
             scope = TestScope(StandardTestDispatcher(scope.testScheduler)),
             artifactRepository = artifactRepository,
             actionRunner = actionRunner,
+            availableCapabilities = availableCapabilities,
         )
     }
 }
@@ -290,6 +346,8 @@ private class InMemoryAiArtifactRepository : AiArtifactRepository {
     override suspend fun clear() {
         state.value = emptyList()
     }
+
+    fun snapshot(): List<AiArtifact> = state.value
 }
 
 private class RecordingActionRunner : ActionRunner {

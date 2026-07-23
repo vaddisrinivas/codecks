@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import io.codecks.domain.ActionKind
 import io.codecks.domain.ActionStatus
 import io.codecks.domain.DeckAction
+import io.codecks.domain.isRunnableFromSmartSuggestion
 import io.codecks.domain.deck.DeckLayout
 import io.codecks.domain.deck.DeckTemplate
 import io.codecks.ui.designsystem.DeckComponentState
@@ -426,6 +427,7 @@ private fun SmartSuggestionRow(
         }
         items(suggestions.take(3), key = SmartDeckSuggestionUi::candidateId) { suggestion ->
             var menuOpen by remember { mutableStateOf(false) }
+            val canRun = suggestion.action.isRunnableFromSmartSuggestion()
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -451,7 +453,12 @@ private fun SmartSuggestionRow(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = { onRun(suggestion) }) { Text("Run") }
+                        TextButton(
+                            onClick = { onRun(suggestion) },
+                            enabled = canRun,
+                        ) {
+                            Text(if (canRun) "Run" else "Test first")
+                        }
                         TextButton(onClick = { onPin(suggestion) }) { Text("Pin") }
                         Box {
                             IconButton(onClick = { menuOpen = true }) {

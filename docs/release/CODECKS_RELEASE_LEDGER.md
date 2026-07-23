@@ -1,16 +1,16 @@
 # Codecks local-only release ledger
 
-Updated: July 22, 2026
+Updated: July 23, 2026
 
 | Contract | Public-release value |
 | --- | --- |
 | Product | Codecks |
 | Application ID | `app.codecks` |
-| Version | `0.1.16` (`versionCode` 17) |
+| Version | `0.1.17` (`versionCode` 18) |
 | Minimum Android | 9 / API 28 |
 | Target Android | API 37 |
 | Default mode | Local-only; no account, billing, hosted backend, database, analytics, or cloud sync |
-| Core surfaces | Deck, Trackpad, Keyboard/Text, Clipboard bridge, Automations, Settings, Deck editor |
+| Core surfaces | Deck, Trackpad, Keyboard, Clipboard bridge, Rules, Settings, Deck editor |
 | Optional core tool | AI-assisted drafting through a user-selected provider |
 | Disabled incubators | Smart suggestions, Smart Deck, Smart Keyboard, Smart Clipboard, Smart Rules, Smart Settings, Smart Trackpad, Smart OCR, Widget, Activity, Devices, Premium, Paywall, Advanced, Appearance, Labs |
 
@@ -23,7 +23,7 @@ Updated: July 22, 2026
 - Debug builds use the separate `app.codecks.debug` application ID.
 - No signing key, credential, workstation path, device serial, or private QA artifact enters Git.
 - AI generation is user initiated, shows provider/model/context, and produces reviewable drafts.
-- Generated automations remain disabled until the current revision passes a test.
+- Generated buttons and Rules remain disabled/unverified until the current revision passes a test.
 - Codecks ships as one signed APK; debug or prototype builds must not be attached to public releases.
 
 ## Public Android components

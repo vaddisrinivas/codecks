@@ -64,6 +64,7 @@ import io.codecks.core.trackpad.TrackpadSettingsRepository
 import io.codecks.domain.ActionKind
 import io.codecks.domain.ActionStatus
 import io.codecks.domain.DeckAction
+import io.codecks.domain.isRunnableFromSmartSuggestion
 import io.codecks.data.ai.AndroidSecureApiKeyStore
 import io.codecks.data.clipboard.ClipboardSettingsRepository
 import io.codecks.data.clipboard.ClipboardSyncSettings
@@ -145,6 +146,7 @@ import io.codecks.domain.smart.SmartConfidenceLabel
 import io.codecks.domain.smart.SmartFeedback
 import io.codecks.domain.smart.SmartFeedbackType
 import io.codecks.domain.privacy.DiagnosticRedactor
+import io.codecks.domain.device.DeviceRepository
 import io.codecks.BuildConfig
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
@@ -157,6 +159,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var hidRepository: HidRepository
     @Inject lateinit var actionRunner: ActionRunner
     @Inject lateinit var connectionRepository: ConnectionRepository
+    @Inject lateinit var deviceRepository: DeviceRepository
     @Inject lateinit var backupRepository: CodecksBackupRepository
 
     private var destinationRequest by mutableStateOf<String?>(null)
@@ -187,6 +190,7 @@ class MainActivity : ComponentActivity() {
                     hidRepository = hidRepository,
                     actionRunner = actionRunner,
                     connectionRepository = connectionRepository,
+                    deviceRepository = deviceRepository,
                     backupRepository = backupRepository,
                     themeSettings = themeSettings,
                     onThemeModeChange = { mode -> themeScope.launch { themeSettingsRepository.setMode(mode) } },
@@ -278,6 +282,7 @@ private fun CodecksApp(
     hidRepository: HidRepository,
     actionRunner: ActionRunner,
     connectionRepository: ConnectionRepository,
+    deviceRepository: DeviceRepository,
     backupRepository: CodecksBackupRepository,
     themeSettings: CodecksThemeSettings,
     onThemeModeChange: (CodecksThemeMode) -> Unit,
@@ -469,7 +474,10 @@ private fun CodecksApp(
     val smartSuggestions = remember(smartContext, homeState.allActions, visibleDeckActions, hiddenSmartCandidateIds, neverSmartKeys, smartRefreshTick) {
         val context = smartContext ?: return@remember emptyList()
         val visibleIds = visibleDeckActions.map(DeckAction::id).toSet()
-        val actionById = homeState.allActions.associateBy(DeckAction::id)
+        // Suggestions expose a one-tap Run affordance. Never feed untested AI commands into
+        // that surface; they stay in the deck/editor until the user explicitly tests them.
+        val suggestionEligibleActions = homeState.allActions.filter(DeckAction::isRunnableFromSmartSuggestion)
+        val actionById = suggestionEligibleActions.associateBy(DeckAction::id)
         val nowMillis = System.currentTimeMillis()
         val storedFeedback = smartLearningStore.summary(nowMillis)
         val feedback = storedFeedback.copy(
@@ -478,7 +486,7 @@ private fun CodecksApp(
         )
         smartEngine.suggest(
             context = context,
-            actions = homeState.allActions
+            actions = suggestionEligibleActions
                 .map(DeckAction::toSmartActionRef),
             feedback = feedback,
             nowMillis = nowMillis,
@@ -1107,6 +1115,7 @@ private fun CodecksApp(
                             entitlementRepository,
                             contentPadding,
                             actionRunner = actionRunner,
+                            deviceRepository = deviceRepository,
                             availableActions = homeState.allActions.distinctBy { it.id },
                             onRunAction = ::handleAction,
                             trackpadSettings = trackpadSettings,
@@ -1144,6 +1153,7 @@ private fun CodecksApp(
                             entitlementRepository,
                             contentPadding,
                             actionRunner = actionRunner,
+                            deviceRepository = deviceRepository,
                             mode = AiWorkspaceMode.ProviderSettings,
                             availableActions = homeState.allActions.distinctBy { it.id },
                             onRunAction = ::handleAction,

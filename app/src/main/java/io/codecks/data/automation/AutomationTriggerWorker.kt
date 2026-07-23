@@ -21,6 +21,7 @@ import io.codecks.core.actions.ActionRunner
 import io.codecks.data.ConnectionRepository
 import io.codecks.domain.automation.AutomationRecipe
 import io.codecks.domain.automation.AutomationTriggerEngine
+import io.codecks.domain.automation.hasCurrentSuccessfulTest
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -73,6 +74,7 @@ class AutomationTriggerWorker(
     }
 
     private suspend fun runRecipe(recipe: AutomationRecipe, actionRunner: ActionRunner): ActionResult {
+        automaticRunBlocker(recipe)?.let { return it }
         if (recipe.safety.requiresConfirmation || recipe.steps.any { it.dangerous }) {
             return ActionResult(
                 actionId = recipe.id,
@@ -127,6 +129,22 @@ class AutomationTriggerWorker(
         private val AUTOMATION_RUN_LOCK = Mutex()
     }
 }
+
+/**
+ * Background-triggered rules may only run after their exact current revision has passed the
+ * explicit test flow. This also keeps rules persisted by older app versions fail-closed.
+ */
+internal fun automaticRunBlocker(recipe: AutomationRecipe): ActionResult? =
+    if (recipe.hasCurrentSuccessfulTest()) {
+        null
+    } else {
+        ActionResult(
+            actionId = recipe.id,
+            title = recipe.title,
+            status = ActionResultStatus.RequiresReview,
+            message = "Trigger matched, but ${recipe.title} needs a successful test for its current revision",
+        )
+    }
 
 @EntryPoint
 @InstallIn(SingletonComponent::class)
