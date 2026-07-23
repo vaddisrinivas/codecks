@@ -31,12 +31,33 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+      - name: Create disposable CI signing key
+        run: |
+          keytool -genkeypair \
+            -keystore "$RUNNER_TEMP/codecks-ci.jks" \
+            -storepass ci-only-pass \
+            -keypass ci-only-pass \
+            -alias ci \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 1 \
+            -dname "CN=Codecks CI"
+          {
+            echo "CODECKS_RELEASE_STORE_FILE=$RUNNER_TEMP/codecks-ci.jks"
+            echo "CODECKS_RELEASE_KEY_ALIAS=ci"
+            echo "CODECKS_RELEASE_STORE_PASSWORD=ci-only-pass"
+            echo "CODECKS_RELEASE_KEY_PASSWORD=ci-only-pass"
+          } >> "$GITHUB_ENV"
       - name: Unit tests
-        run: ./gradlew --no-daemon :app:testDebugUnitTest
+        run: ./gradlew --no-daemon :app:testReleaseUnitTest
       - name: Android lint
         run: ./gradlew --no-daemon :app:lintDebug
       - name: Managed emulator tests
-        run: ./gradlew --no-daemon -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect :app:pixel6Api35DebugAndroidTest
+        run: |
+          ./gradlew --no-daemon \
+            -PcodecksInstrumentedTestBuildType=debug \
+            -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect \
+            :app:pixel6Api35DebugAndroidTest
       - name: Debug APK
         run: ./gradlew --no-daemon :app:assembleDebug
       - name: Upload test reports on failure

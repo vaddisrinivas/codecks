@@ -2,6 +2,7 @@ package io.codecks.ui.connection
 
 import io.codecks.data.ConnectionConfig
 import io.codecks.data.ConnectionRepository
+import io.codecks.data.ConnectionTarget
 import io.codecks.data.SshDiscovery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -155,6 +156,7 @@ class ConnectionViewModelTest {
         runCurrent()
 
         assertTrue(repository.removeTargetCalled)
+        assertEquals("8ee80175-c04f-4b03-ae3c-ad18f129a553", repository.removedTargetId)
         assertEquals("", viewModel.uiState.value.host)
         assertEquals("22", viewModel.uiState.value.port)
         assertEquals("", viewModel.uiState.value.user)
@@ -172,6 +174,7 @@ private class FakeConnectionRepository(
     var confirmCalled = false
     var resetTrustCalled = false
     var removeTargetCalled = false
+    var removedTargetId: String? = null
 
     override suspend fun save(host: String, port: Int, user: String) {
         val previous = config.value
@@ -207,9 +210,25 @@ private class FakeConnectionRepository(
 
     override suspend fun removeTarget(targetId: String): Result<String> {
         removeTargetCalled = true
+        removedTargetId = targetId
         val host = config.value.host
         config.value = ConnectionConfig()
         return Result.success("Removed $host")
+    }
+
+    override suspend fun savedTargets(): List<ConnectionTarget> {
+        val current = config.value
+        if (!current.isConfigured) return emptyList()
+        return listOf(
+            ConnectionTarget(
+                id = "8ee80175-c04f-4b03-ae3c-ad18f129a553",
+                host = current.host,
+                port = current.port,
+                user = current.user,
+                hasKey = current.hasKey,
+                hostKey = current.hostKey,
+            ),
+        )
     }
 
     override suspend fun installKey(password: String): Result<String> {

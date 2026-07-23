@@ -6,4 +6,3 @@ interface DeviceRepository {
     suspend fun currentDeviceId(): DeviceId?
     suspend fun summaries(): List<DeviceSummary> = devices().map(TargetDevice::toSummary)
 }
-

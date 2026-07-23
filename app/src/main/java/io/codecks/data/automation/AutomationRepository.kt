@@ -11,6 +11,9 @@ import io.codecks.core.actions.ActionResultStatus
 import io.codecks.core.actions.ActionSpec
 import io.codecks.core.actions.ShellTrustLevel
 import io.codecks.data.ActionRepository
+import io.codecks.data.ConnectionRepository
+import io.codecks.data.PersistedTargetSelectorMigration
+import io.codecks.data.migrateAutomationTargetSelectorPayload
 import io.codecks.domain.CommandOrigin
 import io.codecks.domain.CommandReview
 import io.codecks.domain.ExecutionAuthorization
@@ -28,6 +31,7 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -53,18 +57,21 @@ interface AutomationRepository {
 class DefaultAutomationRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val actionRepository: ActionRepository,
+    private val connectionRepository: ConnectionRepository,
 ) : AutomationRepository {
-    override val recipes: Flow<List<AutomationRecipe>> = context.automationDataStore.data.map { preferences ->
-        preferences[RECIPES]
-            ?.let { raw ->
-                decodeRecipes(raw) ?: run {
-                    reportRecipeDecodeFailure(raw)
-                    null
+    override val recipes: Flow<List<AutomationRecipe>> = context.automationDataStore.data
+        .onStart { migratePersistedTargetSelectors() }
+        .map { preferences ->
+            preferences[RECIPES]
+                ?.let { raw ->
+                    decodeRecipes(raw) ?: run {
+                        reportRecipeDecodeFailure(raw)
+                        null
+                    }
                 }
-            }
-            ?.takeIf { it.isNotEmpty() }
-            ?: defaultRecipes()
-    }
+                ?.takeIf { it.isNotEmpty() }
+                ?: defaultRecipes()
+        }
 
     override suspend fun save(recipe: AutomationRecipe) {
         mutate { recipes ->
@@ -153,8 +160,9 @@ class DefaultAutomationRepository @Inject constructor(
     }
 
     override suspend fun importRecipes(payload: String): Result<Unit> = runCatching {
-        validateRecipes(payload).getOrThrow()
-        val imported = requireNotNull(decodeRecipes(payload))
+        val migratedPayload = migratePayload(payload, connectionRepository.legacyTargetIdMigrations())
+        validateRecipes(migratedPayload).getOrThrow()
+        val imported = requireNotNull(decodeRecipes(migratedPayload))
         context.automationDataStore.edit { preferences ->
             preferences[RECIPES] = encodeRecipes(imported)
         }
@@ -172,6 +180,7 @@ class DefaultAutomationRepository @Inject constructor(
     }
 
     private suspend fun mutate(transform: (List<AutomationRecipe>) -> List<AutomationRecipe>) {
+        val legacyIds = connectionRepository.legacyTargetIdMigrations()
         context.automationDataStore.edit { preferences ->
             val raw = preferences[RECIPES]
             val decoded = raw?.let(::decodeRecipes)
@@ -179,7 +188,8 @@ class DefaultAutomationRepository @Inject constructor(
                 preferences[RECIPES_QUARANTINE] = quarantinePayload(raw, "recipes")
             }
             val current = decoded?.takeIf { it.isNotEmpty() } ?: defaultRecipes()
-            preferences[RECIPES] = encodeRecipes(transform(current))
+            val encoded = encodeRecipes(transform(current))
+            preferences[RECIPES] = migratePayload(encoded, legacyIds)
         }
     }
 
@@ -272,6 +282,36 @@ class DefaultAutomationRepository @Inject constructor(
             }
         }
     }.getOrNull()
+
+    private suspend fun migratePersistedTargetSelectors() {
+        val legacyIds = connectionRepository.legacyTargetIdMigrations()
+        if (legacyIds.isEmpty()) return
+        context.automationDataStore.edit { preferences ->
+            val raw = preferences[RECIPES] ?: return@edit
+            when (val migration = migrateAutomationTargetSelectorPayload(raw, legacyIds)) {
+                is PersistedTargetSelectorMigration.Migrated -> {
+                    if (decodeRecipes(migration.payload) == null) {
+                        preferences[RECIPES_QUARANTINE] = quarantinePayload(raw, "recipes")
+                    } else {
+                        preferences[RECIPES] = migration.payload
+                    }
+                }
+                PersistedTargetSelectorMigration.Undecodable -> {
+                    preferences[RECIPES_QUARANTINE] = quarantinePayload(raw, "recipes")
+                }
+                PersistedTargetSelectorMigration.Unchanged -> Unit
+            }
+        }
+    }
+
+    private fun migratePayload(
+        raw: String,
+        legacyIds: Map<String, String>,
+    ): String = when (val migration = migrateAutomationTargetSelectorPayload(raw, legacyIds)) {
+        is PersistedTargetSelectorMigration.Migrated -> migration.payload
+        PersistedTargetSelectorMigration.Unchanged -> raw
+        PersistedTargetSelectorMigration.Undecodable -> error("Automation payload could not be decoded")
+    }
 
     private fun ActionSpec.toJson(): JSONObject = JSONObject().apply {
         when (this@toJson) {

@@ -4,20 +4,50 @@
 # - com.jcraft.jsch.jce.Random
 # - com.jcraft.jsch.DHEC256
 #
-# Keep JSch package structure/names intact for any classes R8 keeps. Several
-# JSch algorithm classes are package-private; if R8 keeps those classes but
-# obfuscates package siblings, release builds fail with IllegalAccessException
-# during SSH key exchange. This still allows unused optional desktop/BouncyCastle
-# integrations to shrink away.
--keepnames class com.jcraft.jsch.** { *; }
--keep class com.jcraft.jsch.DH* { *; }
--keep class com.jcraft.jsch.ECDH { *; }
--keep class com.jcraft.jsch.XDH { *; }
--keep class com.jcraft.jsch.Signature* { *; }
--keep class com.jcraft.jsch.KeyPairGen* { *; }
--keep class com.jcraft.jsch.UserAuthNone { *; }
--keep class com.jcraft.jsch.UserAuthPassword { *; }
--keep class com.jcraft.jsch.UserAuthPublicKey { *; }
--keep class com.jcraft.jsch.UserAuthKeyboardInteractive { *; }
--keep class com.jcraft.jsch.jce.** { *; }
--keep class com.jcraft.jsch.jzlib.** { *; }
+# JSch stores these implementation names in its runtime configuration, then
+# constructs them reflectively. Preserve only those configured classes and
+# their no-argument constructors; all other members remain shrinkable and
+# optimizable.
+-keep,allowoptimization class com.jcraft.jsch.CipherNone {
+    <init>();
+}
+-keep,allowoptimization class com.jcraft.jsch.DH* {
+    <init>();
+}
+-keep,allowoptimization class com.jcraft.jsch.UserAuthNone {
+    <init>();
+}
+-keep,allowoptimization class com.jcraft.jsch.UserAuthPassword {
+    <init>();
+}
+-keep,allowoptimization class com.jcraft.jsch.UserAuthPublicKey {
+    <init>();
+}
+-keep,allowoptimization class com.jcraft.jsch.UserAuthKeyboardInteractive {
+    <init>();
+}
+-keep,allowoptimization class com.jcraft.jsch.jbcrypt.JBCrypt {
+    <init>();
+}
+-keep,allowoptimization class com.jcraft.jsch.jce.** {
+    <init>();
+}
+-keep,allowoptimization class com.jcraft.jsch.jzlib.Compression {
+    <init>();
+}
+
+# AndroidJUnitRunner is loaded into the tested app process and calls this class
+# from the target APK. Keep this one cross-APK API; all other AndroidX code
+# remains governed by library consumer rules.
+-keep,allowoptimization class androidx.tracing.Trace {
+    public *;
+}
+
+# AndroidX Test's storage bootstrap calls Kotlin's lazy() facade from the test
+# APK. Keep only that cross-APK facade and its generated implementation parts.
+-keep,allowoptimization class kotlin.LazyKt {
+    public *;
+}
+-keep,allowoptimization class kotlin.LazyKt__* {
+    public *;
+}

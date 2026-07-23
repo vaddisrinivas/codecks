@@ -1,24 +1,30 @@
 package io.codecks.ui.app
 
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onNodeWithText
+import androidx.lifecycle.Lifecycle
+import androidx.test.core.app.ActivityScenario
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.codecks.MainActivity
-import org.junit.Rule
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
 
+@RunWith(AndroidJUnit4::class)
 class MainActivityStartupInstrumentedTest {
-    @get:Rule
-    val composeRule = createAndroidComposeRule<MainActivity>()
-
     @Test
-    fun deckStartupRendersVisibleControls() {
-        composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.onAllNodesWithText("Finder").fetchSemanticsNodes().isNotEmpty()
+    fun coldStartReachesResumedActivityAndProcessSurvives() {
+        val scenario = ActivityScenario.launch(MainActivity::class.java)
+        try {
+            assertEquals(Lifecycle.State.RESUMED, scenario.state)
+            scenario.onActivity { activity ->
+                assertFalse(activity.isFinishing)
+                assertFalse(activity.isDestroyed)
+                assertTrue(activity.window.decorView.isAttachedToWindow)
+            }
+            assertEquals(Lifecycle.State.RESUMED, scenario.state)
+        } finally {
+            scenario.close()
         }
-
-        composeRule.onNodeWithText("Finder").assertIsDisplayed()
-        composeRule.onNodeWithText("Setup").assertIsDisplayed()
     }
 }

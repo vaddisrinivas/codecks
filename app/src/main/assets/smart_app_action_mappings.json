@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "mappings": [
+    {
+      "appTokens": ["chrome", "safari", "firefox", "arc", "edge", "opera", "brave"],
+      "actionTokens": ["browser", "tab", "reload", "back", "forward", "dev", "bookmark", "notification"],
+      "reason": "Useful while a browser is active",
+      "score": 18
+    },
+    {
+      "appTokens": ["terminal", "iterm", "warp", "kitty", "hyper", "alacritty", "zsh", "bash", "shell"],
+      "actionTokens": ["terminal", "github", "clipboard", "coding", "dev", "editor"],
+      "reason": "Useful during terminal work",
+      "score": 18
+    },
+    {
+      "appTokens": ["xcode", "android studio", "cursor", "visual studio code", "vscode", "intellij", "jetbrains"],
+      "actionTokens": ["terminal", "github", "coding", "browser", "focus"],
+      "reason": "Useful while coding",
+      "score": 18
+    },
+    {
+      "appTokens": ["zoom", "teams", "meet", "webrtc", "discord", "slack", "webex", "facetime"],
+      "actionTokens": ["meeting", "calendar", "mute", "notes", "chat", "paste", "copy"],
+      "reason": "Useful during meetings",
+      "score": 18
+    },
+    {
+      "appTokens": ["finder", "file", "desktop"],
+      "actionTokens": ["finder", "copy", "paste", "screenshot", "window", "desktop"],
+      "reason": "Useful while browsing files",
+      "score": 16
+    },
+    {
+      "appTokens": ["music", "spotify", "yt", "apple music", "quicktime", "player", "vlc", "video"],
+      "actionTokens": ["play", "next", "previous", "mute", "volume", "full", "media"],
+      "reason": "Useful while controlling media",
+      "score": 16
+    }
+  ]
+}

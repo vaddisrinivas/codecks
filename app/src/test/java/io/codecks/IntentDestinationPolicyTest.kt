@@ -1,4 +1,4 @@
-package io.codecks
+    package io.codecks
 
 import android.content.Intent
 import org.junit.Assert.assertEquals
@@ -50,7 +50,7 @@ class IntentDestinationPolicyTest {
     @Test
     fun acceptsDebugDestinationActionInDebugBuild() {
         assertEquals(
-            "settings",
+            if (BuildConfig.DEBUG) "settings" else null,
             resolveDestinationRequest(
                 action = InternalIntentAuth.ACTION_DEBUG_OPEN_DESTINATION,
                 type = null,

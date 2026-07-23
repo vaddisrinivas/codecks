@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.20 — 2026-07-23
+
+Smart correctness, privacy, and release-proof hardening.
+
+- Added typed Smart action results, live Mac input capability gating, deterministic providers, and behavior-tested ViewModel orchestration.
+- Prevented busy or rejected actions from being recorded as successful and bound completion feedback to the original run, Mac, and app context.
+- Migrated Smart learning to schema v2 while safely importing real v1 history and removing legacy endpoint-derived identity data.
+- Replaced endpoint-derived target IDs with persisted random UUIDs and migrated saved Deck and Rule selectors without overwriting corrupt data.
+- Separated temporary hide, context suppression, and global suppression semantics.
+- Restored real R8 shrinking and obfuscation instead of broad keep rules.
+- Added exact signed-release startup and debug functional managed-emulator gates.
+- Hardened release provenance, permissions, artifact checksums, and product-only publication.
+- Added a permanent agent rule forbidding release-app uninstall or data clearing during testing without explicit approval.
+
 ## 0.1.19 — 2026-07-23
 
 Mac SSH release fix.
