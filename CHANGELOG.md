@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.19 — 2026-07-23
+
+Mac SSH release fix.
+
+- Fixed the remaining release-only JSch/R8 failure where package-private key-exchange classes such as `com.jcraft.jsch.DHEC256` were present but inaccessible after obfuscation.
+- Kept JSch package structure and members intact in release builds so SSH negotiation can reach package-private algorithms.
+
 ## 0.1.18 — 2026-07-23
 
 Mac action release fix.

@@ -1,12 +1,15 @@
 # JSch resolves SSH algorithms from string configuration at runtime. R8 cannot
 # see those reflective references, so release APKs can crash or fail connection
-# setup with ClassNotFoundException for classes such as:
+# setup with ClassNotFoundException or IllegalAccessException for classes such as:
 # - com.jcraft.jsch.jce.Random
 # - com.jcraft.jsch.DHEC256
 #
-# Keep the Android-relevant algorithm surface only. Do not keep all of JSch:
-# optional desktop integrations reference Windows, Kerberos, JNA, and
-# BouncyCastle classes that are intentionally not packaged in Android.
+# Keep JSch package structure/names intact for any classes R8 keeps. Several
+# JSch algorithm classes are package-private; if R8 keeps those classes but
+# obfuscates package siblings, release builds fail with IllegalAccessException
+# during SSH key exchange. This still allows unused optional desktop/BouncyCastle
+# integrations to shrink away.
+-keepnames class com.jcraft.jsch.** { *; }
 -keep class com.jcraft.jsch.DH* { *; }
 -keep class com.jcraft.jsch.ECDH { *; }
 -keep class com.jcraft.jsch.XDH { *; }
