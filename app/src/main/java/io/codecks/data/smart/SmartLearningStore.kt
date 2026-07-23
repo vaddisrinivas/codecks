@@ -12,19 +12,26 @@ private const val KEY_EVENTS = "events"
 
 class SmartLearningStore(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(SMART_PREFS, Context.MODE_PRIVATE)
+    private val lock = Any()
 
     fun record(feedback: SmartFeedback) {
-        val events = (SmartLearningCodec.decode(preferences.getString(KEY_EVENTS, null)) + feedback)
-            .sortedBy { it.atMillis }
-            .takeLast(SmartLearningCodec.MAX_EVENTS)
-        preferences.edit().putString(KEY_EVENTS, SmartLearningCodec.encode(events)).apply()
+        synchronized(lock) {
+            val events = (SmartLearningCodec.decode(preferences.getString(KEY_EVENTS, null)) + feedback)
+                .sortedBy { it.atMillis }
+                .takeLast(SmartLearningCodec.MAX_EVENTS)
+            preferences.edit().putString(KEY_EVENTS, SmartLearningCodec.encode(events)).apply()
+        }
     }
 
     fun summary(nowMillis: Long = System.currentTimeMillis()): SmartFeedbackSummary =
-        SmartLearningCodec.summary(SmartLearningCodec.decode(preferences.getString(KEY_EVENTS, null)), nowMillis)
+        synchronized(lock) {
+            SmartLearningCodec.summary(SmartLearningCodec.decode(preferences.getString(KEY_EVENTS, null)), nowMillis)
+        }
 
     fun clear() {
-        preferences.edit().remove(KEY_EVENTS).apply()
+        synchronized(lock) {
+            preferences.edit().remove(KEY_EVENTS).apply()
+        }
     }
 }
 
@@ -87,22 +94,31 @@ object SmartLearningCodec {
             .map { "${it.appKey}:${it.actionId}" }
             .toSet()
         val scores = mutableMapOf<String, Int>()
+        val transitions = mutableMapOf<String, Int>()
+        var previousSuccessfulActionId: String? = null
         fresh.forEach { event ->
             val id = event.actionId ?: return@forEach
             scores[id] = (scores[id] ?: 0) + when (event.type) {
-                SmartFeedbackType.Run,
-                SmartFeedbackType.Pin,
+                SmartFeedbackType.Run -> 0
+                SmartFeedbackType.Pin -> 8
                 SmartFeedbackType.Success -> 6
                 SmartFeedbackType.Failure -> -8
-                SmartFeedbackType.Hide -> -12
-                SmartFeedbackType.NeverForApp -> -40
+                SmartFeedbackType.Hide -> 0
+                SmartFeedbackType.NeverForApp -> 0
                 SmartFeedbackType.Why -> 1
+            }
+            if (event.type == SmartFeedbackType.Success) {
+                previousSuccessfulActionId?.takeIf { it != id }?.let { previous ->
+                    transitions["$previous->$id"] = (transitions["$previous->$id"] ?: 0) + 10
+                }
+                previousSuccessfulActionId = id
             }
         }
         return SmartFeedbackSummary(
             hiddenCandidateIds = hidden,
             neverAppActionKeys = never,
             actionScores = scores,
+            transitionScores = transitions,
         )
     }
 }

@@ -33,13 +33,53 @@ class DeterministicSmartEngineTest {
     fun hideAndNeverSuppressSuggestions() {
         val context = smartContext(activeMacApp = "Chrome", recentActionIds = listOf("reload"))
         val hidden = SmartFeedbackSummary(
-            hiddenCandidateIds = setOf("smart:reload"),
+            hiddenCandidateIds = setOf("smart:deck:chrome:reload"),
             neverAppActionKeys = setOf("chrome:browser"),
         )
         val ranked = engine.suggest(context, actions(), hidden, now).candidates.mapNotNull { it.actionId }
 
         assertFalse("reload" in ranked)
         assertFalse("browser" in ranked)
+    }
+
+    @Test
+    fun expiredContextReturnsNoCandidatesWithLaterClock() {
+        val context = smartContext(activeMacApp = "Chrome", recentActionIds = listOf("reload"))
+
+        val decision = engine.suggest(context, actions(), nowMillis = context.expiresAtMillis + 1L)
+
+        assertEquals(SmartUnavailable.Expired, decision.unavailable)
+        assertTrue(decision.candidates.isEmpty())
+    }
+
+    @Test
+    fun missingMacCapabilityRemovesMacCandidates() {
+        val context = smartContext(activeMacApp = "Chrome", recentActionIds = listOf("reload")).copy(
+            macConnected = false,
+            supportedCapabilities = setOf(
+                SmartCapability.LocalNavigation,
+                SmartCapability.ConnectionRepair,
+                SmartCapability.Keyboard,
+                SmartCapability.Clipboard,
+            ),
+        )
+
+        val ranked = engine.suggest(context, actions(), nowMillis = now).candidates.mapNotNull { it.actionId }
+
+        assertFalse("reload" in ranked)
+        assertFalse("danger" in ranked)
+    }
+
+    @Test
+    fun transitionFeedbackCanPromoteLikelyNextAction() {
+        val context = smartContext(activeMacApp = "Chrome", recentActionIds = listOf("reload"))
+        val feedback = SmartFeedbackSummary(
+            transitionScores = mapOf("reload->browser" to 30),
+        )
+
+        val ranked = engine.suggest(context, actions(), feedback, now).candidates.mapNotNull { it.actionId }
+
+        assertEquals("browser", ranked.first())
     }
 
     private fun smartContext(

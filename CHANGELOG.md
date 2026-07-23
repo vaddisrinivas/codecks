@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.15 — 2026-07-22
+
+Smart Deck correctness release.
+
+- Smart Run feedback now records success/failure from the final action result instead of scoring on tap.
+- Smart candidate expiry now uses a real clock and refresh tick.
+- Smart Mac identity is stored as a short local hash, not `user@host:port`.
+- Smart ranking sees all actions before pinned Deck buttons are filtered from the suggestion row.
+- Added transition learning so successful button sequences can suggest the likely next button.
+- Smart cards now show Run and Pin directly, with Why/Hide/Never in an overflow menu.
+- Added Clear smart history under Settings when Smart flags are enabled.
+- Notification access/privacy is no longer coupled to the Smart Deck flag.
+- Updated v0.1.14 GitHub release notes body with the full in-repo notes.
+
 ## 0.1.14 — 2026-07-22
 
 Smart foundation release.

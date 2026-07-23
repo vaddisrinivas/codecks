@@ -12,10 +12,11 @@ class DeterministicSmartEngine(
         if (context.isExpired(nowMillis)) return SmartDecision(emptyList(), SmartUnavailable.Expired)
         val appKey = context.activeMacApp?.sanitizeSmartKey().orEmpty()
         val recentOrder = context.recentActionIds.mapIndexed { index, id -> id to index }.toMap()
+        val previousActionId = context.recentActionIds.firstOrNull()
         val candidates = actions
             .asSequence()
             .filterNot { it.id in blockedActionIds }
-            .mapNotNull { action -> action.toCandidate(context, appKey, recentOrder, feedback) }
+            .mapNotNull { action -> action.toCandidate(context, appKey, recentOrder, previousActionId, feedback) }
             .sortedWith(compareByDescending<ScoredCandidate> { it.score }.thenBy { it.candidate.title })
             .map { it.candidate }
             .toList()
@@ -26,14 +27,25 @@ class DeterministicSmartEngine(
         context: SmartContext,
         appKey: String,
         recentOrder: Map<String, Int>,
+        previousActionId: String?,
         feedback: SmartFeedbackSummary,
     ): ScoredCandidate? {
-        val candidateId = "smart:$id"
+        val surfaceKey = context.currentSurface.sanitizeSmartKey()
+        val scopedAppKey = appKey.ifBlank { "any" }
+        val candidateId = "smart:$surfaceKey:$scopedAppKey:$id"
         val neverKey = "$appKey:$id"
         if (candidateId in feedback.hiddenCandidateIds || neverKey in feedback.neverAppActionKeys) return null
         val haystack = listOf(id, title, description, route.orEmpty()).joinToString(" ").lowercase()
         var score = feedback.actionScores[id] ?: 0
         val reasons = mutableListOf<String>()
+        previousActionId
+            ?.takeIf { it != id }
+            ?.let { previous ->
+                feedback.transitionScores["$previous->$id"]?.let { transitionScore ->
+                    score += transitionScore
+                    reasons += "often follows recent button"
+                }
+            }
         recentOrder[id]?.let { index ->
             score += (18 - index * 3).coerceAtLeast(4)
             reasons += "recently used"
@@ -59,7 +71,6 @@ class DeterministicSmartEngine(
         if (score < 6) return null
         val risks = buildSet {
             add(if (dangerous) SmartRisk.Dangerous else SmartRisk.Normal)
-            if (commandType == "Ssh" && !requiresMac) add(SmartRisk.RequiresReview)
         }
         val capabilities = buildSet {
             if (requiresMac) add(SmartCapability.MacCommand)

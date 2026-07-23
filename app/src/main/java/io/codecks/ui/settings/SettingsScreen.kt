@@ -177,6 +177,7 @@ fun SettingsScreen(
     featureFlags: Map<FeatureFlag, Boolean> = emptyMap(),
     onFeatureFlagChange: (FeatureFlag, Boolean) -> Unit = { _, _ -> },
     onResetFeatureFlags: () -> Unit = {},
+    onClearSmartHistory: () -> Unit = {},
 ) {
     var showResetFlagsDialog by rememberSaveable { mutableStateOf(false) }
     var trackpadFineTuneOpen by rememberSaveable { mutableStateOf(false) }
@@ -320,7 +321,7 @@ fun SettingsScreen(
                         )
                     }
                 }
-                if (featureFlags.isOn(FeatureFlag.SmartDeck)) {
+                if (contextFeatureStatus.componentEnabled) {
                     item { SectionLabel("Notification privacy") }
                     item {
                         SettingsRow(
@@ -335,6 +336,18 @@ fun SettingsScreen(
                         NotificationPrivacyPanel(
                             settings = notificationPrivacySettings,
                             onChange = onNotificationPrivacyChange,
+                        )
+                    }
+                }
+                if (featureFlags.isOn(FeatureFlag.SmartSuggestions) || featureFlags.isOn(FeatureFlag.SmartDeck)) {
+                    item { SectionLabel("Smart") }
+                    item {
+                        SettingsRow(
+                            icon = Icons.Outlined.AutoAwesome,
+                            title = "Clear smart history",
+                            summary = "Forget local suggestion learning. Deck buttons and Mac setup stay untouched.",
+                            onClick = onClearSmartHistory,
+                            showChevron = false,
                         )
                     }
                 }
@@ -1373,7 +1386,7 @@ private fun SetupChecklist(
             statusLabel = hidHealth.statusLabel(),
             onClick = onBluetooth,
         )
-        if (featureFlags.isOn(FeatureFlag.SmartDeck)) {
+        if (io.codecks.BuildConfig.OPTIONAL_CONTEXT_SURFACES_ENABLED) {
             SetupRow(
                 title = "Notification access",
                 summary = if (notificationAccessReady) {

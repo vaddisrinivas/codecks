@@ -4,6 +4,9 @@ import android.content.Context
 import io.codecks.data.context.DeviceSurfaceContextSource
 import io.codecks.domain.smart.SmartCapability
 import io.codecks.domain.smart.SmartContext
+import java.security.MessageDigest
+import java.time.Instant
+import java.time.ZoneId
 
 class SmartContextRepository(private val context: Context) {
     fun current(
@@ -18,7 +21,7 @@ class SmartContextRepository(private val context: Context) {
         val surface = DeviceSurfaceContextSource(context.applicationContext).current()
         return SmartContext(
             currentSurface = currentSurface,
-            selectedMacId = selectedMacId,
+            selectedMacId = selectedMacId?.anonymizedMacId(),
             macConnected = macConnected,
             activeMacApp = activeMacApp,
             recentActionIds = recentActionIds.distinct().take(12),
@@ -31,11 +34,17 @@ class SmartContextRepository(private val context: Context) {
                 add(SmartCapability.Clipboard)
                 if (macConnected) add(SmartCapability.MacCommand)
             },
-            hourBucket = ((nowMillis / (60L * 60L * 1000L)) % 24L).toInt(),
+            hourBucket = Instant.ofEpochMilli(nowMillis).atZone(ZoneId.systemDefault()).hour,
             createdAtMillis = nowMillis,
             expiresAtMillis = nowMillis + FIVE_MINUTES_MS,
         )
     }
+
+    private fun String.anonymizedMacId(): String =
+        "mac_" + MessageDigest.getInstance("SHA-256")
+            .digest(toByteArray())
+            .joinToString("") { "%02x".format(it) }
+            .take(16)
 
     private fun String.sanitizeContextSource(): String =
         lowercase().replace(Regex("[^a-z0-9._:-]+"), "_").trim('_').take(80)

@@ -6,7 +6,7 @@ Updated: July 22, 2026
 | --- | --- |
 | Product | Codecks |
 | Application ID | `app.codecks` |
-| Version | `0.1.14` (`versionCode` 15) |
+| Version | `0.1.15` (`versionCode` 16) |
 | Minimum Android | 9 / API 28 |
 | Target Android | API 37 |
 | Default mode | Local-only; no account, billing, hosted backend, database, analytics, or cloud sync |

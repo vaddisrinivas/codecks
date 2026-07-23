@@ -104,6 +104,7 @@ data class SmartFeedbackSummary(
     val hiddenCandidateIds: Set<String> = emptySet(),
     val neverAppActionKeys: Set<String> = emptySet(),
     val actionScores: Map<String, Int> = emptyMap(),
+    val transitionScores: Map<String, Int> = emptyMap(),
 )
 
 data class SmartDecision(
@@ -112,7 +113,7 @@ data class SmartDecision(
 )
 
 interface SmartPolicy {
-    fun filter(context: SmartContext, candidates: List<SmartCandidate>, nowMillis: Long = context.createdAtMillis): SmartDecision
+    fun filter(context: SmartContext, candidates: List<SmartCandidate>, nowMillis: Long): SmartDecision
 }
 
 interface SmartEngine {
@@ -120,7 +121,7 @@ interface SmartEngine {
         context: SmartContext,
         actions: List<SmartActionRef>,
         feedback: SmartFeedbackSummary = SmartFeedbackSummary(),
-        nowMillis: Long = context.createdAtMillis,
+        nowMillis: Long,
     ): SmartDecision
 }
 

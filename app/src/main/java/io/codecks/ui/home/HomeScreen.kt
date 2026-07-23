@@ -30,9 +30,12 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Computer
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -401,7 +404,28 @@ private fun SmartSuggestionRow(
         contentPadding = PaddingValues(vertical = 4.dp),
         modifier = modifier.height(104.dp),
     ) {
-        items(suggestions, key = SmartDeckSuggestionUi::candidateId) { suggestion ->
+        item {
+            Column(
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .height(96.dp)
+                    .width(92.dp),
+            ) {
+                Text(
+                    text = "Suggested",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = "Local only",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        items(suggestions.take(3), key = SmartDeckSuggestionUi::candidateId) { suggestion ->
+            var menuOpen by remember { mutableStateOf(false) }
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -426,12 +450,37 @@ private fun SmartSuggestionRow(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = { onRun(suggestion) }) { Text("Run") }
                         TextButton(onClick = { onPin(suggestion) }) { Text("Pin") }
-                        TextButton(onClick = { onHide(suggestion) }) { Text("Hide") }
-                        TextButton(onClick = { onWhy(suggestion) }) { Text("Why") }
-                        TextButton(onClick = { onNeverForApp(suggestion) }) { Text("Never") }
+                        Box {
+                            IconButton(onClick = { menuOpen = true }) {
+                                Icon(Icons.Outlined.MoreVert, contentDescription = "More suggestion actions")
+                            }
+                            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("Why this?") },
+                                    onClick = {
+                                        menuOpen = false
+                                        onWhy(suggestion)
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Hide for now") },
+                                    onClick = {
+                                        menuOpen = false
+                                        onHide(suggestion)
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Don’t suggest here") },
+                                    onClick = {
+                                        menuOpen = false
+                                        onNeverForApp(suggestion)
+                                    },
+                                )
+                            }
+                        }
                     }
                 }
             }

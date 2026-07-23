@@ -307,8 +307,9 @@ private fun CodecksApp(
     val featureFlags by featureFlagRepository.flags.collectAsStateWithLifecycle(initialValue = emptyMap())
     val smartDeckEnabled =
         featureFlags.focusedEnabled(FeatureFlag.SmartSuggestions) && featureFlags.focusedEnabled(FeatureFlag.SmartDeck)
-    val phoneNotificationFlow = remember(smartDeckEnabled) {
-        if (smartDeckEnabled) {
+    val notificationFeaturesEnabled = BuildConfig.OPTIONAL_CONTEXT_SURFACES_ENABLED
+    val phoneNotificationFlow = remember(notificationFeaturesEnabled) {
+        if (notificationFeaturesEnabled) {
             PhoneNotificationBackplane.notifications
         } else {
             flowOf(emptyList<NotificationPreview>())
@@ -377,9 +378,9 @@ private fun CodecksApp(
     val notificationPrivacySettings by notificationPrivacySettingsRepository.settings.collectAsStateWithLifecycle(
         initialValue = NotificationPrivacySettings(),
     )
-    LaunchedEffect(notificationPrivacySettings, smartDeckEnabled) {
+    LaunchedEffect(notificationPrivacySettings, notificationFeaturesEnabled) {
         PhoneNotificationBackplane.updatePrivacySettings(
-            if (smartDeckEnabled) {
+            if (notificationFeaturesEnabled) {
                 notificationPrivacySettings
             } else {
                 NotificationPrivacySettings(showOnTrackpad = false)
@@ -401,12 +402,12 @@ private fun CodecksApp(
         bluetoothPermissionRefresh += 1
         if (it) hidRepository.start()
     }
-    val notificationAccessReady = smartDeckEnabled && PhoneNotificationBackplane.isEnabled(appContext)
+    val notificationAccessReady = notificationFeaturesEnabled && PhoneNotificationBackplane.isEnabled(appContext)
     val contextFeatureStatus = ContextFeatureStatus(
         compiledIntoBuild = true,
         componentEnabled = BuildConfig.OPTIONAL_CONTEXT_SURFACES_ENABLED,
         specialAccessGranted = PhoneNotificationBackplane.isEnabled(appContext),
-        runtimeFeatureEnabled = smartDeckEnabled,
+        runtimeFeatureEnabled = notificationFeaturesEnabled,
         privacyLaneEnabled = notificationPrivacySettings.showOnTrackpad,
         allowedPackageCount = notificationPrivacySettings.allowedPackages.size,
     )
@@ -428,6 +429,15 @@ private fun CodecksApp(
     var smartRefreshTick by remember { mutableIntStateOf(0) }
     var hiddenSmartCandidateIds by remember { mutableStateOf(emptySet<String>()) }
     var neverSmartKeys by remember { mutableStateOf(emptySet<String>()) }
+    var pendingSmartRuns by remember { mutableStateOf(emptyMap<String, SmartDeckSuggestionUi>()) }
+    var pendingDangerousSmartSuggestion by remember { mutableStateOf<SmartDeckSuggestionUi?>(null) }
+    LaunchedEffect(smartDeckEnabled, currentRoute) {
+        if (!smartDeckEnabled || currentRoute != HomeRoute) return@LaunchedEffect
+        while (true) {
+            delay(60_000L)
+            smartRefreshTick += 1
+        }
+    }
     val smartContext = remember(
         smartDeckEnabled,
         currentRoute,
@@ -443,7 +453,12 @@ private fun CodecksApp(
         } else {
             smartContextRepository.current(
                 currentSurface = currentRoute.title(),
-                selectedMacId = "${connectionState.config.user}@${connectionState.config.host}:${connectionState.config.port}",
+                selectedMacId = listOf(
+                    connectionState.config.user,
+                    connectionState.config.host,
+                    connectionState.config.port.toString(),
+                    connectionState.config.hostKey,
+                ).joinToString(":"),
                 macConnected = homeState.connectionReady,
                 activeMacApp = homeState.activeMacApp,
                 recentActionIds = homeState.activity.filter { it.succeeded }.map { it.actionId },
@@ -455,7 +470,8 @@ private fun CodecksApp(
         val context = smartContext ?: return@remember emptyList()
         val visibleIds = visibleDeckActions.map(DeckAction::id).toSet()
         val actionById = homeState.allActions.associateBy(DeckAction::id)
-        val storedFeedback = smartLearningStore.summary()
+        val nowMillis = System.currentTimeMillis()
+        val storedFeedback = smartLearningStore.summary(nowMillis)
         val feedback = storedFeedback.copy(
             hiddenCandidateIds = storedFeedback.hiddenCandidateIds + hiddenSmartCandidateIds,
             neverAppActionKeys = storedFeedback.neverAppActionKeys + neverSmartKeys,
@@ -463,11 +479,12 @@ private fun CodecksApp(
         smartEngine.suggest(
             context = context,
             actions = homeState.allActions
-                .filterNot { it.id in visibleIds }
                 .map(DeckAction::toSmartActionRef),
             feedback = feedback,
+            nowMillis = nowMillis,
         ).candidates.mapNotNull { candidate ->
             val action = candidate.actionId?.let(actionById::get) ?: return@mapNotNull null
+            if (action.id in visibleIds) return@mapNotNull null
             SmartDeckSuggestionUi(
                 candidateId = candidate.id,
                 action = action,
@@ -517,7 +534,7 @@ private fun CodecksApp(
         navigate(MouseRoute, topLevel = true)
     }
 
-    fun recordSmartFeedback(suggestion: SmartDeckSuggestionUi, type: SmartFeedbackType) {
+    fun recordSmartFeedback(suggestion: SmartDeckSuggestionUi, type: SmartFeedbackType, success: Boolean? = null) {
         val context = smartContext ?: return
         val appKey = context.activeMacApp?.lowercase()?.replace(Regex("[^a-z0-9._:-]+"), "_")?.trim('_')
         val feedback = SmartFeedback(
@@ -525,7 +542,7 @@ private fun CodecksApp(
             actionId = suggestion.action.id,
             appKey = appKey,
             type = type,
-            success = null,
+            success = success,
             coarseHourBucket = context.hourBucket,
             contextKeys = context.sanitizedKeys(),
             atMillis = System.currentTimeMillis(),
@@ -609,8 +626,40 @@ private fun CodecksApp(
         }
     }
 
+    fun runSmartSuggestion(suggestion: SmartDeckSuggestionUi) {
+        when {
+            suggestion.action.kind == ActionKind.Local -> {
+                handleAction(suggestion.action)
+                recordSmartFeedback(suggestion, SmartFeedbackType.Success, success = true)
+            }
+            suggestion.action.dangerous -> {
+                pendingDangerousSmartSuggestion = suggestion
+                handleAction(suggestion.action)
+            }
+            else -> {
+                pendingSmartRuns = pendingSmartRuns + (suggestion.action.id to suggestion)
+                handleAction(suggestion.action)
+            }
+        }
+    }
+
     LaunchedEffect(homeState.actionStatus) {
         val status = homeState.actionStatus
+        when (status) {
+            is ActionStatus.Succeeded -> {
+                pendingSmartRuns[status.actionId]?.let { suggestion ->
+                    recordSmartFeedback(suggestion, SmartFeedbackType.Success, success = true)
+                    pendingSmartRuns = pendingSmartRuns - status.actionId
+                }
+            }
+            is ActionStatus.Failed -> {
+                pendingSmartRuns[status.actionId]?.let { suggestion ->
+                    recordSmartFeedback(suggestion, SmartFeedbackType.Failure, success = false)
+                    pendingSmartRuns = pendingSmartRuns - status.actionId
+                }
+            }
+            else -> Unit
+        }
         val message = when (status) {
             is ActionStatus.Succeeded -> status.message
             is ActionStatus.Failed -> status.message
@@ -653,13 +702,20 @@ private fun CodecksApp(
 
     pendingDangerousAction?.let { action ->
         AlertDialog(
-            onDismissRequest = { pendingDangerousAction = null },
+            onDismissRequest = {
+                pendingDangerousAction = null
+                pendingDangerousSmartSuggestion = null
+            },
             title = { Text(action.label) },
             text = { Text(action.description) },
             confirmButton = {
                 TextButton(
                     onClick = {
+                        pendingDangerousSmartSuggestion?.let { suggestion ->
+                            pendingSmartRuns = pendingSmartRuns + (suggestion.action.id to suggestion)
+                        }
                         pendingDangerousAction = null
+                        pendingDangerousSmartSuggestion = null
                         homeViewModel.run(action, allowDangerous = true)
                     },
                 ) {
@@ -667,7 +723,12 @@ private fun CodecksApp(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDangerousAction = null }) {
+                TextButton(
+                    onClick = {
+                        pendingDangerousAction = null
+                        pendingDangerousSmartSuggestion = null
+                    },
+                ) {
                     Text("Cancel")
                 }
             },
@@ -748,10 +809,7 @@ private fun CodecksApp(
                                 navigate(RunLogRoute)
                             },
                             smartSuggestions = smartSuggestions,
-                            onRunSmartSuggestion = { suggestion ->
-                                recordSmartFeedback(suggestion, SmartFeedbackType.Run)
-                                handleAction(suggestion.action)
-                            },
+                            onRunSmartSuggestion = ::runSmartSuggestion,
                             onPinSmartSuggestion = { suggestion ->
                                 recordSmartFeedback(suggestion, SmartFeedbackType.Pin)
                                 homeViewModel.pinAction(suggestion.action)
@@ -809,7 +867,7 @@ private fun CodecksApp(
                                 phoneNotifications = phoneNotifications,
                                 laptopNotifications = laptopNotifications,
                                 phoneNotificationAccessReady = notificationAccessReady,
-                                phoneNotificationLaneEnabled = smartDeckEnabled && notificationPrivacySettings.showOnTrackpad,
+                                phoneNotificationLaneEnabled = notificationFeaturesEnabled && notificationPrivacySettings.showOnTrackpad,
                                 onOpenNotificationSettings = {
                                     appContext.startActivity(
                                         Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
@@ -999,6 +1057,14 @@ private fun CodecksApp(
                             featureFlags = featureFlags,
                             onFeatureFlagChange = featureFlagRepository::set,
                             onResetFeatureFlags = { scope.launch { featureFlagRepository.resetDefaults() } },
+                            onClearSmartHistory = {
+                                smartLearningStore.clear()
+                                hiddenSmartCandidateIds = emptySet()
+                                neverSmartKeys = emptySet()
+                                pendingSmartRuns = emptyMap()
+                                smartRefreshTick += 1
+                                scope.launch { snackbarHostState.showSnackbar("Smart history cleared") }
+                            },
                         )
                     }
                     entry<EditorRoute> {

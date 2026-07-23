@@ -39,7 +39,7 @@ class SmartLearningCodecTest {
 
         val summary = SmartLearningCodec.summary(listOf(fresh, old), now)
 
-        assertEquals(6, summary.actionScores["fresh"])
+        assertEquals(0, summary.actionScores["fresh"])
         assertFalse(summary.actionScores.containsKey("old"))
         assertEquals(SmartLearningCodec.summary(emptyList(), now), SmartLearningCodec.summary(SmartLearningCodec.decode(null), now))
     }
@@ -52,6 +52,43 @@ class SmartLearningCodecTest {
         )
 
         assertEquals(setOf("chrome:reload"), summary.neverAppActionKeys)
+    }
+
+    @Test
+    fun successAndFailureCarryLearningScore() {
+        val summary = SmartLearningCodec.summary(
+            listOf(
+                feedback(actionId = "reload", type = SmartFeedbackType.Success, atMillis = 1_000L),
+                feedback(actionId = "broken", type = SmartFeedbackType.Failure, atMillis = 2_000L),
+            ),
+            nowMillis = 3_000L,
+        )
+
+        assertEquals(6, summary.actionScores["reload"])
+        assertEquals(-8, summary.actionScores["broken"])
+    }
+
+    @Test
+    fun successHistoryBuildsTransitionScores() {
+        val summary = SmartLearningCodec.summary(
+            listOf(
+                feedback(actionId = "calendar", type = SmartFeedbackType.Success, atMillis = 1_000L),
+                feedback(actionId = "notes", type = SmartFeedbackType.Success, atMillis = 2_000L),
+            ),
+            nowMillis = 3_000L,
+        )
+
+        assertEquals(10, summary.transitionScores["calendar->notes"])
+    }
+
+    @Test
+    fun neverForAppDoesNotSuppressOtherApps() {
+        val summary = SmartLearningCodec.summary(
+            listOf(feedback(actionId = "reload", appKey = "chrome", type = SmartFeedbackType.NeverForApp)),
+            nowMillis = 2_000L,
+        )
+
+        assertFalse("safari:reload" in summary.neverAppActionKeys)
     }
 
     private fun feedback(
