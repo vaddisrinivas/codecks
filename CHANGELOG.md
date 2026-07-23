@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.16 — 2026-07-22
+
+Upgrade cleanup release.
+
+- Added a compatibility shim for old pre-Codecks WorkManager automation jobs so upgraded installs do not log a missing legacy worker class.
+- Kept the current automation scheduler intact; stale legacy jobs refresh into the current Codecks worker and finish safely.
+
 ## 0.1.15 — 2026-07-22
 
 Smart Deck correctness release.
