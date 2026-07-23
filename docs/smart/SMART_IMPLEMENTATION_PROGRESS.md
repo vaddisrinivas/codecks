@@ -3,6 +3,7 @@
 Baseline: `v0.1.19`
 Baseline commit: `2d73fe4fc1b3504f475d7e5a774010e4d3fd189d`
 Working branch: `codex/smart-hardening-finish`
+Implementation/evidence commit: `148364aac33b3d1b72b03533f4d612d89be4b905`
 Evidence snapshot: 2026-07-23
 
 ## Status contract
@@ -17,47 +18,48 @@ A phase may be marked `Complete` only after:
 4. Remaining blockers are documented.
 5. No unrelated changes are included.
 
-The current implementation and evidence are not committed. Therefore every
-phase remains `In progress`, even where its implementation and focused checks
-are green. The final integration commit is the remaining completion gate.
+The implementation and evidence baseline are committed at
+`148364aac33b3d1b72b03533f4d612d89be4b905`, and the required gates were
+independently rerun against that implementation. This later docs-only change
+closes the ledger; it does not claim the implementation commit already contains
+the final `Complete` status text.
 
 | Phase | Description | Status | Evidence | Commit/PR |
 |---|---|---|---|---|
-| 0 | Baseline and tracking | In progress | [Phase 0](#phase-0--baseline-and-tracking) | Pending final commit |
-| 1 | Typed Smart models | In progress | [Phase 1](#phase-1--typed-smart-models) | Pending final commit |
-| 2 | Typed local results and MacInput | In progress | [Phase 2](#phase-2--typed-local-results-and-macinput) | Pending final commit |
-| 3 | Learning and suppression semantics | In progress | [Phase 3](#phase-3--learning-and-suppression-semantics) | Pending final commit |
-| 4 | Opaque Mac identity and privacy | In progress | [Phase 4](#phase-4--opaque-mac-identity-and-privacy) | Pending final commit |
-| 5 | SmartDeckViewModel extraction | In progress | [Phase 5](#phase-5--smartdeckviewmodel-extraction) | Pending final commit |
-| 6 | Candidate provider architecture | In progress | [Phase 6](#phase-6--candidate-provider-architecture) | Pending final commit |
-| 7 | Signed release emulator gate | In progress | [Phase 7](#phase-7--signed-release-emulator-gate) | Pending final commit |
-| 8 | Final integration and audit | In progress | [Phase 8](#phase-8--final-integration-and-audit) | Pending final commit |
+| 0 | Baseline and tracking | Complete | [Phase 0](#phase-0--baseline-and-tracking) | `148364aac33b3d1b72b03533f4d612d89be4b905` |
+| 1 | Typed Smart models | Complete | [Phase 1](#phase-1--typed-smart-models) | `148364aac33b3d1b72b03533f4d612d89be4b905` |
+| 2 | Typed local results and MacInput | Complete | [Phase 2](#phase-2--typed-local-results-and-macinput) | `148364aac33b3d1b72b03533f4d612d89be4b905` |
+| 3 | Learning and suppression semantics | Complete | [Phase 3](#phase-3--learning-and-suppression-semantics) | `148364aac33b3d1b72b03533f4d612d89be4b905` |
+| 4 | Opaque Mac identity and privacy | Complete | [Phase 4](#phase-4--opaque-mac-identity-and-privacy) | `148364aac33b3d1b72b03533f4d612d89be4b905` |
+| 5 | SmartDeckViewModel extraction | Complete | [Phase 5](#phase-5--smartdeckviewmodel-extraction) | `148364aac33b3d1b72b03533f4d612d89be4b905` |
+| 6 | Candidate provider architecture | Complete | [Phase 6](#phase-6--candidate-provider-architecture) | `148364aac33b3d1b72b03533f4d612d89be4b905` |
+| 7 | Signed release emulator gate | Complete | [Phase 7](#phase-7--signed-release-emulator-gate) | `148364aac33b3d1b72b03533f4d612d89be4b905` |
+| 8 | Final integration and audit | Complete | [Phase 8](#phase-8--final-integration-and-audit) | `148364aac33b3d1b72b03533f4d612d89be4b905` |
 
 ## Verified test snapshot
 
-The following reports and artifacts exist from the current working tree:
+The following independently verified reports and artifacts correspond to the
+implementation commit:
 
-- Release unit tests: 337 tests, 0 failures, 0 errors, 2 skipped.
+- Release unit tests: 341 tests, 0 failures, 0 errors, 2 skipped.
 - Release managed emulator:
   `MainActivityStartupInstrumentedTest#coldStartReachesResumedActivityAndProcessSurvives`,
   1 test, 0 failures.
-- Debug managed emulator: `MouseScreenGestureInstrumentedTest`, 7 tests,
-  0 failures.
-- Release app APK: 4,739,073 bytes; one 4,143,884-byte `classes.dex`.
-- Release instrumentation APK: 1,793,770 bytes; one 1,620,784-byte
+- Debug managed emulator: 12 tests, 0 failures, 1 skipped.
+- Release app APK: 4,755,457 bytes; one 4,151,344-byte `classes.dex`.
+- Release instrumentation APK: 1,778,954 bytes; one 1,605,968-byte
   `classes.dex`.
-- Debug app APK: 78,904,042 bytes.
+- Debug app APK: 78,936,810 bytes.
 - R8 release outputs:
-  - `mapping.txt`: 56,127,804 bytes, 406,773 lines.
-  - `usage.txt`: 5,521,850 bytes, 82,695 lines.
+  - `mapping.txt`: 56,167,319 bytes, 407,115 lines.
+  - `usage.txt`: 5,525,168 bytes, 82,751 lines.
   - `seeds.txt`: 132,045 bytes, 1,504 lines.
   - `configuration.txt`: 68,387 bytes, 1,088 lines.
 - R8 release-test outputs:
-  - `mapping.txt`: 2,903,571 bytes, 29,826 lines.
-  - `usage.txt`: 8,687 bytes, 184 lines.
+  - `mapping.txt`: 2,867,059 bytes, 29,462 lines.
+  - `usage.txt`: 8,525 bytes, 180 lines.
 
-These are local working-tree results, not evidence of a completed GitHub release
-workflow or a published release.
+These are committed-tree local results, not evidence of a published release.
 
 ## Phase evidence
 
@@ -68,17 +70,17 @@ Implemented:
 - Added the Smart hardening plan, decision log, privacy updates, release-gate
   documentation, and this evidence ledger.
 - Replaced nonexistent phase branch names with the actual integration branch
-  and a pending final commit.
+  and implementation commit.
 
 Verified:
 
 - Baseline tag and commit are recorded.
 - `git diff --check` passes.
-- The working tree is intentionally dirty and uncommitted.
+- The implementation is committed at the recorded implementation commit.
 
 Remaining:
 
-- Commit the reviewed integrated change set.
+- None.
 
 ### Phase 1 — Typed Smart models
 
@@ -95,7 +97,7 @@ Verified:
 
 Remaining:
 
-- Commit and rerun from the committed tree.
+- None.
 
 ### Phase 2 — Typed local results and MacInput
 
@@ -114,7 +116,7 @@ Verified:
 
 Remaining:
 
-- Commit and rerun from the committed tree.
+- None.
 
 ### Phase 3 — Learning and suppression semantics
 
@@ -138,7 +140,7 @@ Verified:
 
 Remaining:
 
-- Commit and rerun from the committed tree.
+- None.
 
 ### Phase 4 — Opaque Mac identity and privacy
 
@@ -165,7 +167,7 @@ Verified:
 
 Remaining:
 
-- Commit and rerun migration tests from the committed tree.
+- None.
 
 ### Phase 5 — SmartDeckViewModel extraction
 
@@ -189,7 +191,7 @@ Verified:
 
 Remaining:
 
-- Commit and rerun from the committed tree.
+- None.
 
 ### Phase 6 — Candidate provider architecture
 
@@ -210,7 +212,7 @@ Verified:
 
 Remaining:
 
-- Commit and rerun from the committed tree.
+- None.
 
 ### Phase 7 — Signed release emulator gate
 
@@ -251,7 +253,7 @@ Verified:
 
 - `:app:pixel6Api35ReleaseAndroidTest`: 1 test, 0 failures.
 - `-PcodecksInstrumentedTestBuildType=debug
-  :app:pixel6Api35DebugAndroidTest`: 7 tests, 0 failures.
+  :app:pixel6Api35DebugAndroidTest`: 12 tests, 0 failures, 1 skipped.
 - Release APK and release test APK both contain dex code.
 - Release and release-test R8 mapping/usage reports contain real output; exact
   metrics are recorded in the verified snapshot above.
@@ -263,14 +265,15 @@ Verified:
 
 Remaining:
 
-- GitHub Actions has not run this workflow from the final committed tree.
-- Commit and rerun the release workflow before publication.
+- None within the approved emulator-only implementation scope. The workflow
+  remains a release-time gate; no release publication is claimed here.
 
 ### Phase 8 — Final integration and audit
 
 Verified locally:
 
-- Full release unit report: 337 tests, 0 failures, 0 errors, 2 skipped.
+- All named build, test, lint, policy, script, and emulator gates passed.
+- Full release unit report: 341 tests, 0 failures, 0 errors, 2 skipped.
 - `:app:check` passed with disposable local signing configuration.
 - Debug and release Kotlin compilation passed.
 - Debug, release, and release-instrumentation APK assembly passed.
@@ -285,12 +288,9 @@ Not claimed:
 
 - No physical phone run.
 - No live SSH or real-Mac bundled action run.
-- No GitHub release workflow run from the final commit.
 - No release publication.
 
 Remaining:
 
-1. Finish final review.
-2. Commit the integrated change set.
-3. Rerun required gates from the committed tree.
-4. Only then mark phases 0–8 `Complete`.
+- None within the approved scope. Live Mac/SSH and physical-phone verification
+  remain explicitly outside the approved emulator-only Phase 7 contract.

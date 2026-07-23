@@ -70,7 +70,7 @@ startup smoke. Functional tests live in `app/src/androidTestDebug/`.
 
 ## Current local evidence
 
-Working-tree snapshot from 2026-07-23:
+Implementation commit snapshot from 2026-07-23:
 
 - Release managed emulator: 1 cold-start/process-survival test passed.
 - Debug managed emulator: 12 tests discovered; 11 passed and the
@@ -83,8 +83,8 @@ Working-tree snapshot from 2026-07-23:
   bytes.
 
 These measurements prove local emulator execution and real R8 output only.
-They do not prove the GitHub workflow has run from the final commit. Detailed
-evidence is in
+They do not claim live Mac/SSH proof or a published release. Detailed evidence
+for implementation commit `148364aac33b3d1b72b03533f4d612d89be4b905` is in
 [Smart implementation progress](../smart/SMART_IMPLEMENTATION_PROGRESS.md).
 
 ## Build and verify
