@@ -31,8 +31,23 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+      - name: Create disposable CI signing key
+        run: |
+          keytool -genkeypair \
+            -keystore "$RUNNER_TEMP/codecks-ci.jks" \
+            -storepass ci-only-pass \
+            -keypass ci-only-pass \
+            -alias ci \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 1 \
+            -dname "CN=Codecks CI"
+          echo "CODECKS_RELEASE_STORE_FILE=$RUNNER_TEMP/codecks-ci.jks" >> "$GITHUB_ENV"
+          echo "CODECKS_RELEASE_KEY_ALIAS=ci" >> "$GITHUB_ENV"
+          echo "CODECKS_RELEASE_STORE_PASSWORD=ci-only-pass" >> "$GITHUB_ENV"
+          echo "CODECKS_RELEASE_KEY_PASSWORD=ci-only-pass" >> "$GITHUB_ENV"
       - name: Unit tests
-        run: ./gradlew --no-daemon :app:testDebugUnitTest
+        run: ./gradlew --no-daemon :app:testReleaseUnitTest
       - name: Android lint
         run: ./gradlew --no-daemon :app:lintDebug
       - name: Managed emulator tests
