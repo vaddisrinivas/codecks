@@ -318,13 +318,25 @@ class ConnectionViewModel @Inject constructor(
 
     fun removeCurrentTarget() {
         if (_uiState.value.operation != ConnectionOperation.Idle) return
-        val targetId = _uiState.value.config.targetId()
-        if (targetId.isBlank()) return
+        val config = _uiState.value.config
+        if (!config.isConfigured) return
         viewModelScope.launch {
             _uiState.update {
                 it.copy(operation = ConnectionOperation.Connecting, message = null, error = null)
             }
-            connectionRepository.removeTarget(targetId)
+            val targetId = connectionRepository.savedTargets()
+                .firstOrNull { target ->
+                    target.host == config.host &&
+                        target.port == config.port &&
+                        target.user == config.user
+                }
+                ?.id
+            val result = if (targetId == null) {
+                Result.failure(IllegalStateException("Saved Mac target not found"))
+            } else {
+                connectionRepository.removeTarget(targetId)
+            }
+            result
                 .onSuccess { message ->
                     _uiState.update {
                         it.copy(
@@ -350,10 +362,3 @@ class ConnectionViewModel @Inject constructor(
         }
     }
 }
-
-private fun ConnectionConfig.targetId(): String =
-    if (host.isBlank() || user.isBlank()) "" else "mac_${user}_${host}_${port}"
-        .lowercase()
-        .map { if (it.isLetterOrDigit()) it else '_' }
-        .joinToString("")
-        .trim('_')

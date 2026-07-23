@@ -2,52 +2,47 @@ package io.codecks.data.smart
 
 import android.content.Context
 import io.codecks.data.context.DeviceSurfaceContextSource
+import io.codecks.domain.smart.SmartAppKey
 import io.codecks.domain.smart.SmartCapability
 import io.codecks.domain.smart.SmartContext
-import java.security.MessageDigest
+import io.codecks.domain.smart.SmartMacId
+import io.codecks.domain.smart.SmartPhoneContext
+import io.codecks.domain.smart.SmartSurface
 import java.time.Instant
 import java.time.ZoneId
 
 class SmartContextRepository(private val context: Context) {
     fun current(
-        currentSurface: String,
-        selectedMacId: String?,
+        currentSurface: SmartSurface,
+        selectedMacId: SmartMacId?,
         macConnected: Boolean,
-        activeMacApp: String?,
+        macInputConnected: Boolean,
+        activeMacApp: SmartAppKey?,
         recentActionIds: List<String>,
-        notificationSourceKeys: List<String>,
         nowMillis: Long = System.currentTimeMillis(),
     ): SmartContext {
         val surface = DeviceSurfaceContextSource(context.applicationContext).current()
         return SmartContext(
             currentSurface = currentSurface,
-            selectedMacId = selectedMacId?.anonymizedMacId(),
+            selectedMacId = selectedMacId,
             macConnected = macConnected,
+            macInputConnected = macInputConnected,
             activeMacApp = activeMacApp,
             recentActionIds = recentActionIds.distinct().take(12),
-            notificationSourceKeys = notificationSourceKeys.map { it.sanitizeContextSource() }.filter(String::isNotBlank).distinct().take(6),
-            coarsePhoneContext = if (surface.kind.name == "Desktop") "desktop" else "phone",
             supportedCapabilities = buildSet {
                 add(SmartCapability.LocalNavigation)
                 add(SmartCapability.ConnectionRepair)
                 add(SmartCapability.Keyboard)
                 add(SmartCapability.Clipboard)
                 if (macConnected) add(SmartCapability.MacCommand)
+                if (macInputConnected) add(SmartCapability.MacInput)
             },
             hourBucket = Instant.ofEpochMilli(nowMillis).atZone(ZoneId.systemDefault()).hour,
             createdAtMillis = nowMillis,
             expiresAtMillis = nowMillis + FIVE_MINUTES_MS,
+            phoneContext = if (surface.kind.name == "Desktop") SmartPhoneContext.Desktop else SmartPhoneContext.Phone,
         )
     }
-
-    private fun String.anonymizedMacId(): String =
-        "mac_" + MessageDigest.getInstance("SHA-256")
-            .digest(toByteArray())
-            .joinToString("") { "%02x".format(it) }
-            .take(16)
-
-    private fun String.sanitizeContextSource(): String =
-        lowercase().replace(Regex("[^a-z0-9._:-]+"), "_").trim('_').take(80)
 
     private companion object {
         const val FIVE_MINUTES_MS = 5L * 60L * 1000L

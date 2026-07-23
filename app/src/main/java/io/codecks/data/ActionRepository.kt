@@ -26,6 +26,7 @@ import org.json.JSONObject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 
 private val Context.deckDataStore by preferencesDataStore(name = "deck")
 
@@ -79,29 +80,33 @@ class DefaultActionRepository @Inject constructor(
         observeLayout().map { it.actions }
 
     override fun observeLayout(): Flow<DeckLayout> =
-        context.deckDataStore.data.map { preferences ->
-            val storedLayout = preferences[FAVORITES]
-                ?.let { raw ->
-                    decodeLayout(raw) ?: run {
-                        reportFavoriteDecodeFailure(raw)
-                        null
+        context.deckDataStore.data
+            .onStart { migratePersistedTargetSelectors() }
+            .map { preferences ->
+                val storedLayout = preferences[FAVORITES]
+                    ?.let { raw ->
+                        decodeLayout(raw) ?: run {
+                            reportFavoriteDecodeFailure(raw)
+                            null
+                        }
                     }
-                }
-                ?.takeIf { it.slots.isNotEmpty() }
-                ?: defaultLayout
-            upgradeLayout(storedLayout).also { cachedLayout = it }
-        }
+                    ?.takeIf { it.slots.isNotEmpty() }
+                    ?: defaultLayout
+                upgradeLayout(storedLayout).also { cachedLayout = it }
+            }
 
     override fun catalogActions(): List<DeckAction> = actions
 
-    override suspend fun customActions(): List<DeckAction> =
-        context.deckDataStore.data.first()[FAVORITES]
+    override suspend fun customActions(): List<DeckAction> {
+        migratePersistedTargetSelectors()
+        return context.deckDataStore.data.first()[FAVORITES]
             ?.let(::decodeLayout)
             ?.let(::upgradeLayout)
             ?.also { cachedLayout = it }
             ?.actions
             ?.filterNot { action -> byId.containsKey(action.id) }
             .orEmpty()
+    }
 
     override fun allActions(): List<DeckAction> =
         (actions + layout().actions.filterNot { byId.containsKey(it.id) }).distinctBy(DeckAction::id)
@@ -125,15 +130,26 @@ class DefaultActionRepository @Inject constructor(
 
     override suspend fun saveLayout(layout: DeckLayout) {
         val normalized = layout.normalized()
+        val encoded = encodeLayout(normalized)
+        val payload = when (
+            val migration = migrateDeckTargetSelectorPayload(
+                raw = encoded,
+                legacyIds = connectionRepository.legacyTargetIdMigrations(),
+            )
+        ) {
+            is PersistedTargetSelectorMigration.Migrated -> migration.payload
+            PersistedTargetSelectorMigration.Unchanged -> encoded
+            PersistedTargetSelectorMigration.Undecodable -> error("Generated Deck layout could not be decoded")
+        }
         context.deckDataStore.edit { preferences ->
             preferences[FAVORITES]?.let { raw ->
                 if (decodeLayout(raw) == null) {
                     preferences[FAVORITES_QUARANTINE] = quarantinePayload(raw, "favorites")
                 }
             }
-            preferences[FAVORITES] = encodeLayout(normalized)
+            preferences[FAVORITES] = payload
         }
-        cachedLayout = normalized
+        cachedLayout = decodeLayout(payload) ?: normalized
     }
 
     private fun withNextWaveUtilitySlots(layout: DeckLayout): DeckLayout {
@@ -156,6 +172,7 @@ class DefaultActionRepository @Inject constructor(
     }
 
     override suspend fun exportLayout(): Result<String> = runCatching {
+        migratePersistedTargetSelectors()
         context.deckDataStore.data.first()[FAVORITES]
             ?.takeIf { decodeLayout(it)?.slots?.isNotEmpty() == true }
             ?: encodeLayout(defaultLayout)
@@ -290,6 +307,27 @@ class DefaultActionRepository @Inject constructor(
                     columnSpan = item.optInt("columnSpan", 1),
                 ),
             )
+        }
+    }
+
+    private suspend fun migratePersistedTargetSelectors() {
+        val legacyIds = connectionRepository.legacyTargetIdMigrations()
+        if (legacyIds.isEmpty()) return
+        context.deckDataStore.edit { preferences ->
+            val raw = preferences[FAVORITES] ?: return@edit
+            when (val migration = migrateDeckTargetSelectorPayload(raw, legacyIds)) {
+                is PersistedTargetSelectorMigration.Migrated -> {
+                    if (decodeLayout(migration.payload) == null) {
+                        preferences[FAVORITES_QUARANTINE] = quarantinePayload(raw, "favorites")
+                    } else {
+                        preferences[FAVORITES] = migration.payload
+                    }
+                }
+                PersistedTargetSelectorMigration.Undecodable -> {
+                    preferences[FAVORITES_QUARANTINE] = quarantinePayload(raw, "favorites")
+                }
+                PersistedTargetSelectorMigration.Unchanged -> Unit
+            }
         }
     }
 

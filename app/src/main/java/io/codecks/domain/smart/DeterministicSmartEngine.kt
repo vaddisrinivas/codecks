@@ -1,8 +1,15 @@
 package io.codecks.domain.smart
 
+import io.codecks.domain.smart.providers.ActiveAppCandidateProvider
+import io.codecks.domain.smart.providers.ConnectionRepairCandidateProvider
+import io.codecks.domain.smart.providers.RecentActionCandidateProvider
+import io.codecks.domain.smart.providers.TransitionCandidateProvider
+
 class DeterministicSmartEngine(
     private val policy: SmartPolicy = DefaultSmartPolicy(),
+    private val providers: List<SmartCandidateProvider> = defaultProviders(),
 ) : SmartEngine {
+
     override fun suggest(
         context: SmartContext,
         actions: List<SmartActionRef>,
@@ -10,100 +17,49 @@ class DeterministicSmartEngine(
         nowMillis: Long,
     ): SmartDecision {
         if (context.isExpired(nowMillis)) return SmartDecision(emptyList(), SmartUnavailable.Expired)
-        val appKey = context.activeMacApp?.sanitizeSmartKey().orEmpty()
-        val recentOrder = context.recentActionIds.mapIndexed { index, id -> id to index }.toMap()
-        val previousActionId = context.recentActionIds.firstOrNull()
-        val candidates = actions
-            .asSequence()
-            .filterNot { it.id in blockedActionIds }
-            .mapNotNull { action -> action.toCandidate(context, appKey, recentOrder, previousActionId, feedback) }
-            .sortedWith(compareByDescending<ScoredCandidate> { it.score }.thenBy { it.candidate.title })
-            .map { it.candidate }
-            .toList()
-        return policy.filter(context, candidates, nowMillis)
-    }
-
-    private fun SmartActionRef.toCandidate(
-        context: SmartContext,
-        appKey: String,
-        recentOrder: Map<String, Int>,
-        previousActionId: String?,
-        feedback: SmartFeedbackSummary,
-    ): ScoredCandidate? {
-        val surfaceKey = context.currentSurface.sanitizeSmartKey()
-        val scopedAppKey = appKey.ifBlank { "any" }
-        val candidateId = "smart:$surfaceKey:$scopedAppKey:$id"
-        val neverKey = "$appKey:$id"
-        if (candidateId in feedback.hiddenCandidateIds || neverKey in feedback.neverAppActionKeys) return null
-        val haystack = listOf(id, title, description, route.orEmpty()).joinToString(" ").lowercase()
-        var score = feedback.actionScores[id] ?: 0
-        val reasons = mutableListOf<String>()
-        previousActionId
-            ?.takeIf { it != id }
-            ?.let { previous ->
-                feedback.transitionScores["$previous->$id"]?.let { transitionScore ->
-                    score += transitionScore
-                    reasons += "often follows recent button"
-                }
+        val mergedCandidates = providers
+            .flatMap { provider ->
+                provider.candidates(context, actions, feedback, nowMillis)
             }
-        recentOrder[id]?.let { index ->
-            score += (18 - index * 3).coerceAtLeast(4)
-            reasons += "recently used"
-        }
-        val appTokens = appKey.split(Regex("[^a-z0-9]+")).filter { it.length >= 3 }
-        if (appTokens.isNotEmpty() && appTokens.any { haystack.contains(it) }) {
-            score += 18
-            reasons += "matches current Mac app"
-        }
-        if (requiresMac && context.macConnected) {
-            score += 8
-            reasons += "Mac ready"
-        }
-        if (!context.macConnected && route == "settings") {
-            score += 16
-            reasons += "repair connection"
-        }
-        if (context.coarsePhoneContext == "desktop" && haystack.containsAny(listOf("keyboard", "clipboard", "trackpad", "browser"))) {
-            score += 6
-            reasons += "fits desktop mode"
-        }
-        if (dangerous) score -= 30
-        if (score < 6) return null
-        val risks = buildSet {
-            add(if (dangerous) SmartRisk.Dangerous else SmartRisk.Normal)
-        }
-        val capabilities = buildSet {
-            if (requiresMac) add(SmartCapability.MacCommand)
-            if (route != null) add(SmartCapability.LocalNavigation)
-            if (route == "settings") add(SmartCapability.ConnectionRepair)
-            if (route == "keyboard") add(SmartCapability.Keyboard)
-            if (route == "clipboard") add(SmartCapability.Clipboard)
-        }
-        return ScoredCandidate(
-            score = score,
-            candidate = SmartCandidate(
-                id = candidateId,
-                actionId = id,
-                title = title,
-                summary = description.ifBlank { "Suggested control" },
-                reason = reasons.joinToString().ifBlank { "possible fit" },
-                confidenceLabel = when {
-                    score >= 24 -> SmartConfidenceLabel.VeryLikely
-                    score >= 14 -> SmartConfidenceLabel.Likely
-                    else -> SmartConfidenceLabel.Possible
-                },
-                capabilities = capabilities,
-                risks = risks,
-                contextKeys = context.sanitizedKeys(),
-                expiresAtMillis = context.expiresAtMillis,
-            ),
-        )
-    }
+            .filter { candidate ->
+                candidate.candidate.id !in feedback.suppressedContextActionKeys &&
+                    candidate.candidate.actionId !in feedback.globallySuppressedActionIds
+            }
+            .groupBy { it.candidate.id }
+            .mapNotNull { (_, duplicates) ->
+                val top = duplicates.maxByOrNull { it.score } ?: return@mapNotNull null
+                val mergedReasons = duplicates
+                    .map { it.candidate.reason }
+                    .flatMap { it.split(", ") }
+                    .filter(String::isNotBlank)
+                    .distinct()
+                    .joinToString(", ")
+                val feedbackScore = top.candidate.actionId
+                    ?.let { feedback.actionScores[it] } ?: 0
+                val dangerPenalty = if (SmartRisk.Dangerous in top.candidate.risks) 30 else 0
+                val finalScore = top.score + feedbackScore - dangerPenalty
+                if (finalScore <= 0) return@mapNotNull null
+                top.copy(
+                    candidate = top.candidate.copy(reason = mergedReasons.ifBlank { top.candidate.reason }),
+                    score = finalScore,
+                )
+            }
 
-    private data class ScoredCandidate(val score: Int, val candidate: SmartCandidate)
+        val ranked = mergedCandidates
+            .sortedWith(compareByDescending<ScoredSmartCandidate> { it.score }.thenBy { it.candidate.id })
+            .take(5)
+            .map { it.candidate }
+
+        return policy.filter(context, ranked, nowMillis)
+    }
 
     private companion object {
-        val blockedActionIds = setOf("blank", "add_button")
+        fun defaultProviders(): List<SmartCandidateProvider> = listOf(
+            RecentActionCandidateProvider(),
+            TransitionCandidateProvider(),
+            ActiveAppCandidateProvider(emptyList()),
+            ConnectionRepairCandidateProvider(),
+        )
     }
 }
 
@@ -122,5 +78,3 @@ class DefaultSmartPolicy : SmartPolicy {
         }
     }
 }
-
-private fun String.containsAny(tokens: List<String>): Boolean = tokens.any { contains(it) }

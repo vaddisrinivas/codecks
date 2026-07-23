@@ -62,9 +62,10 @@ class HomeViewModelTest {
 
         runCurrent()
 
-        viewModel.run(repository.action)
+        val dispatch = viewModel.run(repository.action)
         runCurrent()
 
+        assertEquals(HomeActionDispatchResult.Accepted, dispatch)
         assertEquals(ActionStatus.Running(repository.action.id), viewModel.uiState.value.actionStatus)
 
         runner.result.complete(ActionResult(repository.action.id, repository.action.label, ActionResultStatus.Succeeded, "Finder sent"))
@@ -73,6 +74,26 @@ class HomeViewModelTest {
         val status = viewModel.uiState.value.actionStatus
         assertTrue(status is ActionStatus.Succeeded)
         assertEquals("Finder sent", (status as ActionStatus.Succeeded).message)
+    }
+
+    @Test
+    fun run_returnsBusyWithoutDispatchingSecondAction() = runTest(dispatcher) {
+        val repository = GatedActionRepository()
+        val runner = DeferredActionRunner()
+        val viewModel = HomeViewModel(repository, ReadyConnectionRepository(), runner)
+        runCurrent()
+
+        val first = viewModel.run(repository.action)
+        val second = viewModel.run(repository.action.copy(id = "other"))
+        runCurrent()
+
+        assertEquals(HomeActionDispatchResult.Accepted, first)
+        assertEquals(HomeActionDispatchResult.Busy, second)
+        assertEquals(1, runner.callCount)
+        runner.result.complete(
+            ActionResult(repository.action.id, repository.action.label, ActionResultStatus.Succeeded, "done"),
+        )
+        runCurrent()
     }
 
     @Test
@@ -396,8 +417,12 @@ private class GatedActionRepository(
 
 private class DeferredActionRunner : ActionRunner {
     val result = CompletableDeferred<ActionResult>()
+    var callCount = 0
 
-    override suspend fun run(spec: ActionSpec, allowDangerous: Boolean): ActionResult = result.await()
+    override suspend fun run(spec: ActionSpec, allowDangerous: Boolean): ActionResult {
+        callCount += 1
+        return result.await()
+    }
 }
 
 private class ImmediateActionRunner : ActionRunner {

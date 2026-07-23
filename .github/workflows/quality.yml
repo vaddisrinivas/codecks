@@ -36,7 +36,11 @@ jobs:
       - name: Android lint
         run: ./gradlew --no-daemon :app:lintDebug
       - name: Managed emulator tests
-        run: ./gradlew --no-daemon -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect :app:pixel6Api35DebugAndroidTest
+        run: |
+          ./gradlew --no-daemon \
+            -PcodecksInstrumentedTestBuildType=debug \
+            -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect \
+            :app:pixel6Api35DebugAndroidTest
       - name: Debug APK
         run: ./gradlew --no-daemon :app:assembleDebug
       - name: Upload test reports on failure

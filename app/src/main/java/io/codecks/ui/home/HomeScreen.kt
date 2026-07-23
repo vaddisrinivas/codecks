@@ -54,6 +54,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -63,6 +64,7 @@ import io.codecks.domain.DeckAction
 import io.codecks.domain.isRunnableFromSmartSuggestion
 import io.codecks.domain.deck.DeckLayout
 import io.codecks.domain.deck.DeckTemplate
+import io.codecks.ui.home.smart.SmartDeckSuggestionUi
 import io.codecks.ui.designsystem.DeckComponentState
 import io.codecks.ui.designsystem.DeckControlTile
 import io.codecks.ui.designsystem.DeckFilterPill
@@ -96,11 +98,13 @@ fun HomeScreen(
     onRemoveAction: (DeckAction) -> Unit = {},
     onOpenRunLog: (String?) -> Unit = {},
     smartSuggestions: List<SmartDeckSuggestionUi> = emptyList(),
+    smartRunPending: Boolean = false,
     onRunSmartSuggestion: (SmartDeckSuggestionUi) -> Unit = {},
     onPinSmartSuggestion: (SmartDeckSuggestionUi) -> Unit = {},
     onHideSmartSuggestion: (SmartDeckSuggestionUi) -> Unit = {},
     onExplainSmartSuggestion: (SmartDeckSuggestionUi) -> Unit = {},
-    onNeverSmartSuggestionForApp: (SmartDeckSuggestionUi) -> Unit = {},
+    onSuppressSmartSuggestionForContext: (SmartDeckSuggestionUi) -> Unit = {},
+    onNeverSmartSuggestionForAction: (SmartDeckSuggestionUi) -> Unit = {},
     onRemoveSlot: (Int) -> Unit = { slot ->
         state.deckLayout.slots.getOrNull(slot)?.action?.let(onRemoveAction)
     },
@@ -133,11 +137,13 @@ fun HomeScreen(
         onEditDeck = onEditDeck,
         onOpenPalette = onOpenPalette,
         smartSuggestions = smartSuggestions,
+        smartRunPending = smartRunPending,
         onRunSmartSuggestion = onRunSmartSuggestion,
         onPinSmartSuggestion = onPinSmartSuggestion,
         onHideSmartSuggestion = onHideSmartSuggestion,
         onExplainSmartSuggestion = onExplainSmartSuggestion,
-        onNeverSmartSuggestionForApp = onNeverSmartSuggestionForApp,
+        onSuppressSmartSuggestionForContext = onSuppressSmartSuggestionForContext,
+        onNeverSmartSuggestionForAction = onNeverSmartSuggestionForAction,
         onOpenOptions = { slot ->
             if (shouldShowActionOptions(slot.action, locked = false)) optionsSlot = slot
         },
@@ -195,11 +201,13 @@ private fun CodecksKeybedDeck(
     onEditDeck: () -> Unit,
     onOpenPalette: () -> Unit,
     smartSuggestions: List<SmartDeckSuggestionUi>,
+    smartRunPending: Boolean,
     onRunSmartSuggestion: (SmartDeckSuggestionUi) -> Unit,
     onPinSmartSuggestion: (SmartDeckSuggestionUi) -> Unit,
     onHideSmartSuggestion: (SmartDeckSuggestionUi) -> Unit,
     onExplainSmartSuggestion: (SmartDeckSuggestionUi) -> Unit,
-    onNeverSmartSuggestionForApp: (SmartDeckSuggestionUi) -> Unit,
+    onSuppressSmartSuggestionForContext: (SmartDeckSuggestionUi) -> Unit,
+    onNeverSmartSuggestionForAction: (SmartDeckSuggestionUi) -> Unit,
     onOpenOptions: (HomeDeckSlot) -> Unit,
     deckStyle: CodecksDeckStyle,
     modifier: Modifier = Modifier,
@@ -302,17 +310,23 @@ private fun CodecksKeybedDeck(
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
                         )
-                        Text(text = connectionHealth.deckLabel(), style = MaterialTheme.typography.labelMedium)
+                        Text(
+                            text = connectionHealth.deckLabel(),
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.testTag("home-connection-status"),
+                        )
                     }
                 }
             }
             SmartSuggestionRow(
                 suggestions = smartSuggestions,
+                runPending = smartRunPending,
                 onRun = onRunSmartSuggestion,
                 onPin = onPinSmartSuggestion,
                 onHide = onHideSmartSuggestion,
                 onWhy = onExplainSmartSuggestion,
-                onNeverForApp = onNeverSmartSuggestionForApp,
+                onSuppressForContext = onSuppressSmartSuggestionForContext,
+                onNeverForAction = onNeverSmartSuggestionForAction,
                 modifier = Modifier.width(keybedWidth),
             )
             Column(
@@ -327,6 +341,13 @@ private fun CodecksKeybedDeck(
                             val running = runningActionId == action.id
                             val selected = focusedActionId == action.id
                             val enabled = openSlot || isDeckActionEnabled(action, connectionReady)
+                            val resultText = when {
+                                !openSlot && currentResult is ActionStatus.Succeeded && currentResult.actionId == action.id ->
+                                    "completed: ${currentResult.message}"
+                                !openSlot && currentResult is ActionStatus.Failed && currentResult.actionId == action.id ->
+                                    "failed: ${currentResult.message}"
+                                else -> null
+                            }
                             DeckControlTile(
                                 label = if (openSlot) "Tap to assign" else action.label,
                                 icon = action.deckImageVector(),
@@ -348,8 +369,26 @@ private fun CodecksKeybedDeck(
                                 onLongClick = if (openSlot) null else ({ onOpenOptions(slot) }),
                                 modifier = Modifier
                                     .width(keyWidth * slot.columnSpan.toFloat() + gapX * (slot.columnSpan - 1).toFloat())
-                                    .heightIn(min = keyHeight, max = keyHeight),
+                                    .heightIn(min = keyHeight, max = keyHeight)
+                                    .testTag("deck-action-${action.id}"),
                             )
+                            resultText?.let { text ->
+                                Box(
+                                    modifier = Modifier
+                                        .padding(top = 2.dp)
+                                        .testTag("deck-action-result"),
+                                ) {
+                                    Text(
+                                        text = text,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = deckTextColor.copy(alpha = 0.72f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier
+                                            .testTag("deck-action-result-${action.id}"),
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -392,11 +431,13 @@ private fun ConnectionHealth.deckLabel(): String =
 @Composable
 private fun SmartSuggestionRow(
     suggestions: List<SmartDeckSuggestionUi>,
+    runPending: Boolean,
     onRun: (SmartDeckSuggestionUi) -> Unit,
     onPin: (SmartDeckSuggestionUi) -> Unit,
     onHide: (SmartDeckSuggestionUi) -> Unit,
     onWhy: (SmartDeckSuggestionUi) -> Unit,
-    onNeverForApp: (SmartDeckSuggestionUi) -> Unit,
+    onSuppressForContext: (SmartDeckSuggestionUi) -> Unit,
+    onNeverForAction: (SmartDeckSuggestionUi) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (suggestions.isEmpty()) return
@@ -427,7 +468,8 @@ private fun SmartSuggestionRow(
         }
         items(suggestions.take(3), key = SmartDeckSuggestionUi::candidateId) { suggestion ->
             var menuOpen by remember { mutableStateOf(false) }
-            val canRun = suggestion.action.isRunnableFromSmartSuggestion()
+            val runnable = suggestion.action.isRunnableFromSmartSuggestion()
+            val canRun = runnable && !runPending
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -457,7 +499,13 @@ private fun SmartSuggestionRow(
                             onClick = { onRun(suggestion) },
                             enabled = canRun,
                         ) {
-                            Text(if (canRun) "Run" else "Test first")
+                            Text(
+                                when {
+                                    !runnable -> "Test first"
+                                    runPending -> "Running…"
+                                    else -> "Run"
+                                },
+                            )
                         }
                         TextButton(onClick = { onPin(suggestion) }) { Text("Pin") }
                         Box {
@@ -483,7 +531,14 @@ private fun SmartSuggestionRow(
                                     text = { Text("Don’t suggest here") },
                                     onClick = {
                                         menuOpen = false
-                                        onNeverForApp(suggestion)
+                                        onSuppressForContext(suggestion)
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Never suggest this button") },
+                                    onClick = {
+                                        menuOpen = false
+                                        onNeverForAction(suggestion)
                                     },
                                 )
                             }
@@ -804,13 +859,6 @@ internal data class HomeDeckSlot(
     val action: DeckAction,
     val id: String = "slot-${slot + 1}",
     val columnSpan: Int = 1,
-)
-
-data class SmartDeckSuggestionUi(
-    val candidateId: String,
-    val action: DeckAction,
-    val reason: String,
-    val confidence: String,
 )
 
 private val bottomNavShortcutIds = setOf("trackpad", "keyboard", "clipboard", "automations", "settings_shortcut")

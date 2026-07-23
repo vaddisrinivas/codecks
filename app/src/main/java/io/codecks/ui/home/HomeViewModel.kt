@@ -57,6 +57,12 @@ data class PendingDeckUndo(
     val action: DeckAction,
 )
 
+sealed interface HomeActionDispatchResult {
+    data object Accepted : HomeActionDispatchResult
+    data object Busy : HomeActionDispatchResult
+    data class Rejected(val reason: String) : HomeActionDispatchResult
+}
+
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val actionRepository: ActionRepository,
@@ -178,21 +184,22 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun run(action: DeckAction, allowDangerous: Boolean = false) {
-        if (_uiState.value.actionStatus is ActionStatus.Running) return
+    fun run(action: DeckAction, allowDangerous: Boolean = false): HomeActionDispatchResult {
+        if (_uiState.value.actionStatus is ActionStatus.Running) return HomeActionDispatchResult.Busy
         if (action.kind == io.codecks.domain.ActionKind.Ssh && !_uiState.value.connectionReady) {
-            val result = actionResult(action.id, action.label, "Connect your Mac first", false)
+            val message = "Connect your Mac first"
+            val result = actionResult(action.id, action.label, message, false)
             recordRun(result)
             _uiState.update {
                 it.copy(
-                    actionStatus = ActionStatus.Failed(action.id, "Connect your Mac first"),
+                    actionStatus = ActionStatus.Failed(action.id, message),
                     activity = listOf(result.toActionEvent()) + it.activity.take(49),
                 )
             }
-            return
+            return HomeActionDispatchResult.Rejected(message)
         }
+        _uiState.update { it.copy(actionStatus = ActionStatus.Running(action.id)) }
         viewModelScope.launch {
-            _uiState.update { it.copy(actionStatus = ActionStatus.Running(action.id)) }
             val result = actionRunner.run(action.toActionSpec(), allowDangerous = allowDangerous)
             recordRun(result)
             when (result.status) {
@@ -216,6 +223,7 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
+        return HomeActionDispatchResult.Accepted
     }
 
     fun test(action: DeckAction) {

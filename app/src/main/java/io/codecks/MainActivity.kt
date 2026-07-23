@@ -38,6 +38,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -76,8 +77,6 @@ import io.codecks.data.context.ContextFeatureStatus
 import io.codecks.data.context.NotificationPrivacySettings
 import io.codecks.data.context.NotificationPrivacySettingsRepository
 import io.codecks.data.context.PhoneNotificationBackplane
-import io.codecks.data.smart.SmartContextRepository
-import io.codecks.data.smart.SmartLearningStore
 import io.codecks.domain.ai.AiProviderCatalog
 import io.codecks.domain.clipboard.ClipboardSyncMode
 import io.codecks.navigation.AutomationsRoute
@@ -112,7 +111,6 @@ import io.codecks.ui.clipboard.ClipboardViewModel
 import io.codecks.ui.editor.DeckEditorScreen
 import io.codecks.ui.home.HomeScreen
 import io.codecks.ui.home.HomeViewModel
-import io.codecks.ui.home.SmartDeckSuggestionUi
 import io.codecks.ui.keyboard.KeyboardScreen
 import io.codecks.ui.keyboard.KeyboardViewModel
 import io.codecks.ui.mouse.MouseScreen
@@ -140,14 +138,19 @@ import io.codecks.domain.features.FeatureFlag
 import io.codecks.domain.features.FeatureFlaggedEntitlementRepository
 import io.codecks.domain.features.DEFAULT_FEATURE_FLAGS
 import io.codecks.domain.features.LocalOnlyEntitlementRepository
-import io.codecks.domain.smart.DeterministicSmartEngine
-import io.codecks.domain.smart.SmartActionRef
-import io.codecks.domain.smart.SmartConfidenceLabel
-import io.codecks.domain.smart.SmartFeedback
-import io.codecks.domain.smart.SmartFeedbackType
+import io.codecks.domain.smart.SmartAppKey
+import io.codecks.domain.smart.SmartMacId
+import io.codecks.domain.smart.SmartSurface
+import io.codecks.ui.app.LocalActionDispatcher
 import io.codecks.domain.privacy.DiagnosticRedactor
 import io.codecks.domain.device.DeviceRepository
 import io.codecks.BuildConfig
+import io.codecks.domain.LocalActionResult
+import io.codecks.ui.home.HomeActionDispatchResult
+import io.codecks.ui.home.smart.SmartDeckEffect
+import io.codecks.ui.home.smart.SmartDeckInputs
+import io.codecks.ui.home.smart.SmartDeckViewModel
+import io.codecks.ui.home.smart.SmartRunId
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -428,78 +431,41 @@ private fun CodecksApp(
     val visibleDeckSlots = homeState.actions.withIndex().filter { it.value.visibleForFlags(featureFlags) }
     val visibleDeckActions = visibleDeckSlots.map { it.value }
     val customRowActions = visibleDeckActions.filterNot { it.id in setOf("blank", "add_button") }
-    val smartContextRepository = remember(appContext) { SmartContextRepository(appContext) }
-    val smartLearningStore = remember(appContext) { SmartLearningStore(appContext) }
-    val smartEngine = remember { DeterministicSmartEngine() }
-    var smartRefreshTick by remember { mutableIntStateOf(0) }
-    var hiddenSmartCandidateIds by remember { mutableStateOf(emptySet<String>()) }
-    var neverSmartKeys by remember { mutableStateOf(emptySet<String>()) }
-    var pendingSmartRuns by remember { mutableStateOf(emptyMap<String, SmartDeckSuggestionUi>()) }
-    var pendingDangerousSmartSuggestion by remember { mutableStateOf<SmartDeckSuggestionUi?>(null) }
-    LaunchedEffect(smartDeckEnabled, currentRoute) {
-        if (!smartDeckEnabled || currentRoute != HomeRoute) return@LaunchedEffect
-        while (true) {
-            delay(60_000L)
-            smartRefreshTick += 1
-        }
+    val smartDeckViewModel: SmartDeckViewModel = viewModel()
+    var smartSelectedMacId by remember { mutableStateOf<SmartMacId?>(null) }
+    LaunchedEffect(connectionState.config, currentRoute, currentRoute == HomeRoute) {
+        smartSelectedMacId = runCatching {
+            deviceRepository.currentDeviceId()?.value?.let { SmartMacId(it) }
+        }.getOrNull()
     }
-    val smartContext = remember(
+    val smartSuggestions by smartDeckViewModel.suggestions.collectAsStateWithLifecycle(emptyList())
+    val smartRunPending by smartDeckViewModel.runPending.collectAsStateWithLifecycle()
+    val pendingDangerousSmartSuggestion by smartDeckViewModel.pendingDangerousSuggestion.collectAsStateWithLifecycle()
+    LaunchedEffect(
         smartDeckEnabled,
         currentRoute,
-        connectionState.config,
-        homeState.activeMacApp,
+        smartSelectedMacId,
         homeState.connectionReady,
+        hidState.isConnected,
+        homeState.activeMacApp,
         homeState.activity,
-        phoneNotifications,
-        smartRefreshTick,
+        homeState.allActions,
+        visibleDeckActions,
     ) {
-        if (!smartDeckEnabled || currentRoute != HomeRoute) {
-            null
-        } else {
-            smartContextRepository.current(
-                currentSurface = currentRoute.title(),
-                selectedMacId = listOf(
-                    connectionState.config.user,
-                    connectionState.config.host,
-                    connectionState.config.port.toString(),
-                    connectionState.config.hostKey,
-                ).joinToString(":"),
-                macConnected = homeState.connectionReady,
-                activeMacApp = homeState.activeMacApp,
+        smartDeckViewModel.updateInputs(
+            SmartDeckInputs(
+                smartDeckEnabled = smartDeckEnabled,
+                onHomeRoute = currentRoute == HomeRoute,
+                currentSurface = SmartSurface.Deck,
+                selectedMacId = smartSelectedMacId,
+                connectionReady = homeState.connectionReady,
+                macInputConnected = hidState.isConnected,
+                activeMacApp = homeState.activeMacApp?.let { runCatching { SmartAppKey(it) }.getOrNull() },
                 recentActionIds = homeState.activity.filter { it.succeeded }.map { it.actionId },
-                notificationSourceKeys = phoneNotifications.map { it.source },
-            )
-        }
-    }
-    val smartSuggestions = remember(smartContext, homeState.allActions, visibleDeckActions, hiddenSmartCandidateIds, neverSmartKeys, smartRefreshTick) {
-        val context = smartContext ?: return@remember emptyList()
-        val visibleIds = visibleDeckActions.map(DeckAction::id).toSet()
-        // Suggestions expose a one-tap Run affordance. Never feed untested AI commands into
-        // that surface; they stay in the deck/editor until the user explicitly tests them.
-        val suggestionEligibleActions = homeState.allActions.filter(DeckAction::isRunnableFromSmartSuggestion)
-        val actionById = suggestionEligibleActions.associateBy(DeckAction::id)
-        val nowMillis = System.currentTimeMillis()
-        val storedFeedback = smartLearningStore.summary(nowMillis)
-        val feedback = storedFeedback.copy(
-            hiddenCandidateIds = storedFeedback.hiddenCandidateIds + hiddenSmartCandidateIds,
-            neverAppActionKeys = storedFeedback.neverAppActionKeys + neverSmartKeys,
+                allActions = homeState.allActions,
+                visibleDeckActions = visibleDeckActions,
+            ),
         )
-        smartEngine.suggest(
-            context = context,
-            actions = suggestionEligibleActions
-                .map(DeckAction::toSmartActionRef),
-            feedback = feedback,
-            nowMillis = nowMillis,
-        ).candidates.mapNotNull { candidate ->
-            val action = candidate.actionId?.let(actionById::get) ?: return@mapNotNull null
-            if (action.id in visibleIds) return@mapNotNull null
-            SmartDeckSuggestionUi(
-                candidateId = candidate.id,
-                action = action,
-                reason = candidate.reason,
-                confidence = candidate.confidenceLabel.productLabel(),
-            )
-        }
     }
     val localOnlyV1 = BuildConfig.LOCAL_ONLY_V1
     val localEntitlementRepository = remember { LocalOnlyEntitlementRepository() }
@@ -507,6 +473,7 @@ private fun CodecksApp(
         FeatureFlaggedEntitlementRepository(localEntitlementRepository, featureFlagRepository)
     }
     var pendingDangerousAction by remember { mutableStateOf<DeckAction?>(null) }
+    var acceptedSmartHomeRunId by remember { mutableStateOf<SmartRunId?>(null) }
     var selectedDeckSlot by remember { mutableStateOf(0) }
     var deckDirty by remember { mutableStateOf(false) }
     var focusedDeckActionId by remember { mutableStateOf<String?>(null) }
@@ -540,23 +507,6 @@ private fun CodecksApp(
 
     fun openTrackpad() {
         navigate(MouseRoute, topLevel = true)
-    }
-
-    fun recordSmartFeedback(suggestion: SmartDeckSuggestionUi, type: SmartFeedbackType, success: Boolean? = null) {
-        val context = smartContext ?: return
-        val appKey = context.activeMacApp?.lowercase()?.replace(Regex("[^a-z0-9._:-]+"), "_")?.trim('_')
-        val feedback = SmartFeedback(
-            candidateId = suggestion.candidateId,
-            actionId = suggestion.action.id,
-            appKey = appKey,
-            type = type,
-            success = success,
-            coarseHourBucket = context.hourBucket,
-            contextKeys = context.sanitizedKeys(),
-            atMillis = System.currentTimeMillis(),
-        )
-        smartLearningStore.record(feedback)
-        smartRefreshTick += 1
     }
 
     LaunchedEffect(featureFlags, currentRoute) {
@@ -597,56 +547,82 @@ private fun CodecksApp(
         }
     }
 
-    fun handleAction(action: DeckAction) {
-        if (action.kind == ActionKind.Local) {
-            when (action.route) {
-                "trackpad" -> openTrackpad()
-                "keyboard", "text" -> navigate(KeyboardRoute)
-                "automations" -> navigate(AutomationsRoute)
-                "clipboard" -> navigate(ClipboardRoute)
-                "settings" -> navigate(SettingsRoute)
-                "button_picker", "empty_slot", "layout_builder" -> navigate(EditorRoute)
-                "celebrate" -> celebrationLabel = action.label
-                "decor" -> Unit
-                "setup_scan" -> navigate(SettingsRoute)
-                "list_apps_panel" -> Unit
-                "hid_media_play_pause" -> if (hidState.isConnected) {
-                    hidRepository.send(HidCommand.MediaPlayPause)
-                } else {
-                    scope.launch { snackbarHostState.showSnackbar("Connect Mac input first") }
-                }
-                "hid_media_next" -> if (hidState.isConnected) {
-                    hidRepository.send(HidCommand.MediaNext)
-                } else {
-                    scope.launch { snackbarHostState.showSnackbar("Connect Mac input first") }
-                }
-                "hid_media_previous" -> if (hidState.isConnected) {
-                    hidRepository.send(HidCommand.MediaPrevious)
-                } else {
-                    scope.launch { snackbarHostState.showSnackbar("Connect Mac input first") }
-                }
-                else -> Unit
-            }
-        } else if (action.dangerous) {
-            pendingDangerousAction = action
-        } else {
-            homeViewModel.run(action)
-        }
+    val currentNavigate by rememberUpdatedState<(NavKey, Boolean) -> Unit> { route, topLevel ->
+        navigate(route, topLevel)
+    }
+    val currentMacInputConnected by rememberUpdatedState(hidState.isConnected)
+    val localActionDispatcher = remember(hidRepository, scope, snackbarHostState) {
+        LocalActionDispatcher(
+            onTrackpad = { currentNavigate(MouseRoute, true) },
+            onKeyboard = { currentNavigate(KeyboardRoute, false) },
+            onAutomations = { currentNavigate(AutomationsRoute, false) },
+            onClipboard = { currentNavigate(ClipboardRoute, false) },
+            onSettings = { currentNavigate(SettingsRoute, false) },
+            onEditor = { currentNavigate(EditorRoute, false) },
+            onCelebration = { celebrationLabel = it },
+            onMissingMacInput = {
+                scope.launch { snackbarHostState.showSnackbar("Connect Mac input first") }
+            },
+            onSendMediaPlayPause = { hidRepository.send(HidCommand.MediaPlayPause) },
+            onSendMediaNext = { hidRepository.send(HidCommand.MediaNext) },
+            onSendMediaPrevious = { hidRepository.send(HidCommand.MediaPrevious) },
+            onUnsupported = { },
+            supportsMacInput = { currentMacInputConnected },
+        )
     }
 
-    fun runSmartSuggestion(suggestion: SmartDeckSuggestionUi) {
-        when {
-            suggestion.action.kind == ActionKind.Local -> {
-                handleAction(suggestion.action)
-                recordSmartFeedback(suggestion, SmartFeedbackType.Success, success = true)
-            }
-            suggestion.action.dangerous -> {
-                pendingDangerousSmartSuggestion = suggestion
-                handleAction(suggestion.action)
-            }
-            else -> {
-                pendingSmartRuns = pendingSmartRuns + (suggestion.action.id to suggestion)
-                handleAction(suggestion.action)
+    fun executeAction(
+        action: DeckAction,
+        allowDangerous: Boolean = false,
+    ): LocalActionResult? {
+        if (action.kind == ActionKind.Local) {
+            return localActionDispatcher.handleAction(action)
+        }
+        if (action.dangerous && !allowDangerous) {
+            pendingDangerousAction = action
+            return null
+        }
+        homeViewModel.run(action, allowDangerous = allowDangerous)
+        return null
+    }
+
+    LaunchedEffect(Unit) {
+        smartDeckViewModel.effects.collect { effect ->
+            when (effect) {
+                is SmartDeckEffect.Execute -> {
+                    val request = effect.request
+                    if (request.suggestion.action.kind == ActionKind.Local) {
+                        smartDeckViewModel.onExecutionAccepted(request.id)
+                        val result = localActionDispatcher.handleAction(request.suggestion.action)
+                            ?: LocalActionResult.Failed("Unsupported local action")
+                        smartDeckViewModel.onLocalSuggestionResult(request.id, result)
+                    } else {
+                        when (
+                            homeViewModel.run(
+                                request.suggestion.action,
+                                allowDangerous = request.allowDangerous,
+                            )
+                        ) {
+                            HomeActionDispatchResult.Accepted -> {
+                                smartDeckViewModel.onExecutionAccepted(request.id)
+                                acceptedSmartHomeRunId = request.id
+                            }
+                            HomeActionDispatchResult.Busy,
+                            is HomeActionDispatchResult.Rejected -> {
+                                smartDeckViewModel.onExecutionRejected(request.id)
+                            }
+                        }
+                    }
+                }
+                is SmartDeckEffect.Pin -> {
+                    homeViewModel.pinAction(effect.suggestion.action)
+                }
+                is SmartDeckEffect.ShowExplanation -> {
+                    scope.launch { snackbarHostState.showSnackbar("${effect.confidence}: ${effect.reason}") }
+                }
+                is SmartDeckEffect.ConfirmDangerousSuggestion -> {
+                    pendingDangerousAction = effect.suggestion.action
+                }
             }
         }
     }
@@ -654,17 +630,13 @@ private fun CodecksApp(
     LaunchedEffect(homeState.actionStatus) {
         val status = homeState.actionStatus
         when (status) {
-            is ActionStatus.Succeeded -> {
-                pendingSmartRuns[status.actionId]?.let { suggestion ->
-                    recordSmartFeedback(suggestion, SmartFeedbackType.Success, success = true)
-                    pendingSmartRuns = pendingSmartRuns - status.actionId
-                }
+            is ActionStatus.Succeeded -> acceptedSmartHomeRunId?.let { runId ->
+                smartDeckViewModel.onExecutionCompleted(runId, succeeded = true)
+                acceptedSmartHomeRunId = null
             }
-            is ActionStatus.Failed -> {
-                pendingSmartRuns[status.actionId]?.let { suggestion ->
-                    recordSmartFeedback(suggestion, SmartFeedbackType.Failure, success = false)
-                    pendingSmartRuns = pendingSmartRuns - status.actionId
-                }
+            is ActionStatus.Failed -> acceptedSmartHomeRunId?.let { runId ->
+                smartDeckViewModel.onExecutionCompleted(runId, succeeded = false)
+                acceptedSmartHomeRunId = null
             }
             else -> Unit
         }
@@ -712,19 +684,20 @@ private fun CodecksApp(
         AlertDialog(
             onDismissRequest = {
                 pendingDangerousAction = null
-                pendingDangerousSmartSuggestion = null
+                smartDeckViewModel.cancelDangerousSuggestion()
             },
             title = { Text(action.label) },
             text = { Text(action.description) },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        pendingDangerousSmartSuggestion?.let { suggestion ->
-                            pendingSmartRuns = pendingSmartRuns + (suggestion.action.id to suggestion)
-                        }
+                        val wasSmartSuggestion = pendingDangerousSmartSuggestion != null
                         pendingDangerousAction = null
-                        pendingDangerousSmartSuggestion = null
-                        homeViewModel.run(action, allowDangerous = true)
+                        if (wasSmartSuggestion) {
+                            smartDeckViewModel.confirmDangerousSuggestion()
+                        } else {
+                            executeAction(action, allowDangerous = true)
+                        }
                     },
                 ) {
                     Text("Run")
@@ -734,7 +707,7 @@ private fun CodecksApp(
                 TextButton(
                     onClick = {
                         pendingDangerousAction = null
-                        pendingDangerousSmartSuggestion = null
+                        smartDeckViewModel.cancelDangerousSuggestion()
                     },
                 ) {
                     Text("Cancel")
@@ -793,7 +766,7 @@ private fun CodecksApp(
                             state = homeState.copy(actions = visibleDeckActions),
                             connectionHealth = connectionHealth,
                             contentPadding = contentPadding,
-                            onAction = ::handleAction,
+                            onAction = ::executeAction,
                             onOpenSettings = { navigate(SettingsRoute) },
                             onOpenConnection = { navigate(SettingsRoute) },
                             onEditDeck = { navigate(EditorRoute) },
@@ -817,28 +790,22 @@ private fun CodecksApp(
                                 navigate(RunLogRoute)
                             },
                             smartSuggestions = smartSuggestions,
-                            onRunSmartSuggestion = ::runSmartSuggestion,
+                            smartRunPending = smartRunPending,
+                            onRunSmartSuggestion = smartDeckViewModel::run,
                             onPinSmartSuggestion = { suggestion ->
-                                recordSmartFeedback(suggestion, SmartFeedbackType.Pin)
-                                homeViewModel.pinAction(suggestion.action)
+                                smartDeckViewModel.pin(suggestion)
                             },
                             onHideSmartSuggestion = { suggestion ->
-                                hiddenSmartCandidateIds = hiddenSmartCandidateIds + suggestion.candidateId
-                                recordSmartFeedback(suggestion, SmartFeedbackType.Hide)
+                                smartDeckViewModel.hide(suggestion)
                             },
                             onExplainSmartSuggestion = { suggestion ->
-                                recordSmartFeedback(suggestion, SmartFeedbackType.Why)
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("${suggestion.confidence}: ${suggestion.reason}")
-                                }
+                                smartDeckViewModel.explain(suggestion)
                             },
-                            onNeverSmartSuggestionForApp = { suggestion ->
-                                val context = smartContext
-                                val appKey = context?.activeMacApp?.lowercase()?.replace(Regex("[^a-z0-9._:-]+"), "_")?.trim('_')
-                                if (!appKey.isNullOrBlank()) {
-                                    neverSmartKeys = neverSmartKeys + "$appKey:${suggestion.action.id}"
-                                }
-                                recordSmartFeedback(suggestion, SmartFeedbackType.NeverForApp)
+                            onSuppressSmartSuggestionForContext = { suggestion ->
+                                smartDeckViewModel.suppressHere(suggestion)
+                            },
+                            onNeverSmartSuggestionForAction = { suggestion ->
+                                smartDeckViewModel.never(suggestion)
                             },
                             focusedActionId = focusedDeckActionId,
                             deckStyle = themeSettings.deckStyle,
@@ -869,7 +836,7 @@ private fun CodecksApp(
                                     it.id !in setOf("blank", "add_button") && it !in customRowActions
                                 }.take(8),
                                 customActionsReady = homeState.connectionReady,
-                                onCustomAction = ::handleAction,
+                                onCustomAction = ::executeAction,
                                 selectedActionId = (homeState.actionStatus as? ActionStatus.Running)?.actionId,
                                 featureFlags = featureFlags,
                                 phoneNotifications = phoneNotifications,
@@ -892,7 +859,7 @@ private fun CodecksApp(
                         KeyboardDestination(
                             contentPadding = contentPadding,
                             customActions = customRowActions,
-                            onCustomAction = ::handleAction,
+                            onCustomAction = ::executeAction,
                             selectedActionId = (homeState.actionStatus as? ActionStatus.Running)?.actionId,
                             showHostHeader = !hidState.isConnected,
                         )
@@ -934,7 +901,9 @@ private fun CodecksApp(
                             filterActionId = runLogActionFilter,
                             contentPadding = contentPadding,
                             onClearFilter = { runLogActionFilter = null },
-                            onRetry = { actionId -> homeState.allActions.firstOrNull { it.id == actionId }?.let(::handleAction) },
+                            onRetry = { actionId ->
+                                homeState.allActions.firstOrNull { it.id == actionId }?.let { executeAction(it) }
+                            },
                             onClear = homeViewModel::clearActivity,
                         )
                     }
@@ -945,7 +914,7 @@ private fun CodecksApp(
                             runningActionId = (homeState.actionStatus as? ActionStatus.Running)?.actionId
                                 ?: automationsState.runningActionId,
                             contentPadding = contentPadding,
-                            onRunAction = ::handleAction,
+                            onRunAction = ::executeAction,
                             onRunAutomation = automationsViewModel::run,
                         )
                     }
@@ -1066,11 +1035,7 @@ private fun CodecksApp(
                             onFeatureFlagChange = featureFlagRepository::set,
                             onResetFeatureFlags = { scope.launch { featureFlagRepository.resetDefaults() } },
                             onClearSmartHistory = {
-                                smartLearningStore.clear()
-                                hiddenSmartCandidateIds = emptySet()
-                                neverSmartKeys = emptySet()
-                                pendingSmartRuns = emptyMap()
-                                smartRefreshTick += 1
+                                smartDeckViewModel.clearHistory()
                                 scope.launch { snackbarHostState.showSnackbar("Smart history cleared") }
                             },
                         )
@@ -1117,7 +1082,7 @@ private fun CodecksApp(
                             actionRunner = actionRunner,
                             deviceRepository = deviceRepository,
                             availableActions = homeState.allActions.distinctBy { it.id },
-                            onRunAction = ::handleAction,
+                            onRunAction = ::executeAction,
                             trackpadSettings = trackpadSettings,
                             onTrackpadSettingsChange = { transform ->
                                 scope.launch { trackpadSettingsRepository.update(transform) }
@@ -1156,7 +1121,7 @@ private fun CodecksApp(
                             deviceRepository = deviceRepository,
                             mode = AiWorkspaceMode.ProviderSettings,
                             availableActions = homeState.allActions.distinctBy { it.id },
-                            onRunAction = ::handleAction,
+                            onRunAction = ::executeAction,
                             trackpadSettings = trackpadSettings,
                             onTrackpadSettingsChange = { transform ->
                                 scope.launch { trackpadSettingsRepository.update(transform) }
@@ -1266,24 +1231,6 @@ private fun KeyboardDestination(
 }
 
 private fun shellQuote(value: String): String = "'${value.replace("'", "'\"'\"'")}'"
-
-private fun DeckAction.toSmartActionRef(): SmartActionRef =
-    SmartActionRef(
-        id = id,
-        title = label,
-        description = description,
-        commandType = kind.name,
-        route = route,
-        requiresMac = kind == ActionKind.Ssh,
-        dangerous = dangerous,
-    )
-
-private fun SmartConfidenceLabel.productLabel(): String =
-    when (this) {
-        SmartConfidenceLabel.VeryLikely -> "Very likely"
-        SmartConfidenceLabel.Likely -> "Likely"
-        SmartConfidenceLabel.Possible -> "Possible"
-    }
 
 private fun shareDebugBundle(
     context: Context,

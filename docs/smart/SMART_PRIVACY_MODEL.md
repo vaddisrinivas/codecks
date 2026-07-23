@@ -22,6 +22,11 @@ Smart stores learning data only when it is content-free.
 - screenshots
 - OCR text
 - accessibility labels
+- username
+- hostname
+- port
+- SSH host key
+- notification source labels
 
 ## Retention
 

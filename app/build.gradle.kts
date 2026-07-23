@@ -8,6 +8,7 @@ plugins {
 
 val optionalContextSurfacesEnabled = providers.gradleProperty("optionalContextSurfacesEnabled").orElse("false")
 val liteLlmBaseUrl = providers.gradleProperty("liteLlmBaseUrl").orElse("")
+val instrumentedTestBuildType = providers.gradleProperty("codecksInstrumentedTestBuildType").orElse("release")
 val releaseStoreFile = providers.environmentVariable("CODECKS_RELEASE_STORE_FILE")
     .orElse(providers.gradleProperty("releaseStoreFile"))
     .orElse("")
@@ -162,6 +163,8 @@ val validateReleaseSurface by tasks.registering {
 }
 
 android {
+    testBuildType = instrumentedTestBuildType.get()
+
     namespace = "io.codecks"
     compileSdk = 37
 
@@ -201,6 +204,9 @@ android {
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
+            )
+            testProguardFiles(
+                "proguard-android-test-rules.pro",
             )
             signingConfig = signingConfigs.getByName("release")
         }
