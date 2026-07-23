@@ -42,10 +42,12 @@ jobs:
             -keysize 2048 \
             -validity 1 \
             -dname "CN=Codecks CI"
-          echo "CODECKS_RELEASE_STORE_FILE=$RUNNER_TEMP/codecks-ci.jks" >> "$GITHUB_ENV"
-          echo "CODECKS_RELEASE_KEY_ALIAS=ci" >> "$GITHUB_ENV"
-          echo "CODECKS_RELEASE_STORE_PASSWORD=ci-only-pass" >> "$GITHUB_ENV"
-          echo "CODECKS_RELEASE_KEY_PASSWORD=ci-only-pass" >> "$GITHUB_ENV"
+          {
+            echo "CODECKS_RELEASE_STORE_FILE=$RUNNER_TEMP/codecks-ci.jks"
+            echo "CODECKS_RELEASE_KEY_ALIAS=ci"
+            echo "CODECKS_RELEASE_STORE_PASSWORD=ci-only-pass"
+            echo "CODECKS_RELEASE_KEY_PASSWORD=ci-only-pass"
+          } >> "$GITHUB_ENV"
       - name: Unit tests
         run: ./gradlew --no-daemon :app:testReleaseUnitTest
       - name: Android lint
