@@ -341,13 +341,6 @@ private fun CodecksKeybedDeck(
                             val running = runningActionId == action.id
                             val selected = focusedActionId == action.id
                             val enabled = openSlot || isDeckActionEnabled(action, connectionReady)
-                            val resultText = when {
-                                !openSlot && currentResult is ActionStatus.Succeeded && currentResult.actionId == action.id ->
-                                    "completed: ${currentResult.message}"
-                                !openSlot && currentResult is ActionStatus.Failed && currentResult.actionId == action.id ->
-                                    "failed: ${currentResult.message}"
-                                else -> null
-                            }
                             DeckControlTile(
                                 label = if (openSlot) "Tap to assign" else action.label,
                                 icon = action.deckImageVector(),
@@ -372,23 +365,6 @@ private fun CodecksKeybedDeck(
                                     .heightIn(min = keyHeight, max = keyHeight)
                                     .testTag("deck-action-${action.id}"),
                             )
-                            resultText?.let { text ->
-                                Box(
-                                    modifier = Modifier
-                                        .padding(top = 2.dp)
-                                        .testTag("deck-action-result"),
-                                ) {
-                                    Text(
-                                        text = text,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = deckTextColor.copy(alpha = 0.72f),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier
-                                            .testTag("deck-action-result-${action.id}"),
-                                    )
-                                }
-                            }
                         }
                     }
                 }

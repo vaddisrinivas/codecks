@@ -3,6 +3,7 @@ package io.codecks.ui.home
 import io.codecks.domain.ActionIcon
 import io.codecks.domain.ActionKind
 import io.codecks.domain.DeckAction
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -37,6 +38,14 @@ class HomeScreenBehaviorTest {
         assertFalse(shouldShowActionOptions(deckAction("add_button", ActionIcon.Add), locked = false))
         assertFalse(shouldShowActionOptions(deckAction("blank"), locked = false))
         assertTrue(shouldShowActionOptions(deckAction("finder"), locked = false))
+    }
+
+    @Test
+    fun deckResultUsesTileStateAndSnackbarWithoutInlineCompletionText() {
+        val source = File("src/main/java/io/codecks/ui/home/HomeScreen.kt").readText()
+
+        assertFalse(source.contains("completed:"))
+        assertFalse(source.contains("deck-action-result"))
     }
 
     private fun deckAction(

@@ -59,6 +59,7 @@ enum class HidCommand {
     OpenDocument,
     CloseWindow,
     Enter,
+    CommandEnter,
     Tab,
     Escape,
     Backspace,
@@ -204,6 +205,7 @@ class DefaultHidRepository @Inject constructor(
             HidCommand.OpenDocument -> key(HidReports.MOD_GUI, HidReports.KEY_O)
             HidCommand.CloseWindow -> key(HidReports.MOD_GUI, HidReports.KEY_W)
             HidCommand.Enter -> key(0, HidReports.KEY_ENTER)
+            HidCommand.CommandEnter -> key(HidReports.MOD_GUI, HidReports.KEY_ENTER)
             HidCommand.Tab -> key(0, HidReports.KEY_TAB)
             HidCommand.Escape -> key(0, HidReports.KEY_ESC)
             HidCommand.Backspace -> key(0, HidReports.KEY_BACKSPACE)

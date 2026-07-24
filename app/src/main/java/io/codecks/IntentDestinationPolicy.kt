@@ -26,14 +26,18 @@ object InternalIntentAuth {
 internal fun resolveDestinationRequest(
     action: String?,
     type: String?,
+    dataUri: String?,
     destination: String?,
     providedToken: String?,
     expectedToken: String,
 ): String? =
     when {
         action == Intent.ACTION_SEND && type == "text/plain" -> "ai"
+        action == Intent.ACTION_VIEW && dataUri == PUBLIC_TRACKPAD_URI -> "mouse"
         destination.isNullOrBlank() -> null
         providedToken == expectedToken -> destination
         BuildConfig.DEBUG && action == InternalIntentAuth.ACTION_DEBUG_OPEN_DESTINATION -> destination
         else -> null
     }
+
+const val PUBLIC_TRACKPAD_URI = "codecks://trackpad"

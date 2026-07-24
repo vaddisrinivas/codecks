@@ -242,6 +242,7 @@ class MainActivity : ComponentActivity() {
         destinationRequest = resolveDestinationRequest(
             action = intent?.action,
             type = intent?.type,
+            dataUri = intent?.dataString,
             destination = intent?.getStringExtra(EXTRA_DESTINATION),
             providedToken = intent?.getStringExtra(InternalIntentAuth.EXTRA_TOKEN),
             expectedToken = InternalIntentAuth.token(this),

@@ -12,6 +12,7 @@ class IntentDestinationPolicyTest {
             resolveDestinationRequest(
                 action = null,
                 type = null,
+                dataUri = null,
                 destination = "advanced",
                 providedToken = null,
                 expectedToken = "known-token",
@@ -26,6 +27,7 @@ class IntentDestinationPolicyTest {
             resolveDestinationRequest(
                 action = null,
                 type = null,
+                dataUri = null,
                 destination = "mouse",
                 providedToken = "known-token",
                 expectedToken = "known-token",
@@ -40,6 +42,7 @@ class IntentDestinationPolicyTest {
             resolveDestinationRequest(
                 action = Intent.ACTION_SEND,
                 type = "text/plain",
+                dataUri = null,
                 destination = "advanced",
                 providedToken = null,
                 expectedToken = "known-token",
@@ -54,7 +57,37 @@ class IntentDestinationPolicyTest {
             resolveDestinationRequest(
                 action = InternalIntentAuth.ACTION_DEBUG_OPEN_DESTINATION,
                 type = null,
+                dataUri = null,
                 destination = "settings",
+                providedToken = null,
+                expectedToken = "known-token",
+            ),
+        )
+    }
+
+    @Test
+    fun routesExactPublicTrackpadUriWithoutToken() {
+        assertEquals(
+            "mouse",
+            resolveDestinationRequest(
+                action = Intent.ACTION_VIEW,
+                type = null,
+                dataUri = PUBLIC_TRACKPAD_URI,
+                destination = null,
+                providedToken = null,
+                expectedToken = "known-token",
+            ),
+        )
+    }
+
+    @Test
+    fun rejectsUnknownPublicUriWithoutToken() {
+        assertNull(
+            resolveDestinationRequest(
+                action = Intent.ACTION_VIEW,
+                type = null,
+                dataUri = "codecks://settings",
+                destination = null,
                 providedToken = null,
                 expectedToken = "known-token",
             ),
