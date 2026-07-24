@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.21 — 2026-07-23
+
+SSH release reliability.
+
+- Disabled release code minification and resource shrinking after repeated JSch runtime regressions.
+- Added a release invariant and CI check that reject any attempt to re-enable APK shrinking.
+- Restored an explicit physical-phone, real-Mac SSH test for the exact signed release APK.
+
 ## 0.1.20 — 2026-07-23
 
 Smart correctness, privacy, and release-proof hardening.

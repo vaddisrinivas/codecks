@@ -9,3 +9,9 @@
 - Before an in-place release update, verify the candidate signing certificate matches the installed `app.codecks` certificate. If it does not match, stop.
 - Uninstalling, clearing data, downgrading, or accepting data loss requires the user's explicit approval in the current conversation after a specific warning. A general request to test or install is not approval.
 - Do not target a physical phone with instrumentation unless the user explicitly requests it. Prefer Gradle-managed emulators.
+
+## Keep production SSH unshrunk
+
+- Production `release` builds must keep both code minification and resource shrinking disabled.
+- Do not re-enable R8/minification/resource shrinking merely to reduce APK size.
+- Re-enabling either setting requires the user's explicit approval in the current conversation and a successful physical-phone, real-Mac SSH test of the exact signed release APK.

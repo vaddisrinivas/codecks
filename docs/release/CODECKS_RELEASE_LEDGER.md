@@ -6,7 +6,7 @@ Updated: July 23, 2026
 | --- | --- |
 | Product | Codecks |
 | Application ID | `app.codecks` |
-| Version | `0.1.20` (`versionCode` 21) |
+| Version | `0.1.21` (`versionCode` 22) |
 | Minimum Android | 9 / API 28 |
 | Target Android | API 37 |
 | Default mode | Local-only; no account, billing, hosted backend, database, analytics, or cloud sync |
@@ -19,7 +19,7 @@ Updated: July 23, 2026
 - `BuildConfig.LOCAL_ONLY_V1` defaults to `true`.
 - Optional context and Quick Settings manifest components default disabled.
 - Android backup and cleartext traffic stay disabled.
-- Release builds use a private signing key, R8 minification, and resource shrinking.
+- Release builds use a private signing key with code minification and resource shrinking disabled. APK size reduction must never outrank SSH reliability.
 - Debug builds use the separate `app.codecks.debug` application ID.
 - No signing key, credential, workstation path, device serial, or private QA artifact enters Git.
 - AI generation is user initiated, shows provider/model/context, and produces reviewable drafts.

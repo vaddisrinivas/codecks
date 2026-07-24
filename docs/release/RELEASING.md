@@ -11,11 +11,15 @@ Release signing material must never be committed. The build accepts these enviro
 
 ```bash
 python3 tools/secret_surface_check.py
+./scripts/verify_release_no_shrink.sh
 ./gradlew :app:testDebugUnitTest :app:lintDebug
 ./gradlew :app:assembleRelease
+./scripts/verify_release_no_shrink.sh app/build/outputs/apk/release/app-release.apk
 apksigner verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
 sha256sum app/build/outputs/apk/release/app-release.apk
 ```
+
+Production code minification and resource shrinking stay disabled because prior R8 releases repeatedly broke JSch SSH at runtime.
 
 ## GitHub release
 
