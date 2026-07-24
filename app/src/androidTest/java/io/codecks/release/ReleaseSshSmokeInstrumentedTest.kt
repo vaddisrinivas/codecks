@@ -1,7 +1,6 @@
 package io.codecks.release
 
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -42,19 +41,10 @@ class ReleaseSshSmokeInstrumentedTest {
     }
 
     private fun readNodeText(node: SemanticsNodeInteraction): String {
-        val rawText = node.fetchSemanticsNode().config[SemanticsProperties.Text]
-
-        return when (rawText) {
-            is String -> rawText.lowercase()
-            is Iterable<*> -> rawText.joinToString(" ", transform = {
-                when (it) {
-                    is AnnotatedString -> it.text
-                    null -> ""
-                    else -> it.toString()
-                }
-            }).lowercase()
-            else -> rawText?.toString()?.lowercase().orEmpty()
-        }
+        return node.fetchSemanticsNode()
+            .config[SemanticsProperties.Text]
+            .joinToString(" ") { it.text }
+            .lowercase()
     }
 
     private fun isKnownBundledAction(actionId: String): Boolean {
@@ -161,7 +151,7 @@ class ReleaseSshSmokeInstrumentedTest {
             }
 
             try {
-        waitForTag("deck-action-result-$id")
+                waitForTag("deck-action-result-$id")
             } catch (_: AssertionError) {
                 println("Release smoke: no result for action=$id")
                 continue

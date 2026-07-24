@@ -26,6 +26,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
       - name: Public-source privacy check
         run: python3 tools/secret_surface_check.py
+      - name: Enforce unshrunk production release
+        run: ./scripts/verify_release_no_shrink.sh
       - name: Enable Android emulator acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

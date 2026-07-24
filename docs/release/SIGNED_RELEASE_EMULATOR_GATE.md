@@ -1,6 +1,6 @@
 # Signed release emulator smoke gate
 
-This gate validates the exact signed/minified release APK and its release
+This gate validates the exact signed, unshrunk release APK and its release
 instrumentation APK on an Android emulator. It does not claim real-Mac SSH
 coverage and must never select a physical phone.
 
@@ -19,7 +19,7 @@ coverage and must never select a physical phone.
 
 ## Local connected-emulator helper behavior
 
-1. Build a signed/minified release APK once.
+1. Build a signed, unshrunk release APK once.
 2. Build `assembleReleaseAndroidTest`; the test APK must contain `classes.dex`.
 3. Back up the current installed APK/package state before installing.
 4. Install both exact artifacts on an emulator with `adb install -r`.
@@ -30,27 +30,26 @@ coverage and must never select a physical phone.
 8. Publish only from the exact tested release APK.
 
 CI performs the same startup/instrumentation contract with
-`:app:pixel6Api35ReleaseAndroidTest`. It runs only the release-safe,
-non-Compose startup test. It checks the release APK and CI-internal test APK
+`:app:pixel6Api35ReleaseAndroidTest`. It runs the release-safe,
+non-Compose startup test and explicitly skips the physical SSH test. It checks the release APK and CI-internal test APK
 hashes before and after the managed-device task. Only the unchanged product APK
 and its checksum are uploaded or published; the signed test APK is never a
 release candidate. The local script is for an already-running emulator.
 
-The shared `app/src/androidTest/` source set contains only the release-safe
-startup smoke. Functional tests live in `app/src/androidTestDebug/`.
+The shared `app/src/androidTest/` source set contains the release-safe
+startup smoke plus the explicit opt-in physical SSH test. Functional tests live in `app/src/androidTestDebug/`.
 `app/src/androidTestRelease/` is intentionally empty.
 
 ## Release and debug coverage
 
-- Release instrumentation proves the minified product cold-starts, reaches a
+- Release instrumentation proves the unshrunk product cold-starts, reaches a
   resumed `MainActivity`, and survives process initialization.
 - Internal Smart/domain contracts run as local unit tests. Release
   instrumentation must not retain internal app class names merely so a
   separately shrunk test APK can reference them.
-- Identity migration, Smart context, physical-SSH opt-in, and Compose
-  gesture/UI tests stay in `app/src/androidTestDebug/`. They must not force
-  app-internal, Kotlin, coroutines, Compose, or lifecycle blanket keeps into
-  the production R8 configuration.
+- Identity migration, Smart context, and Compose gesture/UI tests stay in
+  `app/src/androidTestDebug/`. The physical SSH test is shared so it can target
+  the real signed release, but it skips unless `requirePhysicalMac=true`.
 - Run the release startup gate with:
 
 ```bash
@@ -82,8 +81,9 @@ Implementation commit snapshot from 2026-07-23:
 - R8 release-test mapping: 2,867,059 bytes; removed-code report: 8,525
   bytes.
 
-These measurements prove local emulator execution and real R8 output only.
-They do not claim live Mac/SSH proof or a published release. Detailed evidence
+These historical v0.1.20 measurements prove local emulator execution and R8
+output only. v0.1.21 disables both release shrinkers. They do not claim live
+Mac/SSH proof or a published release. Detailed evidence
 for implementation commit `148364aac33b3d1b72b03533f4d612d89be4b905` is in
 [Smart implementation progress](../smart/SMART_IMPLEMENTATION_PROGRESS.md).
 

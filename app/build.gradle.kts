@@ -93,6 +93,8 @@ val validateReleaseSurface by tasks.registering {
             .findAll(mainManifest)
             .map { it.groupValues[1] }
             .toList()
+        val forbiddenMinifySetting = "isMinifyEnabled = " + "true"
+        val forbiddenResourceShrinkSetting = "isShrinkResources = " + "true"
         val problems = buildList {
             if ("usesCleartextTraffic=\"true\"" in mainManifest || "android:usesCleartextTraffic=\"true\"" in mainManifest) {
                 add("Main manifest must not allow cleartext traffic")
@@ -140,8 +142,11 @@ val validateReleaseSurface by tasks.registering {
             if ("applicationIdSuffix = \".debug\"" !in buildScript || "versionNameSuffix = \"-debug\"" !in buildScript) {
                 add("Debug build must keep distinct app id and version suffix")
             }
-            if ("isMinifyEnabled = true" !in buildScript || "isShrinkResources = true" !in buildScript) {
-                add("Release build must keep minify and resource shrinking enabled")
+            if ("isMinifyEnabled = false" !in buildScript || "isShrinkResources = false" !in buildScript) {
+                add("Release build must keep minification and resource shrinking disabled")
+            }
+            if (forbiddenMinifySetting in buildScript || forbiddenResourceShrinkSetting in buildScript) {
+                add("Release shrinking is forbidden because it repeatedly broke JSch SSH at runtime")
             }
             if (privacyLedger.isBlank()) {
                 add("Permission/privacy ledger is missing at docs/security/PERMISSION_PRIVACY_LEDGER.md")
@@ -172,8 +177,8 @@ android {
         applicationId = "app.codecks"
         minSdk = 28
         targetSdk = 37
-        versionCode = 21
-        versionName = "0.1.20"
+        versionCode = 22
+        versionName = "0.1.21"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["optionalContextSurfacesEnabled"] = optionalContextSurfacesEnabled.get()
@@ -199,15 +204,11 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
-            testProguardFiles(
-                "proguard-android-test-rules.pro",
-            )
+            // Do not re-enable either shrinker. JSch discovers SSH algorithms
+            // dynamically, and three prior releases broke Mac SSH after R8
+            // removed or rewrote classes that static analysis could not trace.
+            isMinifyEnabled = false
+            isShrinkResources = false
             signingConfig = signingConfigs.getByName("release")
         }
     }

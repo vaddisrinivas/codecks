@@ -92,6 +92,8 @@ jobs:
           echo "CODECKS_RELEASE_STORE_FILE=$RUNNER_TEMP/codecks-release.jks" >> "$GITHUB_ENV"
       - name: Public-source privacy check
         run: python3 tools/secret_surface_check.py
+      - name: Enforce unshrunk production release
+        run: ./scripts/verify_release_no_shrink.sh
       - name: AI Creator V2 local corpus check
         run: python3 tools/ai_creator_v2_eval.py
       - name: Test, lint, and release-surface checks
@@ -99,10 +101,12 @@ jobs:
       - name: Build signed release emulator candidate
         run: |
           ./gradlew --no-daemon :app:assembleRelease :app:assembleReleaseAndroidTest
+          ./scripts/verify_release_no_shrink.sh \
+            app/build/outputs/apk/release/app-release.apk
       - name: Prepare release candidate artifacts
         run: |
           unzip -Z1 app/build/outputs/apk/androidTest/release/app-release-androidTest.apk \
-            | grep -Eq '^classes([0-9]+)?\.dex$'
+            | grep -E '^classes([0-9]+)?\.dex$' >/dev/null
           mkdir -p release-candidate
           cp app/build/outputs/apk/release/app-release.apk release-candidate/codecks-release.apk
           sha256sum app/build/outputs/apk/androidTest/release/app-release-androidTest.apk \
@@ -132,7 +136,10 @@ jobs:
             'io.codecks.ui.app.MainActivityStartupInstrumentedTest' \
             app/build/outputs/androidTest-results/managedDevice/release/
           grep -R --include='*.xml' -q \
-            '<testsuites tests="1" failures="0" errors="0" skipped="0"' \
+            'io.codecks.release.ReleaseSshSmokeInstrumentedTest' \
+            app/build/outputs/androidTest-results/managedDevice/release/
+          grep -R --include='*.xml' -q \
+            '<testsuites tests="2" failures="0" errors="0" skipped="1"' \
             app/build/outputs/androidTest-results/managedDevice/release/
           test "$(sha256sum app/build/outputs/apk/release/app-release.apk | awk '{print $1}')" = \
             "$(sha256sum release-candidate/codecks-release.apk | awk '{print $1}')"
