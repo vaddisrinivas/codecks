@@ -45,6 +45,24 @@ shares = [
 assert math.isclose(min(shares), 8.5256, abs_tol=0.0001)
 assert math.isclose(max(shares), 24.1962, abs_tol=0.0001)
 
+desk_range = row_for("desk_asp_range")
+desk_low = float(desk_range["lower"])
+desk_high = float(desk_range["upper"])
+desk_cost_per_in2 = [
+    desk_price / work_surface
+    for desk_price in (desk_low, desk_high)
+    for work_surface in work_surfaces
+]
+pad_allocations = [
+    pad_area * cost_per_in2
+    for pad_area in pad_areas
+    for cost_per_in2 in desk_cost_per_in2
+]
+assert math.isclose(min(desk_cost_per_in2), 0.0944, abs_tol=0.0001)
+assert math.isclose(max(desk_cost_per_in2), 0.1649, abs_tol=0.0001)
+assert math.isclose(min(pad_allocations), 14.4934, abs_tol=0.0001)
+assert math.isclose(max(pad_allocations), 45.9727, abs_tol=0.0001)
+
 workspace_rows = [row for row in rows if row["category"] == "workspace"]
 assert len(workspace_rows) == 4
 workspace_total = sum(float(row["value"]) for row in workspace_rows)

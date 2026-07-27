@@ -15,16 +15,20 @@ The strongest supportable economic claim is:
 - mouse-only avoided-new-hardware benchmark: **$38**;
 - mouse-plus-standard-pad benchmark: **$43–$53**;
 - medium-to-large pad footprint: **153–279 in2**;
-- share of a 48×24 to 60×30 work surface: **about 9%–24%**.
+- share of a 48×24 to 60×30 work surface: **about 9%–24%**;
+- estimated 2026 U.S. compact-writing-desk ASP: **$170–$190**;
+- allocated value of the pad footprint: **about $14–$46**.
 
 Cash and space are separate. Codecks can avoid a future purchase only when the
 user would otherwise buy a mouse or pad. It can reclaim gross pad area only
 when the phone was already on the work surface.
 
-No public source found in this review provides a global, sales-weighted desk
-selling price together with sales-weighted surface dimensions. A dollar value
-per square inch would therefore combine unlike samples and imply false
-precision. The README intentionally makes no such claim.
+No public source found in this review provides an audited, sales-weighted price
+and surface area for all U.S. desk types. The closest relevant public category
+estimate is a $170–$190 average retail price for U.S. compact writing desks in
+2026. The README combines that price range with IBM's minimum and recommended
+work-surface sizes, labels the result an allocation, and preserves the
+uncertainty as a range.
 
 ## Evidence hierarchy
 
@@ -36,6 +40,7 @@ precision. The README intentionally makes no such claim.
 | Standard mousepad ASP | Commercial global segment estimate | Medium-low |
 | Pad footprint | Current manufacturer dimensions | High for those two sizes |
 | Work-surface scale | IBM workplace-design guidance | High as guidance, not a market average |
+| U.S. desk ASP | Commercial compact-writing-desk estimate | Medium-low |
 | Home-workspace scarcity | Peer-reviewed weighted UK survey, n=2,543 | High for surveyed UK home workers |
 | Phone-proximity tradeoff | Peer-reviewed within-person lab experiment, n=22 | Moderate; small sample |
 
@@ -135,6 +140,21 @@ Cross-check:
 The README therefore uses the $5–$15 standard-pad range as a conservative
 replacement benchmark, not as the average of every pad sold worldwide.
 
+### U.S. desk
+
+IndexBox estimates the 2026 average retail unit price for U.S. compact writing
+desks at $170–$190. It says the estimate is based on retail-scanner data and
+trade-shipment estimates. The category generated an estimated $1.5–$2.5
+billion from 8–12 million units, with 60%–70% of units in the $80–$300 tier.
+
+Source:
+`https://www.indexbox.io/store/united-states-kw-compact-writing-desk-840-market-analysis-forecast-size-trends-and-insights/`
+
+This is substantially broader than the previous three-item IKEA sample and is
+the closest category to the compact home-computing surfaces Codecks targets.
+It is still a commercial estimate, not audited transaction data, and excludes
+some executive, contract-office, and standing-desk products.
+
 ## Space calculation
 
 Current Razer Gigantus V2 dimensions:
@@ -163,6 +183,17 @@ Pad share:
 The README rounds the full range to 9%–24%. These are examples of medium and
 large pad footprint against design-guidance surfaces, not market averages.
 
+Desk-cost allocation:
+
+- low desk cost per in2: $170 / 1,800 = $0.0944;
+- high desk cost per in2: $190 / 1,152 = $0.1649;
+- low pad allocation: 153.46 × $0.0944 = $14.49;
+- high pad allocation: 278.74 × $0.1649 = $45.97.
+
+The README rounds these ranges to $0.09–$0.16 per in2 and $14–$46. This is
+allocated purchase cost, not realizable cash or evidence that a smaller desk
+can be purchased.
+
 ## Hardware benchmark formula
 
 Low:
@@ -180,7 +211,7 @@ Excluded:
 - sunk value of a mouse or pad already owned;
 - premium gaming or ergonomic hardware;
 - labor, setup time, battery use, and learning cost;
-- a dollar value for desk surface.
+- resale or cash value for desk surface.
 
 ## Rejected claims
 
@@ -190,6 +221,8 @@ Excluded:
   unweighted price and area means.
 - **"$24–$43 of desk value reclaimed":** multiplication of the unsupported
   per-inch figure.
+- **"$14–$46 cash saved on a desk":** the revised range is an allocated share
+  of desk cost; users save it only if reclaimed space avoids another purchase.
 - **"Most phones are on computer desks":** no current representative global
   placement study supports this.
 

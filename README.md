@@ -97,11 +97,13 @@ is especially relevant outside dedicated offices: 2024 UK survey data,
 published in 2026, found 59% of 2,543 home workers used a shared office, a
 corner workstation, or space intended for another purpose.[^home-workspace]
 
-There is no defensible public, sales-weighted dataset combining desk prices and
-surface dimensions, so Codecks does **not** assign a dollar value per square
-inch. The economic claim is the optional $38 mouse-only or $43–$53 mouse-plus-pad
-purchase avoided; the 153–279-square-inch figure is physical capacity reclaimed
-when the phone was already on the desk.
+A 2026 U.S. market estimate puts the average compact writing desk at
+**$170–$190**.[^desk-market] Spread across IBM's work-surface range, that is an
+estimated **$0.09–$0.16 per square inch**, making the 153–279-square-inch pad
+area worth roughly **$14–$46 in allocated desk cost**. This is not cash
+recovered: it values the fraction of a desk purchase represented by that
+surface. The direct economic benchmark remains an optional $38 mouse-only or
+$43–$53 mouse-plus-pad purchase avoided.
 
 ## Tradeoffs
 
@@ -133,5 +135,6 @@ Codecks is an independent project. It is not affiliated with OpenAI, Toggl, Work
 [^hardware-market]: Dataintelo, ["Computer Mouse Market Research Report 2034"](https://dataintelo.com/report/computer-mouse-market) and ["Mousepad Market Research Report 2034"](https://dataintelo.com/report/mousepad-market). These are commercial market-research estimates, not audited transaction data; the mouse figure is market-wide while the pad range is for the standard segment.
 [^pad-size]: [Razer Gigantus V2 size table](https://www.razer.com/gaming-mouse-mats/razer-gigantus-v2): Medium 14.17×10.83 inches and Large 17.72×15.73 inches. Product examples establish footprint, not market share.
 [^work-surface]: [IBM Workplace Design – Individual](https://www.ibm.com/design/workplace/space-types/individual/approach/): 48×24 inches minimum and 60×30 inches recommended for sit-stand desks.
+[^desk-market]: IndexBox, ["Compact Writing Desk Market in the United States"](https://www.indexbox.io/store/united-states-kw-compact-writing-desk-840-market-analysis-forecast-size-trends-and-insights/), estimates a $170–$190 average retail unit price in 2026 using retail-scanner data and trade-shipment estimates. This is the closest public category proxy found, not audited transaction data for every U.S. desk type.
 [^home-workspace]: Felstead, ["The Spatial Anatomy of Working at Home," Industrial Relations Journal (2026)](https://orca.cardiff.ac.uk/id/eprint/184858/1/Industrial%20Relations%20Journal%20-%202026%20-%20Felstead%20-%20The%20Spatial%20Anatomy%20of%20Working%20at%20Home%20Concepts%20Measures%20and%20Types%20of.pdf), using weighted Skills and Employment Survey 2024 data. Of 2,543 UK home workers, 41.1% reported their own office.
 [^phone-proximity]: Heitmayer, ["When the phone's away, people use their computer to play," Frontiers in Computer Science (2025)](https://doi.org/10.3389/fcomp.2025.1422244). Within-participant laboratory study, final sample 22; it found no increase in total time spent working when the phone was farther away.
