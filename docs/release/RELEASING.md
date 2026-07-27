@@ -25,7 +25,7 @@ Production code minification and resource shrinking stay disabled because prior 
 
 Repository Actions secrets hold the base64-encoded keystore, alias, and passwords. Pushing a signed version tag runs `.github/workflows/release.yml`, rebuilds from the public commit, verifies quality gates, and publishes exactly one signed APK plus `SHA256SUMS.txt`.
 
-- `codecks-<tag>.apk`: signed Codecks APK.
+- `codecks-release.apk`: signed Codecks APK.
 - `SHA256SUMS.txt`: checksum for the signed APK.
 
 Do not attach debug, preview, incubator, or alternate-app APKs to public releases.

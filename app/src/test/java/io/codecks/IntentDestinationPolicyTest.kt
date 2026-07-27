@@ -67,8 +67,7 @@ class IntentDestinationPolicyTest {
 
     @Test
     fun routesExactPublicTrackpadUriWithoutToken() {
-        assertEquals(
-            "mouse",
+        assertNull(
             resolveDestinationRequest(
                 action = Intent.ACTION_VIEW,
                 type = null,

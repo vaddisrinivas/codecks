@@ -119,8 +119,10 @@ val validateReleaseSurface by tasks.registering {
             }
             listOf(
                 ".data.context.CodecksNotificationListenerService",
+                ".ui.mouse.lockscreen.TrackpadEntryActivity",
+                ".widget.TrackpadWidgetProvider",
             ).filterNot { it in mainManifest }.forEach { component ->
-                add("Release ledger expects optional component missing from manifest check: $component")
+                add("Expected release component missing from manifest: $component")
             }
             if ("val optionalContextSurfacesEnabled = providers.gradleProperty(\"optionalContextSurfacesEnabled\").orElse(\"false\")" !in buildScript) {
                 add("Optional context surfaces must default disabled")
@@ -154,6 +156,12 @@ val validateReleaseSurface by tasks.registering {
             if (releaseLedger.isBlank()) {
                 add("Codecks release ledger is missing at docs/release/CODECKS_RELEASE_LEDGER.md")
             }
+            listOf(
+                "TrackpadEntryActivity",
+                "TrackpadWidgetProvider",
+            ).filterNot { it in releaseLedger }.forEach { component ->
+                add("Public release component missing from release ledger: $component")
+            }
             manifestPermissions.filterNot { it in privacyLedger }.forEach { permission ->
                 add("Manifest permission missing from privacy ledger: $permission")
             }
@@ -177,8 +185,8 @@ android {
         applicationId = "app.codecks"
         minSdk = 28
         targetSdk = 37
-        versionCode = 22
-        versionName = "0.1.21"
+        versionCode = 23
+        versionName = "0.1.23"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["optionalContextSurfacesEnabled"] = optionalContextSurfacesEnabled.get()
@@ -254,6 +262,7 @@ afterEvaluate {
 }
 
 dependencies {
+    implementation(project(":shared"))
     val composeBom = platform("androidx.compose:compose-bom:2026.06.01")
     implementation(composeBom)
     androidTestImplementation(composeBom)

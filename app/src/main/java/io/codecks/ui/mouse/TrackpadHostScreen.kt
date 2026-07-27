@@ -36,6 +36,7 @@ internal fun TrackpadHostScreen(
     onConnectHost: (String) -> Unit,
     onConnection: () -> Unit,
     onFullscreen: () -> Unit,
+    topContent: @Composable (() -> Unit)? = null,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     BoxWithConstraints(
@@ -51,6 +52,7 @@ internal fun TrackpadHostScreen(
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
         ) {
+            topContent?.invoke()
             if (!hidState.isConnected) {
                 HidHostHeader(
                     title = if (bluetoothPermissionGranted) "Choose a paired Mac" else "Bluetooth permission",

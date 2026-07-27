@@ -1,0 +1,26 @@
+captured_on,category,manufacturer,product,variant,price_usd,width_in,depth_in,area_in2,source_url,notes
+2026-07-27,mouse,Logitech,Visible catalog row 01,first-page visible price,79.99,,,,https://www.logitech.com/en-us/shop/c/mice,Current US mice catalog capture
+2026-07-27,mouse,Logitech,Visible catalog row 02,first-page visible price,49.99,,,,https://www.logitech.com/en-us/shop/c/mice,Current US mice catalog capture
+2026-07-27,mouse,Logitech,Visible catalog row 03,first-page visible price,39.99,,,,https://www.logitech.com/en-us/shop/c/mice,Current US mice catalog capture
+2026-07-27,mouse,Logitech,Visible catalog row 04,first-page visible price,119.99,,,,https://www.logitech.com/en-us/shop/c/mice,Current US mice catalog capture
+2026-07-27,mouse,Logitech,Visible catalog row 05,first-page visible price,119.99,,,,https://www.logitech.com/en-us/shop/c/mice,Current US mice catalog capture
+2026-07-27,mouse,Logitech,Visible catalog row 06,first-page visible price,22.99,,,,https://www.logitech.com/en-us/shop/c/mice,Current US mice catalog capture
+2026-07-27,mouse,Logitech,Visible catalog row 07,first-page visible price,79.99,,,,https://www.logitech.com/en-us/shop/c/mice,Current US mice catalog capture
+2026-07-27,mouse,Logitech,Visible catalog row 08,first-page visible price,22.99,,,,https://www.logitech.com/en-us/shop/c/mice,Current US mice catalog capture
+2026-07-27,mouse,Logitech,Visible catalog row 09,first-page visible price,79.99,,,,https://www.logitech.com/en-us/shop/c/mice,Current US mice catalog capture
+2026-07-27,mouse,Logitech,Visible catalog row 10,first-page visible price,89.99,,,,https://www.logitech.com/en-us/shop/c/mice,Current US mice catalog capture
+2026-07-27,mouse,Logitech,Visible catalog row 11,first-page visible price,22.99,,,,https://www.logitech.com/en-us/shop/c/mice,Current US mice catalog capture
+2026-07-27,mouse,Logitech,Visible catalog row 12,first-page visible price,99.99,,,,https://www.logitech.com/en-us/shop/c/mice,Current US mice catalog capture
+2026-07-27,mouse,Logitech,Visible catalog row 13,first-page visible price,119.99,,,,https://www.logitech.com/en-us/shop/c/mice,Current US mice catalog capture
+2026-07-27,mouse,Logitech,Visible catalog row 14,first-page visible price,20.00,,,,https://www.logitech.com/en-us/shop/c/mice,Current US mice catalog capture
+2026-07-27,mouse,Logitech,Visible catalog row 15,first-page visible price,22.99,,,,https://www.logitech.com/en-us/shop/c/mice,Current US mice catalog capture
+2026-07-27,mouse,Logitech,Visible catalog row 16,first-page visible price,119.99,,,,https://www.logitech.com/en-us/shop/c/mice,Current US mice catalog capture
+2026-07-27,mouse,Logitech,Visible catalog row 17,first-page visible price,22.99,,,,https://www.logitech.com/en-us/shop/c/mice,Current US mice catalog capture
+2026-07-27,mouse,Logitech,Visible catalog row 18,first-page visible price,44.99,,,,https://www.logitech.com/en-us/shop/c/mice,Current US mice catalog capture
+2026-07-27,mousepad,RAZER,Razer Gigantus V2,RZ02-03330200-R3U1,20.00,,,,https://www.razer.com/gaming-mouse-mats/Razer-Gigantus-V2/RZ02-03330200-R3U1,Current sampled SKU page price token
+2026-07-27,mousepad,RAZER,Razer Gigantus V2,RZ02-03330300-R3U1,15.00,,,,https://www.razer.com/gaming-mouse-mats/Razer-Gigantus-V2/RZ02-03330300-R3U1,Current sampled SKU page price token
+2026-07-27,mousepad_size,RAZER,Razer Gigantus V2,Medium,,14.17,10.83,153.46,https://www.razer.com/gaming-mouse-mats/razer-gigantus-v2,Current overview-page size table
+2026-07-27,mousepad_size,RAZER,Razer Gigantus V2,Large,,17.72,15.73,278.74,https://www.razer.com/gaming-mouse-mats/razer-gigantus-v2,Current overview-page size table
+2026-07-27,desk,IKEA,MICKE,28 3/4x19 5/8,69.99,28.75,19.625,564.22,https://www.ikea.com/us/en/cat/desks-computer-desks-20649/,Current US desks listing
+2026-07-27,desk,IKEA,KALLAX desk,43 3/4x15 3/8,79.99,43.75,15.375,672.66,https://www.ikea.com/us/en/cat/desks-computer-desks-20649/,Current US desks listing
+2026-07-27,desk,IKEA,LAGKAPTEN / ALEX desk,55 1/8x23 5/8,239.99,55.125,23.625,1302.33,https://www.ikea.com/us/en/cat/desks-computer-desks-20649/,Current US desks listing

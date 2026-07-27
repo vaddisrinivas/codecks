@@ -844,6 +844,16 @@ private fun TrackpadSettingsPanel(
                 onCheckedChange = { value -> onChange { it.copy(hapticsEnabled = value) } },
             )
             SettingSwitch(
+                label = "Lockscreen Trackpad",
+                checked = settings.lockscreenTrackpadEnabled,
+                onCheckedChange = { value -> onChange { it.copy(lockscreenTrackpadEnabled = value) } },
+            )
+            Text(
+                "Only pointer movement, scroll, and mouse buttons are allowed while locked. Codecks never reconnects HID or exposes keyboard, deck, settings, or SSH from the lockscreen path.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SettingSwitch(
                 label = "Scroll rail",
                 checked = settings.scrollRailEnabled,
                 onCheckedChange = { value -> onChange { it.copy(scrollRailEnabled = value) } },
@@ -1495,6 +1505,7 @@ private fun FeatureFlagPanel(
             add(FlagSpec(FeatureFlag.Automations, "Rules", "Runnable workspace routines", Icons.Outlined.Psychology))
             add(FlagSpec(FeatureFlag.Keyboard, "Keyboard controls", "Keyboard surface inside Trackpad", Icons.Outlined.Keyboard))
             add(FlagSpec(FeatureFlag.Clipboard, "Clipboard controls", "Clipboard surface and sync settings", Icons.Outlined.ContentPaste))
+            add(FlagSpec(FeatureFlag.ReactiveTrackpad, "Reactive Trackpad", "Temporary app-aware controls above Trackpad", Icons.Outlined.AutoAwesome))
             add(FlagSpec(FeatureFlag.Labs, "Labs", "Experimental inputs stay hidden unless enabled", Icons.Outlined.Terminal))
             if (labsEnabled) {
                 add(FlagSpec(FeatureFlag.SmartSuggestions, "Smart suggestions", "Local deterministic suggestions; no AI ranking", Icons.Outlined.AutoAwesome))

@@ -13,5 +13,7 @@ class KeyboardScreenPolicyTest {
         assertTrue(source.contains("""label = "Enter""""))
         assertTrue(source.contains("""label = "⌘ Enter""""))
         assertTrue(source.contains("HidCommand.CommandEnter"))
+        assertTrue(source.contains("ImeAction.Send"))
+        assertTrue(source.contains("onSend = { onTypeText() }"))
     }
 }

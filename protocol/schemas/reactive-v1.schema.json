@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codecks.app/schemas/reactive-v1.schema.json",
+  "title": "Codecks Reactive Protocol v1",
+  "type": "object",
+  "required": ["schema"],
+  "properties": {
+    "schema": {
+      "const": "reactive.v1"
+    },
+    "sessionId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "deadlineMillis": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "bodyJson": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 65536
+    },
+    "authTag": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": true
+}

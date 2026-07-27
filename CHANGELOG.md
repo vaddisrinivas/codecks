@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.23 — 2026-07-27
+
+Trackpad workflow polish, restricted lockscreen access, and buildable Reactive foundations.
+
+- Replaced persistent Deck completion text with transient feedback.
+- Made Keyboard Send deliver text plus Enter and clear only after success.
+- Added dedicated Enter and Command+Enter controls.
+- Added the exact `codecks://trackpad` route, Tasker/NFC guidance, widget entry, and pointer-only restricted lockscreen surface.
+- Improved Trackpad overlay touch isolation, Back behavior, semantics, and accessibility labels.
+- Added a default-off Android Reactive Trackpad prototype with revision-bound confirmation/review and execution-time state, capability, target, and registry checks.
+- Added a buildable KMP shared module, typed helper protocol models, bounded framing, authenticated proof transcripts, strict replay protection, and JVM/iOS tests.
+- Added an Android Mac-helper client scaffold with pinned identity verification, server proof verification, ordered authenticated responses, discovery/persistence boundaries, and bounded reconnect policy.
+- Added iOS device/simulator framework targets for the shared module.
+- Added sourced README desk-value evidence and deterministic arithmetic verification.
+- Kept release code minification and resource shrinking disabled to protect SSH.
+
 ## 0.1.21 — 2026-07-23
 
 SSH release reliability.

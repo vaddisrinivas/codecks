@@ -9,6 +9,11 @@ codecks://trackpad
 It opens the Trackpad directly. It does not execute commands, expose connection
 data, or bypass Codecks safety checks.
 
+If lockscreen Trackpad is enabled and Bluetooth HID is already connected,
+`codecks://trackpad` can open the restricted pointer-only surface while the
+phone stays locked. If HID is disconnected, the automatic URI path does nothing
+and does not reconnect Bluetooth for you.
+
 ## Exact desk position: NFC tag
 
 This is the most deterministic option.

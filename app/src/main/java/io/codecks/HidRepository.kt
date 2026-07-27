@@ -78,6 +78,7 @@ enum class HidCommand {
     WindowSwitcher,
     BrowserBack,
     BrowserForward,
+    Reload,
     SpaceLeft,
     SpaceRight,
     ScreenshotArea,
@@ -224,6 +225,7 @@ class DefaultHidRepository @Inject constructor(
             HidCommand.WindowSwitcher -> key(HidReports.MOD_GUI, HidReports.KEY_GRAVE)
             HidCommand.BrowserBack -> key(HidReports.MOD_GUI, HidReports.KEY_LEFT_BRACKET)
             HidCommand.BrowserForward -> key(HidReports.MOD_GUI, HidReports.KEY_RIGHT_BRACKET)
+            HidCommand.Reload -> key(HidReports.MOD_GUI, HidReports.KEY_R)
             HidCommand.SpaceLeft -> key(HidReports.MOD_CTRL, HidReports.KEY_LEFT)
             HidCommand.SpaceRight -> key(HidReports.MOD_CTRL, HidReports.KEY_RIGHT)
             HidCommand.ScreenshotArea -> key(

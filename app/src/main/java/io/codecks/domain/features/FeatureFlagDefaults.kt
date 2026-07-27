@@ -16,6 +16,7 @@ val DEFAULT_FEATURE_FLAGS = mapOf(
     FeatureFlag.SmartSettings to false,
     FeatureFlag.SmartTrackpadSuggest to false,
     FeatureFlag.SmartTrackpadSnap to false,
+    FeatureFlag.ReactiveTrackpad to false,
     FeatureFlag.SmartOcr to false,
     FeatureFlag.DeckEditor to true,
     FeatureFlag.Connection to true,

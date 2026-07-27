@@ -97,7 +97,7 @@ jobs:
       - name: AI Creator V2 local corpus check
         run: python3 tools/ai_creator_v2_eval.py
       - name: Test, lint, and release-surface checks
-        run: ./gradlew --no-daemon :app:check
+        run: ./gradlew --no-daemon :shared:jvmTest :app:check
       - name: Build signed release emulator candidate
         run: |
           ./gradlew --no-daemon :app:assembleRelease :app:assembleReleaseAndroidTest
@@ -139,8 +139,28 @@ jobs:
             'io.codecks.release.ReleaseSshSmokeInstrumentedTest' \
             app/build/outputs/androidTest-results/managedDevice/release/
           grep -R --include='*.xml' -q \
-            '<testsuites tests="2" failures="0" errors="0" skipped="1"' \
+            'io.codecks.ui.mouse.lockscreen.LockscreenEntryInstrumentedTest' \
             app/build/outputs/androidTest-results/managedDevice/release/
+          python3 - <<'PY'
+          import glob
+          import xml.etree.ElementTree as ET
+
+          files = glob.glob(
+              "app/build/outputs/androidTest-results/managedDevice/release/**/*.xml",
+              recursive=True,
+          )
+          assert files, "No managed release XML reports found"
+          totals = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0}
+          for path in files:
+              root = ET.parse(path).getroot()
+              for key in totals:
+                  totals[key] += int(root.attrib.get(key, 0))
+          assert totals["tests"] >= 4, totals
+          assert totals["failures"] == 0, totals
+          assert totals["errors"] == 0, totals
+          assert totals["skipped"] >= 1, totals
+          print(totals)
+          PY
           test "$(sha256sum app/build/outputs/apk/release/app-release.apk | awk '{print $1}')" = \
             "$(sha256sum release-candidate/codecks-release.apk | awk '{print $1}')"
           sha256sum --check "$RUNNER_TEMP/codecks-release-androidTest.sha256"
@@ -204,8 +224,13 @@ jobs:
           sha256sum -c SHA256SUMS.txt
       - name: Publish GitHub release
         run: |
+          NOTES_FILE="docs/release/RELEASE_NOTES_${RELEASE_TAG}.md"
+          test -f "$NOTES_FILE"
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" release-candidate/* --clobber
           else
-            gh release create "$RELEASE_TAG" release-candidate/* --verify-tag --generate-notes --title "Codecks ${RELEASE_TAG}"
+            gh release create "$RELEASE_TAG" release-candidate/* \
+              --verify-tag \
+              --notes-file "$NOTES_FILE" \
+              --title "Codecks ${RELEASE_TAG}"
           fi
