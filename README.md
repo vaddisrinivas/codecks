@@ -75,29 +75,33 @@ Codecks is Apache-2.0, source-available, account-free, and prepared for FOSS dir
 
 ## Use the screen already beside your computer
 
-Phones are commonly already within reach. In a 2013 CHI phone-placement study,
-68% of 650 respondents had their phone on a table or desk when asked, and 83%
-of 693 respondents had placed it there during the previous 24 hours.[^phone-placement]
-Current Pew data says 91% of U.S. adults own a smartphone.[^pew-ownership]
+Phones are already common equipment: Pew's representative 2025 survey found
+91% of U.S. adults owned a smartphone.[^pew-ownership] Direct placement
+research is thinner. A 2022 study of 356 men in Melbourne found 54% often or
+very often left their phone on a table or desk indoors when it was not in
+use.[^phone-placement] That supports the idea, but it is not a global estimate
+of phones sitting beside computers.
 
 Codecks turns that existing screen into a Bluetooth trackpad and command
-surface. That can avoid another pointer purchase and free mousepad space for
-writing, devices, or simply a less crowded desk.
+surface. A 2025 global market estimate puts the average computer-mouse selling
+price near $38; standard mousepads are estimated at $5–$15.[^hardware-market]
+That makes **about $38** the mouse-only benchmark and **$43–$53** when a
+standard pad would also be purchased, before tax and shipping. These are
+avoided-new-hardware estimates—not promised savings or the value of equipment
+already owned.
 
-A July 27, 2026 manufacturer snapshot of 18 visible Logitech catalog entries
-ranged from $20.00 to $119.99 and averaged $65.55.[^pointer-snapshot] Two
-sampled Razer Gigantus V2 SKU pages were $15.00 and $20.00, putting that small
-illustrative mouse-plus-pad snapshot around $83.05 before tax and shipping.[^pad-snapshot]
-The current Gigantus V2 medium and large size table spans about 153 to 279
-square inches.[^pad-snapshot]
+A common medium-to-large pad occupies about **153–279 square inches**.[^pad-size]
+Against IBM's 48×24-inch minimum and 60×30-inch recommended individual
+work-surfaces, that is roughly **9%–24% of the desktop**.[^work-surface] Space
+is especially relevant outside dedicated offices: 2024 UK survey data,
+published in 2026, found 59% of 2,543 home workers used a shared office, a
+corner workstation, or space intended for another purpose.[^home-workspace]
 
-For desk scale, three current IKEA desk examples averaged about 846 square
-inches of surface and $129.99 in price, or about $0.15 per square inch.[^desk-snapshot]
-A 153-to-279-square-inch pad represents roughly 18% to 33% of that illustrative
-surface, with a $24 to $43 space allocation.[^desk-snapshot] That is an
-opportunity-cost illustration, not cash Codecks promises to recover. Your
-result depends on your desk, pointer, pad, phone, and whether the phone was
-already sitting there.
+There is no defensible public, sales-weighted dataset combining desk prices and
+surface dimensions, so Codecks does **not** assign a dollar value per square
+inch. The economic claim is the optional $38 mouse-only or $43–$53 mouse-plus-pad
+purchase avoided; the 153–279-square-inch figure is physical capacity reclaimed
+when the phone was already on the desk.
 
 ## Tradeoffs
 
@@ -108,6 +112,9 @@ already sitting there.
 - Bluetooth, Android background rules, lockscreen behavior, and vendor power
   management can affect availability.
 - The phone remains occupied while used as a full-screen trackpad.
+- A 2025 desk-work experiment found participants interacted with a phone almost
+  three times as often when it was within reach; Codecks may therefore increase
+  distraction for some people.[^phone-proximity]
 - Codecks does not claim ergonomic superiority over a physical mouse. Use
   whichever input method is more comfortable for the task.
 
@@ -121,8 +128,10 @@ Codecks is available under the [Apache License 2.0](LICENSE). Third-party Androi
 
 Codecks is an independent project. It is not affiliated with OpenAI, Toggl, Work Louder, Samsung, Google, or Apple.
 
-[^phone-placement]: Wiese, Saponas, and Brush, ["Phoneprioception," CHI 2013](https://citeseerx.ist.psu.edu/document?doi=16baf1a983217b965bd72b868086126e3e24634c&repid=rep1&type=pdf). This was not a current population-representative survey, and "table or desk" did not specifically mean "computer desk."
-[^pew-ownership]: Pew Research Center, ["Mobile phone ownership"](https://www.pewresearch.org/chart/mobile-phone-ownership-2/), chart updated through June 18, 2025.
-[^pointer-snapshot]: [Logitech US mice catalog](https://www.logitech.com/en-us/shop/c/mice), captured July 27, 2026. The sample used the first 18 visible catalog prices only. It is not sales-weighted and not a market average.
-[^pad-snapshot]: [Razer Gigantus V2 overview](https://www.razer.com/gaming-mouse-mats/razer-gigantus-v2) and two [sampled SKU pages](https://www.razer.com/gaming-mouse-mats/Razer-Gigantus-V2/RZ02-03330200-R3U1), captured July 27, 2026. Prices and SKU mix can change quickly.
-[^desk-snapshot]: [IKEA US desks listing](https://www.ikea.com/us/en/cat/desks-computer-desks-20649/), captured July 27, 2026 using MICKE, KALLAX desk, and LAGKAPTEN / ALEX as a small illustrative sample. It is not a market average.
+[^phone-placement]: Zeleke et al., ["Mobile phone carrying locations and risk perception of men," PLOS ONE 17(6)](https://doi.org/10.1371/journal.pone.0269457). Cross-sectional convenience sample collected in Melbourne in 2018–2019; the authors state it is not representative of all Australian men.
+[^pew-ownership]: Pew Research Center, ["Mobile Fact Sheet"](https://www.pewresearch.org/internet/fact-sheet/mobile/), based on a representative survey of 5,022 U.S. adults conducted February 5–June 18, 2025.
+[^hardware-market]: Dataintelo, ["Computer Mouse Market Research Report 2034"](https://dataintelo.com/report/computer-mouse-market) and ["Mousepad Market Research Report 2034"](https://dataintelo.com/report/mousepad-market). These are commercial market-research estimates, not audited transaction data; the mouse figure is market-wide while the pad range is for the standard segment.
+[^pad-size]: [Razer Gigantus V2 size table](https://www.razer.com/gaming-mouse-mats/razer-gigantus-v2): Medium 14.17×10.83 inches and Large 17.72×15.73 inches. Product examples establish footprint, not market share.
+[^work-surface]: [IBM Workplace Design – Individual](https://www.ibm.com/design/workplace/space-types/individual/approach/): 48×24 inches minimum and 60×30 inches recommended for sit-stand desks.
+[^home-workspace]: Felstead, ["The Spatial Anatomy of Working at Home," Industrial Relations Journal (2026)](https://orca.cardiff.ac.uk/id/eprint/184858/1/Industrial%20Relations%20Journal%20-%202026%20-%20Felstead%20-%20The%20Spatial%20Anatomy%20of%20Working%20at%20Home%20Concepts%20Measures%20and%20Types%20of.pdf), using weighted Skills and Employment Survey 2024 data. Of 2,543 UK home workers, 41.1% reported their own office.
+[^phone-proximity]: Heitmayer, ["When the phone's away, people use their computer to play," Frontiers in Computer Science (2025)](https://doi.org/10.3389/fcomp.2025.1422244). Within-participant laboratory study, final sample 22; it found no increase in total time spent working when the phone was farther away.

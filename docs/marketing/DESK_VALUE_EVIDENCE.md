@@ -6,166 +6,200 @@ Owner: Codecks maintainers
 
 Next review: before the next public README claim refresh
 
-## Scope
+## Conclusion
 
-This note backs the README's "Use the screen already beside your computer"
-section.
+The strongest supportable economic claim is:
 
-It does not claim:
+- estimated 2025 global computer-mouse ASP: **$38**;
+- estimated standard mousepad ASP: **$5–$15**;
+- mouse-only avoided-new-hardware benchmark: **$38**;
+- mouse-plus-standard-pad benchmark: **$43–$53**;
+- medium-to-large pad footprint: **153–279 in2**;
+- share of a 48×24 to 60×30 work surface: **about 9%–24%**.
 
-- a market-wide average mouse price;
-- a representative national desk-price average;
-- that Codecks returns cash;
-- that all phones already sit on a computer desk;
-- that a touchscreen trackpad always replaces a mouse for all work.
+Cash and space are separate. Codecks can avoid a future purchase only when the
+user would otherwise buy a mouse or pad. It can reclaim gross pad area only
+when the phone was already on the work surface.
 
-## Sources
+No public source found in this review provides a global, sales-weighted desk
+selling price together with sales-weighted surface dimensions. A dollar value
+per square inch would therefore combine unlike samples and imply false
+precision. The README intentionally makes no such claim.
 
-- Phone placement study:
-  `https://citeseerx.ist.psu.edu/document?doi=16baf1a983217b965bd72b868086126e3e24634c&repid=rep1&type=pdf`
-- Smartphone ownership:
-  `https://www.pewresearch.org/chart/mobile-phone-ownership-2/`
-- Logitech mice catalog:
-  `https://www.logitech.com/en-us/shop/c/mice`
-- Razer Gigantus V2 overview:
-  `https://www.razer.com/gaming-mouse-mats/razer-gigantus-v2`
-- Razer sampled SKU pages:
-  `https://www.razer.com/gaming-mouse-mats/Razer-Gigantus-V2/RZ02-03330200-R3U1`
-  `https://www.razer.com/gaming-mouse-mats/Razer-Gigantus-V2/RZ02-03330300-R3U1`
-- IKEA desks catalog:
-  `https://www.ikea.com/us/en/cat/desks-computer-desks-20649/`
+## Evidence hierarchy
 
-## Inclusion rules
+| Claim | Evidence | Confidence |
+| --- | --- | --- |
+| U.S. smartphone ownership | Representative Pew survey, n=5,022 | High for U.S. adults |
+| Indoor phone placement | Peer-reviewed convenience sample, n=356 | Low outside sampled Melbourne men |
+| Mouse ASP | Commercial global market estimate | Medium-low |
+| Standard mousepad ASP | Commercial global segment estimate | Medium-low |
+| Pad footprint | Current manufacturer dimensions | High for those two sizes |
+| Work-surface scale | IBM workplace-design guidance | High as guidance, not a market average |
+| Home-workspace scarcity | Peer-reviewed weighted UK survey, n=2,543 | High for surveyed UK home workers |
+| Phone-proximity tradeoff | Peer-reviewed within-person lab experiment, n=22 | Moderate; small sample |
 
-- Logitech: first 18 visible price entries from the current US mice catalog
-  capture.
-- Mousepad: two current Razer Gigantus V2 SKU pages plus the current size table
-  from the overview page.
-- Desk: three current IKEA desk examples from the current US desks listing.
-- Percentages and ownership figures keep the source wording and limitations.
-
-## Raw values used
-
-### Phone placement
-
-- CHI 2013 Phoneprioception study:
-  - 68% of 650 respondents had their phone on a table or desk when asked.
-  - 83% of 693 respondents had placed it on a table or desk within the prior
-    24 hours.
-- Limitations:
-  - 2013 study, not a current representative survey.
-  - "table or desk" does not specifically mean "computer desk."
+## Current research
 
 ### Smartphone ownership
 
-- Pew Research Center mobile phone ownership chart:
-  - 91% of U.S. adults owned a smartphone in the June 18, 2025 row.
+Pew Research Center's Mobile Fact Sheet reports that 91% of U.S. adults owned
+a smartphone. It uses a representative address-based survey of 5,022 adults
+conducted from February 5 through June 18, 2025.
 
-### Logitech pointing-device snapshot
+Source:
+`https://www.pewresearch.org/internet/fact-sheet/mobile/`
 
-Visible first-page prices captured from the current Logitech US mice catalog:
+This supports availability of the required hardware in the United States. It
+does not say where a phone is placed or whether its owner uses a Mac.
 
-`79.99, 49.99, 39.99, 119.99, 119.99, 22.99, 79.99, 22.99, 79.99, 89.99, 22.99, 99.99, 119.99, 20.00, 22.99, 119.99, 22.99, 44.99`
+### Phone placement
 
-Computed:
+Zeleke et al. surveyed 356 men aged 18–72 in Melbourne. When indoors at home or
+work and not using the phone, 54.0% said they often or very often kept it on a
+table or desk. Data were collected from October 2018 through February 2019 and
+published in 2022.
 
-- count: 18
-- min: $20.00
-- max: $119.99
-- mean: $65.55
-- median: $64.99
+Source:
+`https://doi.org/10.1371/journal.pone.0269457`
 
-### Mousepad snapshot
+The authors explicitly say the convenience sample is not representative of all
+Australian men. It excludes women and does not distinguish a computer desk
+from other tables. The README therefore does not turn 54% into a global
+market-size claim.
 
-Current Razer Gigantus V2 sample:
+### Home workspace
 
-- sampled SKU prices: $20.00 and $15.00
-- sample mean: $17.50
-- overview-page size table:
-  - Medium: 14.17 x 10.83 in = 153.46 in2
-  - Large: 17.72 x 15.73 in = 278.74 in2
+Felstead's 2026 peer-reviewed analysis uses weighted Skills and Employment
+Survey 2024 data. Among 2,543 UK home workers:
 
-Illustrative combined snapshot:
+- 41.1% had their own office;
+- 5.5% shared an office;
+- 24.8% used a workstation in a room that was not an office;
+- 28.6% worked in spaces intended for other uses.
 
-- mouse mean + mousepad mean = $83.05
+Thus 58.9% did not have their own home office. This is evidence that desktop
+capacity matters for many home workers, not a measurement of Codecks demand.
 
-### Desk sample
+Source:
+`https://orca.cardiff.ac.uk/id/eprint/184858/1/Industrial%20Relations%20Journal%20-%202026%20-%20Felstead%20-%20The%20Spatial%20Anatomy%20of%20Working%20at%20Home%20Concepts%20Measures%20and%20Types%20of.pdf`
 
-Current IKEA sample:
+### Phone-proximity tradeoff
 
-- MICKE, 28 3/4 x 19 5/8 in, $69.99
-- KALLAX desk, 43 3/4 x 15 3/8 in, $79.99
-- LAGKAPTEN / ALEX desk, 55 1/8 x 23 5/8 in, $239.99
+Heitmayer's 2025 within-participant experiment observed 22 laptop workers for
+five hours in each of two conditions. With the phone within reach, median
+phone interactions were 18.5 versus 6.5 when it was 1.5 meters away. Total time
+spent working did not significantly differ.
 
-Computed areas:
+Source:
+`https://doi.org/10.3389/fcomp.2025.1422244`
 
-- MICKE: 564.22 in2
-- KALLAX: 672.66 in2
-- LAGKAPTEN / ALEX: 1302.33 in2
+Codecks deliberately makes the phone useful and reachable. That could increase
+phone interaction or distraction, so the README includes this tradeoff.
 
-Computed sample metrics:
+## Market price evidence
 
-- mean surface area: 846.40 in2
-- mean price: $129.99
-- implied allocation: $0.1536 per in2
+### Mouse
 
-Mousepad footprint illustration against the desk sample:
+Dataintelo estimates:
 
-- 153.46 in2 pad:
-  - 18.1% of the sample mean desk surface
-  - $23.57 surface allocation
-- 278.74 in2 pad:
-  - 32.9% of the sample mean desk surface
-  - $42.81 surface allocation
+- 2025 global computer-mouse market: $3.8 billion;
+- 2025 market-wide ASP: about $38;
+- top ten best-selling gaming-mouse ASP: about $94.
 
-## Formulas
+Source:
+`https://dataintelo.com/report/computer-mouse-market`
 
-Mouse mean:
+The $38 figure is broader and more relevant than the previous one-brand,
+18-listing mean of $65.55. It remains a commercial estimate: the public page
+does not disclose the underlying transaction panel or sales weights. The
+README labels it an estimate.
 
-`sum(visible Logitech prices) / 18`
+### Mousepad
 
-Mousepad mean:
+Dataintelo estimates standard mousepads sold for $5–$15 on average in 2025.
+Standard pads represented 17.0% of estimated market revenue; gaming and other
+premium categories cost more.
 
-`(20.00 + 15.00) / 2`
+Source:
+`https://dataintelo.com/report/mousepad-market`
 
-Combined illustrative hardware snapshot:
+Public market-size estimates for mousepads vary dramatically. For example,
+Research and Markets gives a $126.71 million 2025 global market estimate while
+Dataintelo gives $1.37 billion. Neither public page supplies enough unit data
+to reproduce a sales-weighted market-wide ASP.
 
-`65.55 + 17.50 = 83.05`
+Cross-check:
+`https://www.researchandmarkets.com/report/mouse-pad-market`
 
-Desk allocation:
+The README therefore uses the $5–$15 standard-pad range as a conservative
+replacement benchmark, not as the average of every pad sold worldwide.
 
-`mean_desk_price / mean_desk_area = 129.99 / 846.40 = 0.1536`
+## Space calculation
 
-Surface allocation:
+Current Razer Gigantus V2 dimensions:
 
-`mousepad_area * 0.1536`
+- Medium: 14.17 × 10.83 in = 153.46 in2;
+- Large: 17.72 × 15.73 in = 278.74 in2.
 
-## README claim mapping
+Source:
+`https://www.razer.com/gaming-mouse-mats/razer-gigantus-v2`
 
-- "Phones are commonly already within reach":
-  Phoneprioception + Pew ownership, with limitations stated in footnotes.
-- "A July 27, 2026 manufacturer snapshot of 18 visible Logitech catalog entries
-  ranged from $20.00 to $119.99 and averaged $65.55":
-  Logitech visible-price capture above.
-- "Two sampled Razer Gigantus V2 SKU pages were $15.00 and $20.00":
-  sampled SKU prices above.
-- "Together that small snapshot lands around $83.05":
-  combined illustrative hardware snapshot formula.
-- "The medium and large Gigantus V2 size table spans about 153-279 square
-  inches":
-  overview-page size table above.
-- "Three current IKEA desk examples averaged 846 square inches and $129.99, or
-  about $0.15 per square inch":
-  desk sample above.
-- "$24-$43 space allocation":
-  surface allocation illustration above.
+IBM individual-workplace guidance:
 
-## Limitations
+- minimum work surface: 48 × 24 in = 1,152 in2;
+- recommended work surface: 60 × 30 in = 1,800 in2.
 
-- Logitech sample is one manufacturer page, first-page visible entries only, not
-  sales-weighted and not a market average.
-- Razer sample is two SKU pages plus a separate overview-page size table.
-- IKEA sample is three current listings, not a market average.
-- Desk-space allocation is opportunity cost, not cash recovery.
-- If the phone was not already occupying that spot, its own footprint should be
-  subtracted before claiming recovered space.
+Source:
+`https://www.ibm.com/design/workplace/space-types/individual/approach/`
+
+Pad share:
+
+- 153.46 / 1,800 = 8.5%;
+- 153.46 / 1,152 = 13.3%;
+- 278.74 / 1,800 = 15.5%;
+- 278.74 / 1,152 = 24.2%.
+
+The README rounds the full range to 9%–24%. These are examples of medium and
+large pad footprint against design-guidance surfaces, not market averages.
+
+## Hardware benchmark formula
+
+Low:
+
+`$38 mouse ASP + $5 standard pad = $43`
+
+High:
+
+`$38 mouse ASP + $15 standard pad = $53`
+
+Excluded:
+
+- tax and shipping;
+- the value of a phone or Mac, because Codecks requires both;
+- sunk value of a mouse or pad already owned;
+- premium gaming or ergonomic hardware;
+- labor, setup time, battery use, and learning cost;
+- a dollar value for desk surface.
+
+## Rejected claims
+
+- **"$83.05 average savings":** based on one manufacturer's visible catalog
+  and two premium-brand pad pages, not the market.
+- **"$0.15 per desk square inch":** based on three IKEA products with
+  unweighted price and area means.
+- **"$24–$43 of desk value reclaimed":** multiplication of the unsupported
+  per-inch figure.
+- **"Most phones are on computer desks":** no current representative global
+  placement study supports this.
+
+## Reproduction
+
+Structured inputs:
+`docs/marketing/desk_value_snapshot.csv`
+
+Arithmetic check:
+
+```bash
+python3 tools/verify_desk_value_snapshot.py
+```
