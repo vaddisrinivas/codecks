@@ -1,0 +1,9 @@
+{
+  "schema": "reactive.v1",
+  "sessionId": "session-fixture",
+  "sequence": 1,
+  "requestId": "request-fixture-1",
+  "deadlineMillis": 4000,
+  "bodyJson": "{\"type\":\"basic_state\"}",
+  "authTag": "fixture-auth-tag"
+}

@@ -62,19 +62,20 @@ class KeyboardViewModel @Inject constructor(
         if (snapshot.isSending) return
         viewModelScope.launch {
             _uiState.update { it.copy(isSending = true, status = "Sending…") }
-            val result = when (resolvedMode(snapshot.deliveryMode, text)) {
+            val deliveryResult = when (resolvedMode(snapshot.deliveryMode, text)) {
                 KeyboardDeliveryMode.BluetoothTyping -> sendViaBluetooth(text)
                 KeyboardDeliveryMode.MacClipboardPaste -> sendViaPasteboard(text)
                 KeyboardDeliveryMode.Auto -> error("Auto should resolve before sending")
             }
+            val result = deliveryResult.fold(
+                onSuccess = { message ->
+                    submitEnter().map { "$message · Enter sent" }
+                },
+                onFailure = { error -> Result.failure(error) },
+            )
             result
                 .onSuccess { message ->
-                    _uiState.update {
-                        it.copy(
-                            status = message,
-                            recentSends = (listOf(text) + it.recentSends).distinct().take(MAX_RECENT_SENDS),
-                        )
-                    }
+                    _uiState.update { it.afterSuccessfulSend(text, message) }
                 }
                 .onFailure { error ->
                     _uiState.update { it.copy(status = error.message ?: "Send failed") }
@@ -113,14 +114,33 @@ class KeyboardViewModel @Inject constructor(
             "Pasted ${text.length} chars into Mac"
         }
 
+    private suspend fun submitEnter(): Result<Unit> =
+        if (hidRepository.state.value.isConnected) {
+            runCatching { hidRepository.send(HidCommand.Enter) }
+        } else {
+            connectionRepository.runCommand(
+                "osascript -e 'tell application \"System Events\" to key code 36'",
+            ).map { }
+        }
+
     private fun String.isHidTextFriendly(): Boolean =
         all { char -> char == '\n' || char == '\r' || char == '\t' || char.code in 32..126 }
 
     private companion object {
         const val HID_TEXT_LIMIT = 240
-        const val MAX_RECENT_SENDS = 6
     }
 }
+
+internal fun KeyboardUiState.afterSuccessfulSend(
+    sentText: String,
+    message: String,
+): KeyboardUiState = copy(
+    text = "",
+    status = message,
+    recentSends = (listOf(sentText) + recentSends).distinct().take(MAX_RECENT_SENDS),
+)
+
+private const val MAX_RECENT_SENDS = 6
 
 private val defaultTextSnippets = listOf(
     "ok sounds good",

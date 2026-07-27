@@ -1,5 +1,7 @@
 package io.codecks.ui.keyboard
 
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -48,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import io.codecks.HidCommand
 import io.codecks.HidState
@@ -190,6 +193,8 @@ fun KeyboardScreen(
                         onTextChange = onTextChange,
                         onDeliveryModeChange = onDeliveryModeChange,
                         onTypeText = onTypeText,
+                        onEnter = { onCommand(HidCommand.Enter) },
+                        onCommandEnter = { onCommand(HidCommand.CommandEnter) },
                         onClearText = onClearText,
                         onUseSnippet = onUseSnippet,
                     )
@@ -239,6 +244,8 @@ fun KeyboardScreen(
                     onTextChange = onTextChange,
                     onDeliveryModeChange = onDeliveryModeChange,
                     onTypeText = onTypeText,
+                    onEnter = { onCommand(HidCommand.Enter) },
+                    onCommandEnter = { onCommand(HidCommand.CommandEnter) },
                     onClearText = onClearText,
                     onUseSnippet = onUseSnippet,
                 )
@@ -412,6 +419,8 @@ private fun Composer(
     onTextChange: (String) -> Unit,
     onDeliveryModeChange: (KeyboardDeliveryMode) -> Unit,
     onTypeText: () -> Unit,
+    onEnter: () -> Unit,
+    onCommandEnter: () -> Unit,
     onClearText: () -> Unit,
     onUseSnippet: (String) -> Unit,
 ) {
@@ -429,6 +438,10 @@ private fun Composer(
                 placeholder = { Text("Text to type on Mac") },
                 minLines = 2,
                 maxLines = 4,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(
+                    onSend = { onTypeText() },
+                ),
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -468,7 +481,7 @@ private fun Composer(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 DeckActionButton(
-                    label = if (deliveryMode == KeyboardDeliveryMode.MacClipboardPaste) "Paste to Mac" else "Send",
+                    label = if (deliveryMode == KeyboardDeliveryMode.MacClipboardPaste) "Paste + Enter" else "Send + Enter",
                     onClick = onTypeText,
                     enabled = !isSending && text.isNotBlank(),
                     icon = Icons.AutoMirrored.Outlined.Send,
@@ -478,6 +491,22 @@ private fun Composer(
                     label = "Clear",
                     onClick = onClearText,
                     enabled = text.isNotEmpty(),
+                    modifier = Modifier.weight(1f).height(56.dp),
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                DeckActionButton(
+                    label = "Enter",
+                    onClick = onEnter,
+                    enabled = connected && !isSending,
+                    icon = Icons.AutoMirrored.Outlined.KeyboardReturn,
+                    modifier = Modifier.weight(1f).height(56.dp),
+                )
+                DeckActionButton(
+                    label = "⌘ Enter",
+                    onClick = onCommandEnter,
+                    enabled = connected && !isSending,
+                    icon = Icons.AutoMirrored.Outlined.KeyboardReturn,
                     modifier = Modifier.weight(1f).height(56.dp),
                 )
             }

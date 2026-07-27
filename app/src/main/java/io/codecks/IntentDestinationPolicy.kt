@@ -26,6 +26,7 @@ object InternalIntentAuth {
 internal fun resolveDestinationRequest(
     action: String?,
     type: String?,
+    dataUri: String?,
     destination: String?,
     providedToken: String?,
     expectedToken: String,
@@ -37,3 +38,5 @@ internal fun resolveDestinationRequest(
         BuildConfig.DEBUG && action == InternalIntentAuth.ACTION_DEBUG_OPEN_DESTINATION -> destination
         else -> null
     }
+
+const val PUBLIC_TRACKPAD_URI = "codecks://trackpad"

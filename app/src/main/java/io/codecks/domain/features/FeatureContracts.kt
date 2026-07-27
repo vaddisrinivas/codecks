@@ -40,6 +40,7 @@ enum class FeatureFlag {
     SmartSettings,
     SmartTrackpadSuggest,
     SmartTrackpadSnap,
+    ReactiveTrackpad,
     SmartOcr,
     Labs,
     LabAirMouse,

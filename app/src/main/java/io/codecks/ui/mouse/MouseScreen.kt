@@ -87,6 +87,11 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.viewinterop.AndroidView
@@ -273,13 +278,13 @@ fun MouseScreen(
         lifecycle = lifecycleOwner.lifecycle,
         onBackTap = onLeftClick,
     )
-    BackHandler(enabled = inputMode == MouseInputMode.Trackpad) {
+    BackHandler(enabled = inputMode == MouseInputMode.Trackpad || controlsOpen) {
         if (quickTray != null) {
             quickTray = null
-        } else if (!controlsOpen) {
-            controlsOpen = true
-        } else {
+        } else if (controlsOpen) {
             controlsOpen = false
+        } else if (inputMode == MouseInputMode.Trackpad) {
+            controlsOpen = true
         }
     }
     Box(
@@ -1009,52 +1014,71 @@ private fun TrackpadExpandedBottomSheet(
         add(TrackpadQuickTray.Settings to Icons.Outlined.Settings)
     }
     CodecksPanel(modifier = modifier) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(6.dp),
-            ) {
-                val itemModifier = Modifier.size(48.dp)
-                items.forEach { (tray, icon) ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .consumeOverlayTouches(),
+            )
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(6.dp),
+                ) {
+                    val itemModifier = Modifier.size(48.dp)
+                    items.forEach { (tray, icon) ->
+                        TrackpadMenuIcon(
+                            icon = icon,
+                            selected = selectedTray == tray,
+                            onClick = when (tray) {
+                                TrackpadQuickTray.Custom -> onCustom
+                                TrackpadQuickTray.Dynamic -> onDynamic
+                                TrackpadQuickTray.Settings -> onSettings
+                            },
+                            contentDescription = when (tray) {
+                                TrackpadQuickTray.Custom -> "Custom actions"
+                                TrackpadQuickTray.Dynamic -> "Dynamic actions"
+                                TrackpadQuickTray.Settings -> "Trackpad settings"
+                            },
+                            modifier = itemModifier,
+                        )
+                    }
                     TrackpadMenuIcon(
-                        icon = icon,
-                        selected = selectedTray == tray,
-                        onClick = when (tray) {
-                            TrackpadQuickTray.Custom -> onCustom
-                            TrackpadQuickTray.Dynamic -> onDynamic
-                            TrackpadQuickTray.Settings -> onSettings
-                        },
-                        contentDescription = when (tray) {
-                            TrackpadQuickTray.Custom -> "Custom actions"
-                            TrackpadQuickTray.Dynamic -> "Dynamic actions"
-                            TrackpadQuickTray.Settings -> "Trackpad settings"
-                        },
+                        icon = Icons.Outlined.Lock,
+                        selected = sessionPinned,
+                        onClick = onToggleSessionPin,
+                        contentDescription = if (sessionPinned) "Unlock Trackpad session" else "Lock Trackpad session",
                         modifier = itemModifier,
                     )
+                    TrackpadMenuIcon(
+                        icon = Icons.Outlined.Home,
+                        selected = false,
+                        onClick = onExit,
+                        contentDescription = "Exit Trackpad",
+                        modifier = itemModifier,
+                    )
+                    TextButton(onClick = onClose) { Text("Done") }
                 }
-                TrackpadMenuIcon(
-                    icon = Icons.Outlined.Lock,
-                    selected = sessionPinned,
-                    onClick = onToggleSessionPin,
-                    contentDescription = if (sessionPinned) "Unlock Trackpad session" else "Lock Trackpad session",
-                    modifier = itemModifier,
-                )
-                TrackpadMenuIcon(
-                    icon = Icons.Outlined.Home,
-                    selected = false,
-                    onClick = onExit,
-                    contentDescription = "Exit Trackpad",
-                    modifier = itemModifier,
-                )
-                TextButton(onClick = onClose) { Text("Done") }
-            }
-            Box(modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 4.dp)) {
-                content()
+                Box(modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 4.dp)) {
+                    content()
+                }
             }
         }
     }
 }
+
+private fun Modifier.consumeOverlayTouches(): Modifier =
+    pointerInput(Unit) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            down.consume()
+            do {
+                val event = awaitPointerEvent()
+                event.changes.forEach { it.consume() }
+            } while (event.changes.any { it.pressed })
+        }
+    }
 
 @Composable
 private fun TrackpadMenuIcon(
@@ -1072,7 +1096,18 @@ private fun TrackpadMenuIcon(
             if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
         ),
         shape = MaterialTheme.shapes.large,
-        modifier = modifier.clickable(onClick = onClick),
+        modifier = modifier
+            .semantics(mergeDescendants = true) {
+                if (contentDescription != null) {
+                    this.contentDescription = contentDescription
+                }
+                role = Role.Button
+                stateDescription = if (selected) "Selected" else "Not selected"
+            }
+            .clickable(
+                role = Role.Button,
+                onClick = onClick,
+            ),
     ) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
             Icon(icon, contentDescription = contentDescription, tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
@@ -2073,7 +2108,7 @@ private fun TrackpadRailSide.opposite(): TrackpadRailSide =
     if (this == TrackpadRailSide.Left) TrackpadRailSide.Right else TrackpadRailSide.Left
 
 @Composable
-private fun RawTrackpadTouchLayer(
+internal fun RawTrackpadTouchLayer(
     enabled: Boolean,
     sensitivity: Float,
     acceleration: Float,
@@ -2150,7 +2185,7 @@ private fun RawTrackpadTouchLayer(
     )
 }
 
-private data class PointerTracePoint(
+internal data class PointerTracePoint(
     val position: Offset,
     val timestampMillis: Long,
     val isStylus: Boolean,

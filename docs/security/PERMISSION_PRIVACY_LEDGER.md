@@ -1,6 +1,6 @@
 # Permission and privacy ledger
 
-Updated: July 17, 2026
+Updated: July 27, 2026
 
 | Permission or access | Purpose | Trigger | Data touched | Stored | Shared |
 | --- | --- | --- | --- | --- | --- |
@@ -15,6 +15,17 @@ Updated: July 17, 2026
 | `android.permission.USE_BIOMETRIC` | Allow the selected Android credential provider to authenticate access to a saved Mac password | User taps Save password or Use saved password | Authentication result only; Codecks never receives biometric data | No biometric data | Selected system credential provider |
 | `android.permission.USE_FINGERPRINT` | Compatibility permission for credential providers on older Android versions | Same as above | Authentication result only | No biometric data | Selected system credential provider |
 | Notification listener special access | Incubator Context Deck input | No trigger in default release; Android Settings opt-in only in incubator builds | App identity and notification preview fields | Privacy preferences; live previews in memory | Not uploaded by the default build |
+
+## Lock-screen and widget entry
+
+- `TrackpadEntryActivity` is the only exported trackpad entry. It accepts the
+  exact `codecks://trackpad` URI or an app-signed internal PendingIntent.
+- The widget and HID notification carry no commands or credentials; they only
+  open that entry and are re-evaluated against lock state, first-unlock state,
+  Bluetooth permission, opt-in, and current HID connection.
+- While locked, only pointer move/scroll/button input is allowed. Keyboard,
+  deck actions, clipboard, settings, pairing, reconnect, and disconnect remain
+  blocked until unlock.
 
 ## Sensitive local data
 

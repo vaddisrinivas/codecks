@@ -1,0 +1,7 @@
+{
+  "schema": "reactive.v1",
+  "sessionId": "session-fixture",
+  "serverNonce": "server-nonce-fixture",
+  "expiresAtMillis": 5000,
+  "macId": "mac-fixture"
+}

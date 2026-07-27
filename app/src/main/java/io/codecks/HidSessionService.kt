@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
+import io.codecks.ui.mouse.lockscreen.TrackpadEntryActivity
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,11 +44,6 @@ class HidSessionService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) {
-            hidRepository.disconnect()
-            stopSelf()
-            return START_NOT_STICKY
-        }
         hidRepository.start()
         return START_STICKY
     }
@@ -74,20 +70,7 @@ class HidSessionService : Service() {
     }
 
     private fun buildNotification(): Notification {
-        val openIntent = Intent(this, MainActivity::class.java)
-        val pendingOpen = PendingIntent.getActivity(
-            this,
-            0,
-            openIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        val stopIntent = Intent(this, HidSessionService::class.java).setAction(ACTION_STOP)
-        val pendingStop = PendingIntent.getService(
-            this,
-            1,
-            stopIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
+        val pendingOpen = TrackpadEntryActivity.notificationPendingIntent(this)
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, CHANNEL_ID)
         } else {
@@ -102,7 +85,7 @@ class HidSessionService : Service() {
             .setOngoing(true)
             .setShowWhen(false)
             .setCategory(Notification.CATEGORY_SERVICE)
-            .addAction(R.drawable.ic_launcher, "Stop", pendingStop)
+            .addAction(R.drawable.ic_launcher, "Trackpad", pendingOpen)
             .build()
     }
 
@@ -124,7 +107,6 @@ class HidSessionService : Service() {
         private const val CHANNEL_ID = "codecks_hid_session"
         private const val NOTIFICATION_ID = 4201
         private const val HID_KEEP_ALIVE_MS = 15_000L
-        private const val ACTION_STOP = "app.codecks.action.STOP_HID_SESSION"
 
         fun start(context: Context) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&

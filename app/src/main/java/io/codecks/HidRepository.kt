@@ -59,6 +59,7 @@ enum class HidCommand {
     OpenDocument,
     CloseWindow,
     Enter,
+    CommandEnter,
     Tab,
     Escape,
     Backspace,
@@ -77,6 +78,7 @@ enum class HidCommand {
     WindowSwitcher,
     BrowserBack,
     BrowserForward,
+    Reload,
     SpaceLeft,
     SpaceRight,
     ScreenshotArea,
@@ -204,6 +206,7 @@ class DefaultHidRepository @Inject constructor(
             HidCommand.OpenDocument -> key(HidReports.MOD_GUI, HidReports.KEY_O)
             HidCommand.CloseWindow -> key(HidReports.MOD_GUI, HidReports.KEY_W)
             HidCommand.Enter -> key(0, HidReports.KEY_ENTER)
+            HidCommand.CommandEnter -> key(HidReports.MOD_GUI, HidReports.KEY_ENTER)
             HidCommand.Tab -> key(0, HidReports.KEY_TAB)
             HidCommand.Escape -> key(0, HidReports.KEY_ESC)
             HidCommand.Backspace -> key(0, HidReports.KEY_BACKSPACE)
@@ -222,6 +225,7 @@ class DefaultHidRepository @Inject constructor(
             HidCommand.WindowSwitcher -> key(HidReports.MOD_GUI, HidReports.KEY_GRAVE)
             HidCommand.BrowserBack -> key(HidReports.MOD_GUI, HidReports.KEY_LEFT_BRACKET)
             HidCommand.BrowserForward -> key(HidReports.MOD_GUI, HidReports.KEY_RIGHT_BRACKET)
+            HidCommand.Reload -> key(HidReports.MOD_GUI, HidReports.KEY_R)
             HidCommand.SpaceLeft -> key(HidReports.MOD_CTRL, HidReports.KEY_LEFT)
             HidCommand.SpaceRight -> key(HidReports.MOD_CTRL, HidReports.KEY_RIGHT)
             HidCommand.ScreenshotArea -> key(

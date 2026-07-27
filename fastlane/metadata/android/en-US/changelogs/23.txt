@@ -1,0 +1,1 @@
+Keyboard Send now types, presses Enter, and clears after success. Adds dedicated Enter controls, cleaner Deck feedback, Trackpad accessibility/overlay fixes, `codecks://trackpad`, Tasker/NFC guidance, a pointer-only lockscreen surface, and default-off Reactive/KMP protocol foundations. Release shrinking remains disabled to protect SSH.

@@ -60,6 +60,9 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import dagger.hilt.android.AndroidEntryPoint
 import io.codecks.core.actions.ActionRunner
+import io.codecks.core.reactive.DefaultReactiveActionExecutor
+import io.codecks.core.reactive.reactiveActionRevision
+import io.codecks.core.reactive.defaultReactiveTrackpadEngine
 import io.codecks.core.trackpad.TrackpadSettings
 import io.codecks.core.trackpad.TrackpadSettingsRepository
 import io.codecks.domain.ActionKind
@@ -69,9 +72,12 @@ import io.codecks.domain.isRunnableFromSmartSuggestion
 import io.codecks.data.ai.AndroidSecureApiKeyStore
 import io.codecks.data.clipboard.ClipboardSettingsRepository
 import io.codecks.data.clipboard.ClipboardSyncSettings
+import io.codecks.data.ActionRepository
 import io.codecks.data.ConnectionRepository
 import io.codecks.data.CodecksBackupRepository
 import io.codecks.data.features.LocalFeatureFlagRepository
+import io.codecks.data.reactive.LiveMacStateInputs
+import io.codecks.data.reactive.LiveMacStateRepository
 import io.codecks.data.context.NotificationPreview
 import io.codecks.data.context.ContextFeatureStatus
 import io.codecks.data.context.NotificationPrivacySettings
@@ -109,13 +115,18 @@ import io.codecks.ui.ai.AiProviderSettingsRoute
 import io.codecks.ui.clipboard.ClipboardScreen
 import io.codecks.ui.clipboard.ClipboardViewModel
 import io.codecks.ui.editor.DeckEditorScreen
+import io.codecks.ui.home.HomeStatusFeedback
 import io.codecks.ui.home.HomeScreen
 import io.codecks.ui.home.HomeViewModel
+import io.codecks.ui.home.homeStatusFeedback
 import io.codecks.ui.keyboard.KeyboardScreen
 import io.codecks.ui.keyboard.KeyboardViewModel
 import io.codecks.ui.mouse.MouseScreen
 import io.codecks.ui.mouse.MouseViewModel
 import io.codecks.ui.mouse.TrackpadHostScreen
+import io.codecks.ui.mouse.reactive.ReactiveTrackpadCard
+import io.codecks.ui.mouse.reactive.ReactiveTrackpadViewModel
+import io.codecks.ui.mouse.reactive.reactiveTrackpadViewModelFactory
 import io.codecks.ui.palette.CommandPaletteScreen
 import io.codecks.ui.runlog.RunLogScreen
 import io.codecks.ui.settings.SettingsScreen
@@ -161,6 +172,7 @@ import kotlinx.coroutines.withContext
 class MainActivity : ComponentActivity() {
     @Inject lateinit var hidRepository: HidRepository
     @Inject lateinit var actionRunner: ActionRunner
+    @Inject lateinit var actionRepository: ActionRepository
     @Inject lateinit var connectionRepository: ConnectionRepository
     @Inject lateinit var deviceRepository: DeviceRepository
     @Inject lateinit var backupRepository: CodecksBackupRepository
@@ -192,6 +204,7 @@ class MainActivity : ComponentActivity() {
                     window = window,
                     hidRepository = hidRepository,
                     actionRunner = actionRunner,
+                    actionRepository = actionRepository,
                     connectionRepository = connectionRepository,
                     deviceRepository = deviceRepository,
                     backupRepository = backupRepository,
@@ -242,6 +255,7 @@ class MainActivity : ComponentActivity() {
         destinationRequest = resolveDestinationRequest(
             action = intent?.action,
             type = intent?.type,
+            dataUri = intent?.dataString,
             destination = intent?.getStringExtra(EXTRA_DESTINATION),
             providedToken = intent?.getStringExtra(InternalIntentAuth.EXTRA_TOKEN),
             expectedToken = InternalIntentAuth.token(this),
@@ -284,6 +298,7 @@ private fun CodecksApp(
     window: android.view.Window,
     hidRepository: HidRepository,
     actionRunner: ActionRunner,
+    actionRepository: ActionRepository,
     connectionRepository: ConnectionRepository,
     deviceRepository: DeviceRepository,
     backupRepository: CodecksBackupRepository,
@@ -315,6 +330,7 @@ private fun CodecksApp(
     val featureFlags by featureFlagRepository.flags.collectAsStateWithLifecycle(initialValue = emptyMap())
     val smartDeckEnabled =
         featureFlags.focusedEnabled(FeatureFlag.SmartSuggestions) && featureFlags.focusedEnabled(FeatureFlag.SmartDeck)
+    val reactiveTrackpadEnabled = featureFlags.focusedEnabled(FeatureFlag.ReactiveTrackpad)
     val notificationFeaturesEnabled = BuildConfig.OPTIONAL_CONTEXT_SURFACES_ENABLED
     val phoneNotificationFlow = remember(notificationFeaturesEnabled) {
         if (notificationFeaturesEnabled) {
@@ -438,6 +454,49 @@ private fun CodecksApp(
             deviceRepository.currentDeviceId()?.value?.let { SmartMacId(it) }
         }.getOrNull()
     }
+    val reactiveMacStateRepository = remember { LiveMacStateRepository() }
+    val reactiveEngine = remember(actionRepository) {
+        defaultReactiveTrackpadEngine(
+            actionRevisions = actionRepository.allActions().associate { action ->
+                action.id to action.reactiveActionRevision()
+            },
+        )
+    }
+    val reactiveExecutor = remember(actionRepository, actionRunner, hidRepository) {
+        DefaultReactiveActionExecutor(
+            actionRepository = actionRepository,
+            actionRunner = actionRunner,
+            hidRepository = hidRepository,
+        )
+    }
+    val reactiveTrackpadViewModel: ReactiveTrackpadViewModel = viewModel(
+        key = "reactive-trackpad",
+        factory = remember(reactiveMacStateRepository, reactiveEngine, reactiveExecutor) {
+            reactiveTrackpadViewModelFactory(
+                macStateRepository = reactiveMacStateRepository,
+                engine = reactiveEngine,
+                executor = reactiveExecutor,
+            )
+        },
+    )
+    LaunchedEffect(
+        smartSelectedMacId,
+        homeState.connectionReady,
+        hidState.isConnected,
+        homeState.activeMacApp,
+    ) {
+        reactiveMacStateRepository.update(
+            LiveMacStateInputs(
+                selectedMacId = smartSelectedMacId?.value,
+                macCommandsReady = homeState.connectionReady,
+                macInputConnected = hidState.isConnected,
+                activeMacApp = homeState.activeMacApp,
+            ),
+        )
+    }
+    LaunchedEffect(currentRoute, reactiveTrackpadEnabled) {
+        reactiveTrackpadViewModel.setVisible(reactiveTrackpadEnabled && currentRoute == MouseRoute)
+    }
     val smartSuggestions by smartDeckViewModel.suggestions.collectAsStateWithLifecycle(emptyList())
     val smartRunPending by smartDeckViewModel.runPending.collectAsStateWithLifecycle()
     val pendingDangerousSmartSuggestion by smartDeckViewModel.pendingDangerousSuggestion.collectAsStateWithLifecycle()
@@ -546,6 +605,15 @@ private fun CodecksApp(
             }
         }
     }
+    LaunchedEffect(currentRoute, homeState.connectionReady, reactiveTrackpadEnabled) {
+        if (currentRoute == MouseRoute && homeState.connectionReady && reactiveTrackpadEnabled) {
+            homeViewModel.refreshActiveMacApp()
+            while (true) {
+                delay(10_000)
+                homeViewModel.refreshActiveMacApp()
+            }
+        }
+    }
 
     val currentNavigate by rememberUpdatedState<(NavKey, Boolean) -> Unit> { route, topLevel ->
         navigate(route, topLevel)
@@ -640,29 +708,26 @@ private fun CodecksApp(
             }
             else -> Unit
         }
-        val message = when (status) {
-            is ActionStatus.Succeeded -> status.message
-            is ActionStatus.Failed -> status.message
-            else -> null
-        }
-        if (message != null) {
-            val undoableDeckRemove = status is ActionStatus.Succeeded && status.actionId == "deck_remove"
-            val result = snackbarHostState.showSnackbar(
-                message = message,
-                actionLabel = when {
-                    undoableDeckRemove -> "Undo"
-                    message == "Connect your Mac first" -> "Set up"
-                    else -> null
-                },
-            )
-            if (result == SnackbarResult.ActionPerformed) {
-                if (undoableDeckRemove) {
-                    homeViewModel.undoLastDeckEdit()
-                } else {
-                    navigate(SettingsRoute)
-                }
+        when (val feedback = homeStatusFeedback(status)) {
+            HomeStatusFeedback.None -> Unit
+            is HomeStatusFeedback.TileOnly -> {
+                delay(feedback.lingerMillis)
+                homeViewModel.consumeResult()
             }
-            homeViewModel.consumeResult()
+            is HomeStatusFeedback.Snackbar -> {
+                val result = snackbarHostState.showSnackbar(
+                    message = feedback.message,
+                    actionLabel = feedback.actionLabel,
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    if (feedback.actionLabel == "Undo") {
+                        homeViewModel.undoLastDeckEdit()
+                    } else {
+                        navigate(SettingsRoute)
+                    }
+                }
+                homeViewModel.consumeResult()
+            }
         }
     }
 
@@ -827,6 +892,13 @@ private fun CodecksApp(
                             onConnection = hidRepository::refreshHosts,
                             onFullscreen = {
                                 if (fullscreen) fullscreenOverride = false else fullscreenConfirmOpen = true
+                            },
+                            topContent = {
+                                ReactiveTrackpadCard(
+                                    enabled = reactiveTrackpadEnabled,
+                                    viewModel = reactiveTrackpadViewModel,
+                                    modifier = Modifier.padding(bottom = 8.dp),
+                                )
                             },
                         ) { childPadding ->
                             MouseDestination(
