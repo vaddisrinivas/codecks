@@ -143,6 +143,7 @@ fun SettingsScreen(
     onConnectionSavePassword: () -> Unit = {},
     onConnectionUseSavedPassword: () -> Unit = {},
     onConnectionTest: () -> Unit = {},
+    onReactiveHelperPairingImport: (String) -> Unit = {},
     onOpenMacHelper: () -> Unit = {},
     onNotificationAccess: () -> Unit,
     onNotificationPrivacyChange: ((NotificationPrivacySettings) -> NotificationPrivacySettings) -> Unit = {},
@@ -249,6 +250,7 @@ fun SettingsScreen(
                             onSavePassword = onConnectionSavePassword,
                             onUseSavedPassword = onConnectionUseSavedPassword,
                             onTest = onConnectionTest,
+                            onReactiveHelperPairingImport = onReactiveHelperPairingImport,
                             onOpenMacHelper = onOpenMacHelper,
                         )
                     }
@@ -497,6 +499,7 @@ private fun MacConnectionSettingsPanel(
     onSavePassword: () -> Unit,
     onUseSavedPassword: () -> Unit,
     onTest: () -> Unit,
+    onReactiveHelperPairingImport: (String) -> Unit,
     onOpenMacHelper: () -> Unit,
 ) {
     val parsedPort = state.port.toIntOrNull()
@@ -519,6 +522,7 @@ private fun MacConnectionSettingsPanel(
         else -> MacPairingStep.Authorize
     }
     var advancedOpen by rememberSaveable { mutableStateOf(false) }
+    var reactiveHelperPairingJson by rememberSaveable { mutableStateOf("") }
     CodecksPanel(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
@@ -685,6 +689,24 @@ private fun MacConnectionSettingsPanel(
                     title = "Open GitHub helper page",
                     summary = "Browser-only fallback with copyable JS snippets. Use this only if in-app SSH pairing gets stuck.",
                     onClick = onOpenMacHelper,
+                )
+                OutlinedTextField(
+                    value = reactiveHelperPairingJson,
+                    onValueChange = { reactiveHelperPairingJson = it },
+                    label = { Text("Reactive helper pairing JSON") },
+                    supportingText = { Text("Paste output from: codecks-mac-helper print-pairing-json") },
+                    minLines = 2,
+                    maxLines = 5,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                DeckActionButton(
+                    label = "Import helper pairing",
+                    onClick = {
+                        onReactiveHelperPairingImport(reactiveHelperPairingJson)
+                        reactiveHelperPairingJson = ""
+                    },
+                    enabled = reactiveHelperPairingJson.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                     DeckActionButton(

@@ -1133,6 +1133,19 @@ private fun CodecksApp(
                                 scope.launch { settingsConnectionSetupController.useSavedPassword() }
                             },
                             onConnectionTest = connectionViewModel::test,
+                            onReactiveHelperPairingImport = { payload ->
+                                scope.launch {
+                                    val result = withContext(Dispatchers.IO) {
+                                        runCatching { reactiveHelperPairingImporter.importJson(payload) }
+                                    }
+                                    snackbarHostState.showSnackbar(
+                                        result.fold(
+                                            onSuccess = { "Reactive helper paired: ${it.displayName}" },
+                                            onFailure = { it.message ?: "Reactive helper pairing failed" },
+                                        ),
+                                    )
+                                }
+                            },
                             onOpenMacHelper = {
                                 appContext.startActivity(
                                     Intent(
