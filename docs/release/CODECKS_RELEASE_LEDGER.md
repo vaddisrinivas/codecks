@@ -1,12 +1,12 @@
 # Codecks local-only release ledger
 
-Updated: July 27, 2026
+Updated: July 28, 2026
 
 | Contract | Public-release value |
 | --- | --- |
 | Product | Codecks |
 | Application ID | `app.codecks` |
-| Version | `0.1.23` (`versionCode` 23) |
+| Version | `0.1.24` (`versionCode` 24) |
 | Minimum Android | 9 / API 28 |
 | Target Android | API 37 |
 | Default mode | Local-only; no account, billing, hosted backend, database, analytics, or cloud sync |
