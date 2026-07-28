@@ -1,0 +1,28 @@
+{
+  "schema": "reactive.v1",
+  "macId": "mac-fixture",
+  "snapshotRevision": 7,
+  "capturedAtMillis": 2000,
+  "freshnessMillis": 5000,
+  "provenance": "helper",
+  "frontAppBundleId": "com.apple.finder",
+  "frontAppName": "Finder",
+  "capabilities": [
+    "state.front_app",
+    "action.execute"
+  ],
+  "displays": [
+    {
+      "displayId": "built-in",
+      "name": "Built-in Display",
+      "brightnessPercent": 70
+    }
+  ],
+  "activeWindow": {
+    "windowId": "finder-1",
+    "title": "Desktop",
+    "bundleId": "com.apple.finder",
+    "focused": true
+  },
+  "stale": false
+}

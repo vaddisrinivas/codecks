@@ -1,0 +1,20 @@
+{
+  "schema": "reactive.v1",
+  "receiptId": "receipt-fixture-timeout",
+  "operationId": "op-fixture-timeout",
+  "idempotencyKey": "idem-fixture-timeout",
+  "actionId": "macos.shortcuts.run",
+  "actionRevision": "rev-fixture-1",
+  "status": "timeout",
+  "startedAtMillis": 2000,
+  "completedAtMillis": 7000,
+  "resultCode": "timeout",
+  "partialFailures": [
+    {
+      "code": "timeout",
+      "message": "Shortcut exceeded the requested timeout.",
+      "retryable": true,
+      "safeForUser": true
+    }
+  ]
+}

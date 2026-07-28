@@ -1,0 +1,10 @@
+{
+  "schema": "reactive.v1",
+  "candidateId": "terminal-run-selection",
+  "providerId": "terminal",
+  "actionId": "macos.terminal.runSelection",
+  "confidence": 0.82,
+  "explanation": "Terminal is frontmost and selected text is shell-like.",
+  "policy": "confirm",
+  "conflicts": []
+}

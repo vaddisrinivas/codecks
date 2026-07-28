@@ -1,0 +1,15 @@
+{
+  "schema": "reactive.v1",
+  "type": "execute",
+  "actionId": "macos.finder.reveal",
+  "actionRevision": "rev-fixture-1",
+  "operationId": "op-fixture-timeout-bad",
+  "idempotencyKey": "idem-fixture-timeout-bad",
+  "timeoutMillis": 300001,
+  "cancellationToken": "cancel-fixture-1",
+  "preconditions": [],
+  "arguments": {
+    "path": "/Users/example/Desktop/report.pdf"
+  },
+  "expectedError": "timeout"
+}

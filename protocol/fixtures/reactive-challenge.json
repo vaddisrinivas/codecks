@@ -1,7 +1,15 @@
 {
   "schema": "reactive.v1",
+  "selectedMajor": 1,
   "sessionId": "session-fixture",
   "serverNonce": "server-nonce-fixture",
   "expiresAtMillis": 5000,
-  "macId": "mac-fixture"
+  "macId": "mac-fixture",
+  "helperIdentity": {
+    "helperId": "mac-helper-fixture",
+    "publicKeyFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "issuedAtMillis": 1000,
+    "trustState": "verified"
+  },
+  "verificationCode": "123456"
 }

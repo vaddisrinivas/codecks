@@ -105,15 +105,7 @@ class ReactiveTrackpadViewModel(
     init {
         viewModelScope.launch {
             combine(macStateRepository.state, _mode) { macState, mode ->
-                if (macState == null) {
-                    emptyList()
-                } else {
-                    engine.controls(
-                        state = macState,
-                        context = ReactiveTrackpadContext(mode = mode),
-                        nowMillis = nowMillis(),
-                    ).controls
-                }
+                controlsFor(macState, mode)
             }.collect { controls ->
                 _controls.value = controls
             }
@@ -187,8 +179,24 @@ class ReactiveTrackpadViewModel(
                 else -> {
                     _pendingConfirmation.value = null
                     _lastResult.value = result
+                    _controls.value = controlsFor(macStateRepository.state.value, _mode.value)
                 }
             }
+        }
+    }
+
+    private fun controlsFor(
+        macState: MacStateSnapshot?,
+        mode: ReactiveTrackpadMode,
+    ): List<ReactiveControl> {
+        return if (macState == null) {
+            emptyList()
+        } else {
+            engine.controls(
+                state = macState,
+                context = ReactiveTrackpadContext(mode = mode),
+                nowMillis = nowMillis(),
+            ).controls
         }
     }
 }

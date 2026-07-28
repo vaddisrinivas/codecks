@@ -60,11 +60,14 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import dagger.hilt.android.AndroidEntryPoint
 import io.codecks.core.actions.ActionRunner
+import io.codecks.core.reactive.ConnectionRepositoryReactiveSftpTransferClient
 import io.codecks.core.reactive.DefaultReactiveActionExecutor
+import io.codecks.core.reactive.StateFlowReactiveHelperActionClient
 import io.codecks.core.reactive.reactiveActionRevision
 import io.codecks.core.reactive.defaultReactiveTrackpadEngine
 import io.codecks.core.trackpad.TrackpadSettings
 import io.codecks.core.trackpad.TrackpadSettingsRepository
+import io.codecks.domain.reactive.InMemoryReactiveReceiptStore
 import io.codecks.domain.ActionKind
 import io.codecks.domain.ActionStatus
 import io.codecks.domain.DeckAction
@@ -78,6 +81,10 @@ import io.codecks.data.CodecksBackupRepository
 import io.codecks.data.features.LocalFeatureFlagRepository
 import io.codecks.data.reactive.LiveMacStateInputs
 import io.codecks.data.reactive.LiveMacStateRepository
+import io.codecks.data.reactive.helper.ReactiveHelperPairingImporter
+import io.codecks.data.reactive.helper.reactiveHelperPairingJsonFromUri
+import io.codecks.data.reactive.state.ConnectionRepositorySshMacStateSource
+import io.codecks.data.reactive.state.StateFlowReactiveHelperClientMacStateSource
 import io.codecks.data.context.NotificationPreview
 import io.codecks.data.context.ContextFeatureStatus
 import io.codecks.data.context.NotificationPrivacySettings
@@ -152,6 +159,13 @@ import io.codecks.domain.features.LocalOnlyEntitlementRepository
 import io.codecks.domain.smart.SmartAppKey
 import io.codecks.domain.smart.SmartMacId
 import io.codecks.domain.smart.SmartSurface
+import io.codecks.platform.helper.ReactiveHelperDiscovery
+import io.codecks.platform.helper.ReactiveHelperEndpoint
+import io.codecks.platform.helper.ReactiveHelperIdentityStore
+import io.codecks.platform.helper.ReactiveHelperSecretStore
+import io.codecks.platform.helper.ReactiveHelperSessionManager
+import io.codecks.platform.helper.ReactiveHelperSessionStatus
+import io.codecks.platform.helper.TcpReactiveHelperTransportFactory
 import io.codecks.ui.app.LocalActionDispatcher
 import io.codecks.domain.privacy.DiagnosticRedactor
 import io.codecks.domain.device.DeviceRepository
@@ -176,8 +190,13 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var connectionRepository: ConnectionRepository
     @Inject lateinit var deviceRepository: DeviceRepository
     @Inject lateinit var backupRepository: CodecksBackupRepository
+    @Inject lateinit var reactiveHelperDiscovery: ReactiveHelperDiscovery
+    @Inject lateinit var reactiveHelperIdentityStore: ReactiveHelperIdentityStore
+    @Inject lateinit var reactiveHelperSecretStore: ReactiveHelperSecretStore
+    @Inject lateinit var reactiveHelperPairingImporter: ReactiveHelperPairingImporter
 
     private var destinationRequest by mutableStateOf<String?>(null)
+    private var pendingReactiveHelperPairingJson by mutableStateOf<String?>(null)
     private var hardwareKeyHandler: ((KeyEvent) -> Boolean)? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -208,6 +227,12 @@ class MainActivity : ComponentActivity() {
                     connectionRepository = connectionRepository,
                     deviceRepository = deviceRepository,
                     backupRepository = backupRepository,
+                    reactiveHelperDiscovery = reactiveHelperDiscovery,
+                    reactiveHelperIdentityStore = reactiveHelperIdentityStore,
+                    reactiveHelperSecretStore = reactiveHelperSecretStore,
+                    reactiveHelperPairingImporter = reactiveHelperPairingImporter,
+                    pendingReactiveHelperPairingJson = pendingReactiveHelperPairingJson,
+                    onReactiveHelperPairingConsumed = { pendingReactiveHelperPairingJson = null },
                     themeSettings = themeSettings,
                     onThemeModeChange = { mode -> themeScope.launch { themeSettingsRepository.setMode(mode) } },
                     onThemeAccentChange = { accent -> themeScope.launch { themeSettingsRepository.setAccent(accent) } },
@@ -252,6 +277,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun acceptIntent(intent: Intent?) {
+        reactiveHelperPairingJsonFromUri(intent?.dataString)?.let { payload ->
+            pendingReactiveHelperPairingJson = payload
+            destinationRequest = "pairing"
+            return
+        }
         destinationRequest = resolveDestinationRequest(
             action = intent?.action,
             type = intent?.type,
@@ -302,6 +332,12 @@ private fun CodecksApp(
     connectionRepository: ConnectionRepository,
     deviceRepository: DeviceRepository,
     backupRepository: CodecksBackupRepository,
+    reactiveHelperDiscovery: ReactiveHelperDiscovery,
+    reactiveHelperIdentityStore: ReactiveHelperIdentityStore,
+    reactiveHelperSecretStore: ReactiveHelperSecretStore,
+    reactiveHelperPairingImporter: ReactiveHelperPairingImporter,
+    pendingReactiveHelperPairingJson: String?,
+    onReactiveHelperPairingConsumed: () -> Unit,
     themeSettings: CodecksThemeSettings,
     onThemeModeChange: (CodecksThemeMode) -> Unit,
     onThemeAccentChange: (CodecksAccent) -> Unit,
@@ -351,6 +387,19 @@ private fun CodecksApp(
     }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(pendingReactiveHelperPairingJson) {
+        val payload = pendingReactiveHelperPairingJson ?: return@LaunchedEffect
+        val result = withContext(Dispatchers.IO) {
+            runCatching { reactiveHelperPairingImporter.importJson(payload) }
+        }
+        snackbarHostState.showSnackbar(
+            result.fold(
+                onSuccess = { "Reactive helper paired: ${it.displayName}" },
+                onFailure = { it.message ?: "Reactive helper pairing failed" },
+            ),
+        )
+        onReactiveHelperPairingConsumed()
+    }
     var pendingBackupPayload by remember { mutableStateOf<String?>(null) }
     val exportBackupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
@@ -454,19 +503,73 @@ private fun CodecksApp(
             deviceRepository.currentDeviceId()?.value?.let { SmartMacId(it) }
         }.getOrNull()
     }
-    val reactiveMacStateRepository = remember { LiveMacStateRepository() }
-    val reactiveEngine = remember(actionRepository) {
+    val reactiveHelperSessionManager = remember(
+        reactiveHelperIdentityStore,
+        reactiveHelperSecretStore,
+    ) {
+        val androidId = Settings.Secure
+            .getString(appContext.contentResolver, Settings.Secure.ANDROID_ID)
+            .orEmpty()
+            .ifBlank { "unknown" }
+        ReactiveHelperSessionManager(
+            identityStore = reactiveHelperIdentityStore,
+            secretStore = reactiveHelperSecretStore,
+            transportFactory = TcpReactiveHelperTransportFactory(),
+            deviceId = "android-$androidId",
+        )
+    }
+    val discoveredReactiveHelpers by reactiveHelperDiscovery.helpers.collectAsStateWithLifecycle(emptyList())
+    val reactiveHelperStatus by reactiveHelperSessionManager.status.collectAsStateWithLifecycle()
+    DisposableEffect(reactiveHelperDiscovery) {
+        reactiveHelperDiscovery.start()
+        onDispose { reactiveHelperDiscovery.stop() }
+    }
+    LaunchedEffect(discoveredReactiveHelpers, smartSelectedMacId, reactiveHelperStatus) {
+        val selectedMacId = smartSelectedMacId?.value ?: return@LaunchedEffect
+        when (reactiveHelperStatus) {
+            is ReactiveHelperSessionStatus.Connected,
+            is ReactiveHelperSessionStatus.Connecting,
+            -> return@LaunchedEffect
+            else -> Unit
+        }
+        val helper = discoveredReactiveHelpers.firstOrNull() ?: return@LaunchedEffect
+        runCatching {
+            reactiveHelperSessionManager.connect(
+                endpoint = ReactiveHelperEndpoint(helper.host, helper.port),
+                macId = selectedMacId,
+            )
+        }
+    }
+    val reactiveMacStateRepository = remember(connectionRepository, reactiveHelperSessionManager) {
+        LiveMacStateRepository(
+            helperSource = StateFlowReactiveHelperClientMacStateSource(reactiveHelperSessionManager.client),
+            sshSource = ConnectionRepositorySshMacStateSource(connectionRepository),
+        )
+    }
+    val reactiveReceiptStore = remember { InMemoryReactiveReceiptStore() }
+    val reactiveEngine = remember(actionRepository, reactiveReceiptStore) {
         defaultReactiveTrackpadEngine(
             actionRevisions = actionRepository.allActions().associate { action ->
                 action.id to action.reactiveActionRevision()
             },
+            receipts = reactiveReceiptStore::all,
         )
     }
-    val reactiveExecutor = remember(actionRepository, actionRunner, hidRepository) {
+    val reactiveExecutor = remember(
+        actionRepository,
+        actionRunner,
+        hidRepository,
+        reactiveReceiptStore,
+        connectionRepository,
+        reactiveHelperSessionManager,
+    ) {
         DefaultReactiveActionExecutor(
             actionRepository = actionRepository,
             actionRunner = actionRunner,
             hidRepository = hidRepository,
+            receiptStore = reactiveReceiptStore,
+            helperActionClient = StateFlowReactiveHelperActionClient(reactiveHelperSessionManager.actionClient),
+            sftpTransferClient = ConnectionRepositoryReactiveSftpTransferClient(connectionRepository),
         )
     }
     val reactiveTrackpadViewModel: ReactiveTrackpadViewModel = viewModel(
@@ -1030,6 +1133,19 @@ private fun CodecksApp(
                                 scope.launch { settingsConnectionSetupController.useSavedPassword() }
                             },
                             onConnectionTest = connectionViewModel::test,
+                            onReactiveHelperPairingImport = { payload ->
+                                scope.launch {
+                                    val result = withContext(Dispatchers.IO) {
+                                        runCatching { reactiveHelperPairingImporter.importJson(payload) }
+                                    }
+                                    snackbarHostState.showSnackbar(
+                                        result.fold(
+                                            onSuccess = { "Reactive helper paired: ${it.displayName}" },
+                                            onFailure = { it.message ?: "Reactive helper pairing failed" },
+                                        ),
+                                    )
+                                }
+                            },
                             onOpenMacHelper = {
                                 appContext.startActivity(
                                     Intent(

@@ -14,6 +14,7 @@ import io.codecks.domain.reactive.ObservationStatus
 import io.codecks.domain.reactive.Observed
 import io.codecks.domain.reactive.ReactiveAction
 import io.codecks.domain.reactive.ReactiveActionExecutor
+import io.codecks.domain.reactive.ReactiveActionInvocation
 import io.codecks.domain.reactive.ReactiveActionResult
 import io.codecks.domain.reactive.ReactiveAuthorization
 import io.codecks.domain.reactive.ReactiveControl
@@ -24,6 +25,8 @@ import io.codecks.domain.reactive.ReactiveIcon
 import io.codecks.domain.reactive.ReactiveRisk
 import io.codecks.domain.reactive.ReactiveTrackpadContext
 import io.codecks.domain.reactive.ReactiveTrackpadMode
+import io.codecks.domain.reactive.ReactiveUndoOutcome
+import io.codecks.domain.reactive.ReceiptId
 import io.codecks.domain.reactive.StateSource
 import io.codecks.domain.reactive.TrackpadVisibility
 import io.codecks.domain.reactive.ActionRevision
@@ -120,6 +123,35 @@ class ReactiveTrackpadViewModelTest {
     }
 
     @Test
+    fun successRefreshesControlsForReceiptBackedUndoProvider() = runTest(dispatcher) {
+        val repo = FakeMacStateRepository(initialState = sampleState())
+        val engine = SequencedReactiveEngine(
+            ArrayDeque(
+                listOf(
+                    ReactiveDecision(controls = listOf(sampleControl())),
+                    ReactiveDecision(controls = listOf(sampleControl(), sampleControl(id = "reactive_undo", title = "Undo Reload"))),
+                ),
+            ),
+        )
+        val viewModel = ReactiveTrackpadViewModel(
+            macStateRepository = repo,
+            engine = engine,
+            executor = FakeReactiveExecutor(
+                next = ReactiveExecutionOutcome(ReactiveActionResult.Succeeded("catalog_action_succeeded")),
+            ),
+            nowMillis = { 9_000L },
+        )
+        advanceUntilIdle()
+
+        viewModel.runControl(sampleControl().id)
+        advanceUntilIdle()
+
+        assertEquals(listOf("Reload", "Undo Reload"), viewModel.uiState.value.controls.map { it.title })
+        assertEquals(2, engine.calls)
+    }
+
+
+    @Test
     fun confirmationFlowsThroughPendingAndConfirm() = runTest(dispatcher) {
         val repo = FakeMacStateRepository(initialState = sampleState())
         val executor = FakeReactiveExecutor(
@@ -176,9 +208,12 @@ class ReactiveTrackpadViewModelTest {
         assertEquals(sampleControl().actionRevision, executor.lastAuthorization?.reviewedActionRevision)
     }
 
-    private fun sampleControl(): ReactiveControl = ReactiveControl(
-        id = ControlId("reactive_reload"),
-        title = "Reload",
+    private fun sampleControl(
+        id: String = "reactive_reload",
+        title: String = "Reload",
+    ): ReactiveControl = ReactiveControl(
+        id = ControlId(id),
+        title = title,
         subtitle = "Refresh tab",
         icon = ReactiveIcon.Reload,
         action = ReactiveAction.ExistingCatalog("reload"),
@@ -269,6 +304,21 @@ private class FakeReactiveEngine(
     ): ReactiveDecision = decision
 }
 
+private class SequencedReactiveEngine(
+    private val decisions: ArrayDeque<ReactiveDecision>,
+) : ReactiveEngine {
+    var calls = 0
+
+    override fun controls(
+        state: MacStateSnapshot,
+        context: ReactiveTrackpadContext,
+        nowMillis: Long,
+    ): ReactiveDecision {
+        calls += 1
+        return decisions.removeFirstOrNull() ?: ReactiveDecision(emptyList())
+    }
+}
+
 private class FakeReactiveExecutor(
     private val next: ReactiveExecutionOutcome = ReactiveExecutionOutcome(ReactiveActionResult.Succeeded("ok")),
     private val nextSequence: ArrayDeque<ReactiveExecutionOutcome> = ArrayDeque(),
@@ -281,9 +331,16 @@ private class FakeReactiveExecutor(
         authorization: ReactiveAuthorization,
         nowMillis: Long,
         currentState: MacStateSnapshot?,
+        invocation: ReactiveActionInvocation,
     ): ReactiveExecutionOutcome {
         lastControlId = control.id
         lastAuthorization = authorization
         return nextSequence.removeFirstOrNull() ?: next
     }
+
+    override suspend fun undo(
+        receiptId: ReceiptId,
+        nowMillis: Long,
+        invocation: ReactiveActionInvocation?,
+    ): ReactiveUndoOutcome = ReactiveUndoOutcome.Unsupported("test_executor_no_undo")
 }

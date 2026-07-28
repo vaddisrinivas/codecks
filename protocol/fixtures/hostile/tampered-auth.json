@@ -1,0 +1,10 @@
+{
+  "schema": "reactive.v1",
+  "sessionId": "session-fixture",
+  "sequence": 1,
+  "requestId": "request-fixture-auth",
+  "deadlineMillis": 4000,
+  "bodyJson": "{\"type\":\"basic_state\"}",
+  "authTag": "tampered",
+  "expectedError": "auth"
+}

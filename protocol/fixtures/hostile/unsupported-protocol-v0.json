@@ -1,0 +1,7 @@
+{
+  "schema": "reactive.v0",
+  "deviceId": "phone-fixture",
+  "clientNonce": "client-nonce-fixture",
+  "clientTimeMillis": 1000,
+  "expectedError": "protocol"
+}
