@@ -1,0 +1,797 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codecks.app/schemas/reactive-contract-v1.schema.json",
+  "title": "Codecks Reactive Contract v1 fixture families",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/hello"
+    },
+    {
+      "$ref": "#/$defs/challenge"
+    },
+    {
+      "$ref": "#/$defs/requestEnvelope"
+    },
+    {
+      "$ref": "#/$defs/capabilities"
+    },
+    {
+      "$ref": "#/$defs/stateSnapshot"
+    },
+    {
+      "$ref": "#/$defs/stateDelta"
+    },
+    {
+      "$ref": "#/$defs/providerCandidate"
+    },
+    {
+      "$ref": "#/$defs/execute"
+    },
+    {
+      "$ref": "#/$defs/receipt"
+    },
+    {
+      "$ref": "#/$defs/undoResult"
+    },
+    {
+      "$ref": "#/$defs/transfer"
+    }
+  ],
+  "$defs": {
+    "schema": {
+      "const": "reactive.v1"
+    },
+    "token": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "capability": {
+      "enum": [
+        "state.front_app",
+        "state.window",
+        "action.execute",
+        "action.undo",
+        "clipboard.selected_text",
+        "transfer.sftp",
+        "shortcuts.apple",
+        "brightness.monitor",
+        "accessibility.discovery"
+      ]
+    },
+    "helperIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "helperId",
+        "publicKeyFingerprint",
+        "issuedAtMillis",
+        "trustState"
+      ],
+      "properties": {
+        "helperId": {
+          "$ref": "#/$defs/token"
+        },
+        "publicKeyFingerprint": {
+          "type": "string",
+          "minLength": 32,
+          "maxLength": 128
+        },
+        "issuedAtMillis": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "trustState": {
+          "enum": [
+            "unverified",
+            "verified",
+            "revoked"
+          ]
+        }
+      }
+    },
+    "hello": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "deviceId",
+        "clientNonce",
+        "clientTimeMillis"
+      ],
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/schema"
+        },
+        "minMajor": {
+          "const": 1
+        },
+        "maxMajor": {
+          "const": 1
+        },
+        "deviceId": {
+          "$ref": "#/$defs/token"
+        },
+        "clientNonce": {
+          "$ref": "#/$defs/token"
+        },
+        "clientTimeMillis": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "supportedCapabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/capability"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "challenge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "selectedMajor",
+        "sessionId",
+        "serverNonce",
+        "expiresAtMillis",
+        "macId",
+        "helperIdentity",
+        "verificationCode"
+      ],
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/schema"
+        },
+        "selectedMajor": {
+          "const": 1
+        },
+        "sessionId": {
+          "$ref": "#/$defs/token"
+        },
+        "serverNonce": {
+          "$ref": "#/$defs/token"
+        },
+        "expiresAtMillis": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "macId": {
+          "$ref": "#/$defs/token"
+        },
+        "helperIdentity": {
+          "$ref": "#/$defs/helperIdentity"
+        },
+        "verificationCode": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 12
+        }
+      }
+    },
+    "requestEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "sessionId",
+        "sequence",
+        "requestId",
+        "deadlineMillis",
+        "bodyJson",
+        "authTag"
+      ],
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/schema"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/token"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "requestId": {
+          "$ref": "#/$defs/token"
+        },
+        "deadlineMillis": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bodyJson": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536
+        },
+        "authTag": {
+          "$ref": "#/$defs/token"
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "helperId",
+        "protocolMajor",
+        "values",
+        "providers"
+      ],
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/schema"
+        },
+        "helperId": {
+          "$ref": "#/$defs/token"
+        },
+        "protocolMajor": {
+          "const": 1
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/capability"
+          },
+          "uniqueItems": true
+        },
+        "providers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/providerCapability"
+          }
+        }
+      }
+    },
+    "providerCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "providerId",
+        "capabilities",
+        "confidenceFloor",
+        "requiresConfirmation"
+      ],
+      "properties": {
+        "providerId": {
+          "$ref": "#/$defs/token"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/capability"
+          },
+          "uniqueItems": true
+        },
+        "confidenceFloor": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "requiresConfirmation": {
+          "type": "boolean"
+        }
+      }
+    },
+    "stateSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "macId",
+        "snapshotRevision",
+        "capturedAtMillis",
+        "freshnessMillis",
+        "provenance",
+        "stale"
+      ],
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/schema"
+        },
+        "macId": {
+          "$ref": "#/$defs/token"
+        },
+        "snapshotRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "capturedAtMillis": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "freshnessMillis": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "frontAppBundleId": {
+          "type": "string"
+        },
+        "frontAppName": {
+          "type": "string"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/capability"
+          },
+          "uniqueItems": true
+        },
+        "displays": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/display"
+          }
+        },
+        "activeWindow": {
+          "$ref": "#/$defs/window"
+        },
+        "stale": {
+          "type": "boolean"
+        }
+      }
+    },
+    "stateDelta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "macId",
+        "baseRevision",
+        "newRevision",
+        "capturedAtMillis",
+        "provenance",
+        "changes"
+      ],
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/schema"
+        },
+        "macId": {
+          "$ref": "#/$defs/token"
+        },
+        "baseRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "newRevision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "capturedAtMillis": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "changes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/stateChange"
+          }
+        }
+      }
+    },
+    "providerCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "candidateId",
+        "providerId",
+        "actionId",
+        "confidence",
+        "explanation",
+        "policy",
+        "conflicts"
+      ],
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/schema"
+        },
+        "candidateId": {
+          "$ref": "#/$defs/token"
+        },
+        "providerId": {
+          "$ref": "#/$defs/token"
+        },
+        "actionId": {
+          "$ref": "#/$defs/token"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "explanation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy": {
+          "enum": [
+            "allow",
+            "confirm",
+            "deny"
+          ]
+        },
+        "conflicts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/conflict"
+          }
+        }
+      }
+    },
+    "execute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "type",
+        "actionId",
+        "actionRevision",
+        "operationId",
+        "idempotencyKey",
+        "timeoutMillis",
+        "cancellationToken",
+        "preconditions",
+        "arguments"
+      ],
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/schema"
+        },
+        "type": {
+          "const": "execute"
+        },
+        "actionId": {
+          "$ref": "#/$defs/token"
+        },
+        "actionRevision": {
+          "$ref": "#/$defs/token"
+        },
+        "operationId": {
+          "$ref": "#/$defs/token"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/token"
+        },
+        "timeoutMillis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300000
+        },
+        "cancellationToken": {
+          "$ref": "#/$defs/token"
+        },
+        "preconditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/precondition"
+          }
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "receiptId",
+        "operationId",
+        "idempotencyKey",
+        "actionId",
+        "actionRevision",
+        "status",
+        "startedAtMillis",
+        "completedAtMillis",
+        "resultCode",
+        "partialFailures"
+      ],
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/schema"
+        },
+        "receiptId": {
+          "$ref": "#/$defs/token"
+        },
+        "operationId": {
+          "$ref": "#/$defs/token"
+        },
+        "idempotencyKey": {
+          "$ref": "#/$defs/token"
+        },
+        "actionId": {
+          "$ref": "#/$defs/token"
+        },
+        "actionRevision": {
+          "$ref": "#/$defs/token"
+        },
+        "status": {
+          "enum": [
+            "accepted",
+            "completed",
+            "partial_failure",
+            "timeout",
+            "cancelled",
+            "failed",
+            "denied"
+          ]
+        },
+        "startedAtMillis": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "completedAtMillis": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "resultCode": {
+          "type": "string"
+        },
+        "undoToken": {
+          "type": "string"
+        },
+        "partialFailures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/error"
+          }
+        }
+      }
+    },
+    "undoResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "undoToken",
+        "status",
+        "completedAtMillis"
+      ],
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/schema"
+        },
+        "undoToken": {
+          "$ref": "#/$defs/token"
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "not_supported",
+            "expired",
+            "failed"
+          ]
+        },
+        "completedAtMillis": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "transfer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "transferId",
+        "fileName",
+        "byteCount",
+        "sha256",
+        "sourcePath",
+        "destinationHint",
+        "cleanupRequired"
+      ],
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/schema"
+        },
+        "transferId": {
+          "$ref": "#/$defs/token"
+        },
+        "fileName": {
+          "type": "string",
+          "minLength": 1,
+          "not": {
+            "pattern": "[/\\\\]"
+          }
+        },
+        "byteCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 52428800
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$"
+        },
+        "sourcePath": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "destinationHint": {
+          "type": "string"
+        },
+        "cleanupRequired": {
+          "type": "boolean"
+        }
+      }
+    },
+    "provenance": {
+      "enum": [
+        "helper",
+        "ssh",
+        "cached",
+        "test_fixture"
+      ]
+    },
+    "display": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "displayId",
+        "name"
+      ],
+      "properties": {
+        "displayId": {
+          "$ref": "#/$defs/token"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "brightnessPercent": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "windowId",
+        "title",
+        "bundleId",
+        "focused"
+      ],
+      "properties": {
+        "windowId": {
+          "$ref": "#/$defs/token"
+        },
+        "title": {
+          "type": "string"
+        },
+        "bundleId": {
+          "type": "string"
+        },
+        "focused": {
+          "type": "boolean"
+        }
+      }
+    },
+    "stateChange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "value": {},
+        "removed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "otherCandidateId",
+        "reason",
+        "message"
+      ],
+      "properties": {
+        "otherCandidateId": {
+          "$ref": "#/$defs/token"
+        },
+        "reason": {
+          "enum": [
+            "same_gesture",
+            "unsafe_effect",
+            "stale_state",
+            "unsupported_capability"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "precondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "state_revision_at_least",
+            "front_app_bundle",
+            "capability_available"
+          ]
+        },
+        "expectedRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expectedBundleId": {
+          "type": "string"
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "enum": [
+            "unsupported_protocol",
+            "authentication_required",
+            "pin_mismatch",
+            "replay_detected",
+            "clock_skew",
+            "unsupported_capability",
+            "precondition_failed",
+            "conflict",
+            "timeout",
+            "cancelled",
+            "partial_failure",
+            "transfer_too_large",
+            "path_denied",
+            "internal"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "safeForUser": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

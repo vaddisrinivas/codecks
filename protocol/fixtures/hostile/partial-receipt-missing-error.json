@@ -1,0 +1,14 @@
+{
+  "schema": "reactive.v1",
+  "receiptId": "receipt-fixture-partial-bad",
+  "operationId": "op-fixture-1",
+  "idempotencyKey": "idem-fixture-1",
+  "actionId": "macos.finder.reveal",
+  "actionRevision": "rev-fixture-1",
+  "status": "partial_failure",
+  "startedAtMillis": 2000,
+  "completedAtMillis": 2500,
+  "resultCode": "partial_failure",
+  "partialFailures": [],
+  "expectedError": "partial"
+}

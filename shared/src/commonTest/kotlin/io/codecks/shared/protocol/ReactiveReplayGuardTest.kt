@@ -18,7 +18,9 @@ class ReactiveReplayGuardTest {
     @Test
     fun rejectsReplayGapWrongSessionAndBadAuthWithoutAdvancing() {
         val guard = ReactiveReplayGuard("session") { it.authTag == "valid" }
-        assertTrue(guard.accept(request(1), 50))
+        val accepted = request(1)
+        assertTrue(guard.accept(accepted, 50))
+        assertFalse(guard.accept(accepted, 50))
         assertFalse(guard.accept(request(1, "new-request"), 50))
         assertFalse(guard.accept(request(3), 50))
         assertFalse(guard.accept(request(2).copy(sessionId = "other"), 50))

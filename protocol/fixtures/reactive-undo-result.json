@@ -1,0 +1,7 @@
+{
+  "schema": "reactive.v1",
+  "undoToken": "undo-fixture-1",
+  "status": "completed",
+  "completedAtMillis": 3000,
+  "message": "Finder reveal state restored."
+}

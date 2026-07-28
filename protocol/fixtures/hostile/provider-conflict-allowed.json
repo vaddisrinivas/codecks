@@ -1,0 +1,17 @@
+{
+  "schema": "reactive.v1",
+  "candidateId": "terminal-run-selection",
+  "providerId": "terminal",
+  "actionId": "macos.terminal.runSelection",
+  "confidence": 0.82,
+  "explanation": "Conflict must force confirm or deny.",
+  "policy": "allow",
+  "conflicts": [
+    {
+      "otherCandidateId": "browser-copy-url",
+      "reason": "same_gesture",
+      "message": "Same gesture."
+    }
+  ],
+  "expectedError": "conflict"
+}

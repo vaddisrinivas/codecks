@@ -1,0 +1,20 @@
+{
+  "schema": "reactive.v1",
+  "receiptId": "receipt-fixture-cancelled",
+  "operationId": "op-fixture-cancelled",
+  "idempotencyKey": "idem-fixture-cancelled",
+  "actionId": "macos.transfer.sftp",
+  "actionRevision": "rev-fixture-1",
+  "status": "cancelled",
+  "startedAtMillis": 2000,
+  "completedAtMillis": 3000,
+  "resultCode": "cancelled",
+  "partialFailures": [
+    {
+      "code": "cancelled",
+      "message": "User cancelled transfer.",
+      "retryable": false,
+      "safeForUser": true
+    }
+  ]
+}

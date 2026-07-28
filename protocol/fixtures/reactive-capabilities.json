@@ -1,0 +1,22 @@
+{
+  "schema": "reactive.v1",
+  "helperId": "mac-helper-fixture",
+  "protocolMajor": 1,
+  "values": [
+    "state.front_app",
+    "action.execute",
+    "action.undo",
+    "transfer.sftp"
+  ],
+  "providers": [
+    {
+      "providerId": "finder",
+      "capabilities": [
+        "state.front_app",
+        "action.execute"
+      ],
+      "confidenceFloor": 0.25,
+      "requiresConfirmation": false
+    }
+  ]
+}
