@@ -34,6 +34,7 @@ Status: active
 | WT05 | `codex/reactive-engine` | `<codecks-worktrees>/reactive/engine` | `70c91135d45a20e3647f3014cb3ee1f56b23363c` | policy, ranking, conflicts, stale-state handling, default app controls | merged at `06c0d8e` |
 | WT06 | `codex/reactive-execution` | `<codecks-worktrees>/reactive/execution` | `70c91135d45a20e3647f3014cb3ee1f56b23363c` | receipts, idempotency, timeout, undo scaffold | merged at `4e945ba` |
 | WT08 | `codex/reactive-profiles` | `<codecks-worktrees>/reactive/profiles` | `70c91135d45a20e3647f3014cb3ee1f56b23363c` | profile resolver, pinned/hidden/disabled/max-control preferences | merged at `bb43127` |
+| WT11 | `codex/reactive-deskdock` | `<codecks-worktrees>/reactive/deskdock` | `bdee9bbb3c746c2a0bddb5de3ae13eaab77f1b0c` | pure DeskDock scoring, hysteresis, dwell, cooldown, manual override | merged at `8c69d7f` |
 
 ## Evidence
 
@@ -55,3 +56,5 @@ Status: active
 - WT06 execution focused test: `./gradlew :app:testReleaseUnitTest --tests 'io.codecks.core.reactive.DefaultReactiveActionExecutorTest' --tests 'io.codecks.ui.mouse.reactive.ReactiveTrackpadViewModelTest' -PreleaseStoreFile=/tmp/codecks-unit-placeholder.jks -PreleaseKeyAlias=unit -PreleaseStorePassword=unit -PreleaseKeyPassword=unit`: pass.
 - WT08 profiles focused test: `./gradlew :app:testReleaseUnitTest --tests 'io.codecks.domain.reactive.*Profile*' -PreleaseStoreFile=/tmp/codecks-unit-placeholder.jks -PreleaseKeyAlias=unit -PreleaseStorePassword=unit -PreleaseKeyPassword=unit`: pass.
 - Integration checkpoint after WT05/WT06/WT08: protocol fixtures pass; shared JVM/iOS pass; focused Android Reactive/helper/state release unit tests pass with dummy signing props; secret surface pass; no-shrink pass; Mac helper Swift tests pass; `git diff --check` pass.
+- WT11 DeskDock focused test: `./gradlew :app:testReleaseUnitTest --tests '*DeskDock*' -PreleaseStoreFile=/tmp/codecks-unit-placeholder.jks -PreleaseKeyAlias=unit -PreleaseStorePassword=unit -PreleaseKeyPassword=unit`: pass. Dummy signing properties only; no APK signed or installed.
+- Integration checkpoint after WT11: focused DeskDock release unit tests pass; secret surface pass; no-shrink pass; `git diff --check` pass.
