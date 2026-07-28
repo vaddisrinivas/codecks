@@ -22,12 +22,17 @@ import io.codecks.domain.reactive.ActionRevision
 import io.codecks.domain.reactive.ControlId
 import io.codecks.domain.reactive.InMemoryReactiveReceiptStore
 import io.codecks.domain.reactive.ReactiveAction
+import io.codecks.domain.reactive.ReactiveActionInvocation
 import io.codecks.domain.reactive.ReactiveActionResult
 import io.codecks.domain.reactive.ReactiveAuthorization
 import io.codecks.domain.reactive.ReactiveControl
 import io.codecks.domain.reactive.ReactiveControlSource
 import io.codecks.domain.reactive.ReactiveIcon
 import io.codecks.domain.reactive.ReactiveRisk
+import io.codecks.domain.reactive.ReactiveIdempotencyKey
+import io.codecks.domain.reactive.ReactiveOperationId
+import io.codecks.domain.reactive.ReactiveUndoOutcome
+import io.codecks.domain.reactive.ReceiptId
 import io.codecks.domain.reactive.SharedHidCommand
 import io.codecks.domain.reactive.CapabilityAvailability
 import io.codecks.domain.reactive.CapabilityState
@@ -94,8 +99,113 @@ class DefaultReactiveActionExecutorTest {
         )
 
         assertEquals(ReactiveActionResult.Failed("hid_not_connected", true), outcome.result)
-        assertEquals(null, outcome.receipt)
-        assertTrue(receipts.all().isEmpty())
+        assertNotNull(outcome.receipt)
+        assertEquals(1, receipts.all().size)
+    }
+
+    @Test
+    fun replayingSameIdempotencyKeyReturnsStoredReceiptWithoutSendingAgain() = kotlinx.coroutines.test.runTest {
+        val receipts = InMemoryReactiveReceiptStore()
+        val hid = FakeHidRepository(isConnected = true)
+        val executor = DefaultReactiveActionExecutor(
+            actionRepository = FakeReactiveActionRepository(emptyList()),
+            actionRunner = FakeReactiveActionRunner(),
+            hidRepository = hid,
+            receiptStore = receipts,
+        )
+        val control = hidControl()
+        val invocation = ReactiveActionInvocation(
+            operationId = ReactiveOperationId("op-1"),
+            idempotencyKey = ReactiveIdempotencyKey("idem-1"),
+            requestedAtMillis = 10_000L,
+        )
+
+        val first = executor.execute(control, ReactiveAuthorization(), 10_001L, invocation = invocation)
+        val replay = executor.execute(control, ReactiveAuthorization(), 10_500L, invocation = invocation)
+
+        assertEquals(first.receipt?.id, replay.receipt?.id)
+        assertEquals(listOf(HidCommand.BrowserBack), hid.sentCommands)
+        assertEquals(1, receipts.all().size)
+    }
+
+    @Test
+    fun reusingIdempotencyKeyForDifferentControlIsRejected() = kotlinx.coroutines.test.runTest {
+        val receipts = InMemoryReactiveReceiptStore()
+        val hid = FakeHidRepository(isConnected = true)
+        val executor = DefaultReactiveActionExecutor(
+            actionRepository = FakeReactiveActionRepository(emptyList()),
+            actionRunner = FakeReactiveActionRunner(),
+            hidRepository = hid,
+            receiptStore = receipts,
+        )
+        val invocation = ReactiveActionInvocation(
+            operationId = ReactiveOperationId("op-1"),
+            idempotencyKey = ReactiveIdempotencyKey("idem-1"),
+            requestedAtMillis = 10_000L,
+        )
+
+        executor.execute(hidControl(SharedHidCommand.BrowserBack), ReactiveAuthorization(), 10_001L, invocation = invocation)
+        val rejected = executor.execute(hidControl(SharedHidCommand.Reload), ReactiveAuthorization(), 10_002L, invocation = invocation)
+
+        assertEquals(ReactiveActionResult.Failed("idempotency_key_conflict", false), rejected.result)
+        assertEquals(listOf(HidCommand.BrowserBack), hid.sentCommands)
+    }
+
+    @Test
+    fun timedOutInvocationExpiresBeforeSideEffect() = kotlinx.coroutines.test.runTest {
+        val hid = FakeHidRepository(isConnected = true)
+        val executor = DefaultReactiveActionExecutor(
+            actionRepository = FakeReactiveActionRepository(emptyList()),
+            actionRunner = FakeReactiveActionRunner(),
+            hidRepository = hid,
+        )
+        val invocation = ReactiveActionInvocation(
+            operationId = ReactiveOperationId("op-timeout"),
+            idempotencyKey = ReactiveIdempotencyKey("idem-timeout"),
+            requestedAtMillis = 10_000L,
+            timeoutMillis = 5L,
+        )
+
+        val outcome = executor.execute(hidControl(), ReactiveAuthorization(), 10_006L, invocation = invocation)
+
+        assertEquals(ReactiveActionResult.Expired, outcome.result)
+        assertTrue(hid.sentCommands.isEmpty())
+    }
+
+    @Test
+    fun undoHidReceiptRunsInverseCommand() = kotlinx.coroutines.test.runTest {
+        val receipts = InMemoryReactiveReceiptStore()
+        val hid = FakeHidRepository(isConnected = true)
+        val executor = DefaultReactiveActionExecutor(
+            actionRepository = FakeReactiveActionRepository(emptyList()),
+            actionRunner = FakeReactiveActionRunner(),
+            hidRepository = hid,
+            receiptStore = receipts,
+        )
+
+        val outcome = executor.execute(hidControl(SharedHidCommand.BrowserBack), ReactiveAuthorization(), 10_000L)
+        val undo = executor.undo(outcome.receipt!!.id, nowMillis = 10_001L)
+
+        assertTrue(undo is ReactiveUndoOutcome.Succeeded)
+        assertEquals(listOf(HidCommand.BrowserBack, HidCommand.BrowserForward), hid.sentCommands)
+    }
+
+    @Test
+    fun expiredUndoDoesNotSendInverseCommand() = kotlinx.coroutines.test.runTest {
+        val receipts = InMemoryReactiveReceiptStore()
+        val hid = FakeHidRepository(isConnected = true)
+        val executor = DefaultReactiveActionExecutor(
+            actionRepository = FakeReactiveActionRepository(emptyList()),
+            actionRunner = FakeReactiveActionRunner(),
+            hidRepository = hid,
+            receiptStore = receipts,
+        )
+
+        val outcome = executor.execute(hidControl(SharedHidCommand.BrowserBack), ReactiveAuthorization(), 10_000L)
+        val undo = executor.undo(outcome.receipt!!.id, nowMillis = 40_001L)
+
+        assertEquals(ReactiveUndoOutcome.Expired, undo)
+        assertEquals(listOf(HidCommand.BrowserBack), hid.sentCommands)
     }
 
     @Test
@@ -240,7 +350,7 @@ class DefaultReactiveActionExecutorTest {
         )
 
         assertEquals(ReactiveActionResult.Failed("stale_action_revision", false), outcome.result)
-        assertEquals(null, outcome.receipt)
+        assertNotNull(outcome.receipt)
     }
 
     @Test
@@ -300,6 +410,68 @@ class DefaultReactiveActionExecutorTest {
         )
 
         assertEquals(ReactiveActionResult.Failed("target_changed", false), outcome.result)
+    }
+
+    @Test
+    fun repeatedInvocationReturnsStoredReceiptWithoutSendingAgain() = kotlinx.coroutines.test.runTest {
+        val receipts = InMemoryReactiveReceiptStore()
+        val hid = FakeHidRepository(isConnected = true)
+        val executor = DefaultReactiveActionExecutor(
+            actionRepository = FakeReactiveActionRepository(emptyList()),
+            actionRunner = FakeReactiveActionRunner(),
+            hidRepository = hid,
+            receiptStore = receipts,
+        )
+        val invocation = ReactiveActionInvocation(
+            operationId = ReactiveOperationId("op-1"),
+            idempotencyKey = ReactiveIdempotencyKey("same-key"),
+            requestedAtMillis = 10_000L,
+        )
+
+        val first = executor.execute(hidControl(), nowMillis = 10_000L, invocation = invocation)
+        val second = executor.execute(hidControl(), nowMillis = 10_001L, invocation = invocation)
+
+        assertEquals(first.receipt?.id, second.receipt?.id)
+        assertEquals(listOf(HidCommand.BrowserBack), hid.sentCommands)
+        assertEquals(1, receipts.all().size)
+    }
+
+    @Test
+    fun reusedIdempotencyKeyForDifferentControlIsDenied() = kotlinx.coroutines.test.runTest {
+        val receipts = InMemoryReactiveReceiptStore()
+        val executor = DefaultReactiveActionExecutor(
+            actionRepository = FakeReactiveActionRepository(emptyList()),
+            actionRunner = FakeReactiveActionRunner(),
+            hidRepository = FakeHidRepository(isConnected = true),
+            receiptStore = receipts,
+        )
+        val invocation = ReactiveActionInvocation(
+            operationId = ReactiveOperationId("op-2"),
+            idempotencyKey = ReactiveIdempotencyKey("reused-key"),
+            requestedAtMillis = 10_000L,
+        )
+
+        executor.execute(hidControl(), nowMillis = 10_000L, invocation = invocation)
+        val reused = executor.execute(
+            hidControl(SharedHidCommand.Reload).copy(id = ControlId("reactive_hid_reload")),
+            nowMillis = 10_001L,
+            invocation = invocation,
+        )
+
+        assertEquals(ReactiveActionResult.Failed("idempotency_key_conflict", false), reused.result)
+    }
+
+    @Test
+    fun undoMissingReceiptIsUnsupported() = kotlinx.coroutines.test.runTest {
+        val executor = DefaultReactiveActionExecutor(
+            actionRepository = FakeReactiveActionRepository(emptyList()),
+            actionRunner = FakeReactiveActionRunner(),
+            hidRepository = FakeHidRepository(isConnected = true),
+        )
+
+        val outcome = executor.undo(ReceiptId("missing"), nowMillis = 10_000L)
+
+        assertEquals(ReactiveUndoOutcome.Unsupported("receipt_missing"), outcome)
     }
 
     private fun safeCatalogAction() = DeckAction(
