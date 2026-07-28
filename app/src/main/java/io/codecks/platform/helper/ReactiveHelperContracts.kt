@@ -29,11 +29,15 @@ interface ReactiveHelperDiscovery {
 data class StoredReactiveHelperIdentity(
     val macId: String,
     val displayName: String,
+    val helperId: String,
+    val publicKeyFingerprint: String,
     val secretAlias: String,
 ) {
     init {
         require(macId.isNotBlank()) { "macId must not be blank" }
         require(displayName.isNotBlank()) { "displayName must not be blank" }
+        require(helperId.isNotBlank()) { "helperId must not be blank" }
+        require(publicKeyFingerprint.length in 32..128) { "publicKeyFingerprint length invalid" }
         require(secretAlias.isNotBlank()) { "secretAlias must not be blank" }
     }
 }

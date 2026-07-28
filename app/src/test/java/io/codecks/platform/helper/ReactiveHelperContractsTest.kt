@@ -18,4 +18,17 @@ class ReactiveHelperContractsTest {
             DiscoveredReactiveHelper("Codecks", "mac.local", 0, "reactive.v1")
         }
     }
+
+    @Test
+    fun storedIdentityRequiresPinnedFingerprint() {
+        assertThrows(IllegalArgumentException::class.java) {
+            StoredReactiveHelperIdentity(
+                macId = "mac-1",
+                displayName = "Mac",
+                helperId = "helper-1",
+                publicKeyFingerprint = "short",
+                secretAlias = "secret",
+            )
+        }
+    }
 }
