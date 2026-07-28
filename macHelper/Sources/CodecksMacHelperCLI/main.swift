@@ -11,7 +11,10 @@ let identity = HelperIdentityPin(
 _ = ReactiveSessionCoordinator(
     macId: Host.current().localizedName ?? "mac",
     helperIdentity: identity,
-    pairingStore: FilePairingStore()
+    pairingStore: FilePairingStore(),
+    actionHandlers: [
+        "apple_shortcuts.run": AppleShortcutsActionHandler()
+    ]
 )
 
 print("codecks-mac-helper scaffold ready")
