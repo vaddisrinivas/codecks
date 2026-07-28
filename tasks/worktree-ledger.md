@@ -31,6 +31,9 @@ Status: active
 | WT03 | `codex/reactive-android-helper` | `<codecks-worktrees>/reactive/android-helper` | `eab91f0952facf40570e054ac3109768d18a09df` | Android helper client scaffold | merged at `be26db8` |
 | WT18 | `codex/reactive-release-evidence` | `<codecks-worktrees>/reactive/release-evidence` | `cdd147d69e7b0de807ad2996aecc151055b7f8c9` | release evidence/no-shrink/secret harness | merged |
 | WT04 | `codex/reactive-state` | `<codecks-worktrees>/reactive/state` | `cdd147d69e7b0de807ad2996aecc151055b7f8c9` | unified helper/SSH Mac state | merged |
+| WT05 | `codex/reactive-engine` | `<codecks-worktrees>/reactive/engine` | `70c91135d45a20e3647f3014cb3ee1f56b23363c` | policy, ranking, conflicts, stale-state handling, default app controls | merged at `06c0d8e` |
+| WT06 | `codex/reactive-execution` | `<codecks-worktrees>/reactive/execution` | `70c91135d45a20e3647f3014cb3ee1f56b23363c` | receipts, idempotency, timeout, undo scaffold | merged at `4e945ba` |
+| WT08 | `codex/reactive-profiles` | `<codecks-worktrees>/reactive/profiles` | `70c91135d45a20e3647f3014cb3ee1f56b23363c` | profile resolver, pinned/hidden/disabled/max-control preferences | merged at `bb43127` |
 
 ## Evidence
 
@@ -48,3 +51,7 @@ Status: active
 - WT04 state focused test: `./gradlew :app:testReleaseUnitTest --tests 'io.codecks.data.reactive.LiveMacStateRepositoryTest' -PreleaseStoreFile=/tmp/codecks-unit-placeholder.jks -PreleaseKeyAlias=unit -PreleaseStorePassword=unit -PreleaseKeyPassword=unit`: pass. Dummy signing properties only; no APK signed or installed.
 - WT02 Mac helper test: `cd macHelper && swift test`: pass, 5 tests, 0 failures.
 - Integration checkpoint after WT02/WT03/WT04/WT18: protocol fixtures pass; shared JVM/iOS pass; focused Android helper/state release unit tests pass with dummy signing props; secret surface pass; no-shrink pass; Mac helper Swift tests pass.
+- WT05 engine focused test: `./gradlew :app:testReleaseUnitTest --tests 'io.codecks.domain.reactive.*Reactive*' -PreleaseStoreFile=/tmp/codecks-unit-placeholder.jks -PreleaseKeyAlias=unit -PreleaseStorePassword=unit -PreleaseKeyPassword=unit`: pass.
+- WT06 execution focused test: `./gradlew :app:testReleaseUnitTest --tests 'io.codecks.core.reactive.DefaultReactiveActionExecutorTest' --tests 'io.codecks.ui.mouse.reactive.ReactiveTrackpadViewModelTest' -PreleaseStoreFile=/tmp/codecks-unit-placeholder.jks -PreleaseKeyAlias=unit -PreleaseStorePassword=unit -PreleaseKeyPassword=unit`: pass.
+- WT08 profiles focused test: `./gradlew :app:testReleaseUnitTest --tests 'io.codecks.domain.reactive.*Profile*' -PreleaseStoreFile=/tmp/codecks-unit-placeholder.jks -PreleaseKeyAlias=unit -PreleaseStorePassword=unit -PreleaseKeyPassword=unit`: pass.
+- Integration checkpoint after WT05/WT06/WT08: protocol fixtures pass; shared JVM/iOS pass; focused Android Reactive/helper/state release unit tests pass with dummy signing props; secret surface pass; no-shrink pass; Mac helper Swift tests pass; `git diff --check` pass.
