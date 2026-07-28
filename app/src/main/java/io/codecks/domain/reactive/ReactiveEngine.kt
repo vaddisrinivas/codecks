@@ -49,8 +49,12 @@ class DeterministicReactiveEngine(
         context: ReactiveTrackpadContext,
         nowMillis: Long,
     ): ReactiveDecision {
+        val pinnedOrder = context.pinnedControlIds
+            .withIndex()
+            .associate { it.value to it.index }
         val contractErrors = mutableListOf<String>()
         val merged = providers
+            .filterNot { provider -> provider.id in context.disabledProviderIds }
             .flatMap { provider -> provider.controls(state, context, nowMillis) }
             .groupBy { it.id }
             .mapNotNull { (id, duplicates) ->
@@ -78,10 +82,11 @@ class DeterministicReactiveEngine(
 
         val ranked = merged
             .sortedWith(
-                compareByDescending<ReactiveControl> { reactiveScore(it, state, context, nowMillis) }
+                compareBy<ReactiveControl> { pinnedOrder[it.id] ?: Int.MAX_VALUE }
+                    .thenByDescending { reactiveScore(it, state, context, nowMillis) }
                     .thenBy { it.id.value },
             )
-            .take(maxControls)
+            .take(context.maxControls ?: maxControls)
 
         return ReactiveDecision(
             controls = ranked,
