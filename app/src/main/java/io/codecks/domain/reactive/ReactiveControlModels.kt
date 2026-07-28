@@ -104,9 +104,21 @@ data class ReactiveTrackpadContext(
     val mode: ReactiveTrackpadMode = ReactiveTrackpadMode.Pointer,
     val controlTtlMillis: Long = 3_000L,
     val hiddenControlIds: Set<ControlId> = emptySet(),
+    val pinnedControlIds: List<ControlId> = emptyList(),
+    val disabledProviderIds: Set<String> = emptySet(),
+    val maxControls: Int? = null,
 ) {
     init {
         require(controlTtlMillis > 0) { "ReactiveTrackpadContext controlTtlMillis must be positive." }
+        require(pinnedControlIds.distinct() == pinnedControlIds) {
+            "ReactiveTrackpadContext pinnedControlIds must not contain duplicates."
+        }
+        require(disabledProviderIds.none { it.isBlank() }) {
+            "ReactiveTrackpadContext disabledProviderIds must not contain blank ids."
+        }
+        require(maxControls == null || maxControls in 1..12) {
+            "ReactiveTrackpadContext maxControls must be between 1 and 12."
+        }
     }
 }
 
