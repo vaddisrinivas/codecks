@@ -54,7 +54,7 @@ def check_schema_files() -> None:
 def check_common_reactive(path: Path, data: dict) -> None:
     if path.name.startswith("reactive-") or path.parent.name == "hostile":
         if data.get("schema") != "reactive.v1":
-            raise FixtureError(f"{path.name} invalid schema")
+            raise FixtureError(f"{path.name} invalid protocol schema")
 
 
 def check_helper_identity(data: dict) -> None:
@@ -137,14 +137,28 @@ def check_provider_candidate(data: dict) -> None:
 
 
 def check_execute(data: dict) -> None:
-    require_keys(Path("execute"), data, ["type", "actionId", "actionRevision", "operationId", "idempotencyKey", "arguments"])
+    require_keys(
+        Path("execute"),
+        data,
+        [
+            "type",
+            "actionId",
+            "actionRevision",
+            "operationId",
+            "idempotencyKey",
+            "timeoutMillis",
+            "cancellationToken",
+            "arguments",
+        ],
+    )
     if data["type"] != "execute":
         raise FixtureError("execute type invalid")
     token("operationId", data["operationId"])
     token("idempotencyKey", data["idempotencyKey"])
-    timeout = data.get("timeoutMillis")
-    if timeout is not None and (not isinstance(timeout, int) or not 1 <= timeout <= 5 * 60 * 1000):
+    timeout = data["timeoutMillis"]
+    if not isinstance(timeout, int) or not 1 <= timeout <= 5 * 60 * 1000:
         raise FixtureError("execute timeout invalid")
+    token("cancellationToken", data["cancellationToken"])
 
 
 def check_receipt(data: dict) -> None:
@@ -216,22 +230,27 @@ def check_hostile_fixture(path: Path) -> None:
     data = load_json(path)
     if "expectedError" not in data:
         raise FixtureError(f"{path.name} missing expectedError")
-    failed = False
+    expected = str(data["expectedError"])
+    failure = ""
     try:
-        if data["expectedError"] == "protocol":
+        if expected == "protocol":
             check_common_reactive(path, data)
-        elif data["expectedError"] == "auth":
+        elif expected == "auth":
             check_request(data)
             if data.get("authTag") != "fixture-auth-tag":
                 raise FixtureError("auth tag mismatch")
-        elif data["expectedError"] == "replay":
+        elif expected == "replay":
             seen: set[tuple[int, str]] = set()
             for item in data.get("accepted", []):
+                candidate = dict(item)
+                candidate["schema"] = data.get("schema")
+                candidate["sessionId"] = data.get("sessionId")
+                check_request(candidate)
                 sequence = item.get("sequence")
                 request_id = item.get("requestId")
                 key = (sequence, request_id)
                 if key in seen:
-                    raise FixtureError("duplicate accepted request")
+                    raise FixtureError("replay duplicate accepted request")
                 seen.add(key)
         elif "sequence" in data:
             check_request(data)
@@ -251,10 +270,12 @@ def check_hostile_fixture(path: Path) -> None:
             check_undo(data)
         else:
             raise FixtureError("unknown hostile shape")
-    except FixtureError:
-        failed = True
-    if not failed:
+    except FixtureError as exc:
+        failure = str(exc)
+    if not failure:
         raise FixtureError(f"{path.name} unexpectedly valid")
+    if expected not in failure:
+        raise FixtureError(f"{path.name} expected {expected!r}, got {failure!r}")
 
 
 def main() -> int:

@@ -29,7 +29,7 @@ Implemented contract coverage:
 - State snapshot, state delta, revision advance, freshness, provenance, and stale-state rules.
 - Provider candidate confidence, policy decision, and conflict model.
 - Typed execute preconditions, operation ID, idempotency key, receipt, partial failure, undo token, and undo result.
-- Transfer metadata bounds, path traversal rejection, SHA-256 shape, and cleanup flag.
+- Transfer metadata bounds, path traversal rejection, SHA-256 integrity field shape, and cleanup flag.
 - Redaction rules for log-safe fields.
 - Valid and hostile JSON fixtures plus local verifier.
 
@@ -42,6 +42,6 @@ Validation:
 
 Gaps / risks:
 
-- `redactedFieldValue(Hash)` is deterministic placeholder hashing, not cryptographic SHA-256. Crypto adapters must provide real hashing before logging secrets.
-- JSON verifier is stdlib shape validation, not full JSON Schema draft 2020-12 execution.
+- `redactedFieldValue(Hash)` deliberately emits a `hash-redacted:` placeholder, not cryptographic SHA-256. Crypto adapters must provide real hashing before logging secrets.
+- JSON verifier is stdlib shape/category validation plus schema-file structure checks, not full JSON Schema draft 2020-12 execution.
 - Swift parity is proven by KMP iOS simulator compile/test only; no native Swift consumer fixture test exists yet.
