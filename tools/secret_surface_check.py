@@ -22,12 +22,20 @@ FORBIDDEN_FILE_NAMES = {
 }
 SOURCE_PREFIXES = (
     "app/src/main/",
+    "shared/src/commonMain/",
+    "macHelper/Sources/",
+    "protocol/fixtures/",
+    "protocol/schemas/",
 )
 QUERY_SECRET = re.compile(r"""[?&](api[_-]?key|key|token|access[_-]?token|password|secret)=""", re.IGNORECASE)
 ANDROID_SECRET_LOG = re.compile(r"""Log\.[a-z]+\([^)]*(password|token|secret|api[_-]?key|authorization)""", re.IGNORECASE | re.DOTALL)
 JS_SECRET_LOG = re.compile(r"""console\.(log|info|warn|error)\([^)]*(password|token|secret|api[_-]?key|authorization)""", re.IGNORECASE | re.DOTALL)
 RAW_SECRET_ASSIGNMENT = re.compile(
     r"""(?i)(api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret)\s*[:=]\s*["'][^"'<>{}\s]{12,}["']"""
+)
+PRIVATE_KEY_BLOCK = re.compile(r"-----BEGIN (RSA |OPENSSH |EC |DSA |)PRIVATE KEY-----")
+KNOWN_FAKE_SECRET = re.compile(
+    r"""(?i)(sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{20,})"""
 )
 PRIVATE_IDENTITY = re.compile(r"(?i)\b(srinivas|vaddi)\b|R3CW10MSVRT|emulator-5554")
 PRIVATE_HOME = re.compile(r"/Users/(?!example(?:/|\b)|me(?:/|\b)|user(?:/|\b))[^/\s]+")
@@ -77,6 +85,10 @@ def main() -> int:
             path.suffix.lower() in TEXT_SUFFIXES or name in {"gradlew", ".gitignore"}
         ):
             text = path.read_text(encoding="utf-8", errors="ignore")
+            if PRIVATE_KEY_BLOCK.search(text):
+                failures.append(f"private key block appears in public source: {relative}")
+            if is_production_source(relative) and KNOWN_FAKE_SECRET.search(text):
+                failures.append(f"secret-looking token appears in public source: {relative}")
             if PRIVATE_IDENTITY.search(text):
                 failures.append(f"private identity appears in public source: {relative}")
             if PRIVATE_HOME.search(text):
@@ -90,6 +102,8 @@ def main() -> int:
             failures.append(f"secret-like value appears in URL query string: {relative}")
         if relative.startswith("app/src/main/") and ANDROID_SECRET_LOG.search(text):
             failures.append(f"secret-like value appears in Android log call: {relative}")
+        if JS_SECRET_LOG.search(text):
+            failures.append(f"secret-like value appears in JavaScript log call: {relative}")
         if RAW_SECRET_ASSIGNMENT.search(text):
             failures.append(f"hard-coded secret-like assignment in production source: {relative}")
 
