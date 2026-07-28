@@ -213,6 +213,7 @@ enum class ReactiveCapabilityId {
     @SerialName("action.execute") ActionExecute,
     @SerialName("action.undo") ActionUndo,
     @SerialName("clipboard.selected_text") ClipboardSelectedText,
+    @SerialName("spotlight.search") SpotlightSearch,
     @SerialName("transfer.sftp") TransferSftp,
     @SerialName("shortcuts.apple") AppleShortcuts,
     @SerialName("brightness.monitor") MonitorBrightness,

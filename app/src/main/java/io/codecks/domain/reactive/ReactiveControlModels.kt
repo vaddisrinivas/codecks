@@ -91,6 +91,10 @@ sealed interface ReactiveAction {
         }
     }
 
+    data class SpotlightPreview(val request: SpotlightSearchRequest) : ReactiveAction
+
+    data class SftpTransferRequest(val request: SafeSftpTransferRequest) : ReactiveAction
+
     data class Composite(val actions: List<ReactiveAction>) : ReactiveAction {
         init {
             require(actions.isNotEmpty()) { "ReactiveAction.Composite actions must not be empty." }

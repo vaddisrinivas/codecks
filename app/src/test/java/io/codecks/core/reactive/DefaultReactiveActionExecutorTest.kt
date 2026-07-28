@@ -31,8 +31,12 @@ import io.codecks.domain.reactive.ReactiveIcon
 import io.codecks.domain.reactive.ReactiveRisk
 import io.codecks.domain.reactive.ReactiveIdempotencyKey
 import io.codecks.domain.reactive.ReactiveOperationId
+import io.codecks.domain.reactive.ReactiveRequestProvenance
 import io.codecks.domain.reactive.ReactiveUndoOutcome
 import io.codecks.domain.reactive.ReceiptId
+import io.codecks.domain.reactive.SafeSftpTransferRequest
+import io.codecks.domain.reactive.SftpAllowedRoots
+import io.codecks.domain.reactive.SpotlightSearchRequest
 import io.codecks.domain.reactive.SharedHidCommand
 import io.codecks.domain.reactive.CapabilityAvailability
 import io.codecks.domain.reactive.CapabilityState
@@ -50,6 +54,7 @@ import io.codecks.domain.reactive.ObservationStatus
 import io.codecks.domain.reactive.Observed
 import io.codecks.domain.reactive.StateSource
 import io.codecks.domain.reactive.CodecksCapability
+import io.codecks.domain.reactive.TransferDirection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
@@ -174,6 +179,81 @@ class DefaultReactiveActionExecutorTest {
         assertEquals(ReactiveActionResult.Expired, outcome.result)
         assertNull(outcome.receipt)
         assertTrue(hid.sentCommands.isEmpty())
+    }
+
+    @Test
+    fun spotlightPreviewRecordsReceiptWithoutRawQueryOrHidSideEffect() = kotlinx.coroutines.test.runTest {
+        val receipts = InMemoryReactiveReceiptStore()
+        val hid = FakeHidRepository(isConnected = true)
+        val executor = DefaultReactiveActionExecutor(
+            actionRepository = FakeReactiveActionRepository(emptyList()),
+            actionRunner = FakeReactiveActionRunner(),
+            hidRepository = hid,
+            receiptStore = receipts,
+        )
+
+        val outcome = executor.execute(
+            control = reactiveControl(
+                id = "reactive_spotlight",
+                action = ReactiveAction.SpotlightPreview(
+                    SpotlightSearchRequest(
+                        query = "Quarterly Deck",
+                        provenance = provenance(),
+                    ),
+                ),
+                capability = CodecksCapability.SpotlightSearch,
+            ),
+            nowMillis = 10_000L,
+        )
+
+        assertEquals(ReactiveActionResult.Succeeded("spotlight_preview_recorded"), outcome.result)
+        assertTrue(hid.sentCommands.isEmpty())
+        val receipt = outcome.receipt!!
+        assertEquals("spotlight_preview", receipt.metadata["operationKind"])
+        assertEquals("8", receipt.metadata["maxResults"])
+        assertNull(receipt.metadata["query"])
+        assertTrue(receipt.metadata["queryFingerprint"]!!.length == 32)
+    }
+
+    @Test
+    fun sftpTransferRequestReceiptStoresRootIdsAndFingerprintsOnly() = kotlinx.coroutines.test.runTest {
+        val receipts = InMemoryReactiveReceiptStore()
+        val executor = DefaultReactiveActionExecutor(
+            actionRepository = FakeReactiveActionRepository(emptyList()),
+            actionRunner = FakeReactiveActionRunner(),
+            hidRepository = FakeHidRepository(isConnected = true),
+            receiptStore = receipts,
+        )
+        val request = SafeSftpTransferRequest(
+            direction = TransferDirection.MacToPhone,
+            localPath = "/Users/me/Downloads/report.pdf",
+            remotePath = "/phone/inbox/report.pdf",
+            roots = SftpAllowedRoots(
+                localRootId = "mac_downloads",
+                localRoot = "/Users/me/Downloads",
+                remoteRootId = "phone_inbox",
+                remoteRoot = "/phone/inbox",
+            ),
+            provenance = provenance(),
+        )
+
+        val outcome = executor.execute(
+            control = reactiveControl(
+                id = "reactive_sftp",
+                action = ReactiveAction.SftpTransferRequest(request),
+                capability = CodecksCapability.SftpTransfer,
+            ),
+            nowMillis = 10_000L,
+        )
+
+        assertEquals(ReactiveActionResult.Succeeded("sftp_transfer_request_recorded"), outcome.result)
+        val receipt = outcome.receipt!!
+        assertEquals("sftp_transfer_request", receipt.metadata["operationKind"])
+        assertEquals("mac_downloads", receipt.metadata["localRootId"])
+        assertEquals("phone_inbox", receipt.metadata["remoteRootId"])
+        assertNull(receipt.metadata["localPath"])
+        assertNull(receipt.metadata["remotePath"])
+        assertTrue(receipt.metadata["localPathFingerprint"]!!.length == 32)
     }
 
     @Test
@@ -560,6 +640,34 @@ class DefaultReactiveActionExecutorTest {
         stateRevision = 1L,
         actionRevision = actionRevision,
         expiresAtMillis = Long.MAX_VALUE,
+    )
+
+    private fun reactiveControl(
+        id: String,
+        action: ReactiveAction,
+        capability: CodecksCapability,
+    ): ReactiveControl = ReactiveControl(
+        id = ControlId(id),
+        title = id,
+        subtitle = null,
+        icon = ReactiveIcon.Generic,
+        action = action,
+        source = ReactiveControlSource.ConnectionState,
+        basePriority = 10,
+        reason = "test",
+        requiredCapabilities = setOf(capability),
+        risk = ReactiveRisk.Review,
+        reversible = false,
+        stateRevision = 1L,
+        actionRevision = ActionRevision("rev_$id"),
+        expiresAtMillis = Long.MAX_VALUE,
+    )
+
+    private fun provenance(): ReactiveRequestProvenance = ReactiveRequestProvenance(
+        macId = MacId("123e4567-e89b-12d3-a456-426614174000"),
+        snapshotRevision = 1L,
+        source = StateSource.Helper,
+        observedAtMillis = 9_000L,
     )
 }
 

@@ -275,6 +275,38 @@ class LiveMacStateRepositoryTest {
         assertEquals("Terminal", repository.state.value?.frontApp?.value?.displayName)
     }
 
+    @Test
+    fun helperTransferAndSpotlightCapabilitiesMapToDedicatedReactiveCapabilities() = runTest {
+        val repository = LiveMacStateRepository(
+            helperSource = FakeHelperMacStateSource(
+                connected = true,
+                state = helperState(
+                    revision = 1L,
+                    name = "Finder",
+                    provenance = StateProvenance.Helper,
+                    capabilities = setOf(
+                        ReactiveCapabilityId.SpotlightSearch,
+                        ReactiveCapabilityId.TransferSftp,
+                    ),
+                ),
+            ),
+            nowMillis = { 10_100L },
+        )
+        repository.update(connectedInputs())
+
+        repository.refreshBasic()
+
+        val capabilities = repository.state.value!!.capabilities.associateBy { it.capability }
+        assertEquals(
+            CapabilityAvailability.Available,
+            capabilities[CodecksCapability.SpotlightSearch]?.availability,
+        )
+        assertEquals(
+            CapabilityAvailability.Available,
+            capabilities[CodecksCapability.SftpTransfer]?.availability,
+        )
+    }
+
     private fun connectedInputs() = LiveMacStateInputs(
         selectedMacId = "mac_123",
         macCommandsReady = true,
@@ -286,6 +318,7 @@ class LiveMacStateRepositoryTest {
         revision: Long,
         name: String,
         provenance: StateProvenance,
+        capabilities: Set<ReactiveCapabilityId> = setOf(ReactiveCapabilityId.FrontAppState, ReactiveCapabilityId.ActionExecute),
     ) = ReactiveHelperBasicState(
         macId = "mac_123",
         snapshotRevision = revision,
@@ -294,7 +327,7 @@ class LiveMacStateRepositoryTest {
         provenance = provenance,
         frontAppBundleId = "com.apple.${name.lowercase()}",
         frontAppName = name,
-        capabilities = setOf(ReactiveCapabilityId.FrontAppState, ReactiveCapabilityId.ActionExecute),
+        capabilities = capabilities,
     )
 }
 

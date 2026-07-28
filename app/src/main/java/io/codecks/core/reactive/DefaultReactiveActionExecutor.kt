@@ -154,6 +154,38 @@ class DefaultReactiveActionExecutor @Inject constructor(
                 result = ReactiveActionResult.Unsupported("bundled_ssh_fallback_not_implemented"),
                 idempotentSignature = signature,
             )
+            is ReactiveAction.SpotlightPreview -> recordOutcome(
+                control = control,
+                invocation = invocation,
+                nowMillis = nowMillis,
+                result = ReactiveActionResult.Succeeded("spotlight_preview_recorded"),
+                metadata = mapOf(
+                    "operationKind" to "spotlight_preview",
+                    "queryFingerprint" to action.request.query.redactedFingerprint(),
+                    "maxResults" to action.request.maxResults.toString(),
+                    "provenanceSource" to action.request.provenance.source.name,
+                    "provenanceRevision" to action.request.provenance.snapshotRevision.toString(),
+                ),
+                idempotentSignature = signature,
+            )
+            is ReactiveAction.SftpTransferRequest -> recordOutcome(
+                control = control,
+                invocation = invocation,
+                nowMillis = nowMillis,
+                result = ReactiveActionResult.Succeeded("sftp_transfer_request_recorded"),
+                metadata = mapOf(
+                    "operationKind" to "sftp_transfer_request",
+                    "direction" to action.request.direction.name,
+                    "localRootId" to action.request.roots.localRootId,
+                    "remoteRootId" to action.request.roots.remoteRootId,
+                    "localPathFingerprint" to action.request.localPath.redactedFingerprint(),
+                    "remotePathFingerprint" to action.request.remotePath.redactedFingerprint(),
+                    "maxBytes" to action.request.maxBytes.toString(),
+                    "provenanceSource" to action.request.provenance.source.name,
+                    "provenanceRevision" to action.request.provenance.snapshotRevision.toString(),
+                ),
+                idempotentSignature = signature,
+            )
             is ReactiveAction.ChangeMode -> recordOutcome(
                 control = control,
                 invocation = invocation,
@@ -482,9 +514,14 @@ private fun ReactiveAction.signaturePart(): String = when (this) {
     is ReactiveAction.Hid -> "hid:${command.name}"
     is ReactiveAction.Helper -> "helper:$actionId:${arguments.toSortedMap()}"
     is ReactiveAction.BundledSshFallback -> "ssh:$bundleId:${arguments.toSortedMap()}"
+    is ReactiveAction.SpotlightPreview -> "spotlight:${request.query.redactedFingerprint()}:${request.maxResults}"
+    is ReactiveAction.SftpTransferRequest -> "sftp:${request.direction}:${request.localPath.redactedFingerprint()}:" +
+        "${request.remotePath.redactedFingerprint()}:${request.maxBytes}"
     is ReactiveAction.Composite -> "composite:${actions.joinToString(",") { it.signaturePart() }}"
     is ReactiveAction.ChangeMode -> "mode:${mode.name}"
 }
+
+private fun String.redactedFingerprint(): String = io.codecks.domain.reactive.sha256Hex(this).take(32)
 
 private suspend fun TargetSelector.matches(currentMacId: String, deviceRepository: DeviceRepository?): Boolean = when (this) {
     TargetSelector.CurrentDevice -> true

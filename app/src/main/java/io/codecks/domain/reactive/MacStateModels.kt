@@ -65,6 +65,8 @@ enum class CodecksCapability {
     ScreenshotCapture,
     ScreenshotManage,
     MeetingControl,
+    SpotlightSearch,
+    SftpTransfer,
 }
 
 enum class CapabilityAvailability {
@@ -440,7 +442,8 @@ private fun Set<ReactiveCapabilityId>.mapToCapabilityStates(source: StateSource)
             ReactiveCapabilityId.ActionExecute -> CodecksCapability.MacCommand
             ReactiveCapabilityId.ActionUndo -> CodecksCapability.MacCommand
             ReactiveCapabilityId.ClipboardSelectedText -> CodecksCapability.SelectionRead
-            ReactiveCapabilityId.TransferSftp -> CodecksCapability.ClipboardWrite
+            ReactiveCapabilityId.SpotlightSearch -> CodecksCapability.SpotlightSearch
+            ReactiveCapabilityId.TransferSftp -> CodecksCapability.SftpTransfer
             ReactiveCapabilityId.AppleShortcuts -> CodecksCapability.MacCommand
             ReactiveCapabilityId.MonitorBrightness -> CodecksCapability.DisplayRead
             ReactiveCapabilityId.AccessibilityDiscovery -> CodecksCapability.ActiveWindowRead
