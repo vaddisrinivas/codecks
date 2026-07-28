@@ -65,6 +65,7 @@ import io.codecks.core.reactive.reactiveActionRevision
 import io.codecks.core.reactive.defaultReactiveTrackpadEngine
 import io.codecks.core.trackpad.TrackpadSettings
 import io.codecks.core.trackpad.TrackpadSettingsRepository
+import io.codecks.domain.reactive.InMemoryReactiveReceiptStore
 import io.codecks.domain.ActionKind
 import io.codecks.domain.ActionStatus
 import io.codecks.domain.DeckAction
@@ -455,18 +456,21 @@ private fun CodecksApp(
         }.getOrNull()
     }
     val reactiveMacStateRepository = remember { LiveMacStateRepository() }
-    val reactiveEngine = remember(actionRepository) {
+    val reactiveReceiptStore = remember { InMemoryReactiveReceiptStore() }
+    val reactiveEngine = remember(actionRepository, reactiveReceiptStore) {
         defaultReactiveTrackpadEngine(
             actionRevisions = actionRepository.allActions().associate { action ->
                 action.id to action.reactiveActionRevision()
             },
+            receipts = reactiveReceiptStore::all,
         )
     }
-    val reactiveExecutor = remember(actionRepository, actionRunner, hidRepository) {
+    val reactiveExecutor = remember(actionRepository, actionRunner, hidRepository, reactiveReceiptStore) {
         DefaultReactiveActionExecutor(
             actionRepository = actionRepository,
             actionRunner = actionRunner,
             hidRepository = hidRepository,
+            receiptStore = reactiveReceiptStore,
         )
     }
     val reactiveTrackpadViewModel: ReactiveTrackpadViewModel = viewModel(
