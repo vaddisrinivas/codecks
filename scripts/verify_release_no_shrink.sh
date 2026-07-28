@@ -7,16 +7,21 @@ APK_PATH="${1:-}"
 
 require_line() {
   local line="$1"
-  if ! grep -Fqx "$line" "$BUILD_FILE"; then
+  local match
+  match="$(grep -Fnx "$line" "$BUILD_FILE" || true)"
+  if [ -z "$match" ]; then
     echo "Release no-shrink invariant missing: $line" >&2
     exit 1
   fi
+  echo "verified $BUILD_FILE:${match%%:*}: $line"
 }
 
 reject_line() {
   local line="$1"
-  if grep -Fq "$line" "$BUILD_FILE"; then
-    echo "Release shrinking is forbidden: $line" >&2
+  local match
+  match="$(grep -Fn "$line" "$BUILD_FILE" || true)"
+  if [ -n "$match" ]; then
+    echo "Release shrinking is forbidden at $BUILD_FILE:${match%%:*}: $line" >&2
     exit 1
   fi
 }

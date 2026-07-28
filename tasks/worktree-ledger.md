@@ -9,7 +9,7 @@ Status: active
 - Base SHA: `4da58b279c50fec182bf52f0a73861d9b3bc22fd`
 - Remote SHA: `origin/main@4da58b279c50fec182bf52f0a73861d9b3bc22fd`
 - Integration branch: `codex/reactive-platform-integration`
-- Integration worktree: `/Users/srinivasvaddi/Projects/codecks-worktrees/reactive/integration`
+- Integration worktree: `<codecks-worktrees>/reactive/integration`
 - Contract freeze SHA: `eab91f0952facf40570e054ac3109768d18a09df`
 - Planning checkout note: primary checkout had uncommitted docs-only edits in `tasks/plan.md` and `tasks/todo.md`; implementation branches are based on the clean recorded base SHA.
 
@@ -25,9 +25,9 @@ Status: active
 
 | ID | Branch | Worktree | Base SHA | Scope | State |
 |---|---|---|---|---|---|
-| WT00 | `codex/reactive-platform-integration` | `/Users/srinivasvaddi/Projects/codecks-worktrees/reactive/integration` | `4da58b279c50fec182bf52f0a73861d9b3bc22fd` | coordination, merges, evidence, hotspots | active |
-| WT01 | `codex/reactive-contracts` | `/Users/srinivasvaddi/Projects/codecks-worktrees/reactive/contracts` | `4da58b279c50fec182bf52f0a73861d9b3bc22fd` | shared protocol, fixtures, verifier, threat model | merged at `eab91f0` |
-| WT03 | `codex/reactive-android-helper` | `/Users/srinivasvaddi/Projects/codecks-worktrees/reactive/android-helper` | `eab91f0952facf40570e054ac3109768d18a09df` | Android helper client scaffold | merged at `be26db8` |
+| WT00 | `codex/reactive-platform-integration` | `<codecks-worktrees>/reactive/integration` | `4da58b279c50fec182bf52f0a73861d9b3bc22fd` | coordination, merges, evidence, hotspots | active |
+| WT01 | `codex/reactive-contracts` | `<codecks-worktrees>/reactive/contracts` | `4da58b279c50fec182bf52f0a73861d9b3bc22fd` | shared protocol, fixtures, verifier, threat model | merged at `eab91f0` |
+| WT03 | `codex/reactive-android-helper` | `<codecks-worktrees>/reactive/android-helper` | `eab91f0952facf40570e054ac3109768d18a09df` | Android helper client scaffold | merged at `be26db8` |
 
 ## Evidence
 

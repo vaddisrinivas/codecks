@@ -21,7 +21,7 @@ Implemented:
 
 Validation:
 
-- `ANDROID_HOME=/Users/srinivasvaddi/Library/Android/sdk ./gradlew :app:testReleaseUnitTest --tests 'io.codecks.platform.helper.*' -PreleaseStoreFile=/tmp/codecks-unit-placeholder.jks -PreleaseKeyAlias=unit -PreleaseStorePassword=unit -PreleaseKeyPassword=unit` -> `BUILD SUCCESSFUL`
+- `ANDROID_HOME=<android-sdk> ./gradlew :app:testReleaseUnitTest --tests 'io.codecks.platform.helper.*' -PreleaseStoreFile=/tmp/codecks-unit-placeholder.jks -PreleaseKeyAlias=unit -PreleaseStorePassword=unit -PreleaseKeyPassword=unit` -> `BUILD SUCCESSFUL`
 - `git diff --check` -> clean
 
 Notes:
