@@ -17,12 +17,18 @@ public enum ReactiveErrorCode: String, Codable, Equatable {
     case clockSkew = "clock_skew"
     case unsupportedCapability = "unsupported_capability"
     case preconditionFailed = "precondition_failed"
+    case timeout = "timeout"
+    case cancelled = "cancelled"
+    case partialFailure = "partial_failure"
     case internalError = "internal"
 }
 
 public enum ReceiptStatus: String, Codable, Equatable {
     case accepted
     case completed
+    case partialFailure = "partial_failure"
+    case timeout
+    case cancelled
     case failed
     case denied
 }

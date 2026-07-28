@@ -1,20 +1,50 @@
 import Foundation
 
+public protocol ReactiveHelperActionHandler {
+    func execute(_ request: ReactiveExecuteRequest, nowMillis: Int64) throws -> ReactiveHelperActionOutcome
+}
+
+public enum ReactiveHelperActionOutcome: Equatable {
+    case completed(resultCode: String, undoToken: String? = nil)
+    case denied(code: ReactiveErrorCode)
+    case failed(code: ReactiveErrorCode, retryable: Bool)
+}
+
+public struct ClosureReactiveHelperActionHandler: ReactiveHelperActionHandler {
+    private let body: (ReactiveExecuteRequest, Int64) throws -> ReactiveHelperActionOutcome
+
+    public init(_ body: @escaping (ReactiveExecuteRequest, Int64) throws -> ReactiveHelperActionOutcome) {
+        self.body = body
+    }
+
+    public func execute(_ request: ReactiveExecuteRequest, nowMillis: Int64) throws -> ReactiveHelperActionOutcome {
+        try body(request, nowMillis)
+    }
+}
+
 public final class ReactiveSessionCoordinator {
     private let macId: String
     private let helperIdentity: HelperIdentityPin
     private let pairingStore: PairingStore
     private let supportedActionIds: Set<String>
+    private let actionHandlers: [String: ReactiveHelperActionHandler]
     private let jsonEncoder = JSONEncoder()
     private let jsonDecoder = JSONDecoder()
     private var pending: [String: PendingSession] = [:]
     private var sessions: [String: AuthenticatedSession] = [:]
 
-    public init(macId: String, helperIdentity: HelperIdentityPin, pairingStore: PairingStore, supportedActionIds: Set<String> = []) {
+    public init(
+        macId: String,
+        helperIdentity: HelperIdentityPin,
+        pairingStore: PairingStore,
+        supportedActionIds: Set<String> = [],
+        actionHandlers: [String: ReactiveHelperActionHandler] = [:]
+    ) {
         self.macId = macId
         self.helperIdentity = helperIdentity
         self.pairingStore = pairingStore
-        self.supportedActionIds = supportedActionIds
+        self.actionHandlers = actionHandlers
+        self.supportedActionIds = supportedActionIds.union(actionHandlers.keys)
         jsonEncoder.outputFormatting = [.sortedKeys]
     }
 
@@ -53,7 +83,7 @@ public final class ReactiveSessionCoordinator {
 
         let auth = ReactiveAuthenticator(secret: secret)
         let expectedProof = auth.hmacHex(clientProofTranscript(hello: pendingSession.hello, challenge: pendingSession.challenge))
-        let expectedPin = auth.hmacHex(pendingSession.challenge.helperIdentity.publicKeyFingerprint)
+        let expectedPin = auth.hmacHex(pinAcknowledgementTranscript(challenge: pendingSession.challenge))
         guard constantTimeEquals(proof.proof, expectedProof), constantTimeEquals(proof.pinAcknowledgement, expectedPin) else {
             return rejected(sessionId: proof.sessionId, code: ReactiveErrorCode.pinMismatch.rawValue, nowMillis: nowMillis)
         }
@@ -119,12 +149,48 @@ public final class ReactiveSessionCoordinator {
             )
             return try encodedResponse(for: envelope, status: .completed, body: state, secret: session.secret)
         case "execute":
-            guard let actionId = body.actionId, supportedActionIds.contains(actionId) else {
+            let request = try jsonDecoder.decode(ReactiveExecuteRequest.self, from: Data(envelope.bodyJson.utf8))
+            guard supportedActionIds.contains(request.actionId), let handler = actionHandlers[request.actionId] else {
                 return response(for: envelope, status: .denied, code: ReactiveErrorCode.unsupportedCapability.rawValue, secret: session.secret)
             }
-            return response(for: envelope, status: .denied, code: ReactiveErrorCode.preconditionFailed.rawValue, secret: session.secret)
+            return try execute(request, envelope: envelope, handler: handler, nowMillis: nowMillis, secret: session.secret)
+        case "undo":
+            return response(for: envelope, status: .denied, code: ReactiveErrorCode.unsupportedCapability.rawValue, secret: session.secret)
+        case "cancel":
+            return response(for: envelope, status: .denied, code: ReactiveErrorCode.cancelled.rawValue, secret: session.secret)
         default:
             return response(for: envelope, status: .denied, code: ReactiveErrorCode.unsupportedCapability.rawValue, secret: session.secret)
+        }
+    }
+
+    private func execute(
+        _ request: ReactiveExecuteRequest,
+        envelope: ReactiveRequestEnvelope,
+        handler: ReactiveHelperActionHandler,
+        nowMillis: Int64,
+        secret: Data
+    ) throws -> ReactiveResponseEnvelope {
+        let outcome = try handler.execute(request, nowMillis: nowMillis)
+        switch outcome {
+        case .completed(let resultCode, let undoToken):
+            let receipt = ReactiveHelperActionReceipt(
+                receiptId: "helper-\(UUID().uuidString)",
+                operationId: request.operationId,
+                idempotencyKey: request.idempotencyKey,
+                actionId: request.actionId,
+                actionRevision: request.actionRevision,
+                status: .completed,
+                startedAtMillis: max(0, nowMillis - 1),
+                completedAtMillis: nowMillis,
+                resultCode: resultCode,
+                undoToken: undoToken,
+                partialFailures: []
+            )
+            return try encodedResponse(for: envelope, status: .completed, body: receipt, secret: secret)
+        case .denied(let code):
+            return response(for: envelope, status: .denied, code: code.rawValue, secret: secret)
+        case .failed(let code, let retryable):
+            return response(for: envelope, status: .failed, code: code.rawValue, retryable: retryable, secret: secret)
         }
     }
 
@@ -170,14 +236,21 @@ public final class ReactiveSessionCoordinator {
         return response(for: envelope, status: status, bodyJson: bodyJson, secret: secret)
     }
 
-    private func response(for envelope: ReactiveRequestEnvelope, status: ReceiptStatus, code: String? = nil, bodyJson: String? = nil, secret: Data) -> ReactiveResponseEnvelope {
+    private func response(
+        for envelope: ReactiveRequestEnvelope,
+        status: ReceiptStatus,
+        code: String? = nil,
+        retryable: Bool = false,
+        bodyJson: String? = nil,
+        secret: Data
+    ) -> ReactiveResponseEnvelope {
         var response = ReactiveResponseEnvelope(
             sessionId: envelope.sessionId,
             sequence: envelope.sequence,
             requestId: envelope.requestId,
             status: status,
             code: code,
-            retryable: false,
+            retryable: retryable,
             bodyJson: bodyJson,
             authTag: ""
         )

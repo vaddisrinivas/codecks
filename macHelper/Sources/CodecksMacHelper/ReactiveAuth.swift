@@ -57,6 +57,17 @@ public func serverProofTranscript(hello: ReactiveHello, challenge: ReactiveChall
     )
 }
 
+public func pinAcknowledgementTranscript(challenge: ReactiveChallenge) -> String {
+    canonicalFields(
+        "pin-ack",
+        challenge.schema,
+        challenge.sessionId,
+        challenge.macId,
+        challenge.helperIdentity.helperId,
+        challenge.helperIdentity.publicKeyFingerprint
+    )
+}
+
 public func requestAuthTranscript(_ envelope: ReactiveRequestEnvelope) -> String {
     canonicalFields(
         "request",
