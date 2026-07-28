@@ -22,6 +22,19 @@ Draft automations locally. Test them before they ever run.
 
 Open source, local-first, and ready to try.
 
+## Extended Product Tour
+
+Use a 45-60 second version when the audience needs the full product rather than the shortest hook:
+
+1. Deck: run one visible, reversible Mac action.
+2. Trackpad: move, click, scroll, and show the compact control sheet.
+3. Keyboard: send a short line with `Send + Enter`, then show `Enter` and `Cmd + Enter`.
+4. Clipboard: manually push or pull text and show conflict review if both sides changed.
+5. Rules: test a recipe, inspect the result, then enable it.
+6. Build: edit a Deck action and find it through Command Palette.
+7. Desk use: show the opt-in lock-screen Trackpad only after Bluetooth HID is already connected.
+8. Optional AI: draft an action, review the generated result, and stop before execution.
+
 ## Render Commands
 
 ```bash

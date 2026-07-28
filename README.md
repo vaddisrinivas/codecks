@@ -19,12 +19,26 @@ Mac shortcuts are fast until you need the command you never remember. Codecks gi
 
 ## Highlights
 
-- **Command deck:** Finder, Terminal, Spaces, media, screenshots, browser tabs, and custom Mac commands.
-- **Trackpad:** Bluetooth HID pointer controls with gestures, scrolling, haptics, rotation, and optional screen pinning.
-- **Automations:** local When / If / Then recipes with safe templates, test-before-enable, and run history.
-- **AI-assisted drafting:** optional provider calls can draft buttons and automations; generated actions stay disabled until reviewed.
-- **DeX-ready layouts:** phone, tablet, landscape, freeform, and desktop windows.
+- **Command deck and editor:** run Finder, Terminal, Spaces, media,
+  screenshot, browser, and custom Mac actions from resizable buttons.
+- **Trackpad:** Bluetooth HID pointer controls with gestures, scrolling,
+  haptics, rotation, fullscreen, and an optional restricted lockscreen surface.
+- **Keyboard:** send text and explicit Enter or Command+Enter; short text can
+  use Bluetooth while longer or Unicode text can use Mac clipboard paste.
+- **Clipboard bridge:** manually push or pull text, or enable visible
+  directional sync with conflict handling.
+- **Rules:** local When / If / Then recipes with safe templates,
+  test-before-enable, approval where required, and run history.
+- **Find and build:** search actions and Rules in Command Palette; optionally
+  ask an AI provider to draft disabled buttons, decks, and Rules for review.
+- **Desk-ready entry:** open `codecks://trackpad` from a widget, notification,
+  NFC, or a Tasker desk-position profile.
+- **Adaptive and recoverable:** phone, tablet, landscape, freeform, and Samsung
+  DeX layouts; local Deck and Rules backup excludes secrets.
 - **No hosted account:** no Codecks backend, analytics SDK, advertising SDK, public database, or cloud sync.
+
+See the [feature guide](docs/product/FEATURE_GUIDE.md) for what each feature is
+for, required setup, limitations, experimental boundaries, and deferred work.
 
 ## Safety Model
 

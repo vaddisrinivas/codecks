@@ -1,16 +1,17 @@
 # Codecks FOSS Readiness
 
-Status: ready for maintainer review. Current public beta is `v0.1.10`.
+Status: ready for maintainer review. Current public beta is `v0.1.23`.
 
 ## What Is Ready
 
 - License: Apache-2.0 detected by GitHub.
 - Source: full Android app source is public.
-- Build: `./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug`.
+- Build: `./gradlew :shared:jvmTest :app:testDebugUnitTest :app:lintDebug :app:assembleDebug`.
 - Release: single signed APK and checksum workflow exists.
 - Metadata: Fastlane/Izzy-style metadata and screenshots are present under `fastlane/metadata/android/en-US`.
 - Privacy: no Codecks account, hosted backend, analytics SDK, ads SDK, public database, or cloud sync in the public beta.
 - User data: local app storage; optional exports remain user-controlled.
+- Product: Deck, Trackpad, Keyboard, Clipboard, Rules, editing, and optional reviewed AI drafting are documented in the [feature guide](../product/FEATURE_GUIDE.md).
 
 ## Anti-Feature Disclosure Draft
 

@@ -12,6 +12,7 @@ Release signing material must never be committed. The build accepts these enviro
 ```bash
 python3 tools/secret_surface_check.py
 ./scripts/verify_release_no_shrink.sh
+./gradlew :shared:jvmTest
 ./gradlew :app:testDebugUnitTest :app:lintDebug
 ./gradlew :app:assembleRelease
 ./scripts/verify_release_no_shrink.sh app/build/outputs/apk/release/app-release.apk
@@ -31,8 +32,9 @@ Repository Actions secrets hold the base64-encoded keystore, alias, and password
 Do not attach debug, preview, incubator, or alternate-app APKs to public releases.
 
 ```bash
-git tag -s v0.1.10 -m "Codecks v0.1.10"
-git push origin v0.1.10
+VERSION=vX.Y.Z
+git tag -s "$VERSION" -m "Codecks $VERSION"
+git push origin "$VERSION"
 ```
 
 If signed Git tags are unavailable, use an annotated tag and rely on the signed APK plus published checksum. Never reuse a version name/code for different binaries.

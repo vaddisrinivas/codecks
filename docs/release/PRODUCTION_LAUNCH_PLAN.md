@@ -1,14 +1,16 @@
 # Codecks production launch plan
 
-Updated: July 21, 2026
+Updated: July 27, 2026
 
 ## Release decision
 
-Current public beta is `v0.1.10`. Keep Codecks local-only: do not deploy a backend or public database. Keep account, billing, hosted sync, advanced surfaces, and alternate APKs disabled.
+Current public beta is `v0.1.23`. Keep Codecks local-only: do not deploy a backend or public database. Keep account, billing, hosted sync, advanced surfaces, and alternate APKs disabled.
 
 ## Completed for public beta
 
-- [x] Product trimmed around Deck, Trackpad, Automations, Settings, editing, and optional AI drafting.
+- [x] Product centered on Deck, Trackpad, Keyboard, Clipboard, Automations, Settings, editing, and optional AI drafting.
+- [x] Restricted lock-screen Trackpad access is opt-in, requires an existing Bluetooth HID connection, and exposes pointer controls only.
+- [x] Shipped, experimental, infrastructure, and deferred capabilities are separated in the feature guide.
 - [x] Consistent Codecks dark-green visual system across core screens.
 - [x] Local-only defaults; no server initialization, account, billing, analytics, ads, or cloud sync.
 - [x] Public application ID and semantic version established.
@@ -20,7 +22,7 @@ Current public beta is `v0.1.10`. Keep Codecks local-only: do not deploy a backe
 - [x] Public privacy, security, contribution, and release-signing documentation added.
 - [x] CI runs privacy scan, unit tests, lint, and debug build on every change.
 - [x] Tag/manual workflow rebuilds and publishes signed APK/checksum from public source.
-- [x] `v0.1.10` release workflow publishes a single signed APK with checksum.
+- [x] `v0.1.23` release workflow publishes a single signed APK with checksum.
 
 ## GA gates
 

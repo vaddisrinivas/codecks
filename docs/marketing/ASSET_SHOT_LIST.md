@@ -19,6 +19,10 @@ Use this list before publishing a release, showcase PR, Reddit post, or Show HN 
 - One signed-release install screenshot, not a debug build.
 - One tablet or DeX screenshot showing adaptive layout.
 - One Mac pairing or SSH host-key verification screenshot with private host data redacted.
+- One Keyboard screenshot showing Send + Enter, Enter, and Cmd + Enter.
+- One Clipboard screenshot showing manual transfer or conflict review.
+- One Deck editor or Command Palette screenshot showing how controls are created and found.
+- One opt-in lock-screen Trackpad screenshot showing pointer controls only and no private host data.
 - One optional AI draft screenshot using non-sensitive demo text.
 
 ## Publishing Rules
