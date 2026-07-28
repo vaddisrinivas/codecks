@@ -47,3 +47,4 @@ Status: active
 - WT18 release evidence gates: `python3 tools/secret_surface_check.py` pass; `scripts/verify_release_no_shrink.sh` pass with exact release Gradle lines.
 - WT04 state focused test: `./gradlew :app:testReleaseUnitTest --tests 'io.codecks.data.reactive.LiveMacStateRepositoryTest' -PreleaseStoreFile=/tmp/codecks-unit-placeholder.jks -PreleaseKeyAlias=unit -PreleaseStorePassword=unit -PreleaseKeyPassword=unit`: pass. Dummy signing properties only; no APK signed or installed.
 - WT02 Mac helper test: `cd macHelper && swift test`: pass, 5 tests, 0 failures.
+- Integration checkpoint after WT02/WT03/WT04/WT18: protocol fixtures pass; shared JVM/iOS pass; focused Android helper/state release unit tests pass with dummy signing props; secret surface pass; no-shrink pass; Mac helper Swift tests pass.
