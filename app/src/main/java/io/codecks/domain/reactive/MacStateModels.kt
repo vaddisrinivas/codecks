@@ -1,5 +1,11 @@
 package io.codecks.domain.reactive
 
+import io.codecks.shared.protocol.DisplayState
+import io.codecks.shared.protocol.ReactiveCapabilityId
+import io.codecks.shared.protocol.ReactiveHelperBasicState
+import io.codecks.shared.protocol.StateProvenance
+import io.codecks.shared.protocol.WindowState
+
 private const val MaxInlineIdBytes = 128
 
 @JvmInline
@@ -131,8 +137,8 @@ data class MacWindow(
 data class MacDisplay(
     val id: String,
     val name: String,
-    val widthPx: Int,
-    val heightPx: Int,
+    val widthPx: Int = 1,
+    val heightPx: Int = 1,
     val isPrimary: Boolean,
     val isBuiltIn: Boolean,
 ) {
@@ -221,9 +227,13 @@ data class MacStateSnapshot(
     val meeting: Observed<MacMeetingState>,
     val latestScreenshot: Observed<MacScreenshotState>,
     val capabilities: Set<CapabilityState>,
+    val source: StateSource = StateSource.LocalCache,
+    val freshnessMillis: Long = 3_000L,
+    val stale: Boolean = false,
+    val warningCode: String? = null,
 ) {
     fun isBasicStateExpired(nowMillis: Long, maxAgeMillis: Long = 3_000): Boolean =
-        nowMillis - capturedAtMillis > maxAgeMillis
+        stale || nowMillis - capturedAtMillis > maxAgeMillis
 }
 
 enum class TrackpadVisibility {
@@ -279,3 +289,208 @@ sealed interface MacStateRefreshResult {
         }
     }
 }
+
+fun ReactiveHelperBasicState.toMacStateSnapshot(
+    nowMillis: Long,
+    sourceOverride: StateSource? = null,
+): MacStateSnapshot {
+    val source = sourceOverride ?: provenance.toStateSource()
+    val frontApp = toFrontApp()
+    val activeWindowApp = activeWindow?.toMacApplication() ?: frontApp
+    val status = if (stale || nowMillis - capturedAtMillis > freshnessMillis) {
+        ObservationStatus.Stale
+    } else {
+        ObservationStatus.Fresh
+    }
+    val warningCode = if (status == ObservationStatus.Stale) "stale_${source.name.lowercase()}" else null
+    return MacStateSnapshot(
+        macId = MacId(macId),
+        snapshotRevision = snapshotRevision,
+        capturedAtMillis = capturedAtMillis,
+        frontApp = Observed(
+            value = frontApp,
+            status = if (frontApp == null) ObservationStatus.Unavailable else status,
+            observedAtMillis = capturedAtMillis,
+            source = source,
+            warningCode = warningCode,
+        ),
+        activeWindow = Observed(
+            value = activeWindow?.toMacWindow(activeWindowApp),
+            status = if (activeWindow == null) ObservationStatus.Unavailable else status,
+            observedAtMillis = capturedAtMillis,
+            source = source,
+            warningCode = warningCode,
+        ),
+        displays = Observed(
+            value = displays.map { it.toMacDisplay() },
+            status = if (displays.isEmpty()) ObservationStatus.Unavailable else status,
+            observedAtMillis = capturedAtMillis,
+            source = source,
+            warningCode = warningCode,
+        ),
+        cursor = unavailableObserved(),
+        selection = unavailableObserved(MacSelection.None),
+        clipboard = unavailableObserved(
+            MacClipboardMetadata(
+                kind = MacClipboardKind.Unknown,
+                byteSizeBucket = null,
+                safePreview = null,
+                changedAtMillis = null,
+            ),
+        ),
+        media = unavailableObserved(
+            MacMediaState(
+                app = null,
+                title = null,
+                artist = null,
+                playing = false,
+                muted = null,
+            ),
+        ),
+        system = unavailableObserved(
+            MacSystemState(
+                focusedSpaceLabel = null,
+                volumePercent = null,
+                muted = null,
+            ),
+        ),
+        meeting = unavailableObserved(
+            MacMeetingState(
+                app = null,
+                inMeeting = false,
+                microphoneMuted = null,
+                cameraOn = null,
+            ),
+        ),
+        latestScreenshot = unavailableObserved(
+            MacScreenshotState(
+                path = null,
+                capturedAtMillis = null,
+            ),
+        ),
+        capabilities = capabilities.mapToCapabilityStates(source).toSet(),
+        source = source,
+        freshnessMillis = freshnessMillis,
+        stale = status == ObservationStatus.Stale,
+        warningCode = warningCode,
+    )
+}
+
+fun MacStateSnapshot.markStale(
+    nowMillis: Long,
+    warningCode: String,
+): MacStateSnapshot = copy(
+    snapshotRevision = snapshotRevision + 1L,
+    capturedAtMillis = nowMillis,
+    frontApp = frontApp.asStale(warningCode),
+    activeWindow = activeWindow.asStale(warningCode),
+    displays = displays.asStale(warningCode),
+    cursor = cursor.asStale(warningCode),
+    selection = selection.asStale(warningCode),
+    clipboard = clipboard.asStale(warningCode),
+    media = media.asStale(warningCode),
+    system = system.asStale(warningCode),
+    meeting = meeting.asStale(warningCode),
+    latestScreenshot = latestScreenshot.asStale(warningCode),
+    stale = true,
+    warningCode = warningCode,
+)
+
+private fun StateProvenance.toStateSource(): StateSource = when (this) {
+    StateProvenance.Helper -> StateSource.Helper
+    StateProvenance.Ssh -> StateSource.SshProbe
+    StateProvenance.Cached,
+    StateProvenance.TestFixture -> StateSource.LocalCache
+}
+
+private fun ReactiveHelperBasicState.toFrontApp(): MacApplication? {
+    val bundleId = frontAppBundleId?.takeIf { it.isNotBlank() } ?: return null
+    val name = frontAppName?.takeIf { it.isNotBlank() } ?: bundleId.substringAfterLast('.')
+    return MacApplication(
+        bundleId = bundleId,
+        displayName = name,
+        kind = inferMacAppKind(bundleId, name),
+    )
+}
+
+private fun WindowState.toMacApplication(): MacApplication = MacApplication(
+    bundleId = bundleId,
+    displayName = bundleId.substringAfterLast('.').ifBlank { bundleId },
+    kind = inferMacAppKind(bundleId, title),
+)
+
+private fun WindowState.toMacWindow(app: MacApplication?): MacWindow = MacWindow(
+    app = app,
+    title = title,
+    role = if (focused) "focused_window" else "window",
+)
+
+private fun DisplayState.toMacDisplay(): MacDisplay = MacDisplay(
+    id = displayId,
+    name = name,
+    isPrimary = false,
+    isBuiltIn = false,
+)
+
+private fun Set<ReactiveCapabilityId>.mapToCapabilityStates(source: StateSource): List<CapabilityState> = map {
+    CapabilityState(
+        capability = when (it) {
+            ReactiveCapabilityId.FrontAppState -> CodecksCapability.FrontAppRead
+            ReactiveCapabilityId.WindowState -> CodecksCapability.ActiveWindowRead
+            ReactiveCapabilityId.ActionExecute -> CodecksCapability.MacCommand
+            ReactiveCapabilityId.ActionUndo -> CodecksCapability.MacCommand
+            ReactiveCapabilityId.ClipboardSelectedText -> CodecksCapability.SelectionRead
+            ReactiveCapabilityId.TransferSftp -> CodecksCapability.ClipboardWrite
+            ReactiveCapabilityId.AppleShortcuts -> CodecksCapability.MacCommand
+            ReactiveCapabilityId.MonitorBrightness -> CodecksCapability.DisplayRead
+            ReactiveCapabilityId.AccessibilityDiscovery -> CodecksCapability.ActiveWindowRead
+        },
+        availability = if (source == StateSource.Helper || source == StateSource.SshProbe) {
+            CapabilityAvailability.Available
+        } else {
+            CapabilityAvailability.Unknown
+        },
+    )
+}
+
+private fun inferMacAppKind(bundleId: String, name: String): MacAppKind {
+    val normalized = "$bundleId $name".lowercase()
+    return when {
+        normalized.contains("chrome") ||
+            normalized.contains("safari") ||
+            normalized.contains("firefox") ||
+            normalized.contains("brave") ||
+            normalized.contains("arc") ||
+            normalized.contains("edge") -> MacAppKind.Browser
+        normalized.contains("finder") -> MacAppKind.Finder
+        normalized.contains("terminal") ||
+            normalized.contains("iterm") ||
+            normalized.contains("warp") ||
+            normalized.contains("kitty") ||
+            normalized.contains("alacritty") -> MacAppKind.Terminal
+        normalized.contains("cursor") ||
+            normalized.contains("code") ||
+            normalized.contains("studio") ||
+            normalized.contains("xcode") -> MacAppKind.CodeEditor
+        normalized.contains("zoom") ||
+            normalized.contains("meet") ||
+            normalized.contains("teams") -> MacAppKind.Meeting
+        normalized.contains("calendar") -> MacAppKind.Calendar
+        normalized.contains("mail") || normalized.contains("gmail") || normalized.contains("outlook") -> MacAppKind.Mail
+        normalized.contains("music") || normalized.contains("spotify") || normalized.contains("video") -> MacAppKind.Media
+        normalized.contains("messages") || normalized.contains("slack") || normalized.contains("discord") -> MacAppKind.Messages
+        else -> MacAppKind.Generic
+    }
+}
+
+private fun <T> unavailableObserved(value: T? = null): Observed<T> = Observed(
+    value = value,
+    status = ObservationStatus.Unavailable,
+    observedAtMillis = null,
+    source = null,
+)
+
+private fun <T> Observed<T>.asStale(warningCode: String): Observed<T> = copy(
+    status = if (value == null) status else ObservationStatus.Stale,
+    warningCode = warningCode,
+)
