@@ -257,6 +257,102 @@ class DefaultReactiveActionExecutorTest {
     }
 
     @Test
+    fun helperSuccessCreatesReceiptAndSendsTypedExecuteRequest() = kotlinx.coroutines.test.runTest {
+        val receipts = InMemoryReactiveReceiptStore()
+        val helper = FakeReactiveHelperActionClient(
+            next = ReactiveHelperActionExecution.Succeeded(
+                resultCode = "shortcut_completed",
+                helperReceiptId = "helper-receipt-1",
+                completedAtMillis = 10_123L,
+                undoToken = "undo-token-1",
+            ),
+        )
+        val executor = DefaultReactiveActionExecutor(
+            actionRepository = FakeReactiveActionRepository(emptyList()),
+            actionRunner = FakeReactiveActionRunner(),
+            hidRepository = FakeHidRepository(isConnected = true),
+            receiptStore = receipts,
+            helperActionClient = helper,
+        )
+
+        val outcome = executor.execute(
+            control = helperControl(),
+            nowMillis = 10_000L,
+            currentState = sampleState(
+                capabilities = setOf(CapabilityState(CodecksCapability.MacCommand, CapabilityAvailability.Available)),
+            ),
+        )
+
+        assertEquals(ReactiveActionResult.Succeeded("shortcut_completed"), outcome.result)
+        assertNotNull(outcome.receipt)
+        assertEquals(1, receipts.all().size)
+        assertEquals("apple_shortcuts.run", helper.requests.single().actionId)
+        assertEquals("Daily Standup", helper.requests.single().arguments["shortcutName"])
+        assertTrue(helper.requests.single().preconditions.any { it.expectedBundleId == "com.apple.Terminal" })
+        assertEquals("helper-receipt-1", outcome.receipt!!.metadata["helperReceiptId"])
+    }
+
+    @Test
+    fun helperFailureDoesNotCreateReceipt() = kotlinx.coroutines.test.runTest {
+        val receipts = InMemoryReactiveReceiptStore()
+        val executor = DefaultReactiveActionExecutor(
+            actionRepository = FakeReactiveActionRepository(emptyList()),
+            actionRunner = FakeReactiveActionRunner(),
+            hidRepository = FakeHidRepository(isConnected = true),
+            receiptStore = receipts,
+            helperActionClient = FakeReactiveHelperActionClient(
+                ReactiveHelperActionExecution.Failed("helper_failed", retryable = true),
+            ),
+        )
+
+        val outcome = executor.execute(
+            control = helperControl(),
+            nowMillis = 10_000L,
+            currentState = sampleState(
+                capabilities = setOf(CapabilityState(CodecksCapability.MacCommand, CapabilityAvailability.Available)),
+            ),
+        )
+
+        assertEquals(ReactiveActionResult.Failed("helper_failed", true), outcome.result)
+        assertNull(outcome.receipt)
+        assertTrue(receipts.all().isEmpty())
+    }
+
+    @Test
+    fun helperReplayUsesStoredReceiptWithoutCallingHelperAgain() = kotlinx.coroutines.test.runTest {
+        val receipts = InMemoryReactiveReceiptStore()
+        val helper = FakeReactiveHelperActionClient(
+            ReactiveHelperActionExecution.Succeeded(
+                resultCode = "helper_ok",
+                helperReceiptId = "helper-receipt-1",
+                completedAtMillis = 10_001L,
+            ),
+        )
+        val executor = DefaultReactiveActionExecutor(
+            actionRepository = FakeReactiveActionRepository(emptyList()),
+            actionRunner = FakeReactiveActionRunner(),
+            hidRepository = FakeHidRepository(isConnected = true),
+            receiptStore = receipts,
+            helperActionClient = helper,
+        )
+        val invocation = ReactiveActionInvocation(
+            operationId = ReactiveOperationId("op-helper-1"),
+            idempotencyKey = ReactiveIdempotencyKey("idem-helper-1"),
+            requestedAtMillis = 10_000L,
+        )
+        val state = sampleState(
+            capabilities = setOf(CapabilityState(CodecksCapability.MacCommand, CapabilityAvailability.Available)),
+        )
+
+        val first = executor.execute(helperControl(), nowMillis = 10_000L, currentState = state, invocation = invocation)
+        val second = executor.execute(helperControl(), nowMillis = 10_002L, currentState = state, invocation = invocation)
+
+        assertEquals(first.receipt?.id, second.receipt?.id)
+        assertEquals(1, helper.requests.size)
+        assertEquals(1, receipts.all().size)
+    }
+
+    @Test
     fun undoHidReceiptRunsInverseCommand() = kotlinx.coroutines.test.runTest {
         val receipts = InMemoryReactiveReceiptStore()
         val hid = FakeHidRepository(isConnected = true)
@@ -663,6 +759,15 @@ class DefaultReactiveActionExecutorTest {
         expiresAtMillis = Long.MAX_VALUE,
     )
 
+    private fun helperControl(): ReactiveControl = reactiveControl(
+        id = "reactive_helper_shortcut",
+        action = ReactiveAction.Helper(
+            actionId = "apple_shortcuts.run",
+            arguments = mapOf("shortcutName" to "Daily Standup"),
+        ),
+        capability = CodecksCapability.MacCommand,
+    )
+
     private fun provenance(): ReactiveRequestProvenance = ReactiveRequestProvenance(
         macId = MacId("123e4567-e89b-12d3-a456-426614174000"),
         snapshotRevision = 1L,
@@ -687,6 +792,20 @@ private class FakeReactiveActionRunner(
         lastSpec = spec
         lastAuthorization = authorization
         return next.copy(actionId = spec.id, title = spec.title)
+    }
+}
+
+private class FakeReactiveHelperActionClient(
+    private val next: ReactiveHelperActionExecution,
+) : ReactiveHelperActionClient {
+    val requests = mutableListOf<io.codecks.shared.protocol.ReactiveHelperRequest.Execute>()
+
+    override suspend fun execute(
+        request: io.codecks.shared.protocol.ReactiveHelperRequest.Execute,
+        deadlineMillis: Long,
+    ): ReactiveHelperActionExecution {
+        requests += request
+        return next
     }
 }
 

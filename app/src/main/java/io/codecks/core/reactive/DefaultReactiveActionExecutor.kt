@@ -36,6 +36,10 @@ import io.codecks.domain.reactive.ReactiveUndoOutcome
 import io.codecks.domain.reactive.ReceiptId
 import io.codecks.domain.reactive.SharedHidCommand
 import io.codecks.domain.reactive.newReactiveReceiptId
+import io.codecks.shared.protocol.ActionPrecondition
+import io.codecks.shared.protocol.ActionPreconditionKind
+import io.codecks.shared.protocol.ReactiveHelperRequest
+import io.codecks.shared.protocol.validateExecuteRequest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -46,6 +50,7 @@ class DefaultReactiveActionExecutor @Inject constructor(
     private val hidRepository: HidRepository,
     private val receiptStore: InMemoryReactiveReceiptStore = InMemoryReactiveReceiptStore(),
     private val deviceRepository: DeviceRepository? = null,
+    private val helperActionClient: ReactiveHelperActionClient = UnavailableReactiveHelperActionClient,
 ) : ReactiveActionExecutor {
 
     override suspend fun execute(
@@ -140,12 +145,13 @@ class DefaultReactiveActionExecutor @Inject constructor(
                 actions = action.actions,
                 currentState = currentState,
             )
-            is ReactiveAction.Helper -> recordOutcome(
+            is ReactiveAction.Helper -> executeHelper(
                 control = control,
                 invocation = invocation,
                 nowMillis = nowMillis,
-                result = ReactiveActionResult.Unsupported("helper_not_implemented"),
                 idempotentSignature = signature,
+                action = action,
+                currentState = currentState,
             )
             is ReactiveAction.BundledSshFallback -> recordOutcome(
                 control = control,
@@ -466,6 +472,62 @@ class DefaultReactiveActionExecutor @Inject constructor(
         )
     }
 
+    private suspend fun executeHelper(
+        control: ReactiveControl,
+        nowMillis: Long,
+        invocation: ReactiveActionInvocation,
+        idempotentSignature: String,
+        action: ReactiveAction.Helper,
+        currentState: MacStateSnapshot?,
+    ): ReactiveExecutionOutcome {
+        val request = ReactiveHelperRequest.Execute(
+            actionId = action.actionId,
+            actionRevision = control.actionRevision.value,
+            operationId = invocation.operationId.value,
+            idempotencyKey = invocation.idempotencyKey.value,
+            timeoutMillis = invocation.timeoutMillis,
+            cancellationToken = invocation.operationId.value,
+            preconditions = currentState.toHelperPreconditions(),
+            arguments = action.arguments,
+        )
+        return runCatching {
+            validateExecuteRequest(request)
+            helperActionClient.execute(
+                request = request,
+                deadlineMillis = nowMillis + invocation.timeoutMillis,
+            )
+        }.fold(
+            onSuccess = { execution ->
+                val success = execution as? ReactiveHelperActionExecution.Succeeded
+                recordOutcome(
+                    control = control,
+                    invocation = invocation,
+                    nowMillis = success?.completedAtMillis ?: nowMillis,
+                    result = execution.toReactiveActionResult(control.actionRevision),
+                    undo = success?.toUndoAction(nowMillis),
+                    metadata = success?.let {
+                        mapOf(
+                            "operationKind" to "helper_action",
+                            "actionId" to action.actionId,
+                            "helperReceiptId" to it.helperReceiptId,
+                            "resultCode" to it.resultCode,
+                        )
+                    } ?: emptyMap(),
+                    idempotentSignature = idempotentSignature,
+                )
+            },
+            onFailure = {
+                recordOutcome(
+                    control = control,
+                    invocation = invocation,
+                    nowMillis = nowMillis,
+                    result = ReactiveActionResult.Failed("helper_request_invalid", retryable = false),
+                    idempotentSignature = idempotentSignature,
+                )
+            },
+        )
+    }
+
     private fun recordOutcome(
         control: ReactiveControl,
         invocation: ReactiveActionInvocation,
@@ -522,6 +584,38 @@ private fun ReactiveAction.signaturePart(): String = when (this) {
 }
 
 private fun String.redactedFingerprint(): String = io.codecks.domain.reactive.sha256Hex(this).take(32)
+
+private fun MacStateSnapshot?.toHelperPreconditions(): List<ActionPrecondition> {
+    val state = this ?: return emptyList()
+    return buildList {
+        add(
+            ActionPrecondition(
+                kind = ActionPreconditionKind.StateRevisionAtLeast,
+                expectedRevision = state.snapshotRevision,
+            ),
+        )
+        state.frontApp.value?.bundleId?.let { bundleId ->
+            add(
+                ActionPrecondition(
+                    kind = ActionPreconditionKind.FrontAppBundle,
+                    expectedBundleId = bundleId,
+                ),
+            )
+        }
+        state.capabilities
+            .filter { it.availability == CapabilityAvailability.Available }
+            .map { it.capability.name }
+            .sorted()
+            .forEach { capability ->
+                add(
+                    ActionPrecondition(
+                        kind = ActionPreconditionKind.CapabilityAvailable,
+                        expectedBundleId = capability,
+                    ),
+                )
+            }
+    }.distinct()
+}
 
 private suspend fun TargetSelector.matches(currentMacId: String, deviceRepository: DeviceRepository?): Boolean = when (this) {
     TargetSelector.CurrentDevice -> true
