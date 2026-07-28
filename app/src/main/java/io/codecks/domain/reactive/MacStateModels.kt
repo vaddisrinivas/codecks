@@ -67,6 +67,8 @@ enum class CodecksCapability {
     MeetingControl,
     SpotlightSearch,
     SftpTransfer,
+    MonitorBrightness,
+    AccessibilityDiscovery,
 }
 
 enum class CapabilityAvailability {
@@ -445,8 +447,8 @@ private fun Set<ReactiveCapabilityId>.mapToCapabilityStates(source: StateSource)
             ReactiveCapabilityId.SpotlightSearch -> CodecksCapability.SpotlightSearch
             ReactiveCapabilityId.TransferSftp -> CodecksCapability.SftpTransfer
             ReactiveCapabilityId.AppleShortcuts -> CodecksCapability.MacCommand
-            ReactiveCapabilityId.MonitorBrightness -> CodecksCapability.DisplayRead
-            ReactiveCapabilityId.AccessibilityDiscovery -> CodecksCapability.ActiveWindowRead
+            ReactiveCapabilityId.MonitorBrightness -> CodecksCapability.MonitorBrightness
+            ReactiveCapabilityId.AccessibilityDiscovery -> CodecksCapability.AccessibilityDiscovery
         },
         availability = if (source == StateSource.Helper || source == StateSource.SshProbe) {
             CapabilityAvailability.Available

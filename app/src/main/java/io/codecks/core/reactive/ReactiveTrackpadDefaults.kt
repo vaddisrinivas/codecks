@@ -10,8 +10,11 @@ import io.codecks.domain.reactive.ReactiveActionReceipt
 import io.codecks.domain.reactive.providers.ActiveAppReactiveControlProvider
 import io.codecks.domain.reactive.providers.AppleShortcutCatalog
 import io.codecks.domain.reactive.providers.AppleShortcutsReactiveControlProvider
+import io.codecks.domain.reactive.providers.AccessibilityDiscoveryReactiveControlProvider
 import io.codecks.domain.reactive.providers.MediaReactiveControlProvider
+import io.codecks.domain.reactive.providers.MonitorBrightnessReactiveControlProvider
 import io.codecks.domain.reactive.providers.ReactiveAppActionMapping
+import io.codecks.domain.reactive.providers.SpotlightSftpReactiveControlProvider
 import io.codecks.domain.reactive.providers.UndoReceiptReactiveControlProvider
 import io.codecks.domain.reactive.providers.WindowReactiveControlProvider
 
@@ -106,5 +109,8 @@ fun defaultReactiveTrackpadEngine(
             ),
             MediaReactiveControlProvider(),
             WindowReactiveControlProvider(),
+            SpotlightSftpReactiveControlProvider(),
+            MonitorBrightnessReactiveControlProvider(),
+            AccessibilityDiscoveryReactiveControlProvider(),
         ),
     )
