@@ -250,14 +250,12 @@ private fun AiWorkspaceHero(
                     )
                 }
             }
-            if (!ready) {
-                DeckActionButton(
-                    label = "Open AI settings",
-                    onClick = onOpenAiSettings,
-                    icon = Icons.Outlined.Settings,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                )
-            }
+            DeckActionButton(
+                label = if (ready) "AI settings" else "Open AI settings",
+                onClick = onOpenAiSettings,
+                icon = Icons.Outlined.Settings,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            )
             if (hasActiveArtifact) {
                 DeckActionButton(
                     label = "New draft",

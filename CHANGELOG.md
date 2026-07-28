@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.27 — 2026-07-28
+
+AI generation hotfix.
+
+- Persisted the custom AI model/deployment name per provider.
+- Let saved-key users save model and endpoint changes without re-pasting the API key.
+- Kept AI settings reachable after setup so provider, endpoint, and model can be edited.
+- Cleared blank OpenAI-compatible endpoint overrides instead of keeping stale URLs.
+- Verified Azure/OpenAI-compatible generation with `gpt-chat-latest`.
+- Kept release code minification and resource shrinking disabled to protect SSH.
+
 ## 0.1.26 — 2026-07-28
 
 AI provider compatibility and helper visibility release.

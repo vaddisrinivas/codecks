@@ -417,22 +417,27 @@ class AiProviderSettingsController(
     fun saveApiKey() {
         val state = _uiState.value
         val trimmed = state.apiKeyInput.trim()
-        if (trimmed.isBlank()) {
+        if (trimmed.isBlank() && !state.hasSavedKey) {
             _uiState.update { it.copy(testStatus = AiProviderTestStatus.Failure, message = "Enter an API key before saving") }
             return
         }
         scope.launch {
-            keyStore.saveKey(state.selectedProvider.providerId, SecretValue.of(trimmed))
+            if (trimmed.isNotBlank()) {
+                keyStore.saveKey(state.selectedProvider.providerId, SecretValue.of(trimmed))
+            }
             saveBaseUrlIfNeeded(state)
+            saveModelIfNeeded(state)
             _uiState.update {
                 it.copy(
                     apiKeyInput = "",
-                    hasSavedKey = true,
-                    savedBaseUrl = state.baseUrlInput.takeIf { url ->
-                        state.selectedProvider == AiProviderChoice.OpenAICompatible && url.isNotBlank()
-                    } ?: it.savedBaseUrl,
+                    hasSavedKey = it.hasSavedKey || trimmed.isNotBlank(),
+                    savedBaseUrl = if (state.selectedProvider == AiProviderChoice.OpenAICompatible) {
+                        state.baseUrlInput.trim()
+                    } else {
+                        ""
+                    },
                     testStatus = AiProviderTestStatus.Idle,
-                    message = "API key saved",
+                    message = if (trimmed.isNotBlank()) "API key saved" else "AI settings saved",
                 )
             }
         }
@@ -468,11 +473,13 @@ class AiProviderSettingsController(
         val providerId = _uiState.value.selectedProvider.providerId
         scope.launch {
             val savedBaseUrl = keyStore.loadKey(baseUrlKey(providerId))?.revealForProviderCall().orEmpty()
+            val savedModelId = keyStore.loadKey(modelIdKey(providerId))?.revealForProviderCall().orEmpty()
             _uiState.update {
                 it.copy(
                     hasSavedKey = keyStore.hasKey(providerId),
                     savedBaseUrl = savedBaseUrl,
                     baseUrlInput = savedBaseUrl,
+                    selectedModelId = savedModelId.ifBlank { it.selectedProvider.defaultModelId() },
                 )
             }
         }
@@ -522,12 +529,23 @@ class AiProviderSettingsController(
     private suspend fun saveBaseUrlIfNeeded(state: AiProviderSettingsState) {
         if (state.selectedProvider != AiProviderChoice.OpenAICompatible) return
         val baseUrl = state.baseUrlInput.trim()
-        if (baseUrl.isBlank()) return
+        if (baseUrl.isBlank()) {
+            keyStore.deleteKey(baseUrlKey(state.selectedProvider.providerId))
+            return
+        }
         keyStore.saveKey(baseUrlKey(state.selectedProvider.providerId), SecretValue.of(baseUrl))
+    }
+
+    private suspend fun saveModelIfNeeded(state: AiProviderSettingsState) {
+        val modelId = state.selectedModelId.trim()
+        if (modelId.isBlank()) return
+        keyStore.saveKey(modelIdKey(state.selectedProvider.providerId), SecretValue.of(modelId))
     }
 }
 
 private fun baseUrlKey(providerId: String): String = "base_url_$providerId"
+
+private fun modelIdKey(providerId: String): String = "model_id_$providerId"
 
 private const val MAX_GENERATION_MESSAGE_LENGTH = 800
 private const val MAX_LOCAL_HISTORY = 120

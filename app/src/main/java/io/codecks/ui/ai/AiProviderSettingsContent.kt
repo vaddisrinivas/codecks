@@ -127,9 +127,9 @@ internal fun LazyListScope.aiProviderSettingsItems(
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 DeckActionButton(
-                    label = "Save API key",
+                    label = if (state.apiKeyInput.isBlank() && state.hasSavedKey) "Save settings" else "Save API key",
                     onClick = onSaveApiKey,
-                    enabled = state.apiKeyInput.isNotBlank(),
+                    enabled = state.apiKeyInput.isNotBlank() || state.hasSavedKey,
                     icon = Icons.Outlined.Key,
                     modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                 )

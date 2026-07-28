@@ -185,8 +185,8 @@ android {
         applicationId = "app.codecks"
         minSdk = 28
         targetSdk = 37
-        versionCode = 26
-        versionName = "0.1.26"
+        versionCode = 27
+        versionName = "0.1.27"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["optionalContextSurfacesEnabled"] = optionalContextSurfacesEnabled.get()

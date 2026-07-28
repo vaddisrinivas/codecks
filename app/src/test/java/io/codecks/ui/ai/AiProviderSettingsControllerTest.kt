@@ -200,6 +200,45 @@ class AiProviderSettingsControllerTest {
     }
 
     @Test
+    fun customModelAndBaseUrlPersistAcrossControllerRecreation() = runTest {
+        val keyStore = InMemorySecureApiKeyStore()
+        val controller = controllerIn(scope = this, keyStore = keyStore)
+
+        controller.selectModel("gpt-chat-latest")
+        controller.setBaseUrl("https://imanasa9-3716-resource.openai.azure.com/openai/v1")
+        controller.setApiKey("sk-test-secret")
+        controller.saveApiKey()
+        runCurrent()
+
+        val recreated = controllerIn(scope = this, keyStore = keyStore)
+        runCurrent()
+
+        assertEquals("gpt-chat-latest", recreated.uiState.value.selectedModelId)
+        assertEquals("https://imanasa9-3716-resource.openai.azure.com/openai/v1", recreated.uiState.value.baseUrlInput)
+        assertTrue(recreated.uiState.value.hasSavedKey)
+    }
+
+    @Test
+    fun savedKeyAllowsSavingModelWithoutRepastingKey() = runTest {
+        val keyStore = InMemorySecureApiKeyStore()
+        val controller = controllerIn(scope = this, keyStore = keyStore)
+
+        controller.setApiKey("sk-test-secret")
+        controller.saveApiKey()
+        runCurrent()
+        controller.selectModel("gpt-chat-latest")
+        controller.saveApiKey()
+        runCurrent()
+
+        val recreated = controllerIn(scope = this, keyStore = keyStore)
+        runCurrent()
+
+        assertEquals("", controller.uiState.value.apiKeyInput)
+        assertEquals("AI settings saved", controller.uiState.value.message)
+        assertEquals("gpt-chat-latest", recreated.uiState.value.selectedModelId)
+    }
+
+    @Test
     fun refineDraftCreatesReplacementWithoutMutatingSourceArtifact() = runTest {
         val controller = controllerIn(
             scope = this,
@@ -301,6 +340,7 @@ class AiProviderSettingsControllerTest {
 
     private fun controllerIn(
         scope: TestScope,
+        keyStore: InMemorySecureApiKeyStore = InMemorySecureApiKeyStore(),
         entitlement: Entitlement = localOnly,
         artifactRepository: AiArtifactRepository? = null,
         actionRunner: ActionRunner? = null,
@@ -308,7 +348,6 @@ class AiProviderSettingsControllerTest {
         requests: MutableList<AiHttpRequest>? = null,
         responses: MutableList<AiHttpResponse> = mutableListOf(AiHttpResponse(200, """{"data":[{"id":"gpt-5-mini"}]}""")),
     ): AiProviderSettingsController {
-        val keyStore = InMemorySecureApiKeyStore()
         return AiProviderSettingsController(
             keyStore = keyStore,
             providerFactory =
