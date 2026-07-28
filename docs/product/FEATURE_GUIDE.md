@@ -1,6 +1,6 @@
 # Codecks Feature Guide
 
-Applies to: public beta v0.1.24
+Applies to: public beta v0.1.25
 
 This guide explains what the shipped features do, why they exist, what they
 require, and where their boundaries are. It is a product guide, not a promise
@@ -82,7 +82,7 @@ flag and validating the exact build.
 
 ## Infrastructure, not a user feature
 
-v0.1.24 includes a Kotlin Multiplatform shared module, typed authenticated
+v0.1.25 includes a Kotlin Multiplatform shared module, typed authenticated
 protocol models, an Android Mac-helper client/session, a native Swift Mac helper
 runtime, launchd installer scaffold, helper pairing JSON import/deep link/manual
 import, and buildable iOS framework targets. These are experimental Reactive
