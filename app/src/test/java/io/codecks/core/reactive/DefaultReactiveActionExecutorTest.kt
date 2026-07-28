@@ -54,6 +54,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -99,8 +100,8 @@ class DefaultReactiveActionExecutorTest {
         )
 
         assertEquals(ReactiveActionResult.Failed("hid_not_connected", true), outcome.result)
-        assertNotNull(outcome.receipt)
-        assertEquals(1, receipts.all().size)
+        assertNull(outcome.receipt)
+        assertTrue(receipts.all().isEmpty())
     }
 
     @Test
@@ -148,7 +149,9 @@ class DefaultReactiveActionExecutorTest {
         val rejected = executor.execute(hidControl(SharedHidCommand.Reload), ReactiveAuthorization(), 10_002L, invocation = invocation)
 
         assertEquals(ReactiveActionResult.Failed("idempotency_key_reused", false), rejected.result)
+        assertNull(rejected.receipt)
         assertEquals(listOf(HidCommand.BrowserBack), hid.sentCommands)
+        assertEquals(1, receipts.all().size)
     }
 
     @Test
@@ -169,7 +172,7 @@ class DefaultReactiveActionExecutorTest {
         val outcome = executor.execute(hidControl(), ReactiveAuthorization(), 10_006L, invocation = invocation)
 
         assertEquals(ReactiveActionResult.Expired, outcome.result)
-        assertEquals(outcome.result, outcome.receipt?.result)
+        assertNull(outcome.receipt)
         assertTrue(hid.sentCommands.isEmpty())
     }
 
@@ -259,6 +262,7 @@ class DefaultReactiveActionExecutorTest {
             ),
             outcome.result,
         )
+        assertNull(outcome.receipt)
     }
 
     @Test
@@ -325,6 +329,7 @@ class DefaultReactiveActionExecutorTest {
         )
 
         assertTrue(outcome.result is ReactiveActionResult.RequiresReview)
+        assertNull(outcome.receipt)
     }
 
     @Test
@@ -351,7 +356,7 @@ class DefaultReactiveActionExecutorTest {
         )
 
         assertEquals(ReactiveActionResult.Failed("stale_action_revision", false), outcome.result)
-        assertNotNull(outcome.receipt)
+        assertNull(outcome.receipt)
     }
 
     @Test
@@ -371,7 +376,7 @@ class DefaultReactiveActionExecutorTest {
         )
 
         assertEquals(ReactiveActionResult.Failed("stale_state_revision", false), outcome.result)
-        assertEquals(outcome.result, outcome.receipt?.result)
+        assertNull(outcome.receipt)
     }
 
     @Test
@@ -393,7 +398,7 @@ class DefaultReactiveActionExecutorTest {
         )
 
         assertEquals(ReactiveActionResult.Unsupported("capability_unavailable"), outcome.result)
-        assertEquals(outcome.result, outcome.receipt?.result)
+        assertNull(outcome.receipt)
     }
 
     @Test
@@ -413,7 +418,7 @@ class DefaultReactiveActionExecutorTest {
         )
 
         assertEquals(ReactiveActionResult.Failed("target_changed", false), outcome.result)
-        assertEquals(outcome.result, outcome.receipt?.result)
+        assertNull(outcome.receipt)
     }
 
     @Test
@@ -463,6 +468,8 @@ class DefaultReactiveActionExecutorTest {
         )
 
         assertEquals(ReactiveActionResult.Failed("idempotency_key_reused", false), reused.result)
+        assertNull(reused.receipt)
+        assertEquals(1, receipts.all().size)
     }
 
     @Test
