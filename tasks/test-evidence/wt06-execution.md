@@ -1,14 +1,19 @@
-WT06 execution, receipts, and undo
+# WT06 Reactive execution receipts / undo
 
-Status: FOCUSED_GREEN
+- Worktree: `reactive/execution`
+- Branch: `codex/reactive-execution`
+- Scope:
+  - idempotent action invocation model consumption in Android executor
+  - replay returns stored receipt without repeated side effects
+  - idempotency-key conflict creates denied audit receipt
+  - timeout/expired controls produce receipts without side effects
+  - HID receipt undo scaffold for reversible browser back/forward
+  - composite controls derive child idempotency keys
 
-Implemented:
-- Reactive invocation IDs and idempotency keys.
-- Reactive receipts now carry operationId/idempotencyKey and mirror typed protocol receipt status/error.
-- DefaultReactiveActionExecutor records idempotent successful HID/catalog executions.
-- Same idempotency key and same action signature returns the stored receipt without re-executing.
-- Same idempotency key with a different control/action signature is denied.
-- Undo API scaffold returns typed unsupported/expired outcomes from the receipt store.
+## Focused validation
 
-Validation:
-- PASS: ./gradlew :app:testReleaseUnitTest --tests 'io.codecks.core.reactive.DefaultReactiveActionExecutorTest' -PreleaseStoreFile=/tmp/codecks-unit-placeholder.jks -PreleaseKeyAlias=unit -PreleaseStorePassword=unit -PreleaseKeyPassword=unit
+```text
+./gradlew :app:testReleaseUnitTest --tests 'io.codecks.core.reactive.DefaultReactiveActionExecutorTest' -PreleaseStoreFile=/tmp/codecks-unit-placeholder.jks -PreleaseKeyAlias=unit -PreleaseStorePassword=unit -PreleaseKeyPassword=unit
+```
+
+Result: passed.
