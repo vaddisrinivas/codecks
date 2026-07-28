@@ -139,6 +139,73 @@ final class ReactiveMacHelperTests: XCTestCase {
         XCTAssertEqual(undo.code, ReactiveErrorCode.unsupportedCapability.rawValue)
     }
 
+    func testFramedTransportRoutesHelloProofAndExecute() throws {
+        let coordinator = ReactiveSessionCoordinator(
+            macId: "mac-fixture",
+            helperIdentity: identity,
+            pairingStore: InMemoryPairingStore(),
+            actionHandlers: [
+                "apple_shortcuts.run": ClosureReactiveHelperActionHandler { request, _ in
+                    XCTAssertEqual(request.operationId, "op-transport")
+                    return .completed(resultCode: "transport_completed")
+                }
+            ]
+        )
+        let transport = ReactiveFramedTransportService(coordinator: coordinator, secret: secret)
+        let hello = ReactiveHello(deviceId: "phone-fixture", clientNonce: "client-nonce-fixture", clientTimeMillis: 1_000)
+        let challenge: ReactiveChallenge = try framedRoundTrip(hello, through: transport, nowMillis: 1_000)
+        XCTAssertEqual(challenge.macId, "mac-fixture")
+
+        let auth = ReactiveAuthenticator(secret: secret)
+        let proof = ReactiveProof(
+            sessionId: challenge.sessionId,
+            proof: auth.hmacHex(clientProofTranscript(hello: hello, challenge: challenge)),
+            pinAcknowledgement: auth.hmacHex(pinAcknowledgementTranscript(challenge: challenge))
+        )
+        let authResult: ReactiveAuthResult = try framedRoundTrip(proof, through: transport, nowMillis: 1_100)
+        XCTAssertTrue(authResult.accepted)
+        XCTAssertEqual(authResult.pinnedHelperIdentity, identity)
+
+        let request = signedRequest(
+            sessionId: authResult.sessionId,
+            sequence: 1,
+            requestId: "request-transport",
+            bodyJson: #"{"type":"execute","actionId":"apple_shortcuts.run","actionRevision":"rev-1","operationId":"op-transport","idempotencyKey":"idem-transport","timeoutMillis":5000,"cancellationToken":"op-transport","arguments":{"shortcutName":"Daily Standup"}}"#
+        )
+        let response: ReactiveResponseEnvelope = try framedRoundTrip(request, through: transport, nowMillis: 2_000)
+
+        XCTAssertEqual(response.status, .completed)
+        let receipt = try JSONDecoder().decode(ReactiveHelperActionReceipt.self, from: Data(response.bodyJson!.utf8))
+        XCTAssertEqual(receipt.operationId, "op-transport")
+        XCTAssertEqual(receipt.resultCode, "transport_completed")
+    }
+
+    func testFramedTransportRejectsBadFramesAndUnknownPayloads() throws {
+        let transport = ReactiveFramedTransportService(coordinator: makeCoordinator(), secret: secret)
+
+        XCTAssertThrowsError(try transport.handleFrame(Data([0, 0, 0, 8, 1, 2, 3]), nowMillis: 1_000))
+        XCTAssertThrowsError(
+            try transport.handleFrame(
+                ReactiveFrameCodec.encode(Data(#"{"schema":"reactive.v1","nope":true}"#.utf8)),
+                nowMillis: 1_000
+            )
+        )
+    }
+
+    func testFramedTransportRejectsReplayAtFrameBoundary() throws {
+        let coordinator = makeCoordinator()
+        let transport = ReactiveFramedTransportService(coordinator: coordinator, secret: secret)
+        let session = try authenticate(coordinator)
+        let request = signedRequest(sessionId: session.sessionId, sequence: 1, requestId: "request-replay-frame", bodyJson: #"{"type":"basic_state"}"#)
+
+        let first: ReactiveResponseEnvelope = try framedRoundTrip(request, through: transport, nowMillis: 2_000)
+        let replay: ReactiveResponseEnvelope = try framedRoundTrip(request, through: transport, nowMillis: 2_000)
+
+        XCTAssertEqual(first.status, .completed)
+        XCTAssertEqual(replay.status, .denied)
+        XCTAssertEqual(replay.code, ReactiveErrorCode.replayDetected.rawValue)
+    }
+
     private func makeCoordinator() -> ReactiveSessionCoordinator {
         ReactiveSessionCoordinator(
             macId: "mac-fixture",
@@ -172,5 +239,17 @@ final class ReactiveMacHelperTests: XCTestCase {
         )
         request.authTag = ReactiveAuthenticator(secret: secret).hmacHex(requestAuthTranscript(request))
         return request
+    }
+
+    private func framedRoundTrip<Input: Encodable, Output: Decodable>(
+        _ input: Input,
+        through transport: ReactiveFramedTransportService,
+        nowMillis: Int64
+    ) throws -> Output {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let frame = try ReactiveFrameCodec.encode(try encoder.encode(input))
+        let responseFrame = try transport.handleFrame(frame, nowMillis: nowMillis)
+        return try JSONDecoder().decode(Output.self, from: ReactiveFrameCodec.decode(responseFrame))
     }
 }
