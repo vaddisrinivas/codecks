@@ -52,6 +52,7 @@ final class ReactiveMacHelperRuntimeTests: XCTestCase {
     func testMissingSecretFailsClosed() {
         XCTAssertThrowsError(
             try ReactiveMacHelperRuntimeConfig.environment([
+                "CODECKS_HELPER_CONFIG": "/tmp/codecks-helper-missing-\(UUID().uuidString).json",
                 "CODECKS_HELPER_MAC_ID": "mac-fixture",
                 "CODECKS_HELPER_ID": "helper-fixture",
                 "CODECKS_HELPER_FINGERPRINT": String(repeating: "a", count: 64)
