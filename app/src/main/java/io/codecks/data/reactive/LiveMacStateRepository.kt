@@ -1,5 +1,7 @@
 package io.codecks.data.reactive
 
+import io.codecks.data.reactive.state.HelperMacStateSource
+import io.codecks.data.reactive.state.SshMacStateSource
 import io.codecks.domain.reactive.CapabilityAvailability
 import io.codecks.domain.reactive.CapabilityState
 import io.codecks.domain.reactive.CodecksCapability
@@ -18,13 +20,17 @@ import io.codecks.domain.reactive.MacStateRefreshResult
 import io.codecks.domain.reactive.MacStateRepository
 import io.codecks.domain.reactive.MacStateSnapshot
 import io.codecks.domain.reactive.MacSystemState
+import io.codecks.domain.reactive.markStale
 import io.codecks.domain.reactive.ObservationStatus
 import io.codecks.domain.reactive.Observed
 import io.codecks.domain.reactive.StateSource
 import io.codecks.domain.reactive.TrackpadVisibility
+import io.codecks.domain.reactive.toMacStateSnapshot
+import io.codecks.shared.protocol.ReactiveHelperBasicState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withTimeout
 
 data class LiveMacStateInputs(
     val selectedMacId: String?,
@@ -34,6 +40,9 @@ data class LiveMacStateInputs(
 )
 
 class LiveMacStateRepository(
+    private val helperSource: HelperMacStateSource? = null,
+    private val sshSource: SshMacStateSource? = null,
+    private val refreshTimeoutMillis: Long = 750L,
     private val nowMillis: () -> Long = System::currentTimeMillis,
 ) : MacStateRepository {
     private val _state = MutableStateFlow<MacStateSnapshot?>(null)
@@ -67,15 +76,19 @@ class LiveMacStateRepository(
     }
 
     override suspend fun refreshBasic(): MacStateRefreshResult {
-        if (inputs.selectedMacId.isNullOrBlank()) {
+        val selectedMacId = inputs.selectedMacId
+        if (selectedMacId.isNullOrBlank()) {
             return MacStateRefreshResult.Skipped("no_selected_mac")
         }
-        rebuild()
-        return MacStateRefreshResult.Succeeded(
-            source = StateSource.LocalCache,
-            updatedFields = setOf(MacStateField.FrontApp, MacStateField.Capabilities),
-            snapshotRevision = _state.value?.snapshotRevision,
-        )
+        _connection.value = MacStateConnectionState.Connecting(preferredSource())
+        return refreshFromSources(selectedMacId).getOrElse { error ->
+            val reasonCode = error.toReasonCode()
+            markCurrentStaleOrOffline(selectedMacId, reasonCode)
+            MacStateRefreshResult.Failed(
+                reasonCode = reasonCode,
+                retryable = true,
+            )
+        }
     }
 
     override suspend fun refreshDisplays(): MacStateRefreshResult =
@@ -180,6 +193,10 @@ class LiveMacStateRepository(
                 ),
             ),
             capabilities = buildCapabilities(frontAppObserved),
+            source = StateSource.LocalCache,
+            freshnessMillis = 3_000L,
+            stale = frontAppObserved.status == ObservationStatus.Stale,
+            warningCode = frontAppObserved.warningCode,
         )
         _connection.value = when {
             inputs.macCommandsReady && inputs.macInputConnected -> MacStateConnectionState.Connected(StateSource.LocalCache)
@@ -192,7 +209,162 @@ class LiveMacStateRepository(
         }
     }
 
-    private fun buildCapabilities(frontApp: Observed<MacApplication>): Set<CapabilityState> = buildSet {
+    private suspend fun refreshFromSources(selectedMacId: String): Result<MacStateRefreshResult> {
+        val helper = helperSource
+        if (helper?.connected == true) {
+            val helperResult = runCatching {
+                withTimeout(refreshTimeoutMillis) {
+                    helper.refreshBasicState(nowMillis() + refreshTimeoutMillis)
+                }
+            }
+            helperResult.getOrNull()?.let { basicState ->
+                return Result.success(applyBasicState(basicState, StateSource.Helper))
+            }
+        }
+
+        val ssh = sshSource
+        if (ssh != null) {
+            val sshResult = runCatching {
+                withTimeout(refreshTimeoutMillis) {
+                    ssh.refreshBasicState(selectedMacId)
+                }
+            }
+            sshResult.getOrNull()?.let { basicState ->
+                return Result.success(applyBasicState(basicState, StateSource.SshProbe))
+            }
+            if (helper?.connected == true) {
+                return Result.failure(sshResult.exceptionOrNull() ?: helperFailure())
+            }
+        }
+
+        if (helper?.connected == true) {
+            return Result.failure(helperFailure())
+        }
+
+        rebuild()
+        return Result.success(
+            MacStateRefreshResult.Succeeded(
+                source = StateSource.LocalCache,
+                updatedFields = setOf(MacStateField.FrontApp, MacStateField.Capabilities),
+                snapshotRevision = _state.value?.snapshotRevision,
+            ),
+        )
+    }
+
+    private fun applyBasicState(
+        basicState: ReactiveHelperBasicState,
+        source: StateSource,
+    ): MacStateRefreshResult {
+        val nextRevision = maxOf(revision + 1L, basicState.snapshotRevision)
+        revision = nextRevision
+        _state.value = basicState
+            .copy(snapshotRevision = nextRevision)
+            .toMacStateSnapshot(nowMillis(), source)
+        _connection.value = if (_state.value?.stale == true) {
+            MacStateConnectionState.Degraded(source, "stale_state")
+        } else {
+            MacStateConnectionState.Connected(source)
+        }
+        return MacStateRefreshResult.Succeeded(
+            source = source,
+            updatedFields = setOf(
+                MacStateField.FrontApp,
+                MacStateField.ActiveWindow,
+                MacStateField.Displays,
+                MacStateField.Capabilities,
+            ),
+            snapshotRevision = nextRevision,
+        )
+    }
+
+    private fun markCurrentStaleOrOffline(
+        selectedMacId: String,
+        reasonCode: String,
+    ) {
+        val now = nowMillis()
+        val current = _state.value
+        if (current != null) {
+            revision = maxOf(revision + 1L, current.snapshotRevision + 1L)
+            _state.value = current.markStale(now, reasonCode).copy(snapshotRevision = revision)
+            _connection.value = MacStateConnectionState.Degraded(current.source, reasonCode)
+            return
+        }
+        revision += 1L
+        _state.value = offlineSnapshot(selectedMacId, revision, now, reasonCode)
+        _connection.value = MacStateConnectionState.Disconnected(reasonCode)
+    }
+
+    private fun preferredSource(): StateSource? = when {
+        helperSource?.connected == true -> StateSource.Helper
+        sshSource != null -> StateSource.SshProbe
+        else -> StateSource.LocalCache
+    }
+
+    private fun offlineSnapshot(
+        selectedMacId: String,
+        snapshotRevision: Long,
+        now: Long,
+        reasonCode: String,
+    ): MacStateSnapshot = MacStateSnapshot(
+        macId = MacId(selectedMacId),
+        snapshotRevision = snapshotRevision,
+        capturedAtMillis = now,
+        frontApp = unavailableObserved(warningCode = reasonCode),
+        activeWindow = unavailableObserved(warningCode = reasonCode),
+        displays = unavailableObserved(emptyList(), reasonCode),
+        cursor = unavailableObserved(warningCode = reasonCode),
+        selection = unavailableObserved(MacSelection.None, reasonCode),
+        clipboard = unavailableObserved(
+            MacClipboardMetadata(
+                kind = MacClipboardKind.Unknown,
+                byteSizeBucket = null,
+                safePreview = null,
+                changedAtMillis = null,
+            ),
+            reasonCode,
+        ),
+        media = unavailableObserved(
+            MacMediaState(
+                app = null,
+                title = null,
+                artist = null,
+                playing = false,
+                muted = null,
+            ),
+            reasonCode,
+        ),
+        system = unavailableObserved(
+            MacSystemState(
+                focusedSpaceLabel = null,
+                volumePercent = null,
+                muted = null,
+            ),
+            reasonCode,
+        ),
+        meeting = unavailableObserved(
+            MacMeetingState(
+                app = null,
+                inMeeting = false,
+                microphoneMuted = null,
+                cameraOn = null,
+            ),
+            reasonCode,
+        ),
+        latestScreenshot = unavailableObserved(
+            MacScreenshotState(
+                path = null,
+                capturedAtMillis = null,
+            ),
+            reasonCode,
+        ),
+        capabilities = buildCapabilities(null),
+        source = StateSource.LocalCache,
+        freshnessMillis = 0L,
+        stale = true,
+        warningCode = reasonCode,
+    )
+
+    private fun buildCapabilities(frontApp: Observed<MacApplication>?): Set<CapabilityState> = buildSet {
         add(
             CapabilityState(
                 capability = CodecksCapability.PointerInput,
@@ -209,11 +381,11 @@ class LiveMacStateRepository(
             CapabilityState(
                 capability = CodecksCapability.FrontAppRead,
                 availability = when {
-                    frontApp.value != null -> CapabilityAvailability.Available
+                    frontApp?.value != null -> CapabilityAvailability.Available
                     inputs.macCommandsReady -> CapabilityAvailability.Unknown
                     else -> CapabilityAvailability.Offline
                 },
-                reasonCode = frontApp.warningCode,
+                reasonCode = frontApp?.warningCode,
             ),
         )
     }
@@ -258,10 +430,23 @@ private fun String.toMacApplication(): MacApplication {
     )
 }
 
-private fun <T> unavailableObserved(value: T? = null): Observed<T> = Observed(
+private fun <T> unavailableObserved(
+    value: T? = null,
+    warningCode: String? = null,
+): Observed<T> = Observed(
     value = value,
     status = ObservationStatus.Unavailable,
     observedAtMillis = null,
     source = null,
-    warningCode = null,
+    warningCode = warningCode,
 )
+
+private fun Throwable.toReasonCode(): String = when (this) {
+    is kotlinx.coroutines.TimeoutCancellationException -> "state_refresh_timeout"
+    else -> message?.takeIf { it.isNotBlank() }?.toReasonToken() ?: "state_refresh_failed"
+}
+
+private fun String.toReasonToken(): String =
+    lowercase().replace(Regex("[^a-z0-9_]+"), "_").trim('_').ifBlank { "state_refresh_failed" }
+
+private fun helperFailure(): Throwable = IllegalStateException("helper_basic_state_failed")
