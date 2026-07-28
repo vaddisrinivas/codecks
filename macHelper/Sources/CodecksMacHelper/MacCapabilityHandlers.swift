@@ -40,9 +40,14 @@ public struct SpotlightSearchActionHandler: ReactiveHelperActionHandler {
 
 public struct MonitorBrightnessActionHandler: ReactiveHelperActionHandler {
     private let executableExists: (String) -> Bool
+    private let runner: CommandRunning
 
-    public init(executableExists: @escaping (String) -> Bool = { FileManager.default.isExecutableFile(atPath: $0) }) {
+    public init(
+        executableExists: @escaping (String) -> Bool = { FileManager.default.isExecutableFile(atPath: $0) },
+        runner: CommandRunning = ProcessCommandRunner()
+    ) {
         self.executableExists = executableExists
+        self.runner = runner
     }
 
     public func execute(_ request: ReactiveExecuteRequest, nowMillis: Int64) throws -> ReactiveHelperActionOutcome {
@@ -62,10 +67,28 @@ public struct MonitorBrightnessActionHandler: ReactiveHelperActionHandler {
             return .denied(code: .unsupportedCapability)
         }
         let candidates = ["/opt/homebrew/bin/betterdisplaycli", "/usr/local/bin/betterdisplaycli"]
-        guard candidates.contains(where: executableExists) else {
+        guard let executable = candidates.first(where: executableExists) else {
             return .failed(code: .preconditionFailed, retryable: false)
         }
-        return .denied(code: .unsupportedCapability)
+        let result = try runner.run(
+            AppleShortcutsCommand(
+                executable: executable,
+                arguments: [
+                    "set",
+                    "-namelike=\(displayId)",
+                    "-brightness=\(percent)%"
+                ],
+                timeoutMillis: min(max(request.timeoutMillis, 500), 10_000),
+                maxOutputBytes: 16 * 1024
+            )
+        )
+        if result.timedOut {
+            return .failed(code: .timeout, retryable: true)
+        }
+        if result.exitCode != 0 {
+            return .failed(code: .preconditionFailed, retryable: false)
+        }
+        return .completed(resultCode: "monitor_brightness_set", undoToken: nil)
     }
 }
 

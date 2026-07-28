@@ -74,6 +74,52 @@ final class MacCapabilityHandlersTests: XCTestCase {
         )
     }
 
+    func testBrightnessUsesBetterDisplayArgvWithoutShell() throws {
+        let runner = RecordingCommandRunner()
+        let handler = MonitorBrightnessActionHandler(
+            executableExists: { $0 == "/opt/homebrew/bin/betterdisplaycli" },
+            runner: runner
+        )
+
+        let outcome = try handler.execute(
+            request(
+                actionId: "monitor_brightness.set",
+                arguments: ["adapterId": "betterdisplaycli", "displayId": "Studio Display", "percent": "65"]
+            ),
+            nowMillis: 1_000
+        )
+
+        XCTAssertEqual(
+            runner.commands.single(),
+            AppleShortcutsCommand(
+                executable: "/opt/homebrew/bin/betterdisplaycli",
+                arguments: ["set", "-namelike=Studio Display", "-brightness=65%"],
+                timeoutMillis: 5_000,
+                maxOutputBytes: 16 * 1024
+            )
+        )
+        XCTAssertEqual(outcome, .completed(resultCode: "monitor_brightness_set", undoToken: nil))
+    }
+
+    func testBrightnessTimeoutIsRetryable() throws {
+        let handler = MonitorBrightnessActionHandler(
+            executableExists: { _ in true },
+            runner: RecordingCommandRunner(
+                result: CommandResult(exitCode: 0, stdout: Data(), stderr: Data(), timedOut: true)
+            )
+        )
+
+        let outcome = try handler.execute(
+            request(
+                actionId: "monitor_brightness.set",
+                arguments: ["adapterId": "betterdisplaycli", "displayId": "Studio Display", "percent": "65"]
+            ),
+            nowMillis: 1_000
+        )
+
+        XCTAssertEqual(outcome, .failed(code: .timeout, retryable: true))
+    }
+
     func testAccessibilityDiscoveryIsBoundedAndPermissionAware() throws {
         let snapshotter = FakeAccessibilitySnapshotter(count: 99)
         let handler = AccessibilityDiscoveryActionHandler(snapshotter: snapshotter)
