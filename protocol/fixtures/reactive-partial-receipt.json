@@ -1,0 +1,21 @@
+{
+  "schema": "reactive.v1",
+  "receiptId": "receipt-fixture-partial",
+  "operationId": "op-fixture-1",
+  "idempotencyKey": "idem-fixture-1",
+  "actionId": "macos.finder.reveal",
+  "actionRevision": "rev-fixture-1",
+  "status": "partial_failure",
+  "startedAtMillis": 2000,
+  "completedAtMillis": 2500,
+  "resultCode": "partial_failure",
+  "undoToken": "undo-fixture-1",
+  "partialFailures": [
+    {
+      "code": "partial_failure",
+      "message": "Finder opened but selection highlight was unavailable.",
+      "retryable": false,
+      "safeForUser": true
+    }
+  ]
+}

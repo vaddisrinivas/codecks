@@ -1,0 +1,18 @@
+{
+  "schema": "reactive.v1",
+  "macId": "mac-fixture",
+  "baseRevision": 7,
+  "newRevision": 8,
+  "capturedAtMillis": 2500,
+  "provenance": "helper",
+  "changes": [
+    {
+      "path": "/frontAppBundleId",
+      "value": "com.apple.Terminal"
+    },
+    {
+      "path": "/frontAppName",
+      "value": "Terminal"
+    }
+  ]
+}
