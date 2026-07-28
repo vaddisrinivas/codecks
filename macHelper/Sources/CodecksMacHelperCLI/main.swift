@@ -13,7 +13,10 @@ _ = ReactiveSessionCoordinator(
     helperIdentity: identity,
     pairingStore: FilePairingStore(),
     actionHandlers: [
-        "apple_shortcuts.run": AppleShortcutsActionHandler()
+        "apple_shortcuts.run": AppleShortcutsActionHandler(),
+        "spotlight.search": SpotlightSearchActionHandler(),
+        "monitor_brightness.set": MonitorBrightnessActionHandler(),
+        "accessibility.discover": AccessibilityDiscoveryActionHandler()
     ]
 )
 
