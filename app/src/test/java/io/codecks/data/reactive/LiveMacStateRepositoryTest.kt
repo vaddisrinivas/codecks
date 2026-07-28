@@ -1,7 +1,12 @@
 package io.codecks.data.reactive
 
+import io.codecks.data.ConnectionConfig
+import io.codecks.data.ConnectionRepository
+import io.codecks.data.ConnectionTarget
 import io.codecks.data.reactive.state.HelperMacStateSource
+import io.codecks.data.reactive.state.ConnectionRepositorySshMacStateSource
 import io.codecks.data.reactive.state.SshMacStateSource
+import io.codecks.data.reactive.state.toSshBasicState
 import io.codecks.domain.reactive.CapabilityAvailability
 import io.codecks.domain.reactive.CodecksCapability
 import io.codecks.domain.reactive.MacAppKind
@@ -14,7 +19,9 @@ import io.codecks.shared.protocol.ReactiveCapabilityId
 import io.codecks.shared.protocol.ReactiveHelperBasicState
 import io.codecks.shared.protocol.StateProvenance
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -307,6 +314,56 @@ class LiveMacStateRepositoryTest {
         )
     }
 
+    @Test
+    fun sshConnectionSourceParsesFrontAppWithoutRawCommandArguments() = runTest {
+        val source = ConnectionRepositorySshMacStateSource(
+            connectionRepository = FakeConnectionRepository(
+                output = "com.apple.finder\nFinder\n",
+            ),
+            nowMillis = { 12_000L },
+        )
+
+        val state = source.refreshBasicState("mac_123")
+
+        assertNotNull(state)
+        state!!
+        assertEquals("mac_123", state.macId)
+        assertEquals(StateProvenance.Ssh, state.provenance)
+        assertEquals("com.apple.finder", state.frontAppBundleId)
+        assertEquals("Finder", state.frontAppName)
+        assertTrue(state.capabilities.contains(ReactiveCapabilityId.SpotlightSearch))
+        assertTrue(state.capabilities.contains(ReactiveCapabilityId.TransferSftp))
+    }
+
+    @Test
+    fun liveRepositoryUsesConnectionRepositorySshSourceWhenHelperMissing() = runTest {
+        val connectionRepository = FakeConnectionRepository(
+            output = "com.google.Chrome\nGoogle Chrome\n",
+        )
+        val repository = LiveMacStateRepository(
+            sshSource = ConnectionRepositorySshMacStateSource(
+                connectionRepository = connectionRepository,
+                nowMillis = { 13_000L },
+            ),
+            nowMillis = { 13_000L },
+        )
+        repository.update(connectedInputs())
+
+        val result = repository.refreshBasic()
+
+        assertTrue(result is MacStateRefreshResult.Succeeded)
+        assertEquals(StateSource.SshProbe, (result as MacStateRefreshResult.Succeeded).source)
+        assertEquals("mac_123", connectionRepository.targetIds.single())
+        assertEquals("Google Chrome", repository.state.value?.frontApp?.value?.displayName)
+        assertEquals("com.google.Chrome", repository.state.value?.frontApp?.value?.bundleId)
+    }
+
+    @Test
+    fun sshStateParserRejectsUnsafeFrontAppOutput() {
+        assertNull("com.apple.finder\nBad\u0000Name\n".toSshBasicState("mac_123", 1_000L))
+        assertNull("../Finder\nFinder\n".toSshBasicState("mac_123", 1_000L))
+    }
+
     private fun connectedInputs() = LiveMacStateInputs(
         selectedMacId = "mac_123",
         macCommandsReady = true,
@@ -350,5 +407,38 @@ private class FakeHelperMacStateSource(
     fun failWith(error: Throwable) {
         failure = error
         state = null
+    }
+}
+
+private class FakeConnectionRepository(
+    private val output: String,
+    private val failure: Throwable? = null,
+) : ConnectionRepository {
+    val targetIds = mutableListOf<String>()
+    override val config: Flow<ConnectionConfig> = flowOf(ConnectionConfig())
+    override suspend fun save(host: String, port: Int, user: String) = Unit
+    override suspend fun generateKey(): Result<String> = Result.success("generated")
+    override suspend fun publicKey(): String = "public-key"
+    override suspend fun trustHostKey(): Result<String> = Result.success("trusted")
+    override suspend fun confirmPendingHostKey(): Result<String> = Result.success("confirmed")
+    override suspend fun rotateKey(): Result<String> = Result.success("rotated")
+    override suspend fun resetTrust(): Result<String> = Result.success("reset")
+    override suspend fun installKey(password: String): Result<String> = Result.success("installed")
+    override suspend fun test(password: String?): Result<String> = Result.success("ok")
+    override suspend fun runAction(actionId: String, dangerous: Boolean): Result<String> = Result.success("ok")
+    override suspend fun runCommand(command: String): Result<String> = Result.success(output)
+    override suspend fun runCommandWithInput(command: String, stdin: String): Result<String> = Result.success("ok")
+    override suspend fun validateCommandSyntax(command: String): Result<String> = Result.success("ok")
+    override suspend fun runCommandSecret(command: String): Result<String> = Result.success("ok")
+    override suspend fun savedTargets(): List<ConnectionTarget> = emptyList()
+    override suspend fun selectTarget(targetId: String): Result<String> = Result.success("selected")
+    override suspend fun removeTarget(targetId: String): Result<String> = Result.success("removed")
+    override suspend fun runBundledCommandOnTarget(targetId: String, command: String): Result<String> {
+        targetIds += targetId
+        failure?.let { return Result.failure(it) }
+        check("osascript" in command)
+        check("System Events" in command)
+        check(targetId !in command)
+        return Result.success(output)
     }
 }

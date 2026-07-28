@@ -79,6 +79,7 @@ import io.codecks.data.CodecksBackupRepository
 import io.codecks.data.features.LocalFeatureFlagRepository
 import io.codecks.data.reactive.LiveMacStateInputs
 import io.codecks.data.reactive.LiveMacStateRepository
+import io.codecks.data.reactive.state.ConnectionRepositorySshMacStateSource
 import io.codecks.data.context.NotificationPreview
 import io.codecks.data.context.ContextFeatureStatus
 import io.codecks.data.context.NotificationPrivacySettings
@@ -455,7 +456,11 @@ private fun CodecksApp(
             deviceRepository.currentDeviceId()?.value?.let { SmartMacId(it) }
         }.getOrNull()
     }
-    val reactiveMacStateRepository = remember { LiveMacStateRepository() }
+    val reactiveMacStateRepository = remember(connectionRepository) {
+        LiveMacStateRepository(
+            sshSource = ConnectionRepositorySshMacStateSource(connectionRepository),
+        )
+    }
     val reactiveReceiptStore = remember { InMemoryReactiveReceiptStore() }
     val reactiveEngine = remember(actionRepository, reactiveReceiptStore) {
         defaultReactiveTrackpadEngine(
