@@ -1,5 +1,7 @@
 package io.codecks.platform.helper
 
+import io.codecks.shared.protocol.HelperIdentityPin
+import io.codecks.shared.protocol.HelperTrustState
 import io.codecks.shared.protocol.ReactiveAuthResult
 import io.codecks.shared.protocol.ReactiveChallenge
 import io.codecks.shared.protocol.ReactiveFrameCodec
@@ -55,6 +57,21 @@ class ReactiveHelperClientTest {
     }
 
     @Test
+    fun rejectsWrongPinnedHelperFingerprint() = runTest {
+        val helper = FakeHelperTransport(
+            secret = secret,
+            json = json,
+            helperIdentity = helperPin().copy(publicKeyFingerprint = "b".repeat(64)),
+        )
+        val client = client(helper)
+
+        val failure = runCatching { client.open("client-nonce") }.exceptionOrNull()
+
+        assertTrue(failure?.message.orEmpty().contains("identity"))
+        assertEquals(ReactiveHelperClientState.Failed("identity_mismatch"), client.state.value)
+    }
+
+    @Test
     fun rejectsBadServerProof() = runTest {
         val helper = FakeHelperTransport(secret, json, corruptServerProof = true)
         val client = client(helper)
@@ -84,6 +101,7 @@ class ReactiveHelperClientTest {
         deviceId = "phone-1",
         credentials = ReactiveHelperCredentials(
             expectedMacId = "mac-1",
+            pinnedHelperIdentity = helperPin(),
             sharedSecret = secret,
         ),
         nowMillis = { 10_000L },
@@ -95,6 +113,7 @@ private class FakeHelperTransport(
     private val secret: ByteArray,
     private val json: Json,
     private val macId: String = "mac-1",
+    private val helperIdentity: HelperIdentityPin = helperPin(),
     private val corruptServerProof: Boolean = false,
     private val replayFirstResponse: Boolean = false,
 ) : ReactiveHelperTransport {
@@ -119,6 +138,8 @@ private class FakeHelperTransport(
             serverNonce = "server-nonce",
             expiresAtMillis = 20_000L,
             macId = macId,
+            helperIdentity = helperIdentity,
+            verificationCode = "123456",
         )
         return encode(challenge)
     }
@@ -133,6 +154,12 @@ private class FakeHelperTransport(
                 hmacHex(secret, clientProofTranscript(currentHello, currentChallenge)).encodeToByteArray(),
             ),
         )
+        assertTrue(
+            MessageDigest.isEqual(
+                proof.pinAcknowledgement.encodeToByteArray(),
+                hmacHex(secret, pinAcknowledgementTranscript(currentChallenge)).encodeToByteArray(),
+            ),
+        )
         val serverProof = if (corruptServerProof) {
             "bad"
         } else {
@@ -144,6 +171,7 @@ private class FakeHelperTransport(
                 accepted = true,
                 expiresAtMillis = currentChallenge.expiresAtMillis,
                 serverProof = serverProof,
+                pinnedHelperIdentity = helperIdentity,
             ),
         )
     }
@@ -169,6 +197,23 @@ private class FakeHelperTransport(
     private inline fun <reified T> encode(value: T): ByteArray =
         ReactiveFrameCodec.encode(json.encodeToString(value).encodeToByteArray())
 }
+
+private fun helperPin() = HelperIdentityPin(
+    helperId = "helper-1",
+    publicKeyFingerprint = "a".repeat(64),
+    issuedAtMillis = 1_000L,
+    trustState = HelperTrustState.Verified,
+)
+
+private fun pinAcknowledgementTranscript(challenge: ReactiveChallenge): String =
+    listOf(
+        "pin-ack",
+        challenge.schema,
+        challenge.sessionId,
+        challenge.macId,
+        challenge.helperIdentity.helperId,
+        challenge.helperIdentity.publicKeyFingerprint,
+    ).joinToString("\u0000")
 
 private fun hmacHex(secret: ByteArray, message: String): String = Mac.getInstance("HmacSHA256").run {
     init(SecretKeySpec(secret, algorithm))

@@ -1,6 +1,7 @@
 package io.codecks.platform.helper
 
 import io.codecks.shared.protocol.REACTIVE_PROTOCOL_SCHEMA
+import io.codecks.shared.protocol.HelperIdentityPin
 import io.codecks.shared.protocol.ReactiveAuthResult
 import io.codecks.shared.protocol.ReactiveChallenge
 import io.codecks.shared.protocol.ReactiveFrameCodec
@@ -16,6 +17,7 @@ import io.codecks.shared.protocol.responseAuthTranscript
 import io.codecks.shared.protocol.serverProofTranscript
 import io.codecks.shared.protocol.validateAuthResult
 import io.codecks.shared.protocol.validateChallenge
+import io.codecks.shared.protocol.validateHelperIdentityPin
 import io.codecks.shared.protocol.validateHello
 import io.codecks.shared.protocol.validateRequestEnvelope
 import io.codecks.shared.protocol.validateResponseEnvelope
@@ -38,10 +40,12 @@ interface ReactiveHelperTransport {
 
 data class ReactiveHelperCredentials(
     val expectedMacId: String,
+    val pinnedHelperIdentity: HelperIdentityPin,
     val sharedSecret: ByteArray,
 ) {
     init {
         require(expectedMacId.isNotBlank()) { "expectedMacId must not be blank" }
+        validateHelperIdentityPin(pinnedHelperIdentity)
         require(sharedSecret.size >= 32) { "Reactive helper secret must contain at least 256 bits" }
     }
 }
@@ -77,6 +81,7 @@ class ReactiveHelperClient(
     },
 ) {
     private val expectedMacId = credentials.expectedMacId
+    private val pinnedHelperIdentity = credentials.pinnedHelperIdentity
     private val sharedSecret = credentials.sharedSecret.copyOf()
     private val requestMutex = Mutex()
     private val _state = MutableStateFlow<ReactiveHelperClientState>(ReactiveHelperClientState.Disconnected)
@@ -102,14 +107,35 @@ class ReactiveHelperClient(
             val challenge = decode<ReactiveChallenge>(transport.exchange(encode(hello)))
             validateChallenge(challenge, nowMillis())
             require(challenge.macId == expectedMacId) { "Helper identity mismatch" }
+            require(challenge.helperIdentity.helperId == pinnedHelperIdentity.helperId) {
+                "Helper identity mismatch"
+            }
+            require(
+                constantTimeEquals(
+                    challenge.helperIdentity.publicKeyFingerprint,
+                    pinnedHelperIdentity.publicKeyFingerprint,
+                ),
+            ) { "Helper identity mismatch" }
 
             val proof = ReactiveProof(
                 sessionId = challenge.sessionId,
                 proof = hmacHex(clientProofTranscript(hello, challenge)),
+                pinAcknowledgement = hmacHex(pinAcknowledgementTranscript(challenge)),
             )
             val authResult = decode<ReactiveAuthResult>(transport.exchange(encode(proof)))
             validateAuthResult(authResult, challenge.sessionId, nowMillis())
             require(authResult.accepted) { authResult.code ?: "Helper authentication denied" }
+            authResult.pinnedHelperIdentity?.let { serverPin ->
+                require(serverPin.helperId == pinnedHelperIdentity.helperId) {
+                    "Helper identity mismatch"
+                }
+                require(
+                    constantTimeEquals(
+                        serverPin.publicKeyFingerprint,
+                        pinnedHelperIdentity.publicKeyFingerprint,
+                    ),
+                ) { "Helper identity mismatch" }
+            }
             require(
                 constantTimeEquals(
                     authResult.serverProof,
@@ -190,6 +216,16 @@ class ReactiveHelperClient(
         init(SecretKeySpec(sharedSecret, algorithm))
         doFinal(message.toByteArray(StandardCharsets.UTF_8)).joinToString("") { "%02x".format(it) }
     }
+
+    private fun pinAcknowledgementTranscript(challenge: ReactiveChallenge): String =
+        listOf(
+            "pin-ack",
+            challenge.schema,
+            challenge.sessionId,
+            challenge.macId,
+            challenge.helperIdentity.helperId,
+            challenge.helperIdentity.publicKeyFingerprint,
+        ).joinToString("\u0000")
 
     private fun constantTimeEquals(actual: String, expected: String): Boolean =
         MessageDigest.isEqual(actual.encodeToByteArray(), expected.encodeToByteArray())
