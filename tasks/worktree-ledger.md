@@ -28,6 +28,8 @@ Status: active
 | WT00 | `codex/reactive-platform-integration` | `<codecks-worktrees>/reactive/integration` | `4da58b279c50fec182bf52f0a73861d9b3bc22fd` | coordination, merges, evidence, hotspots | active |
 | WT01 | `codex/reactive-contracts` | `<codecks-worktrees>/reactive/contracts` | `4da58b279c50fec182bf52f0a73861d9b3bc22fd` | shared protocol, fixtures, verifier, threat model | merged at `eab91f0` |
 | WT03 | `codex/reactive-android-helper` | `<codecks-worktrees>/reactive/android-helper` | `eab91f0952facf40570e054ac3109768d18a09df` | Android helper client scaffold | merged at `be26db8` |
+| WT18 | `codex/reactive-release-evidence` | `<codecks-worktrees>/reactive/release-evidence` | `cdd147d69e7b0de807ad2996aecc151055b7f8c9` | release evidence/no-shrink/secret harness | merged |
+| WT04 | `codex/reactive-state` | `<codecks-worktrees>/reactive/state` | `cdd147d69e7b0de807ad2996aecc151055b7f8c9` | unified helper/SSH Mac state | merged |
 
 ## Evidence
 
@@ -41,3 +43,5 @@ Status: active
 - `./gradlew :shared:jvmTest :shared:iosSimulatorArm64Test`: pass after WT01 merge.
 - Contract freeze: merged and focused green at `eab91f0952facf40570e054ac3109768d18a09df`.
 - WT03 Android helper focused test: `./gradlew :app:testReleaseUnitTest --tests 'io.codecks.platform.helper.*' -PreleaseStoreFile=/tmp/codecks-unit-placeholder.jks -PreleaseKeyAlias=unit -PreleaseStorePassword=unit -PreleaseKeyPassword=unit`: pass. Dummy signing properties only; no APK signed or installed.
+- WT18 release evidence gates: `python3 tools/secret_surface_check.py` pass; `scripts/verify_release_no_shrink.sh` pass with exact release Gradle lines.
+- WT04 state focused test: `./gradlew :app:testReleaseUnitTest --tests 'io.codecks.data.reactive.LiveMacStateRepositoryTest' -PreleaseStoreFile=/tmp/codecks-unit-placeholder.jks -PreleaseKeyAlias=unit -PreleaseStorePassword=unit -PreleaseKeyPassword=unit`: pass. Dummy signing properties only; no APK signed or installed.
