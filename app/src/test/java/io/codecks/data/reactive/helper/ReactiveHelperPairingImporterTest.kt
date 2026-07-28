@@ -28,6 +28,40 @@ class ReactiveHelperPairingImporterTest {
     }
 
     @Test
+    fun importerPersistsPinnedEndpointFromPairingPayload() = kotlinx.coroutines.test.runTest {
+        var savedIdentity: io.codecks.platform.helper.StoredReactiveHelperIdentity? = null
+        val importer = ReactiveHelperPairingImporter(
+            object : ReactiveHelperPairingStore {
+                override suspend fun savePairing(
+                    identity: io.codecks.platform.helper.StoredReactiveHelperIdentity,
+                    sharedSecret: ByteArray,
+                ) {
+                    savedIdentity = identity
+                    assertEquals(32, sharedSecret.size)
+                }
+            },
+        )
+
+        val identity = importer.importJson(
+            """
+                {
+                  "macId": "Desk Mac",
+                  "displayName": "Desk Mac",
+                  "helperId": "codecks-mac-helper",
+                  "publicKeyFingerprint": "${"a".repeat(64)}",
+                  "sharedSecretHex": "${"01".repeat(32)}",
+                  "host": "10.0.0.173",
+                  "port": 47321
+                }
+            """,
+        )
+
+        assertEquals("10.0.0.173", identity.host)
+        assertEquals(47321, identity.port)
+        assertEquals(identity, savedIdentity)
+    }
+
+    @Test
     fun rejectsShortSecretAndUnsafeHost() {
         assertThrows(IllegalArgumentException::class.java) {
             """

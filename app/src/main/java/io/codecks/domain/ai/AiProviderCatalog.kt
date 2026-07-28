@@ -23,8 +23,13 @@ object AiProviderCatalog {
         AiProviderSpec(
             id = AiProviderId.OpenAI,
             providerId = "openai",
-            label = "OpenAI",
-            models = listOf(AiModel("gpt-5.5", "GPT-5.5"), AiModel("gpt-5-mini", "GPT-5 Mini"), AiModel("gpt-5", "GPT-5")),
+            label = "OpenAI-compatible",
+            models = listOf(
+                AiModel("gpt-5.5", "GPT-5.5"),
+                AiModel("gpt-5-mini", "GPT-5 Mini"),
+                AiModel("gpt-5", "GPT-5"),
+                AiModel("gpt-4.1-mini", "GPT-4.1 Mini"),
+            ),
         )
 
     val anthropic =
@@ -44,8 +49,9 @@ object AiProviderCatalog {
             providerId = "openrouter",
             label = "OpenRouter",
             models = listOf(
-                AiModel("openrouter/auto", "OpenRouter Auto", supportsStructuredDrafts = false),
-                AiModel("anthropic/claude-sonnet-4.6", "Claude Sonnet via OpenRouter", supportsStructuredDrafts = false),
+                AiModel("google/gemma-4-26b-a4b-it:free", "Gemma 4 26B Free"),
+                AiModel("openrouter/auto", "OpenRouter Auto"),
+                AiModel("anthropic/claude-sonnet-4.6", "Claude Sonnet via OpenRouter"),
             ),
         )
 
@@ -75,7 +81,7 @@ object AiProviderCatalog {
             ),
         )
 
-    val all: List<AiProviderSpec> = listOf(openAi, anthropic, openRouter, liteLlm, gemini)
+    val all: List<AiProviderSpec> = listOf(openAi, anthropic, openRouter)
 
     fun byProviderId(providerId: String): AiProviderSpec? = all.firstOrNull { it.providerId == providerId }
 

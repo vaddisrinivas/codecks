@@ -54,15 +54,27 @@ Allowed statuses:
 
 ## Provider Behavior
 
-OpenAI generation uses the Responses API with strict `text.format` JSON schema.
+The app exposes three provider choices:
+
+- OpenAI-compatible
+- Anthropic
+- OpenRouter
+
+Users can type any model or deployment name. The catalog suggestions are only starting points.
+
+OpenAI-compatible generation uses chat completions with strict `response_format=json_schema`. Leave the endpoint blank for OpenAI. To use a compatible gateway, paste its base endpoint, for example:
+
+- `https://api.openai.com`
+- `https://openrouter.ai/api/v1`
+- `http://127.0.0.1:4000`
+- `https://<azure-resource>.openai.azure.com/openai/v1`
+- `https://<foundry-resource>.cognitiveservices.azure.com/models?api-version=<version>`
+
+For compatibility, OpenAI-compatible calls send both `Authorization: Bearer <key>` and `api-key: <key>`, and endpoint URL construction avoids double-appending `/v1`.
 
 Anthropic generation uses a forced strict tool result named `emit_ai_creator_v2_draft`.
 
-Gemini generation uses native `responseJsonSchema` with `responseMimeType=application/json`.
-
-OpenRouter and LiteLLM remain on OpenAI-compatible chat completions, but generation is allowed only for catalog models marked `supportsStructuredDrafts=true`.
-
-OpenRouter Auto and unverified gateway models currently fail closed for Action, Deck, and Automation drafts until strict structured output contracts are added and tested.
+OpenRouter uses `https://openrouter.ai/api/v1/chat/completions`; the default visible suggestion is a currently free model that passed a live Codecks draft smoke, but users can enter any OpenRouter model ID.
 
 Context app ranking keeps its existing context-app schema path.
 
@@ -116,7 +128,7 @@ Live-provider release-gate scoring is opt-in because it uses real provider keys 
 
 ```bash
 CODECKS_AI_V2_LIVE_EVAL=true \
-CODECKS_AI_V2_LIVE_PROVIDERS=openai,anthropic,gemini \
+CODECKS_AI_V2_LIVE_PROVIDERS=openai,anthropic,openrouter \
 ./gradlew testDebugUnitTest --tests io.codecks.data.ai.AiCreatorV2LiveEvalTest
 ```
 

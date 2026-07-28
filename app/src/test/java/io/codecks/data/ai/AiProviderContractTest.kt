@@ -43,7 +43,7 @@ class AiProviderContractTest {
                         AiHttpResponse(200, """{"data":[{"id":"gpt-5-mini"}]}"""),
                         AiHttpResponse(
                             200,
-                            """{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"{\"schemaVersion\":2,\"status\":\"ready\",\"message\":\"Ready\",\"questions\":[],\"assumptions\":[],\"proposal\":{\"id\":\"draft.open\",\"title\":\"Open Docs\",\"description\":\"Open documentation\",\"requiredCapabilities\":[],\"target\":{\"type\":\"AnyConnected\",\"id\":null},\"safety\":{\"level\":\"Normal\",\"requiresConfirmation\":false,\"confirmationTitle\":null,\"confirmationBody\":null},\"steps\":[{\"id\":\"step-1\",\"type\":\"open_url\",\"label\":\"Open docs\",\"url\":\"https://example.com\",\"text\":null,\"delayMs\":null,\"templateId\":null,\"requiresConfirmation\":false}]}}"}]}]}""",
+                            """{"choices":[{"message":{"content":"{\"schemaVersion\":2,\"status\":\"ready\",\"message\":\"Ready\",\"questions\":[],\"assumptions\":[],\"proposal\":{\"id\":\"draft.open\",\"title\":\"Open Docs\",\"description\":\"Open documentation\",\"requiredCapabilities\":[],\"target\":{\"type\":\"AnyConnected\",\"id\":null},\"safety\":{\"level\":\"Normal\",\"requiresConfirmation\":false,\"confirmationTitle\":null,\"confirmationBody\":null},\"steps\":[{\"id\":\"step-1\",\"type\":\"open_url\",\"label\":\"Open docs\",\"url\":\"https://example.com\",\"text\":null,\"delayMs\":null,\"templateId\":null,\"requiresConfirmation\":false}]}}"}}]}""",
                         ),
                     ),
             )
@@ -63,8 +63,9 @@ class AiProviderContractTest {
         assertTrue(json.contains("Open Docs"))
 
         val payload = httpClient.requests.last().body.orEmpty()
-        assertEquals("https://api.openai.com/v1/responses", httpClient.requests.last().url)
-        assertTrue(payload.contains("\"text\""))
+        assertEquals("https://api.openai.com/v1/chat/completions", httpClient.requests.last().url)
+        assertTrue(payload.contains("\"messages\""))
+        assertTrue(payload.contains("\"response_format\""))
         assertTrue(payload.contains("\"json_schema\""))
         assertTrue(payload.contains("\"minItems\":1"))
         assertTrue(payload.contains("Bundled Codecks AI Agent test context"))
@@ -74,20 +75,86 @@ class AiProviderContractTest {
     }
 
     @Test
-    fun unsupportedModel_isRejectedBeforeNetwork() = runTest {
+    fun arbitraryModelId_isSentToOpenAiCompatibleEndpoint() = runTest {
         val keyStore = InMemorySecureApiKeyStore()
         keyStore.saveKey("openai", SecretValue.of("secret"))
-        val httpClient = FakeAiHttpClient(mutableListOf())
+        val httpClient = FakeAiHttpClient(
+            mutableListOf(
+                AiHttpResponse(
+                    200,
+                    """{"choices":[{"message":{"content":"{\"schemaVersion\":2,\"status\":\"needs_input\",\"message\":\"Need detail\",\"questions\":[\"What should it do?\"],\"assumptions\":[],\"proposal\":null}"}}]}""",
+                ),
+            ),
+        )
         val provider = OpenAiProvider(keyStore, httpClient)
 
         val result = provider.draftAction(DraftRequest("make action", "not-a-real-model"))
 
-        assertTrue(result.isFailure)
-        assertTrue(httpClient.requests.isEmpty())
+        assertTrue(result.isSuccess)
+        assertTrue(httpClient.requests.single().body.orEmpty().contains("\"model\":\"not-a-real-model\""))
     }
 
     @Test
-    fun openAiProvider_surfacesRefusalAndIncompleteResponses() = runTest {
+    fun openAiCompatibleEndpointDoesNotDoubleAppendV1() = runTest {
+        val keyStore = InMemorySecureApiKeyStore()
+        keyStore.saveKey("openai", SecretValue.of("secret"))
+        val httpClient =
+            FakeAiHttpClient(
+                mutableListOf(
+                    AiHttpResponse(200, """{"data":[{"id":"azure-deployment"}]}"""),
+                    AiHttpResponse(
+                        200,
+                        """{"choices":[{"message":{"content":"{\"schemaVersion\":2,\"status\":\"needs_input\",\"message\":\"Need detail\",\"questions\":[\"What should it do?\"],\"assumptions\":[],\"proposal\":null}"}}]}""",
+                    ),
+                ),
+            )
+        val provider = OpenAiProvider(keyStore, httpClient, "https://resource.openai.azure.com/openai/v1")
+
+        provider.test().getOrThrow()
+        provider.draftAction(DraftRequest("make action", "azure-deployment")).getOrThrow()
+
+        assertEquals("https://resource.openai.azure.com/openai/v1/models", httpClient.requests.first().url)
+        assertEquals("https://resource.openai.azure.com/openai/v1/chat/completions", httpClient.requests.last().url)
+    }
+
+    @Test
+    fun openAiCompatibleEndpointSupportsFoundryModelsPathAndApiVersionQuery() = runTest {
+        val keyStore = InMemorySecureApiKeyStore()
+        keyStore.saveKey("openai", SecretValue.of("secret"))
+        val httpClient =
+            FakeAiHttpClient(
+                mutableListOf(
+                    AiHttpResponse(200, """{"data":[{"id":"gpt-54-nano"}]}"""),
+                    AiHttpResponse(
+                        200,
+                        """{"choices":[{"message":{"content":"{\"schemaVersion\":2,\"status\":\"needs_input\",\"message\":\"Need detail\",\"questions\":[\"What should it do?\"],\"assumptions\":[],\"proposal\":null}"}}]}""",
+                    ),
+                ),
+            )
+        val provider = OpenAiProvider(
+            keyStore,
+            httpClient,
+            "https://c3-ai.cognitiveservices.azure.com/models?api-version=2025-04-01-preview",
+        )
+
+        provider.test().getOrThrow()
+        provider.draftAction(DraftRequest("make action", "gpt-54-nano")).getOrThrow()
+
+        assertEquals(
+            "https://c3-ai.cognitiveservices.azure.com/models?api-version=2025-04-01-preview",
+            httpClient.requests.first().url,
+        )
+        assertEquals(
+            "https://c3-ai.cognitiveservices.azure.com/models/chat/completions?api-version=2025-04-01-preview",
+            httpClient.requests.last().url,
+        )
+        assertTrue(httpClient.requests.last().headers.containsKey("Authorization"))
+        assertTrue(httpClient.requests.last().headers.containsKey("api-key"))
+        assertFalse(httpClient.requests.last().body.orEmpty().contains("secret"))
+    }
+
+    @Test
+    fun openAiProvider_surfacesChatRefusalAndMalformedResponses() = runTest {
         val keyStore = InMemorySecureApiKeyStore()
         keyStore.saveKey("openai", SecretValue.of("secret"))
         val provider = OpenAiProvider(
@@ -96,15 +163,15 @@ class AiProviderContractTest {
                 mutableListOf(
                     AiHttpResponse(
                         200,
-                        """{"status":"completed","output":[{"type":"message","content":[{"type":"refusal","refusal":"Cannot help with that"}]}]}""",
+                        """{"choices":[{"message":{"refusal":"Cannot help with that"}}]}""",
                     ),
-                    AiHttpResponse(200, """{"status":"incomplete","output":[]}"""),
+                    AiHttpResponse(200, """{"choices":[]}"""),
                 ),
             ),
         )
 
         assertTrue(provider.draftAction(DraftRequest("bad request", "gpt-5.5")).exceptionOrNull() is AiProviderException.Refused)
-        assertTrue(provider.draftAction(DraftRequest("long request", "gpt-5.5")).exceptionOrNull() is AiProviderException.Incomplete)
+        assertTrue(provider.draftAction(DraftRequest("long request", "gpt-5.5")).exceptionOrNull() is AiProviderException.MalformedJson)
     }
 
     @Test
@@ -118,7 +185,7 @@ class AiProviderContractTest {
                     AiHttpResponse(429, """{"error":"rate"}"""),
                     AiHttpResponse(408, """{"error":"timeout"}"""),
                     AiHttpResponse(500, """{"error":"server"}"""),
-                    AiHttpResponse(200, """{"status":"completed","output":[]}"""),
+                    AiHttpResponse(200, """{}"""),
                 ),
             ),
         )
@@ -139,7 +206,7 @@ class AiProviderContractTest {
                     mutableListOf(
                         AiHttpResponse(
                             200,
-                            """{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"{\"schemaVersion\":2,\"status\":\"needs_input\",\"message\":\"Need detail\",\"questions\":[\"Which app?\"],\"assumptions\":[],\"proposal\":null}"}]}]}""",
+                            """{"choices":[{"message":{"content":"{\"schemaVersion\":2,\"status\":\"needs_input\",\"message\":\"Need detail\",\"questions\":[\"Which app?\"],\"assumptions\":[],\"proposal\":null}"}}]}""",
                         ),
                     ),
             )

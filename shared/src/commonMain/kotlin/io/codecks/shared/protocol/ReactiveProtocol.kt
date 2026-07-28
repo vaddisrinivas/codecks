@@ -500,11 +500,21 @@ fun responseAuthTranscript(envelope: ReactiveResponseEnvelope): String = canonic
     envelope.sessionId,
     envelope.sequence.toString(),
     envelope.requestId,
-    envelope.status.name,
+    envelope.status.wireName(),
     envelope.code.orEmpty(),
     envelope.retryable.toString(),
     envelope.bodyJson.orEmpty(),
 )
+
+private fun ReceiptStatus.wireName(): String = when (this) {
+    ReceiptStatus.Accepted -> "accepted"
+    ReceiptStatus.Completed -> "completed"
+    ReceiptStatus.PartialFailure -> "partial_failure"
+    ReceiptStatus.Timeout -> "timeout"
+    ReceiptStatus.Cancelled -> "cancelled"
+    ReceiptStatus.Failed -> "failed"
+    ReceiptStatus.Denied -> "denied"
+}
 
 fun validateHelperIdentityPin(pin: HelperIdentityPin) {
     requireToken("helperId", pin.helperId)

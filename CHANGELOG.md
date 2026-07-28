@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.26 — 2026-07-28
+
+AI provider compatibility and helper visibility release.
+
+- Simplified the AI provider picker to OpenAI-compatible, Anthropic, and OpenRouter.
+- Replaced fixed model chips with a free-text model/deployment field.
+- Moved OpenAI-compatible generation to chat completions so OpenAI, Azure/OpenAI-compatible gateways, LiteLLM, and local routers can share one path.
+- Added endpoint handling for plain `/v1`, Azure `/openai/v1`, and Azure Foundry `/models?api-version=...` bases.
+- Sent both Bearer and `api-key` auth headers for compatible providers, removed forced temperature for deployments that reject it, and normalized nullable JSON-schema output for stricter gateways.
+- Updated live provider eval defaults and docs for the three visible providers.
+- Kept release code minification and resource shrinking disabled to protect SSH.
+
 ## 0.1.23 — 2026-07-27
 
 Trackpad workflow polish, restricted lockscreen access, and buildable Reactive foundations.

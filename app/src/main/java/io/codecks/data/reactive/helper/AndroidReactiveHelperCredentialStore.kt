@@ -72,7 +72,11 @@ private fun List<StoredReactiveHelperIdentity>.encodeIdentities(): String {
                 .put("displayName", identity.displayName)
                 .put("helperId", identity.helperId)
                 .put("publicKeyFingerprint", identity.publicKeyFingerprint)
-                .put("secretAlias", identity.secretAlias),
+                .put("secretAlias", identity.secretAlias)
+                .apply {
+                    identity.host?.let { put("host", it) }
+                    identity.port?.let { put("port", it) }
+                },
         )
     }
     return array.toString()
@@ -88,6 +92,8 @@ private fun String.decodeIdentities(): List<StoredReactiveHelperIdentity> {
             helperId = item.getString("helperId"),
             publicKeyFingerprint = item.getString("publicKeyFingerprint"),
             secretAlias = item.getString("secretAlias"),
+            host = item.optString("host").takeIf(String::isNotBlank),
+            port = if (item.has("port")) item.getInt("port") else null,
         )
     }
 }

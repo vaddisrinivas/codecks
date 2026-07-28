@@ -10,6 +10,22 @@ import kotlinx.serialization.json.Json
 
 class ReactiveProtocolTest {
     @Test
+    fun responseAuthTranscriptUsesWireReceiptStatusNames() {
+        val envelope = ReactiveResponseEnvelope(
+            sessionId = "session-1",
+            sequence = 1,
+            requestId = "request-1",
+            status = ReceiptStatus.Completed,
+            retryable = false,
+            bodyJson = "{}",
+            authTag = "tag",
+        )
+
+        kotlin.test.assertTrue(responseAuthTranscript(envelope).contains("\u0000completed\u0000"))
+        kotlin.test.assertFalse(responseAuthTranscript(envelope).contains("\u0000Completed\u0000"))
+    }
+
+    @Test
     fun requestRejectsInvalidSequenceExpiredDeadlineAndOversizedBody() {
         assertFailsWith<IllegalArgumentException> {
             validateRequestEnvelope(request(sequence = 0), nowMillis = 50)

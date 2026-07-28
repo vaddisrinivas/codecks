@@ -32,6 +32,8 @@ data class StoredReactiveHelperIdentity(
     val helperId: String,
     val publicKeyFingerprint: String,
     val secretAlias: String,
+    val host: String? = null,
+    val port: Int? = null,
 ) {
     init {
         require(macId.isNotBlank()) { "macId must not be blank" }
@@ -39,6 +41,8 @@ data class StoredReactiveHelperIdentity(
         require(helperId.isNotBlank()) { "helperId must not be blank" }
         require(publicKeyFingerprint.length in 32..128) { "publicKeyFingerprint length invalid" }
         require(secretAlias.isNotBlank()) { "secretAlias must not be blank" }
+        require(host == null || host.isNotBlank()) { "host must not be blank" }
+        require(port == null || port in 1..65_535) { "port must be valid" }
     }
 }
 

@@ -40,3 +40,6 @@ release-artifacts/
 # Local editor and OS state
 .vscode/
 *.swp
+
+# Orchestry state
+.orchestry

@@ -24,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import io.codecks.BuildConfig
 import io.codecks.domain.ai.DraftKind
 import io.codecks.ui.designsystem.DeckActionButton
 import io.codecks.ui.designsystem.DeckFilterPill
@@ -67,22 +66,16 @@ internal fun LazyListScope.aiProviderSettingsItems(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         ) {
-            Text("Model", style = MaterialTheme.typography.labelLarge)
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-            ) {
-                state.selectedProvider.models.forEach { model ->
-                    val modelEnabled = model.supportsStructuredDrafts
-                    DeckFilterPill(
-                        label = if (modelEnabled) model.label else "${model.label} · draft unavailable",
-                        selected = state.selectedModelId == model.id,
-                        onClick = { onModelSelected(model.id) },
-                        enabled = modelEnabled,
-                        modifier = Modifier.heightIn(min = 48.dp),
-                    )
-                }
-            }
+            OutlinedTextField(
+                value = state.selectedModelId,
+                onValueChange = onModelSelected,
+                label = { Text("Model name") },
+                singleLine = true,
+                supportingText = {
+                    Text("Use any model or deployment name your provider accepts.")
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
     item {
@@ -95,19 +88,19 @@ internal fun LazyListScope.aiProviderSettingsItems(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (state.selectedProvider == AiProviderChoice.LiteLLM) {
+            if (state.selectedProvider == AiProviderChoice.OpenAICompatible) {
                 OutlinedTextField(
                     value = state.baseUrlInput,
                     onValueChange = onBaseUrlChanged,
                     label = { Text("Endpoint URL") },
-                    placeholder = { Text(BuildConfig.LITELLM_BASE_URL) },
+                    placeholder = { Text("https://api.openai.com") },
                     singleLine = true,
                     supportingText = {
                         Text(
                             if (state.savedBaseUrl.isNotBlank()) {
                                 "Saved endpoint used for generation"
                             } else {
-                                "Use this for LiteLLM, Azure/OpenAI-compatible gateways, or local model routers"
+                                "Leave blank for OpenAI, or use LiteLLM, Azure/OpenAI-compatible gateways, or local model routers"
                             },
                         )
                     },

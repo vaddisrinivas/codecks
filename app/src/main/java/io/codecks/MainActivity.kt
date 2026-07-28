@@ -62,6 +62,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import io.codecks.core.actions.ActionRunner
 import io.codecks.core.reactive.ConnectionRepositoryReactiveSftpTransferClient
 import io.codecks.core.reactive.DefaultReactiveActionExecutor
+import io.codecks.core.reactive.ReactiveHelperActionExecution
 import io.codecks.core.reactive.StateFlowReactiveHelperActionClient
 import io.codecks.core.reactive.reactiveActionRevision
 import io.codecks.core.reactive.defaultReactiveTrackpadEngine
@@ -136,7 +137,9 @@ import io.codecks.ui.mouse.reactive.ReactiveTrackpadViewModel
 import io.codecks.ui.mouse.reactive.reactiveTrackpadViewModelFactory
 import io.codecks.ui.palette.CommandPaletteScreen
 import io.codecks.ui.runlog.RunLogScreen
+import io.codecks.ui.settings.CodecksHelperConnectionKind
 import io.codecks.ui.settings.SettingsScreen
+import io.codecks.ui.settings.codecksHelperUiState
 import io.codecks.ui.theme.CodecksDeckStyle
 import io.codecks.ui.theme.CodecksIconPack
 import io.codecks.ui.theme.CodecksAccent
@@ -152,6 +155,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.io.File
+import java.util.UUID
 import io.codecks.domain.features.FeatureFlag
 import io.codecks.domain.features.FeatureFlaggedEntitlementRepository
 import io.codecks.domain.features.DEFAULT_FEATURE_FLAGS
@@ -165,7 +169,9 @@ import io.codecks.platform.helper.ReactiveHelperIdentityStore
 import io.codecks.platform.helper.ReactiveHelperSecretStore
 import io.codecks.platform.helper.ReactiveHelperSessionManager
 import io.codecks.platform.helper.ReactiveHelperSessionStatus
+import io.codecks.platform.helper.StoredReactiveHelperIdentity
 import io.codecks.platform.helper.TcpReactiveHelperTransportFactory
+import io.codecks.shared.protocol.ReactiveHelperRequest
 import io.codecks.ui.app.LocalActionDispatcher
 import io.codecks.domain.privacy.DiagnosticRedactor
 import io.codecks.domain.device.DeviceRepository
@@ -181,6 +187,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.withContext
+import java.security.MessageDigest
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -387,15 +394,31 @@ private fun CodecksApp(
     }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var reactiveHelperIdentities by remember { mutableStateOf<List<StoredReactiveHelperIdentity>>(emptyList()) }
+    fun refreshReactiveHelperIdentities() {
+        scope.launch {
+            reactiveHelperIdentities = withContext(Dispatchers.IO) {
+                reactiveHelperIdentityStore.identities()
+            }
+        }
+    }
+    LaunchedEffect(Unit) {
+        reactiveHelperIdentities = withContext(Dispatchers.IO) {
+            reactiveHelperIdentityStore.identities()
+        }
+    }
     LaunchedEffect(pendingReactiveHelperPairingJson) {
         val payload = pendingReactiveHelperPairingJson ?: return@LaunchedEffect
         val result = withContext(Dispatchers.IO) {
             runCatching { reactiveHelperPairingImporter.importJson(payload) }
         }
+        if (result.isSuccess) {
+            refreshReactiveHelperIdentities()
+        }
         snackbarHostState.showSnackbar(
             result.fold(
-                onSuccess = { "Reactive helper paired: ${it.displayName}" },
-                onFailure = { it.message ?: "Reactive helper pairing failed" },
+                onSuccess = { "Codecks helper paired: ${it.displayName}" },
+                onFailure = { it.message ?: "Codecks helper pairing failed" },
             ),
         )
         onReactiveHelperPairingConsumed()
@@ -524,19 +547,113 @@ private fun CodecksApp(
         reactiveHelperDiscovery.start()
         onDispose { reactiveHelperDiscovery.stop() }
     }
-    LaunchedEffect(discoveredReactiveHelpers, smartSelectedMacId, reactiveHelperStatus) {
-        val selectedMacId = smartSelectedMacId?.value ?: return@LaunchedEffect
+    fun codecksHelperEndpoint(): ReactiveHelperEndpoint? {
+        val stored = reactiveHelperIdentities.firstOrNull()
+        val host = stored?.host
+        val port = stored?.port
+        if (!host.isNullOrBlank() && port != null) return ReactiveHelperEndpoint(host, port)
+        val discovered = discoveredReactiveHelpers.firstOrNull()
+        return if (discovered != null) ReactiveHelperEndpoint(discovered.host, discovered.port) else null
+    }
+    LaunchedEffect(discoveredReactiveHelpers, smartSelectedMacId, reactiveHelperIdentities, reactiveHelperStatus) {
+        val selectedMacId = smartSelectedMacId?.value ?: reactiveHelperIdentities.firstOrNull()?.macId ?: return@LaunchedEffect
         when (reactiveHelperStatus) {
             is ReactiveHelperSessionStatus.Connected,
             is ReactiveHelperSessionStatus.Connecting,
+            is ReactiveHelperSessionStatus.Failed,
             -> return@LaunchedEffect
             else -> Unit
         }
-        val helper = discoveredReactiveHelpers.firstOrNull() ?: return@LaunchedEffect
+        val endpoint = codecksHelperEndpoint() ?: return@LaunchedEffect
         runCatching {
             reactiveHelperSessionManager.connect(
-                endpoint = ReactiveHelperEndpoint(helper.host, helper.port),
+                endpoint = endpoint,
                 macId = selectedMacId,
+            )
+        }
+    }
+    val savedCodecksHelperEndpoint = reactiveHelperIdentities.firstOrNull()?.let { identity ->
+        !identity.host.isNullOrBlank() && identity.port != null
+    } == true
+    val codecksHelperState = codecksHelperUiState(
+        pairedDisplayName = reactiveHelperIdentities.firstOrNull()?.displayName,
+        connectionKind = when (reactiveHelperStatus) {
+            is ReactiveHelperSessionStatus.Connected -> CodecksHelperConnectionKind.Connected
+            is ReactiveHelperSessionStatus.Connecting -> CodecksHelperConnectionKind.Connecting
+            is ReactiveHelperSessionStatus.Failed -> CodecksHelperConnectionKind.Failed
+            ReactiveHelperSessionStatus.Idle -> CodecksHelperConnectionKind.Idle
+        },
+        discoveredCount = discoveredReactiveHelpers.size,
+        hasSavedEndpoint = savedCodecksHelperEndpoint,
+        failureCode = (reactiveHelperStatus as? ReactiveHelperSessionStatus.Failed)?.code,
+    )
+    val connectCodecksHelper: () -> Unit = {
+        scope.launch {
+            val endpoint = codecksHelperEndpoint()
+            val macId = smartSelectedMacId?.value ?: reactiveHelperIdentities.firstOrNull()?.macId
+            when {
+                macId == null -> snackbarHostState.showSnackbar("Pair Codecks helper first")
+                endpoint == null -> snackbarHostState.showSnackbar("Open Codecks Mac helper on your Mac")
+                else -> {
+                    val result = withContext(Dispatchers.IO) {
+                        reactiveHelperSessionManager.connect(
+                            endpoint = endpoint,
+                            macId = macId,
+                        )
+                    }
+                    snackbarHostState.showSnackbar(
+                        when (result) {
+                            is ReactiveHelperSessionStatus.Connected -> "Codecks helper connected"
+                            is ReactiveHelperSessionStatus.Connecting -> "Codecks helper connecting"
+                            is ReactiveHelperSessionStatus.Failed -> "Codecks helper failed: ${result.code}"
+                            ReactiveHelperSessionStatus.Idle -> "Codecks helper idle"
+                        },
+                    )
+                }
+            }
+        }
+    }
+    val runCodecksHelperSpotlight: (String) -> Unit = { query ->
+        scope.launch {
+            if (query.isBlank()) {
+                snackbarHostState.showSnackbar("Enter a Mac search query")
+                return@launch
+            }
+            val sanitizedQuery = query.take(120)
+            val operationId = "codecks-spotlight-${UUID.randomUUID()}"
+            val request = ReactiveHelperRequest.Execute(
+                actionId = "spotlight.search",
+                actionRevision = codecksSpotlightActionRevision(sanitizedQuery),
+                operationId = operationId,
+                idempotencyKey = operationId,
+                timeoutMillis = 10_000L,
+                cancellationToken = operationId,
+                arguments = mapOf(
+                    "query" to sanitizedQuery,
+                    "maxResults" to "8",
+                ),
+            )
+            val execution = withContext(Dispatchers.IO) {
+                reactiveHelperSessionManager.actionClient.value.execute(
+                    request = request,
+                    deadlineMillis = System.currentTimeMillis() + 10_000L,
+                )
+            }
+            snackbarHostState.showSnackbar(
+                when (execution) {
+                    is ReactiveHelperActionExecution.Succeeded -> {
+                        val count = Regex("""^spotlight_results_(\d+)$""")
+                            .matchEntire(execution.resultCode)
+                            ?.groupValues
+                            ?.get(1)
+                            ?: "?"
+                        "Codecks found $count Mac matches"
+                    }
+                    is ReactiveHelperActionExecution.Failed -> "Codecks search failed: ${execution.errorCode}"
+                    is ReactiveHelperActionExecution.Unsupported -> "Codecks helper unavailable: ${execution.reasonCode}"
+                    is ReactiveHelperActionExecution.RequiresReview -> "Codecks search needs review: ${execution.reason}"
+                    ReactiveHelperActionExecution.Expired -> "Codecks search timed out"
+                },
             )
         }
     }
@@ -1138,10 +1255,13 @@ private fun CodecksApp(
                                     val result = withContext(Dispatchers.IO) {
                                         runCatching { reactiveHelperPairingImporter.importJson(payload) }
                                     }
+                                    if (result.isSuccess) {
+                                        refreshReactiveHelperIdentities()
+                                    }
                                     snackbarHostState.showSnackbar(
                                         result.fold(
-                                            onSuccess = { "Reactive helper paired: ${it.displayName}" },
-                                            onFailure = { it.message ?: "Reactive helper pairing failed" },
+                                            onSuccess = { "Codecks helper paired: ${it.displayName}" },
+                                            onFailure = { it.message ?: "Codecks helper pairing failed" },
                                         ),
                                     )
                                 }
@@ -1154,6 +1274,9 @@ private fun CodecksApp(
                                     ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                                 )
                             },
+                            codecksHelperState = codecksHelperState,
+                            onCodecksHelperConnect = connectCodecksHelper,
+                            onCodecksHelperSearch = runCodecksHelperSpotlight,
                             onNotificationAccess = {
                                 appContext.startActivity(
                                     Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
@@ -1731,3 +1854,9 @@ private fun MouseDestination(
 private fun isLockTaskActive(context: Context): Boolean =
     ((context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager)
         ?.lockTaskModeState ?: ActivityManager.LOCK_TASK_MODE_NONE) != ActivityManager.LOCK_TASK_MODE_NONE
+
+private fun codecksSpotlightActionRevision(query: String): String =
+    "spotlight-${MessageDigest.getInstance("SHA-256")
+        .digest(query.toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it) }
+        .take(64)}"

@@ -41,6 +41,8 @@ class ReactiveHelperPairingImporter @Inject constructor(
             helperId = payload.helperId,
             publicKeyFingerprint = payload.publicKeyFingerprint,
             secretAlias = "reactive_helper_${payload.macId.sha256Prefix()}",
+            host = payload.host,
+            port = payload.port,
         )
         store.savePairing(identity, requireNotNull(payload.sharedSecretHex.hexToByteArrayOrNull()))
         return identity

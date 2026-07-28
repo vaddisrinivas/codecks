@@ -145,6 +145,9 @@ fun SettingsScreen(
     onConnectionTest: () -> Unit = {},
     onReactiveHelperPairingImport: (String) -> Unit = {},
     onOpenMacHelper: () -> Unit = {},
+    codecksHelperState: CodecksHelperUiState = CodecksHelperUiState(),
+    onCodecksHelperConnect: () -> Unit = {},
+    onCodecksHelperSearch: (String) -> Unit = {},
     onNotificationAccess: () -> Unit,
     onNotificationPrivacyChange: ((NotificationPrivacySettings) -> NotificationPrivacySettings) -> Unit = {},
     onAutomations: () -> Unit,
@@ -219,6 +222,14 @@ fun SettingsScreen(
                         summary = "Deck, clipboard, and Rules over a secure connection. ${connectionHealth.detail}",
                         value = connectionHealth.statusLabel(),
                         onClick = { macConnectionOpen = !macConnectionOpen },
+                    )
+                }
+                item {
+                    CodecksHelperPanel(
+                        state = codecksHelperState,
+                        onConnect = onCodecksHelperConnect,
+                        onOpenSetup = { macConnectionOpen = true },
+                        onSearch = onCodecksHelperSearch,
                     )
                 }
                 item {
@@ -481,6 +492,81 @@ fun SettingsScreen(
 }
 
 @Composable
+private fun CodecksHelperPanel(
+    state: CodecksHelperUiState,
+    onConnect: () -> Unit,
+    onOpenSetup: () -> Unit,
+    onSearch: (String) -> Unit,
+) {
+    var query by rememberSaveable { mutableStateOf("Codecks") }
+    CodecksPanel(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(14.dp)) {
+            Text("Codecks helper", style = MaterialTheme.typography.titleMedium)
+            Text(
+                state.statusDetail,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                DeckFilterPill(
+                    label = state.statusLabel,
+                    selected = state.canRunActions,
+                    onClick = {},
+                    modifier = Modifier.heightIn(min = 44.dp),
+                )
+                DeckFilterPill(
+                    label = if (state.discoveredCount == 1) "1 nearby" else "${state.discoveredCount} nearby",
+                    selected = state.discoveredCount > 0,
+                    onClick = {},
+                    modifier = Modifier.heightIn(min = 44.dp),
+                )
+            }
+            state.pairedDisplayName?.let { name ->
+                Text(
+                    name,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                DeckActionButton(
+                    label = if (state.statusLabel == "Connecting") "Connecting…" else "Connect helper",
+                    onClick = onConnect,
+                    enabled = state.canConnect,
+                    icon = Icons.Outlined.Link,
+                    modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+                )
+                DeckActionButton(
+                    label = if (state.hasPairing) "Pairing JSON" else "Open setup",
+                    onClick = onOpenSetup,
+                    enabled = true,
+                    icon = Icons.Outlined.Terminal,
+                    modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+                )
+            }
+            HorizontalDivider()
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                label = { Text("Search Mac") },
+                supportingText = { Text("Runs Spotlight through Codecks helper and returns a result count.") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            DeckActionButton(
+                label = "Search Mac with Codecks",
+                onClick = { onSearch(query.trim()) },
+                enabled = state.canRunActions && query.isNotBlank(),
+                icon = Icons.Outlined.Search,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            )
+        }
+    }
+}
+
+@Composable
 private fun MacConnectionSettingsPanel(
     state: ConnectionUiState,
     onHostChange: (String) -> Unit,
@@ -693,7 +779,7 @@ private fun MacConnectionSettingsPanel(
                 OutlinedTextField(
                     value = reactiveHelperPairingJson,
                     onValueChange = { reactiveHelperPairingJson = it },
-                    label = { Text("Reactive helper pairing JSON") },
+                    label = { Text("Codecks helper pairing JSON") },
                     supportingText = { Text("Paste output from: codecks-mac-helper print-pairing-json") },
                     minLines = 2,
                     maxLines = 5,

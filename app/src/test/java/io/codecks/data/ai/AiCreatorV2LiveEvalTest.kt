@@ -37,7 +37,7 @@ import org.junit.Test
  * Normal unit tests never call paid/network providers. To run:
  *
  * CODECKS_AI_V2_LIVE_EVAL=true \
- * CODECKS_AI_V2_LIVE_PROVIDERS=openai,anthropic,gemini \
+ * CODECKS_AI_V2_LIVE_PROVIDERS=openai,anthropic,openrouter \
  * ./gradlew testDebugUnitTest --tests io.codecks.data.ai.AiCreatorV2LiveEvalTest
  *
  * Load secrets through the canonical agent-env wrapper; this test never prints or writes key values.
@@ -142,10 +142,15 @@ class AiCreatorV2LiveEvalTest {
 
     private fun liveProviderConfigs(): List<LiveProviderConfig> {
         val requested = envList("CODECKS_AI_V2_LIVE_PROVIDERS")
-            .ifEmpty { listOf("openai", "anthropic", "gemini") }
+            .ifEmpty { listOf("openai", "anthropic", "openrouter") }
         val keyStore = EnvSecureApiKeyStore()
         return requested.mapNotNull { providerId ->
-            val spec = AiProviderCatalog.byProviderId(providerId) ?: error("Unknown provider $providerId")
+            val spec = AiProviderCatalog.byProviderId(providerId)
+                ?: when (providerId) {
+                    "litellm" -> AiProviderCatalog.liteLlm
+                    "gemini" -> AiProviderCatalog.gemini
+                    else -> error("Unknown provider $providerId")
+                }
             val modelId = envModelOverride(providerId)
                 ?: spec.models.firstOrNull { it.supportsStructuredDrafts }?.id
             when {
@@ -158,7 +163,11 @@ class AiCreatorV2LiveEvalTest {
                     modelId = modelId,
                     create = {
                         when (providerId) {
-                            "openai" -> OpenAiProvider(keyStore)
+                            "openai" -> OpenAiProvider(
+                                keyStore,
+                                baseUrl = env("CODECKS_AI_V2_OPENAI_BASE_URL").orEmpty()
+                                    .ifBlank { DEFAULT_OPENAI_COMPATIBLE_BASE_URL },
+                            )
                             "anthropic" -> AnthropicProvider(keyStore)
                             "gemini" -> GeminiProvider(keyStore)
                             "openrouter" -> OpenRouterProvider(keyStore)
@@ -352,11 +361,14 @@ class AiCreatorV2LiveEvalTest {
 
         fun envKeyName(providerId: String): String? =
             when (providerId) {
-                "openai" -> "OPENAI_API_KEY".takeIf { !env(it).isNullOrBlank() }
+                "openai" -> listOf("CODECKS_AI_V2_OPENAI_API_KEY", "OPENAI_API_KEY", "AZURE_AI_API_KEY")
+                    .firstOrNull { !env(it).isNullOrBlank() }
                 "anthropic" -> "ANTHROPIC_API_KEY".takeIf { !env(it).isNullOrBlank() }
                 "gemini" -> listOf("GEMINI_API_KEY", "GOOGLE_API_KEY").firstOrNull { !env(it).isNullOrBlank() }
-                "openrouter" -> "OPENROUTER_API_KEY".takeIf { !env(it).isNullOrBlank() }
-                "litellm" -> "LITELLM_API_KEY".takeIf { !env(it).isNullOrBlank() }
+                "openrouter" -> listOf("OPENROUTER_API_KEY", "PROJECT_ENV_INFRA_DATA_CC_LITELLM_CONFIG__OPENROUTER_API_KEY")
+                    .firstOrNull { !env(it).isNullOrBlank() }
+                "litellm" -> listOf("LITELLM_API_KEY", "LITELLM_MASTER_KEY")
+                    .firstOrNull { !env(it).isNullOrBlank() }
                 else -> null
             }
     }

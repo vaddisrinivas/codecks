@@ -62,7 +62,7 @@ class AiProviderSettingsControllerTest {
         assertEquals("", state.apiKeyInput)
         assertTrue(state.hasSavedKey)
         assertEquals(AiProviderTestStatus.Success, state.testStatus)
-        assertEquals("OpenAI ready", state.message)
+        assertEquals("OpenAI-compatible ready", state.message)
         assertFalse(state.message.orEmpty().contains("sk-test-secret"))
     }
 
@@ -95,7 +95,7 @@ class AiProviderSettingsControllerTest {
         runCurrent()
 
         assertEquals(AiProviderTestStatus.Success, controller.uiState.value.testStatus)
-        assertEquals("OpenAI ready", controller.uiState.value.message)
+        assertEquals("OpenAI-compatible ready", controller.uiState.value.message)
     }
 
     @Test
@@ -109,7 +109,7 @@ class AiProviderSettingsControllerTest {
             responses = mutableListOf(
                 AiHttpResponse(
                     200,
-                    """{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"{\"schemaVersion\":2,\"status\":\"ready\",\"message\":\"Ready\",\"questions\":[],\"assumptions\":[],\"proposal\":{\"id\":\"draft.open\",\"title\":\"Open Docs\",\"description\":\"Open the docs workspace\",\"requiredCapabilities\":[],\"target\":{\"type\":\"AnyConnected\",\"id\":null},\"safety\":{\"level\":\"Normal\",\"requiresConfirmation\":false,\"confirmationTitle\":null,\"confirmationBody\":null},\"steps\":[{\"id\":\"step-1\",\"type\":\"open_url\",\"label\":\"Open docs\",\"url\":\"https://docs.example.com\",\"text\":null,\"delayMs\":null,\"templateId\":null,\"requiresConfirmation\":false}]}}"}]}]}""",
+                    """{"choices":[{"message":{"content":"{\"schemaVersion\":2,\"status\":\"ready\",\"message\":\"Ready\",\"questions\":[],\"assumptions\":[],\"proposal\":{\"id\":\"draft.open\",\"title\":\"Open Docs\",\"description\":\"Open the docs workspace\",\"requiredCapabilities\":[],\"target\":{\"type\":\"AnyConnected\",\"id\":null},\"safety\":{\"level\":\"Normal\",\"requiresConfirmation\":false,\"confirmationTitle\":null,\"confirmationBody\":null},\"steps\":[{\"id\":\"step-1\",\"type\":\"open_url\",\"label\":\"Open docs\",\"url\":\"https://docs.example.com\",\"text\":null,\"delayMs\":null,\"templateId\":null,\"requiresConfirmation\":false}]}}"}}]}""",
                 ),
             ),
         )
@@ -186,6 +186,17 @@ class AiProviderSettingsControllerTest {
         val payload = requests.single().body.orEmpty()
         assertTrue(payload.contains("Supported capabilities: Clipboard."))
         assertFalse(payload.contains("Supported capabilities: Advanced"))
+    }
+
+    @Test
+    fun arbitraryModelNameIsAcceptedForGeneration() = runTest {
+        val controller = controllerIn(this)
+
+        controller.selectModel("azure/my-codecks-deployment")
+
+        assertEquals("azure/my-codecks-deployment", controller.uiState.value.selectedModelId)
+        assertEquals("azure/my-codecks-deployment", controller.uiState.value.selectedModel.id)
+        assertEquals("azure/my-codecks-deployment", controller.uiState.value.selectedModel.label)
     }
 
     @Test
@@ -322,7 +333,7 @@ class AiProviderSettingsControllerTest {
 private fun openAiReadyActionResponse(id: String, title: String, url: String): AiHttpResponse =
     AiHttpResponse(
         200,
-        """{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"{\"schemaVersion\":2,\"status\":\"ready\",\"message\":\"Ready\",\"questions\":[],\"assumptions\":[],\"proposal\":{\"id\":\"$id\",\"title\":\"$title\",\"description\":\"Open the docs workspace\",\"requiredCapabilities\":[],\"target\":{\"type\":\"AnyConnected\",\"id\":null},\"safety\":{\"level\":\"Normal\",\"requiresConfirmation\":false,\"confirmationTitle\":null,\"confirmationBody\":null},\"steps\":[{\"id\":\"step-1\",\"type\":\"open_url\",\"label\":\"Open docs\",\"url\":\"$url\",\"text\":null,\"delayMs\":null,\"templateId\":null,\"requiresConfirmation\":false}]}}"}]}]}""",
+        """{"choices":[{"message":{"content":"{\"schemaVersion\":2,\"status\":\"ready\",\"message\":\"Ready\",\"questions\":[],\"assumptions\":[],\"proposal\":{\"id\":\"$id\",\"title\":\"$title\",\"description\":\"Open the docs workspace\",\"requiredCapabilities\":[],\"target\":{\"type\":\"AnyConnected\",\"id\":null},\"safety\":{\"level\":\"Normal\",\"requiresConfirmation\":false,\"confirmationTitle\":null,\"confirmationBody\":null},\"steps\":[{\"id\":\"step-1\",\"type\":\"open_url\",\"label\":\"Open docs\",\"url\":\"$url\",\"text\":null,\"delayMs\":null,\"templateId\":null,\"requiresConfirmation\":false}]}}"}}]}""",
     )
 
 private class InMemoryAiArtifactRepository : AiArtifactRepository {

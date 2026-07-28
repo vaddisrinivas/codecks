@@ -41,18 +41,16 @@ import kotlinx.coroutines.launch
 enum class AiProviderChoice(
     val spec: AiProviderSpec,
 ) {
-    OpenAI(AiProviderCatalog.openAi),
+    OpenAICompatible(AiProviderCatalog.openAi),
     Anthropic(AiProviderCatalog.anthropic),
     OpenRouter(AiProviderCatalog.openRouter),
-    LiteLLM(AiProviderCatalog.liteLlm),
-    Gemini(AiProviderCatalog.gemini),
 }
 
 val AiProviderChoice.providerId: String get() = spec.providerId
 val AiProviderChoice.label: String get() = spec.label
 val AiProviderChoice.models get() = spec.models
 private val DefaultAiProviderChoice: AiProviderChoice
-    get() = AiProviderChoice.entries.firstOrNull { it.providerId == AiProviderCatalog.DefaultProviderId } ?: AiProviderChoice.OpenAI
+    get() = AiProviderChoice.entries.firstOrNull { it.providerId == AiProviderCatalog.DefaultProviderId } ?: AiProviderChoice.OpenAICompatible
 
 private fun AiProviderChoice.defaultModelId(): String = AiProviderCatalog.defaultModelId(providerId)
 
@@ -99,7 +97,11 @@ data class AiProviderSettingsState(
     val skillInstructions: String = "",
 ) {
     val selectedModel: AiModel =
-        selectedProvider.models.firstOrNull { it.id == selectedModelId } ?: selectedProvider.models.first()
+        selectedProvider.models.firstOrNull { it.id == selectedModelId }
+            ?: AiModel(
+                id = selectedModelId.ifBlank { selectedProvider.models.first().id },
+                label = selectedModelId.ifBlank { selectedProvider.models.first().label },
+            )
     val aiAllowed: Boolean = entitlement.allows(FeatureGate.AiBuilder)
 }
 
@@ -163,8 +165,7 @@ class AiProviderSettingsController(
     }
 
     fun selectModel(modelId: String) {
-        if (_uiState.value.selectedProvider.models.none { it.id == modelId }) return
-        _uiState.update { it.copy(selectedModelId = modelId, message = null) }
+        _uiState.update { it.copy(selectedModelId = modelId.trim(), message = null) }
     }
 
     fun setApiKey(value: String) {
@@ -427,8 +428,9 @@ class AiProviderSettingsController(
                 it.copy(
                     apiKeyInput = "",
                     hasSavedKey = true,
-                        savedBaseUrl = state.baseUrlInput.takeIf { url -> state.selectedProvider == AiProviderChoice.LiteLLM && url.isNotBlank() }
-                        ?: it.savedBaseUrl,
+                    savedBaseUrl = state.baseUrlInput.takeIf { url ->
+                        state.selectedProvider == AiProviderChoice.OpenAICompatible && url.isNotBlank()
+                    } ?: it.savedBaseUrl,
                     testStatus = AiProviderTestStatus.Idle,
                     message = "API key saved",
                 )
@@ -479,7 +481,7 @@ class AiProviderSettingsController(
     private fun createProvider(state: AiProviderSettingsState) =
         providerFactory.create(
             state.selectedProvider.providerId,
-            state.savedBaseUrl.takeIf { state.selectedProvider == AiProviderChoice.LiteLLM && it.isNotBlank() },
+            state.savedBaseUrl.takeIf { state.selectedProvider == AiProviderChoice.OpenAICompatible && it.isNotBlank() },
         )
 
     private fun buildAgentContext(skillInstructions: String): String = buildString {
@@ -518,7 +520,7 @@ class AiProviderSettingsController(
     }
 
     private suspend fun saveBaseUrlIfNeeded(state: AiProviderSettingsState) {
-        if (state.selectedProvider != AiProviderChoice.LiteLLM) return
+        if (state.selectedProvider != AiProviderChoice.OpenAICompatible) return
         val baseUrl = state.baseUrlInput.trim()
         if (baseUrl.isBlank()) return
         keyStore.saveKey(baseUrlKey(state.selectedProvider.providerId), SecretValue.of(baseUrl))

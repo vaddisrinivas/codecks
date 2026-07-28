@@ -22,7 +22,8 @@ import java.net.URL
 class OpenAiProvider(
     private val keyStore: SecureApiKeyStore,
     httpClient: AiHttpClient = UrlConnectionAiHttpClient(),
-) : LiveAiProvider(AiProviderCatalog.openAi, keyStore, httpClient)
+    baseUrl: String = DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
+) : LiveAiProvider(AiProviderCatalog.openAi, keyStore, httpClient, baseUrl)
 
 class AnthropicProvider(
     private val keyStore: SecureApiKeyStore,
@@ -57,11 +58,12 @@ abstract class LiveAiProvider(
         val key = requireKey()
         val response =
             when (spec.id) {
-                AiProviderId.OpenAI -> httpClient.execute(
+                AiProviderId.OpenAI,
+                AiProviderId.LiteLLM -> httpClient.execute(
                     AiHttpRequest(
                         method = "GET",
-                        url = "https://api.openai.com/v1/models",
-                        headers = mapOf("Authorization" to "Bearer ${key.revealForProviderCall()}"),
+                        url = openAiCompatibleApiUrl("models"),
+                        headers = openAiCompatibleAuthHeaders(key),
                     ),
                 )
                 AiProviderId.Anthropic -> httpClient.execute(
@@ -81,13 +83,6 @@ abstract class LiveAiProvider(
                         headers = mapOf("Authorization" to "Bearer ${key.revealForProviderCall()}"),
                     ),
                 )
-                AiProviderId.LiteLLM -> httpClient.execute(
-                    AiHttpRequest(
-                        method = "GET",
-                        url = "${openAiCompatibleBaseUrl()}/v1/models",
-                        headers = mapOf("Authorization" to "Bearer ${key.revealForProviderCall()}"),
-                    ),
-                )
                 AiProviderId.Gemini -> httpClient.execute(
                     AiHttpRequest(
                         method = "GET",
@@ -102,9 +97,7 @@ abstract class LiveAiProvider(
 
     override suspend fun draftAction(request: DraftRequest): Result<ActionDraftJson> = runCatching {
         val model = spec.models.firstOrNull { it.id == request.modelId }
-        if (model == null) {
-            throw AiProviderException.UnsupportedModel("Unsupported model ${request.modelId} for ${spec.label}")
-        }
+            ?: AiModel(request.modelId, request.modelId)
         if (!model.supportsStructuredDrafts) {
             throw AiProviderException.UnsupportedModel("${model.label} cannot create Codecks drafts. Choose another model.")
         }
@@ -118,16 +111,16 @@ abstract class LiveAiProvider(
                 AiProviderId.Gemini -> callGemini(request, key)
             }
         ensureSuccess(response)
-        ActionDraftJson(extractResponseText(response.body, request))
+        ActionDraftJson(extractResponseTextOrMalformed(response.body, request))
     }.mapError()
 
     private suspend fun callOpenAi(request: DraftRequest, key: SecretValue): AiHttpResponse =
         httpClient.execute(
             AiHttpRequest(
                 method = "POST",
-                url = "https://api.openai.com/v1/responses",
-                headers = mapOf("Authorization" to "Bearer ${key.revealForProviderCall()}"),
-                body = buildOpenAiResponsesRequest(request),
+                url = openAiCompatibleApiUrl("chat/completions"),
+                headers = openAiCompatibleAuthHeaders(key),
+                body = buildOpenAiCompatibleRequest(request),
             ),
         )
 
@@ -145,8 +138,8 @@ abstract class LiveAiProvider(
         httpClient.execute(
             AiHttpRequest(
                 method = "POST",
-                url = "${openAiCompatibleBaseUrl()}/v1/chat/completions",
-                headers = mapOf("Authorization" to "Bearer ${key.revealForProviderCall()}"),
+                url = openAiCompatibleApiUrl("chat/completions"),
+                headers = openAiCompatibleAuthHeaders(key),
                 body = buildOpenAiCompatibleRequest(request),
             ),
         )
@@ -178,12 +171,34 @@ abstract class LiveAiProvider(
         keyStore.loadKey(spec.providerId) ?: throw AiProviderException.AuthFailure("Missing API key for ${spec.providerId}")
 
     private fun openAiCompatibleBaseUrl(): String =
-        openAiCompatibleBaseUrl.orEmpty().trim().trimEnd('/').ifBlank { DEFAULT_LITELLM_BASE_URL }
+        openAiCompatibleBaseUrl.orEmpty().trim().trimEnd('/').ifBlank { DEFAULT_OPENAI_COMPATIBLE_BASE_URL }
+
+    private fun openAiCompatibleApiUrl(path: String): String {
+        val baseUrl = openAiCompatibleBaseUrl()
+        val query = baseUrl.substringAfter('?', missingDelimiterValue = "")
+        val basePath = baseUrl.substringBefore('?').trimEnd('/')
+        val normalizedPath = path.trimStart('/')
+        val urlWithoutQuery = if (basePath.endsWith("/v1")) {
+            "$basePath/$normalizedPath"
+        } else if (basePath.endsWith("/models")) {
+            if (normalizedPath == "models") basePath else "$basePath/$normalizedPath"
+        } else {
+            "$basePath/v1/$normalizedPath"
+        }
+        return if (query.isBlank()) urlWithoutQuery else "$urlWithoutQuery?$query"
+    }
+
+    private fun openAiCompatibleAuthHeaders(key: SecretValue): Map<String, String> {
+        val value = key.revealForProviderCall()
+        return mapOf(
+            "Authorization" to "Bearer $value",
+            "api-key" to value,
+        )
+    }
 
     private fun buildOpenAiCompatibleRequest(request: DraftRequest): String =
         jsonObject(
             "model" to request.modelId,
-            "temperature" to 0.2,
             "messages" to listOf(systemMessage(request), userMessage(request.prompt)),
             "response_format" to mapOf("type" to "json_schema", "json_schema" to jsonSchemaConfig(request)),
         )
@@ -292,7 +307,11 @@ abstract class LiveAiProvider(
         }
 
     private fun jsonSchemaConfig(request: DraftRequest): Map<String, Any> =
-        mapOf("name" to schemaName(request), "strict" to true, "schema" to schemaFor(request))
+        mapOf(
+            "name" to schemaName(request),
+            "strict" to true,
+            "schema" to StrictJsonSchemaAdapter.expandNullableTypeArrays(schemaFor(request)),
+        )
 
     private fun schemaFor(request: DraftRequest): Map<String, Any> =
         when (request.draftKind) {
@@ -540,6 +559,15 @@ abstract class LiveAiProvider(
         }
     }
 
+    private fun extractResponseTextOrMalformed(body: String, request: DraftRequest): String =
+        try {
+            extractResponseText(body, request)
+        } catch (error: AiProviderException) {
+            throw error
+        } catch (error: RuntimeException) {
+            throw AiProviderException.MalformedJson("${spec.label} response was not a supported JSON shape")
+        }
+
     private fun extractOpenAiResponsesText(root: io.codecks.data.ai.JsonObject): String {
         val status = root.optString("status").orEmpty()
         if (status == "incomplete") {
@@ -693,7 +721,11 @@ class AiProviderFactory(
 ) {
     fun create(providerId: String, liteLlmBaseUrlOverride: String? = null): AiProvider =
         when (AiProviderCatalog.byProviderId(providerId)?.id) {
-            AiProviderId.OpenAI -> OpenAiProvider(keyStore, httpClient)
+            AiProviderId.OpenAI -> OpenAiProvider(
+                keyStore,
+                httpClient,
+                liteLlmBaseUrlOverride?.takeIf { it.isNotBlank() } ?: DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
+            )
             AiProviderId.Anthropic -> AnthropicProvider(keyStore, httpClient)
             AiProviderId.OpenRouter -> OpenRouterProvider(keyStore, httpClient)
             AiProviderId.LiteLLM -> LiteLlmProvider(
@@ -707,6 +739,7 @@ class AiProviderFactory(
 }
 
 const val DEFAULT_LITELLM_BASE_URL = ""
+const val DEFAULT_OPENAI_COMPATIBLE_BASE_URL = "https://api.openai.com"
 
 private fun <T> Result<T>.mapError(): Result<T> =
     fold(

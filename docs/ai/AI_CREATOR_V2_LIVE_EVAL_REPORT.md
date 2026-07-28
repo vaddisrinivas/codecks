@@ -1,33 +1,39 @@
 # AI Creator V2 Live Eval Report
 
-Generated: 2026-07-17T23:47:03.936589Z
+Generated: 2026-07-28T15:55:00Z
 
 ## Scope
 
-- Prompts: 120
-- Providers: OpenAI (gpt-5.5), Gemini (gemini-2.5-flash)
-- Full 120-prompt corpus: true
+- Prompts: 1 per provider
+- Providers: Azure/OpenAI-compatible, OpenRouter, local cc-litellm
+- Full 120-prompt corpus: false
 
 ## Aggregate Gates
 
-- Schema parse: 240/240 (100.0%)
-- First-pass semantic validity: 240/240 (100.0%)
-- Valid after one repair: 240/240 (100.0%)
+- Schema parse: 3/3 (100.0%)
+- First-pass semantic validity: 3/3 (100.0%)
+- Valid after one repair: 3/3 (100.0%)
 - Unapproved command policy failures after parse: 0
 
 ## By Provider
 
-### OpenAI (gpt-5.5)
+### Azure/OpenAI-compatible (gpt-chat-latest)
 
-- Schema parse: 120/120 (100.0%)
-- First-pass semantic validity: 120/120 (100.0%)
-- Valid after repair: 120/120 (100.0%)
+- Schema parse: 1/1 (100.0%)
+- First-pass semantic validity: 1/1 (100.0%)
+- Valid after repair: 1/1 (100.0%)
 
-### Gemini (gemini-2.5-flash)
+### OpenRouter (google/gemma-4-26b-a4b-it:free)
 
-- Schema parse: 120/120 (100.0%)
-- First-pass semantic validity: 120/120 (100.0%)
-- Valid after repair: 120/120 (100.0%)
+- Schema parse: 1/1 (100.0%)
+- First-pass semantic validity: 1/1 (100.0%)
+- Valid after repair: 1/1 (100.0%)
+
+### Local cc-litellm (gpt-5.5)
+
+- Schema parse: 1/1 (100.0%)
+- First-pass semantic validity: 1/1 (100.0%)
+- Valid after repair: 1/1 (100.0%)
 
 ## Failure Samples
 
