@@ -1,0 +1,10 @@
+{
+  "schema": "reactive.v1",
+  "transferId": "transfer-fixture-1",
+  "fileName": "report.pdf",
+  "byteCount": 42,
+  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "sourcePath": "/Users/example/Desktop/report.pdf",
+  "destinationHint": "Downloads",
+  "cleanupRequired": true
+}

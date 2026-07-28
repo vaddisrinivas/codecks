@@ -9,7 +9,8 @@
     "helperId": "mac-helper-fixture",
     "publicKeyFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "issuedAtMillis": 1000,
-    "trustState": "verified"
+    "trustState": "revoked"
   },
-  "verificationCode": "123456"
+  "verificationCode": "123456",
+  "expectedError": "revoked"
 }

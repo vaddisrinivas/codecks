@@ -1,0 +1,19 @@
+{
+  "schema": "reactive.v1",
+  "type": "execute",
+  "actionId": "macos.finder.reveal",
+  "actionRevision": "rev-fixture-1",
+  "operationId": "op-fixture-1",
+  "idempotencyKey": "idem-fixture-1",
+  "timeoutMillis": 5000,
+  "cancellationToken": "cancel-fixture-1",
+  "preconditions": [
+    {
+      "kind": "front_app_bundle",
+      "expectedBundleId": "com.apple.finder"
+    }
+  ],
+  "arguments": {
+    "path": "/Users/example/Desktop/report.pdf"
+  }
+}
