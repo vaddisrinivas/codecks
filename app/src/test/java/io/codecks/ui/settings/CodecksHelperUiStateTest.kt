@@ -24,7 +24,7 @@ class CodecksHelperUiStateTest {
     @Test
     fun pairedAndDiscoveredCanConnect() {
         val state = codecksHelperUiState(
-            pairedDisplayName = "Srinivas’s MacBook Pro",
+            pairedDisplayName = "Example MacBook Pro",
             connectionKind = CodecksHelperConnectionKind.Idle,
             discoveredCount = 1,
         )
@@ -37,7 +37,7 @@ class CodecksHelperUiStateTest {
     @Test
     fun pairedWithSavedEndpointCanConnectWithoutNearbyDiscovery() {
         val state = codecksHelperUiState(
-            pairedDisplayName = "Srinivas’s MacBook Pro",
+            pairedDisplayName = "Example MacBook Pro",
             connectionKind = CodecksHelperConnectionKind.Idle,
             discoveredCount = 0,
             hasSavedEndpoint = true,
@@ -51,7 +51,7 @@ class CodecksHelperUiStateTest {
     @Test
     fun connectedCanRunVisibleActions() {
         val state = codecksHelperUiState(
-            pairedDisplayName = "Srinivas’s MacBook Pro",
+            pairedDisplayName = "Example MacBook Pro",
             connectionKind = CodecksHelperConnectionKind.Connected,
             discoveredCount = 1,
         )
@@ -65,7 +65,7 @@ class CodecksHelperUiStateTest {
     @Test
     fun failedStateCanReconnectWhenNearby() {
         val state = codecksHelperUiState(
-            pairedDisplayName = "Srinivas’s MacBook Pro",
+            pairedDisplayName = "Example MacBook Pro",
             connectionKind = CodecksHelperConnectionKind.Failed,
             discoveredCount = 1,
             failureCode = "helper_authentication_failed",
