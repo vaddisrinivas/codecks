@@ -25,8 +25,8 @@ data class ReactiveAppActionMapping(
 }
 
 class ActiveAppReactiveControlProvider(
-    private val mappings: List<ReactiveAppActionMapping>,
-    private val controls: List<ReactiveCatalogControlSpec>,
+    private val mappings: List<ReactiveAppActionMapping> = defaultReactiveAppMappings(),
+    private val controls: List<ReactiveCatalogControlSpec> = defaultReactiveFrontAppControls(),
 ) : ReactiveControlProvider {
     override val id: String = "active-app"
 
@@ -63,13 +63,21 @@ class ActiveAppReactiveControlProvider(
             val bestMatch = matchingMappings.maxByOrNull { it.score } ?: return@mapNotNull null
             ReactiveControl(
                 id = reactiveControlId(id, appIdentity, spec.actionId),
+                providerId = id,
+                actionId = spec.actionId,
                 title = spec.title,
                 subtitle = spec.subtitle,
                 icon = spec.icon,
                 action = ReactiveAction.ExistingCatalog(spec.actionId),
                 source = ReactiveControlSource.FrontApp,
                 basePriority = bestMatch.score,
+                confidence = when (frontApp.status) {
+                    ObservationStatus.Fresh -> bestMatch.score.coerceIn(0, 100)
+                    ObservationStatus.Stale -> (bestMatch.score - 20).coerceIn(0, 100)
+                    else -> 0
+                },
                 reason = matchingMappings.joinToString(", ") { it.reason },
+                explanation = "${spec.title} matches ${activeApp.displayName}",
                 requiredCapabilities = spec.requiredCapabilities,
                 risk = spec.risk,
                 reversible = spec.reversible,
@@ -99,3 +107,55 @@ internal fun MacAppKind.reactiveCategoryTokens(): Set<String> = when (this) {
     MacAppKind.Messages -> setOf("message", "chat")
     MacAppKind.Generic -> emptySet()
 }
+
+internal fun defaultReactiveAppMappings(): List<ReactiveAppActionMapping> = listOf(
+    ReactiveAppActionMapping(
+        appTokens = setOf("chrome", "safari", "firefox", "browser", "arc"),
+        actionTokens = setOf("browser", "reload", "tab"),
+        reason = "browser_frontmost",
+        score = 74,
+    ),
+    ReactiveAppActionMapping(
+        appTokens = setOf("finder", "file", "folder"),
+        actionTokens = setOf("finder", "file"),
+        reason = "finder_frontmost",
+        score = 68,
+    ),
+    ReactiveAppActionMapping(
+        appTokens = setOf("terminal", "iterm", "shell", "console"),
+        actionTokens = setOf("terminal", "enter"),
+        reason = "terminal_frontmost",
+        score = 70,
+    ),
+)
+
+internal fun defaultReactiveFrontAppControls(): List<ReactiveCatalogControlSpec> = listOf(
+    ReactiveCatalogControlSpec(
+        actionId = "browser_back",
+        title = "Back",
+        subtitle = "Previous browser page",
+        icon = io.codecks.domain.reactive.ReactiveIcon.ArrowLeft,
+        requiredCapabilities = setOf(io.codecks.domain.reactive.CodecksCapability.KeyboardInput),
+    ),
+    ReactiveCatalogControlSpec(
+        actionId = "browser_reload",
+        title = "Reload",
+        subtitle = "Refresh current browser tab",
+        icon = io.codecks.domain.reactive.ReactiveIcon.Reload,
+        requiredCapabilities = setOf(io.codecks.domain.reactive.CodecksCapability.KeyboardInput),
+    ),
+    ReactiveCatalogControlSpec(
+        actionId = "finder_new_window",
+        title = "New Finder Window",
+        subtitle = "Open another Finder window",
+        icon = io.codecks.domain.reactive.ReactiveIcon.Finder,
+        requiredCapabilities = setOf(io.codecks.domain.reactive.CodecksCapability.MacCommand),
+    ),
+    ReactiveCatalogControlSpec(
+        actionId = "terminal_enter",
+        title = "Enter",
+        subtitle = "Send Enter to Terminal",
+        icon = io.codecks.domain.reactive.ReactiveIcon.Terminal,
+        requiredCapabilities = setOf(io.codecks.domain.reactive.CodecksCapability.KeyboardInput),
+    ),
+)
