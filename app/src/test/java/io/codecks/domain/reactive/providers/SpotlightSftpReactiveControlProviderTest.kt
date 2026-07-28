@@ -51,8 +51,13 @@ class SpotlightSftpReactiveControlProviderTest {
             nowMillis = now,
         )
 
-        assertEquals(listOf("spotlight_preview"), controls.map { it.actionId })
-        assertTrue(controls.single().action is ReactiveAction.SpotlightPreview)
+        assertEquals(listOf("spotlight_search"), controls.map { it.actionId })
+        val action = controls.single().action
+        assertTrue(action is ReactiveAction.Helper)
+        action as ReactiveAction.Helper
+        assertEquals("spotlight.search", action.actionId)
+        assertEquals("Quarterly Deck", action.arguments["query"])
+        assertEquals("8", action.arguments["maxResults"])
         assertEquals(ReactiveRisk.Private, controls.single().risk)
     }
 

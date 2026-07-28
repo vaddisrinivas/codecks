@@ -64,11 +64,17 @@ class SpotlightSftpReactiveControlProvider(
     ): ReactiveControl = ReactiveControl(
         id = reactiveControlId(id, "${state.macId.value}|spotlight|${query.fingerprint()}", "spotlight_$index"),
         providerId = id,
-        actionId = "spotlight_preview",
+        actionId = "spotlight_search",
         title = "Search Mac",
-        subtitle = "Preview up to $maxResults Spotlight results",
+        subtitle = "Run Spotlight for up to $maxResults results",
         icon = ReactiveIcon.Finder,
-        action = ReactiveAction.SpotlightPreview(this),
+        action = ReactiveAction.Helper(
+            actionId = "spotlight.search",
+            arguments = mapOf(
+                "query" to query,
+                "maxResults" to maxResults.toString(),
+            ),
+        ),
         source = ReactiveControlSource.ConnectionState,
         basePriority = 54,
         confidence = 74,
