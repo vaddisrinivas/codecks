@@ -13,7 +13,7 @@
 ## Focused validation
 
 ```text
-./gradlew :app:testReleaseUnitTest --tests 'io.codecks.core.reactive.DefaultReactiveActionExecutorTest' -PreleaseStoreFile=/tmp/codecks-unit-placeholder.jks -PreleaseKeyAlias=unit -PreleaseStorePassword=unit -PreleaseKeyPassword=unit
+./gradlew :app:testReleaseUnitTest --tests 'io.codecks.core.reactive.*' --tests 'io.codecks.domain.reactive.*' -PreleaseStoreFile=/tmp/codecks-unit-placeholder.jks -PreleaseKeyAlias=unit -PreleaseStorePassword=unit -PreleaseKeyPassword=unit
 ```
 
-Result: passed.
+Result: passed July 27, 2026.

@@ -147,7 +147,7 @@ class DefaultReactiveActionExecutorTest {
         executor.execute(hidControl(SharedHidCommand.BrowserBack), ReactiveAuthorization(), 10_001L, invocation = invocation)
         val rejected = executor.execute(hidControl(SharedHidCommand.Reload), ReactiveAuthorization(), 10_002L, invocation = invocation)
 
-        assertEquals(ReactiveActionResult.Failed("idempotency_key_conflict", false), rejected.result)
+        assertEquals(ReactiveActionResult.Failed("idempotency_key_reused", false), rejected.result)
         assertEquals(listOf(HidCommand.BrowserBack), hid.sentCommands)
     }
 
@@ -169,6 +169,7 @@ class DefaultReactiveActionExecutorTest {
         val outcome = executor.execute(hidControl(), ReactiveAuthorization(), 10_006L, invocation = invocation)
 
         assertEquals(ReactiveActionResult.Expired, outcome.result)
+        assertEquals(outcome.result, outcome.receipt?.result)
         assertTrue(hid.sentCommands.isEmpty())
     }
 
@@ -370,6 +371,7 @@ class DefaultReactiveActionExecutorTest {
         )
 
         assertEquals(ReactiveActionResult.Failed("stale_state_revision", false), outcome.result)
+        assertEquals(outcome.result, outcome.receipt?.result)
     }
 
     @Test
@@ -391,6 +393,7 @@ class DefaultReactiveActionExecutorTest {
         )
 
         assertEquals(ReactiveActionResult.Unsupported("capability_unavailable"), outcome.result)
+        assertEquals(outcome.result, outcome.receipt?.result)
     }
 
     @Test
@@ -410,6 +413,7 @@ class DefaultReactiveActionExecutorTest {
         )
 
         assertEquals(ReactiveActionResult.Failed("target_changed", false), outcome.result)
+        assertEquals(outcome.result, outcome.receipt?.result)
     }
 
     @Test
@@ -458,7 +462,7 @@ class DefaultReactiveActionExecutorTest {
             invocation = invocation,
         )
 
-        assertEquals(ReactiveActionResult.Failed("idempotency_key_conflict", false), reused.result)
+        assertEquals(ReactiveActionResult.Failed("idempotency_key_reused", false), reused.result)
     }
 
     @Test
