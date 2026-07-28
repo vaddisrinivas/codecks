@@ -14,6 +14,7 @@ import io.codecks.domain.reactive.ObservationStatus
 import io.codecks.domain.reactive.Observed
 import io.codecks.domain.reactive.ReactiveAction
 import io.codecks.domain.reactive.ReactiveActionExecutor
+import io.codecks.domain.reactive.ReactiveActionInvocation
 import io.codecks.domain.reactive.ReactiveActionResult
 import io.codecks.domain.reactive.ReactiveAuthorization
 import io.codecks.domain.reactive.ReactiveControl
@@ -24,6 +25,8 @@ import io.codecks.domain.reactive.ReactiveIcon
 import io.codecks.domain.reactive.ReactiveRisk
 import io.codecks.domain.reactive.ReactiveTrackpadContext
 import io.codecks.domain.reactive.ReactiveTrackpadMode
+import io.codecks.domain.reactive.ReactiveUndoOutcome
+import io.codecks.domain.reactive.ReceiptId
 import io.codecks.domain.reactive.StateSource
 import io.codecks.domain.reactive.TrackpadVisibility
 import io.codecks.domain.reactive.ActionRevision
@@ -281,9 +284,16 @@ private class FakeReactiveExecutor(
         authorization: ReactiveAuthorization,
         nowMillis: Long,
         currentState: MacStateSnapshot?,
+        invocation: ReactiveActionInvocation,
     ): ReactiveExecutionOutcome {
         lastControlId = control.id
         lastAuthorization = authorization
         return nextSequence.removeFirstOrNull() ?: next
     }
+
+    override suspend fun undo(
+        receiptId: ReceiptId,
+        nowMillis: Long,
+        invocation: ReactiveActionInvocation?,
+    ): ReactiveUndoOutcome = ReactiveUndoOutcome.Unsupported("test_executor_no_undo")
 }
