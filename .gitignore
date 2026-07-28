@@ -27,6 +27,8 @@ backend/dist/
 test-artifacts/
 device-shots/
 screenshots/
+!docs/images/screenshots/
+!docs/images/screenshots/*.png
 qa/
 
 # Release artifacts and local signing material

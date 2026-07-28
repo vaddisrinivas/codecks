@@ -13,6 +13,8 @@ Turn an Android phone, tablet, or Samsung DeX window into a local-first command 
 
 ![Codecks demo](docs/images/codecks-demo.gif)
 
+[Watch the narrated 1080p feature tour](docs/images/codecks-demo.mp4).
+
 ## Why It Exists
 
 Mac shortcuts are fast until you need the command you never remember. Codecks gives you a second-screen control surface: big command keys, a Bluetooth trackpad, and reviewable automations that stay local by default.

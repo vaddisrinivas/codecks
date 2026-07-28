@@ -2,57 +2,98 @@
   "scenes": [
     {
       "title": "Codecks",
-      "subtitle": "Your Android command deck for Mac.",
+      "subtitle": "Turn the Android phone already on your desk into Mac controls.",
       "screenshot": "docs/images/screenshots/codecks-home.png",
-      "narration": "Meet Codecks. Turn an Android phone into a command deck, trackpad, and automation surface for your Mac.",
+      "narration": "Meet Codecks. Turn the Android phone already on your desk into a command deck, trackpad, keyboard, clipboard bridge, and automation surface for your Mac.",
       "bullets": ["Local-first", "No account", "Open source"],
       "duration": 0,
       "animation": "slide-up",
       "screenshot_animation": "scale"
     },
     {
-      "title": "Commands you can actually hit",
-      "screenshot": "docs/images/screenshots/codecks-home.png",
-      "narration": "Tap big controls for Finder, Terminal, Spaces, media, screenshots, and browser tabs.",
-      "bullets": ["Finder", "Spaces", "Media", "Browser tabs"],
+      "title": "Trackpad that fails closed",
+      "screenshot": "docs/images/screenshots/codecks-trackpad.png",
+      "narration": "Bluetooth trackpad input stays unavailable until you explicitly pair and choose a Mac.",
+      "bullets": ["Bluetooth HID", "Explicit pairing", "No cloud relay"],
       "callouts": [
-        {"text": "Large command keys", "x": 36, "y": 49, "color": "#4ade80", "delay": 1.0},
-        {"text": "Mac actions", "x": 62, "y": 62, "color": "#fbbf24", "delay": 1.5}
+        {"text": "Choose a paired Mac", "x": 51, "y": 36, "color": "#4ade80", "delay": 1.0}
       ],
       "duration": 0,
       "animation": "fade",
       "screenshot_animation": "scale"
     },
     {
-      "title": "A trackpad in your hand",
-      "screenshot": "docs/images/screenshots/codecks-trackpad.png",
-      "narration": "Switch to a Bluetooth trackpad when the Mac is across the room.",
-      "bullets": ["HID pointer", "Gestures", "Haptics"],
+      "title": "Type, then choose the Enter",
+      "screenshot": "docs/images/screenshots/codecks-keyboard.png",
+      "narration": "Compose text on the phone, reuse snippets, and send with Enter or Command Enter.",
+      "bullets": ["Send + Enter", "Command + Enter", "Reusable snippets"],
       "callouts": [
-        {"text": "Scroll and gesture", "x": 49, "y": 50, "color": "#c5d5ff", "delay": 1.1}
+        {"text": "Explicit send behavior", "x": 35, "y": 59, "color": "#4ade80", "delay": 1.0}
       ],
       "duration": 0,
       "animation": "slide-up",
       "screenshot_animation": "scale"
     },
     {
-      "title": "Automation stays reviewable",
-      "screenshot": "docs/images/screenshots/codecks-automations.png",
-      "narration": "Draft automations locally. Test them before they ever run.",
-      "bullets": ["Safe templates", "Test first", "Run history"],
+      "title": "Clipboard without messaging yourself",
+      "screenshot": "docs/images/screenshots/codecks-clipboard.png",
+      "narration": "Move text manually in either direction, or choose visible one-way or two-way sync.",
+      "bullets": ["Push or pull", "Directional sync", "Conflict review"],
       "callouts": [
-        {"text": "Review before enable", "x": 50, "y": 67, "color": "#4ade80", "delay": 1.2}
+        {"text": "Sync stays off by default", "x": 29, "y": 41, "color": "#fbbf24", "delay": 1.0}
       ],
       "duration": 0,
       "animation": "fade",
       "screenshot_animation": "scale"
     },
     {
+      "title": "Automation stays reviewable",
+      "screenshot": "docs/images/screenshots/codecks-automations.png",
+      "narration": "Build local When, If, Then rules. Changed rules must be tested again before they run.",
+      "bullets": ["Local rules", "Test first", "Run history"],
+      "callouts": [
+        {"text": "Test after changes", "x": 53, "y": 59, "color": "#4ade80", "delay": 1.0}
+      ],
+      "duration": 0,
+      "animation": "fade",
+      "screenshot_animation": "scale"
+    },
+    {
+      "title": "Make the Deck yours",
+      "screenshot": "docs/images/screenshots/codecks-deck-editor.png",
+      "narration": "Reorder, resize, replace, test, and style the controls that deserve permanent space.",
+      "bullets": ["Resize", "Reorder", "Test"],
+      "duration": 0,
+      "animation": "slide-up",
+      "screenshot_animation": "scale"
+    },
+    {
+      "title": "Search everything else",
+      "screenshot": "docs/images/screenshots/codecks-command-palette.png",
+      "narration": "The Command Palette keeps occasional actions searchable without crowding your Deck.",
+      "bullets": ["Actions", "Rules", "Less clutter"],
+      "duration": 0,
+      "animation": "fade",
+      "screenshot_animation": "scale"
+    },
+    {
+      "title": "Restricted while locked",
+      "screenshot": "docs/images/screenshots/codecks-lockscreen-settings.png",
+      "narration": "Optional lockscreen access permits pointer controls only after Bluetooth is already connected. It never reconnects, types, runs commands, or exposes settings.",
+      "bullets": ["Opt-in", "Pointer only", "No SSH or keyboard"],
+      "callouts": [
+        {"text": "Pointer-only boundary", "x": 48, "y": 72, "color": "#4ade80", "delay": 1.0}
+      ],
+      "duration": 0,
+      "animation": "slide-up",
+      "screenshot_animation": "scale"
+    },
+    {
       "title": "Open source. Local-first.",
       "subtitle": "github.com/vaddisrinivas/codecks",
       "screenshot": "docs/images/social-preview.png",
-      "narration": "Open source, local-first, and ready to try.",
-      "bullets": ["Apache-2.0", "Android 9+", "Star on GitHub"],
+      "narration": "Open source, local-first, and ready to try from GitHub.",
+      "bullets": ["Apache-2.0", "Android 9+", "No Codecks account"],
       "duration": 0,
       "animation": "slide-up",
       "screenshot_animation": "fade"

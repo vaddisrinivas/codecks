@@ -1,26 +1,25 @@
 # Codecks Demo Script
 
-Target: 20-30 seconds, silent GIF for README and 1080p MP4 for social posts.
+Target: 60-70 second narrated feature tour, plus a 25-second silent 640×360
+README GIF under 5 MB. All app frames come from the current debug build on an
+emulator.
 
 ## Story
 
-1. Hook: "Your Android phone can be a Mac command deck."
-2. Proof: show the command deck with large, tappable actions.
-3. Magic: switch to the Bluetooth trackpad.
-4. Safety: show automations as reviewable local recipes.
-5. Invite: open source, local-first, star on GitHub.
+1. Hook: turn the Android phone already on the desk into Mac controls.
+2. Trackpad: show that Bluetooth HID stays unavailable until a Mac is paired.
+3. Keyboard: show explicit Send + Enter, Enter, and Command + Enter.
+4. Clipboard: show manual transfer and opt-in directional sync.
+5. Rules: show local When / If / Then routines and test-after-change status.
+6. Editor: show resizable, replaceable Deck controls.
+7. Palette: show searchable actions without permanent Deck clutter.
+8. Lockscreen: show the pointer-only opt-in and its forbidden capabilities.
+9. Invite: open source, local-first, and available on GitHub.
 
 ## Voiceover
 
-Meet Codecks. Turn an Android phone into a command deck, trackpad, and automation surface for your Mac.
-
-Tap big controls for Finder, Terminal, Spaces, media, screenshots, and browser tabs.
-
-Switch to a Bluetooth trackpad when the Mac is across the room.
-
-Draft automations locally. Test them before they ever run.
-
-Open source, local-first, and ready to try.
+The narration and per-scene timing live in
+[`framecraft-demo.json`](framecraft-demo.json), the render source of truth.
 
 ## Extended Product Tour
 
@@ -38,14 +37,16 @@ Use a 45-60 second version when the audience needs the full product rather than 
 ## Render Commands
 
 ```bash
-python3 /path/to/framecraft/framecraft.py render docs/marketing/framecraft-demo.json --output docs/images/codecks-demo.mp4 --auto-duration
-ffmpeg -y -i docs/images/codecks-demo.mp4 -vf "fps=12,scale=640:360:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" docs/images/codecks-demo.gif
+FRAMECRAFT_DIR=/path/to/framecraft ./scripts/render_marketing_assets.sh
 ```
 
 ## Acceptance Checklist
 
 - First frame shows the product name and one concrete use.
 - Each scene has one focus point.
-- GIF is under 5 MB for README use.
+- All app screenshots are visually checked emulator captures from the current debug build.
+- GIF is 640×360 and under 5 MB for README use.
 - MP4 is 1920x1080 and works without relying on audio.
+- MP4 has H.264 video, AAC audio, matched stream durations, and no black frames.
+- The final GitHub invite card is present.
 - No personal host, account, or command data is visible.
