@@ -1,8 +1,10 @@
 package io.codecks.data.reactive.helper
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Test
+import java.net.URLEncoder
 
 class ReactiveHelperPairingImporterTest {
     @Test
@@ -50,5 +52,15 @@ class ReactiveHelperPairingImporterTest {
                 }
             """.decodePairingPayload()
         }
+    }
+
+    @Test
+    fun extractsPairingPayloadFromExplicitDeepLinkOnly() {
+        val json = """{"macId":"Desk Mac"}"""
+        val encoded = URLEncoder.encode(json, "UTF-8")
+
+        assertEquals(json, reactiveHelperPairingJsonFromUri("codecks://helper-pair?payload=$encoded"))
+        assertNull(reactiveHelperPairingJsonFromUri("codecks://trackpad?payload=$encoded"))
+        assertNull(reactiveHelperPairingJsonFromUri("https://example.com?payload=$encoded"))
     }
 }

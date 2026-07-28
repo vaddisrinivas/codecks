@@ -21,6 +21,7 @@ import io.codecks.data.device.DefaultTransportRegistry
 import io.codecks.data.device.LocalDeviceRepository
 import io.codecks.data.reactive.helper.AndroidReactiveHelperCredentialStore
 import io.codecks.data.reactive.helper.MdnsReactiveHelperDiscovery
+import io.codecks.data.reactive.helper.ReactiveHelperPairingStore
 import io.codecks.DefaultHidRepository
 import io.codecks.HidRepository
 import io.codecks.core.actions.ActionRunner
@@ -89,6 +90,12 @@ abstract class AppModule {
     abstract fun bindReactiveHelperSecretStore(
         implementation: AndroidReactiveHelperCredentialStore,
     ): ReactiveHelperSecretStore
+
+    @Binds
+    @Singleton
+    abstract fun bindReactiveHelperPairingStore(
+        implementation: AndroidReactiveHelperCredentialStore,
+    ): ReactiveHelperPairingStore
 
     @Binds
     @Singleton

@@ -1,6 +1,9 @@
 package io.codecks.data.reactive.helper
 
 import io.codecks.platform.helper.StoredReactiveHelperIdentity
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
+import javax.inject.Inject
 import org.json.JSONObject
 
 data class ReactiveHelperPairingPayload(
@@ -23,8 +26,12 @@ data class ReactiveHelperPairingPayload(
     }
 }
 
-class ReactiveHelperPairingImporter(
-    private val store: AndroidReactiveHelperCredentialStore,
+interface ReactiveHelperPairingStore {
+    suspend fun savePairing(identity: StoredReactiveHelperIdentity, sharedSecret: ByteArray)
+}
+
+class ReactiveHelperPairingImporter @Inject constructor(
+    private val store: ReactiveHelperPairingStore,
 ) {
     suspend fun importJson(payloadJson: String): StoredReactiveHelperIdentity {
         val payload = payloadJson.decodePairingPayload()
@@ -38,6 +45,25 @@ class ReactiveHelperPairingImporter(
         store.savePairing(identity, requireNotNull(payload.sharedSecretHex.hexToByteArrayOrNull()))
         return identity
     }
+}
+
+fun reactiveHelperPairingJsonFromUri(uri: String?): String? {
+    if (uri.isNullOrBlank()) return null
+    val prefix = "codecks://helper-pair"
+    if (!uri.startsWith(prefix)) return null
+    val query = uri.substringAfter('?', missingDelimiterValue = "")
+    if (query.isBlank()) return null
+    return query.split('&')
+        .mapNotNull { part ->
+            val key = part.substringBefore('=', missingDelimiterValue = "")
+            val value = part.substringAfter('=', missingDelimiterValue = "")
+            if (key == "payload" && value.isNotBlank()) {
+                URLDecoder.decode(value, StandardCharsets.UTF_8.name())
+            } else {
+                null
+            }
+        }
+        .firstOrNull()
 }
 
 internal fun String.decodePairingPayload(): ReactiveHelperPairingPayload {

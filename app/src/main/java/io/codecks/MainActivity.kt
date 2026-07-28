@@ -81,6 +81,8 @@ import io.codecks.data.CodecksBackupRepository
 import io.codecks.data.features.LocalFeatureFlagRepository
 import io.codecks.data.reactive.LiveMacStateInputs
 import io.codecks.data.reactive.LiveMacStateRepository
+import io.codecks.data.reactive.helper.ReactiveHelperPairingImporter
+import io.codecks.data.reactive.helper.reactiveHelperPairingJsonFromUri
 import io.codecks.data.reactive.state.ConnectionRepositorySshMacStateSource
 import io.codecks.data.reactive.state.StateFlowReactiveHelperClientMacStateSource
 import io.codecks.data.context.NotificationPreview
@@ -191,8 +193,10 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var reactiveHelperDiscovery: ReactiveHelperDiscovery
     @Inject lateinit var reactiveHelperIdentityStore: ReactiveHelperIdentityStore
     @Inject lateinit var reactiveHelperSecretStore: ReactiveHelperSecretStore
+    @Inject lateinit var reactiveHelperPairingImporter: ReactiveHelperPairingImporter
 
     private var destinationRequest by mutableStateOf<String?>(null)
+    private var pendingReactiveHelperPairingJson by mutableStateOf<String?>(null)
     private var hardwareKeyHandler: ((KeyEvent) -> Boolean)? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -226,6 +230,9 @@ class MainActivity : ComponentActivity() {
                     reactiveHelperDiscovery = reactiveHelperDiscovery,
                     reactiveHelperIdentityStore = reactiveHelperIdentityStore,
                     reactiveHelperSecretStore = reactiveHelperSecretStore,
+                    reactiveHelperPairingImporter = reactiveHelperPairingImporter,
+                    pendingReactiveHelperPairingJson = pendingReactiveHelperPairingJson,
+                    onReactiveHelperPairingConsumed = { pendingReactiveHelperPairingJson = null },
                     themeSettings = themeSettings,
                     onThemeModeChange = { mode -> themeScope.launch { themeSettingsRepository.setMode(mode) } },
                     onThemeAccentChange = { accent -> themeScope.launch { themeSettingsRepository.setAccent(accent) } },
@@ -270,6 +277,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun acceptIntent(intent: Intent?) {
+        reactiveHelperPairingJsonFromUri(intent?.dataString)?.let { payload ->
+            pendingReactiveHelperPairingJson = payload
+            destinationRequest = "pairing"
+            return
+        }
         destinationRequest = resolveDestinationRequest(
             action = intent?.action,
             type = intent?.type,
@@ -323,6 +335,9 @@ private fun CodecksApp(
     reactiveHelperDiscovery: ReactiveHelperDiscovery,
     reactiveHelperIdentityStore: ReactiveHelperIdentityStore,
     reactiveHelperSecretStore: ReactiveHelperSecretStore,
+    reactiveHelperPairingImporter: ReactiveHelperPairingImporter,
+    pendingReactiveHelperPairingJson: String?,
+    onReactiveHelperPairingConsumed: () -> Unit,
     themeSettings: CodecksThemeSettings,
     onThemeModeChange: (CodecksThemeMode) -> Unit,
     onThemeAccentChange: (CodecksAccent) -> Unit,
@@ -372,6 +387,19 @@ private fun CodecksApp(
     }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(pendingReactiveHelperPairingJson) {
+        val payload = pendingReactiveHelperPairingJson ?: return@LaunchedEffect
+        val result = withContext(Dispatchers.IO) {
+            runCatching { reactiveHelperPairingImporter.importJson(payload) }
+        }
+        snackbarHostState.showSnackbar(
+            result.fold(
+                onSuccess = { "Reactive helper paired: ${it.displayName}" },
+                onFailure = { it.message ?: "Reactive helper pairing failed" },
+            ),
+        )
+        onReactiveHelperPairingConsumed()
+    }
     var pendingBackupPayload by remember { mutableStateOf<String?>(null) }
     val exportBackupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),

@@ -21,7 +21,7 @@ private val Context.reactiveHelperDataStore by preferencesDataStore(name = "reac
 @Singleton
 class AndroidReactiveHelperCredentialStore @Inject constructor(
     @param:ApplicationContext private val context: Context,
-) : ReactiveHelperIdentityStore, ReactiveHelperSecretStore {
+) : ReactiveHelperIdentityStore, ReactiveHelperSecretStore, ReactiveHelperPairingStore {
     private val secureStore = AndroidSecureApiKeyStore(context)
 
     override suspend fun identities(): List<StoredReactiveHelperIdentity> =
@@ -53,7 +53,7 @@ class AndroidReactiveHelperCredentialStore @Inject constructor(
             ?.revealForProviderCall()
             ?.hexToByteArrayOrNull()
 
-    suspend fun savePairing(identity: StoredReactiveHelperIdentity, sharedSecret: ByteArray) {
+    override suspend fun savePairing(identity: StoredReactiveHelperIdentity, sharedSecret: ByteArray) {
         secureStore.saveKey(identity.secretAlias, SecretValue.of(sharedSecret.toHex()))
         save(identity)
     }
