@@ -19,6 +19,8 @@ import io.codecks.data.RunHistoryRepository
 import io.codecks.data.SshDiscovery
 import io.codecks.data.device.DefaultTransportRegistry
 import io.codecks.data.device.LocalDeviceRepository
+import io.codecks.data.reactive.helper.AndroidReactiveHelperCredentialStore
+import io.codecks.data.reactive.helper.MdnsReactiveHelperDiscovery
 import io.codecks.DefaultHidRepository
 import io.codecks.HidRepository
 import io.codecks.core.actions.ActionRunner
@@ -26,6 +28,9 @@ import io.codecks.core.actions.DefaultActionRunner
 import io.codecks.domain.device.DeviceRepository
 import io.codecks.domain.device.TransportRegistry
 import io.codecks.domain.automation.AutomationTriggerEngine
+import io.codecks.platform.helper.ReactiveHelperDiscovery
+import io.codecks.platform.helper.ReactiveHelperIdentityStore
+import io.codecks.platform.helper.ReactiveHelperSecretStore
 import javax.inject.Singleton
 
 @Module
@@ -68,6 +73,22 @@ abstract class AppModule {
     @Binds
     @Singleton
     abstract fun bindSshDiscovery(implementation: MdnsFirstSshDiscovery): SshDiscovery
+
+    @Binds
+    @Singleton
+    abstract fun bindReactiveHelperDiscovery(implementation: MdnsReactiveHelperDiscovery): ReactiveHelperDiscovery
+
+    @Binds
+    @Singleton
+    abstract fun bindReactiveHelperIdentityStore(
+        implementation: AndroidReactiveHelperCredentialStore,
+    ): ReactiveHelperIdentityStore
+
+    @Binds
+    @Singleton
+    abstract fun bindReactiveHelperSecretStore(
+        implementation: AndroidReactiveHelperCredentialStore,
+    ): ReactiveHelperSecretStore
 
     @Binds
     @Singleton

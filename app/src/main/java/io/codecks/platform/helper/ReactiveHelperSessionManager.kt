@@ -64,6 +64,9 @@ class ReactiveHelperSessionManager(
     private val _actionClient = MutableStateFlow<ReactiveHelperActionClient>(UnavailableReactiveHelperActionClient)
     val actionClient: StateFlow<ReactiveHelperActionClient> = _actionClient.asStateFlow()
 
+    private val _client = MutableStateFlow<ReactiveHelperClient?>(null)
+    val client: StateFlow<ReactiveHelperClient?> = _client.asStateFlow()
+
     private var activeClient: ReactiveHelperClient? = null
 
     init {
@@ -99,6 +102,7 @@ class ReactiveHelperSessionManager(
             val session = client.open(nonceFactory())
             check(session.macId == identity.macId) { "Helper identity mismatch" }
             activeClient = client
+            _client.value = client
             _actionClient.value = ReactiveHelperClientActionClient(client)
             ReactiveHelperSessionStatus.Connected(
                 macId = session.macId,
@@ -116,6 +120,7 @@ class ReactiveHelperSessionManager(
     suspend fun disconnect() {
         val client = activeClient
         activeClient = null
+        _client.value = null
         _actionClient.value = UnavailableReactiveHelperActionClient
         if (client != null) {
             runCatching { client.close() }
@@ -135,6 +140,7 @@ class ReactiveHelperSessionManager(
     private fun fail(code: String): ReactiveHelperSessionStatus.Failed =
         ReactiveHelperSessionStatus.Failed(code).also {
             activeClient = null
+            _client.value = null
             _actionClient.value = UnavailableReactiveHelperActionClient
             _status.value = it
         }

@@ -11,21 +11,30 @@ public final class ReactiveTcpHelperServer: @unchecked Sendable {
     private let port: UInt16
     private let handler: ReactiveFrameHandling
     private let queue: DispatchQueue
+    private let serviceName: String?
     private var listener: NWListener?
     private var connections: Set<NWConnectionBox> = []
 
     public init(
         port: UInt16,
         handler: ReactiveFrameHandling,
+        serviceName: String? = "Codecks Mac Helper",
         queue: DispatchQueue = DispatchQueue(label: "app.codecks.mac-helper.tcp")
     ) {
         self.port = port
         self.handler = handler
+        self.serviceName = serviceName
         self.queue = queue
     }
 
     public func start() throws {
         let listener = try NWListener(using: .tcp, on: NWEndpoint.Port(rawValue: port)!)
+        if let serviceName, !serviceName.isEmpty {
+            listener.service = NWListener.Service(
+                name: serviceName,
+                type: "_codecks-reactive._tcp"
+            )
+        }
         listener.newConnectionHandler = { [weak self] connection in
             self?.accept(connection)
         }

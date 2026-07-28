@@ -10,6 +10,7 @@ import io.codecks.shared.protocol.ReactiveHelperRequest
 import io.codecks.shared.protocol.ReactiveResponseEnvelope
 import io.codecks.shared.protocol.ReceiptStatus
 import io.codecks.shared.protocol.validateActionReceipt
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.Json
 
 interface ReactiveHelperActionClient {
@@ -40,6 +41,15 @@ class ReactiveHelperClientActionClient(
     ): ReactiveHelperActionExecution =
         runCatching { client.request(request, deadlineMillis).toHelperActionExecution(json) }
             .getOrElse { ReactiveHelperActionExecution.Unsupported(it.toHelperUnavailableCode()) }
+}
+
+class StateFlowReactiveHelperActionClient(
+    private val delegate: StateFlow<ReactiveHelperActionClient>,
+) : ReactiveHelperActionClient {
+    override suspend fun execute(
+        request: ReactiveHelperRequest.Execute,
+        deadlineMillis: Long,
+    ): ReactiveHelperActionExecution = delegate.value.execute(request, deadlineMillis)
 }
 
 sealed interface ReactiveHelperActionExecution {

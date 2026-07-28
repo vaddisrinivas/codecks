@@ -9,6 +9,7 @@ import io.codecks.shared.protocol.ReactiveHelperRequest
 import io.codecks.shared.protocol.ReceiptStatus
 import io.codecks.shared.protocol.StateProvenance
 import io.codecks.shared.protocol.validateBasicState
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.Json
 
 fun interface SshMacStateSource {
@@ -41,6 +42,19 @@ class ReactiveHelperClientMacStateSource(
         return json.decodeFromString(ReactiveHelperBasicState.serializer(), body).also {
             validateBasicState(it, nowMillis())
         }
+    }
+}
+
+class StateFlowReactiveHelperClientMacStateSource(
+    private val client: StateFlow<ReactiveHelperClient?>,
+    private val nowMillis: () -> Long = System::currentTimeMillis,
+) : HelperMacStateSource {
+    override val connected: Boolean
+        get() = client.value?.state?.value is ReactiveHelperClientState.Connected
+
+    override suspend fun refreshBasicState(deadlineMillis: Long): ReactiveHelperBasicState {
+        val active = requireNotNull(client.value) { "helper_session_missing" }
+        return ReactiveHelperClientMacStateSource(active, nowMillis).refreshBasicState(deadlineMillis)
     }
 }
 
