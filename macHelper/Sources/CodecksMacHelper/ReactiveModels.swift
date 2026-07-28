@@ -170,3 +170,35 @@ public struct HelperRequestBody: Codable, Equatable {
     public var type: String
     public var actionId: String?
 }
+
+public struct ReactiveExecuteRequest: Codable, Equatable {
+    public var type: String
+    public var actionId: String
+    public var actionRevision: String
+    public var operationId: String
+    public var idempotencyKey: String
+    public var timeoutMillis: Int64
+    public var cancellationToken: String
+    public var arguments: [String: String]
+}
+
+public struct ReactiveHelperActionReceipt: Codable, Equatable {
+    public var receiptId: String
+    public var operationId: String
+    public var idempotencyKey: String
+    public var actionId: String
+    public var actionRevision: String
+    public var status: ReceiptStatus
+    public var startedAtMillis: Int64
+    public var completedAtMillis: Int64
+    public var resultCode: String
+    public var undoToken: String?
+    public var partialFailures: [ReactiveError]
+}
+
+public struct ReactiveError: Codable, Equatable {
+    public var code: ReactiveErrorCode
+    public var message: String
+    public var retryable: Bool
+    public var safeForUser: Bool
+}
