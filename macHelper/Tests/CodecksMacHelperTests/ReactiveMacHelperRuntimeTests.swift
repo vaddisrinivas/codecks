@@ -58,4 +58,25 @@ final class ReactiveMacHelperRuntimeTests: XCTestCase {
             ])
         )
     }
+
+    func testPairingPayloadJsonContainsPinnedIdentityAndSecret() throws {
+        let config = try ReactiveMacHelperRuntimeConfig.environment([
+            "CODECKS_HELPER_PORT": "47322",
+            "CODECKS_HELPER_MAC_ID": "mac-fixture",
+            "CODECKS_HELPER_ID": "helper-fixture",
+            "CODECKS_HELPER_FINGERPRINT": String(repeating: "a", count: 64),
+            "CODECKS_HELPER_SECRET_HEX": String(repeating: "01", count: 32),
+            "CODECKS_HELPER_ISSUED_AT_MILLIS": "1234"
+        ])
+
+        let data = try XCTUnwrap(config.pairingPayloadJson(host: "192.168.1.20").data(using: .utf8))
+        let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        XCTAssertEqual(payload["macId"] as? String, "mac-fixture")
+        XCTAssertEqual(payload["helperId"] as? String, "helper-fixture")
+        XCTAssertEqual(payload["publicKeyFingerprint"] as? String, String(repeating: "a", count: 64))
+        XCTAssertEqual(payload["sharedSecretHex"] as? String, String(repeating: "01", count: 32))
+        XCTAssertEqual(payload["host"] as? String, "192.168.1.20")
+        XCTAssertEqual(payload["port"] as? Int, 47322)
+    }
 }

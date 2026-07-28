@@ -54,6 +54,22 @@ public struct ReactiveMacHelperRuntimeConfig: Equatable {
             ]
         )
     }
+
+    public func pairingPayloadJson(displayName: String? = nil, host: String? = nil) throws -> String {
+        var payload: [String: Any] = [
+            "macId": macId,
+            "displayName": displayName ?? macId,
+            "helperId": helperIdentity.helperId,
+            "publicKeyFingerprint": helperIdentity.publicKeyFingerprint,
+            "sharedSecretHex": sharedSecret.map { String(format: "%02x", $0) }.joined(),
+            "port": Int(port)
+        ]
+        if let host, !host.isEmpty {
+            payload["host"] = host
+        }
+        let data = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+        return String(decoding: data, as: UTF8.self)
+    }
 }
 
 private struct RuntimeFileConfig: Decodable {
