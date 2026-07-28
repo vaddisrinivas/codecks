@@ -123,6 +123,35 @@ class ReactiveTrackpadViewModelTest {
     }
 
     @Test
+    fun successRefreshesControlsForReceiptBackedUndoProvider() = runTest(dispatcher) {
+        val repo = FakeMacStateRepository(initialState = sampleState())
+        val engine = SequencedReactiveEngine(
+            ArrayDeque(
+                listOf(
+                    ReactiveDecision(controls = listOf(sampleControl())),
+                    ReactiveDecision(controls = listOf(sampleControl(), sampleControl(id = "reactive_undo", title = "Undo Reload"))),
+                ),
+            ),
+        )
+        val viewModel = ReactiveTrackpadViewModel(
+            macStateRepository = repo,
+            engine = engine,
+            executor = FakeReactiveExecutor(
+                next = ReactiveExecutionOutcome(ReactiveActionResult.Succeeded("catalog_action_succeeded")),
+            ),
+            nowMillis = { 9_000L },
+        )
+        advanceUntilIdle()
+
+        viewModel.runControl(sampleControl().id)
+        advanceUntilIdle()
+
+        assertEquals(listOf("Reload", "Undo Reload"), viewModel.uiState.value.controls.map { it.title })
+        assertEquals(2, engine.calls)
+    }
+
+
+    @Test
     fun confirmationFlowsThroughPendingAndConfirm() = runTest(dispatcher) {
         val repo = FakeMacStateRepository(initialState = sampleState())
         val executor = FakeReactiveExecutor(
@@ -179,9 +208,12 @@ class ReactiveTrackpadViewModelTest {
         assertEquals(sampleControl().actionRevision, executor.lastAuthorization?.reviewedActionRevision)
     }
 
-    private fun sampleControl(): ReactiveControl = ReactiveControl(
-        id = ControlId("reactive_reload"),
-        title = "Reload",
+    private fun sampleControl(
+        id: String = "reactive_reload",
+        title: String = "Reload",
+    ): ReactiveControl = ReactiveControl(
+        id = ControlId(id),
+        title = title,
         subtitle = "Refresh tab",
         icon = ReactiveIcon.Reload,
         action = ReactiveAction.ExistingCatalog("reload"),
@@ -270,6 +302,21 @@ private class FakeReactiveEngine(
         context: ReactiveTrackpadContext,
         nowMillis: Long,
     ): ReactiveDecision = decision
+}
+
+private class SequencedReactiveEngine(
+    private val decisions: ArrayDeque<ReactiveDecision>,
+) : ReactiveEngine {
+    var calls = 0
+
+    override fun controls(
+        state: MacStateSnapshot,
+        context: ReactiveTrackpadContext,
+        nowMillis: Long,
+    ): ReactiveDecision {
+        calls += 1
+        return decisions.removeFirstOrNull() ?: ReactiveDecision(emptyList())
+    }
 }
 
 private class FakeReactiveExecutor(
