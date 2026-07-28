@@ -60,6 +60,7 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import dagger.hilt.android.AndroidEntryPoint
 import io.codecks.core.actions.ActionRunner
+import io.codecks.core.reactive.ConnectionRepositoryReactiveSftpTransferClient
 import io.codecks.core.reactive.DefaultReactiveActionExecutor
 import io.codecks.core.reactive.reactiveActionRevision
 import io.codecks.core.reactive.defaultReactiveTrackpadEngine
@@ -470,12 +471,13 @@ private fun CodecksApp(
             receipts = reactiveReceiptStore::all,
         )
     }
-    val reactiveExecutor = remember(actionRepository, actionRunner, hidRepository, reactiveReceiptStore) {
+    val reactiveExecutor = remember(actionRepository, actionRunner, hidRepository, reactiveReceiptStore, connectionRepository) {
         DefaultReactiveActionExecutor(
             actionRepository = actionRepository,
             actionRunner = actionRunner,
             hidRepository = hidRepository,
             receiptStore = reactiveReceiptStore,
+            sftpTransferClient = ConnectionRepositoryReactiveSftpTransferClient(connectionRepository),
         )
     }
     val reactiveTrackpadViewModel: ReactiveTrackpadViewModel = viewModel(

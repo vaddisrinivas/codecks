@@ -218,11 +218,13 @@ class DefaultReactiveActionExecutorTest {
     @Test
     fun sftpTransferRequestReceiptStoresRootIdsAndFingerprintsOnly() = kotlinx.coroutines.test.runTest {
         val receipts = InMemoryReactiveReceiptStore()
+        val sftp = FakeReactiveSftpTransferClient(ReactiveSftpTransferExecution.Succeeded)
         val executor = DefaultReactiveActionExecutor(
             actionRepository = FakeReactiveActionRepository(emptyList()),
             actionRunner = FakeReactiveActionRunner(),
             hidRepository = FakeHidRepository(isConnected = true),
             receiptStore = receipts,
+            sftpTransferClient = sftp,
         )
         val request = SafeSftpTransferRequest(
             direction = TransferDirection.MacToPhone,
@@ -246,14 +248,51 @@ class DefaultReactiveActionExecutorTest {
             nowMillis = 10_000L,
         )
 
-        assertEquals(ReactiveActionResult.Succeeded("sftp_transfer_request_recorded"), outcome.result)
+        assertEquals(listOf(request), sftp.requests)
+        assertEquals(ReactiveActionResult.Succeeded("sftp_transfer_completed"), outcome.result)
         val receipt = outcome.receipt!!
-        assertEquals("sftp_transfer_request", receipt.metadata["operationKind"])
+        assertEquals("sftp_transfer", receipt.metadata["operationKind"])
         assertEquals("mac_downloads", receipt.metadata["localRootId"])
         assertEquals("phone_inbox", receipt.metadata["remoteRootId"])
         assertNull(receipt.metadata["localPath"])
         assertNull(receipt.metadata["remotePath"])
         assertTrue(receipt.metadata["localPathFingerprint"]!!.length == 32)
+    }
+
+    @Test
+    fun sftpTransferFailureDoesNotReportSuccess() = kotlinx.coroutines.test.runTest {
+        val executor = DefaultReactiveActionExecutor(
+            actionRepository = FakeReactiveActionRepository(emptyList()),
+            actionRunner = FakeReactiveActionRunner(),
+            hidRepository = FakeHidRepository(isConnected = true),
+            sftpTransferClient = FakeReactiveSftpTransferClient(
+                ReactiveSftpTransferExecution.Failed("sftp_file_missing", retryable = false),
+            ),
+        )
+        val request = SafeSftpTransferRequest(
+            direction = TransferDirection.PhoneToMac,
+            localPath = "/phone/outbox/report.pdf",
+            remotePath = "/Users/me/Downloads/report.pdf",
+            roots = SftpAllowedRoots(
+                localRootId = "phone_outbox",
+                localRoot = "/phone/outbox",
+                remoteRootId = "mac_downloads",
+                remoteRoot = "/Users/me/Downloads",
+            ),
+            provenance = provenance(),
+        )
+
+        val outcome = executor.execute(
+            control = reactiveControl(
+                id = "reactive_sftp_failure",
+                action = ReactiveAction.SftpTransferRequest(request),
+                capability = CodecksCapability.SftpTransfer,
+            ),
+            nowMillis = 10_000L,
+        )
+
+        assertEquals(ReactiveActionResult.Failed("sftp_file_missing", retryable = false), outcome.result)
+        assertNull(outcome.receipt)
     }
 
     @Test
@@ -804,6 +843,17 @@ private class FakeReactiveHelperActionClient(
         request: io.codecks.shared.protocol.ReactiveHelperRequest.Execute,
         deadlineMillis: Long,
     ): ReactiveHelperActionExecution {
+        requests += request
+        return next
+    }
+}
+
+private class FakeReactiveSftpTransferClient(
+    private val next: ReactiveSftpTransferExecution,
+) : ReactiveSftpTransferClient {
+    val requests = mutableListOf<SafeSftpTransferRequest>()
+
+    override suspend fun transfer(request: SafeSftpTransferRequest): ReactiveSftpTransferExecution {
         requests += request
         return next
     }

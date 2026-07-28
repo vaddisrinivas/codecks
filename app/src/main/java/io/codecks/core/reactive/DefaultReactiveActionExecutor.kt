@@ -34,6 +34,7 @@ import io.codecks.domain.reactive.ReactiveRisk
 import io.codecks.domain.reactive.ReactiveUndoAction
 import io.codecks.domain.reactive.ReactiveUndoOutcome
 import io.codecks.domain.reactive.ReceiptId
+import io.codecks.domain.reactive.SafeSftpTransferRequest
 import io.codecks.domain.reactive.SharedHidCommand
 import io.codecks.domain.reactive.newReactiveReceiptId
 import io.codecks.shared.protocol.ActionPrecondition
@@ -51,6 +52,7 @@ class DefaultReactiveActionExecutor @Inject constructor(
     private val receiptStore: InMemoryReactiveReceiptStore = InMemoryReactiveReceiptStore(),
     private val deviceRepository: DeviceRepository? = null,
     private val helperActionClient: ReactiveHelperActionClient = UnavailableReactiveHelperActionClient,
+    private val sftpTransferClient: ReactiveSftpTransferClient = UnavailableReactiveSftpTransferClient,
 ) : ReactiveActionExecutor {
 
     override suspend fun execute(
@@ -174,23 +176,12 @@ class DefaultReactiveActionExecutor @Inject constructor(
                 ),
                 idempotentSignature = signature,
             )
-            is ReactiveAction.SftpTransferRequest -> recordOutcome(
+            is ReactiveAction.SftpTransferRequest -> executeSftpTransfer(
                 control = control,
                 invocation = invocation,
                 nowMillis = nowMillis,
-                result = ReactiveActionResult.Succeeded("sftp_transfer_request_recorded"),
-                metadata = mapOf(
-                    "operationKind" to "sftp_transfer_request",
-                    "direction" to action.request.direction.name,
-                    "localRootId" to action.request.roots.localRootId,
-                    "remoteRootId" to action.request.roots.remoteRootId,
-                    "localPathFingerprint" to action.request.localPath.redactedFingerprint(),
-                    "remotePathFingerprint" to action.request.remotePath.redactedFingerprint(),
-                    "maxBytes" to action.request.maxBytes.toString(),
-                    "provenanceSource" to action.request.provenance.source.name,
-                    "provenanceRevision" to action.request.provenance.snapshotRevision.toString(),
-                ),
                 idempotentSignature = signature,
+                request = action.request,
             )
             is ReactiveAction.ChangeMode -> recordOutcome(
                 control = control,
@@ -528,6 +519,31 @@ class DefaultReactiveActionExecutor @Inject constructor(
         )
     }
 
+    private suspend fun executeSftpTransfer(
+        control: ReactiveControl,
+        invocation: ReactiveActionInvocation,
+        nowMillis: Long,
+        idempotentSignature: String,
+        request: SafeSftpTransferRequest,
+    ): ReactiveExecutionOutcome {
+        val result = when (val transfer = sftpTransferClient.transfer(request)) {
+            ReactiveSftpTransferExecution.Succeeded -> ReactiveActionResult.Succeeded("sftp_transfer_completed")
+            is ReactiveSftpTransferExecution.Failed -> ReactiveActionResult.Failed(
+                transfer.errorCode,
+                transfer.retryable,
+            )
+            is ReactiveSftpTransferExecution.Unsupported -> ReactiveActionResult.Unsupported(transfer.reasonCode)
+        }
+        return recordOutcome(
+            control = control,
+            invocation = invocation,
+            nowMillis = nowMillis,
+            result = result,
+            metadata = request.sftpReceiptMetadata(),
+            idempotentSignature = idempotentSignature,
+        )
+    }
+
     private fun recordOutcome(
         control: ReactiveControl,
         invocation: ReactiveActionInvocation,
@@ -584,6 +600,18 @@ private fun ReactiveAction.signaturePart(): String = when (this) {
 }
 
 private fun String.redactedFingerprint(): String = io.codecks.domain.reactive.sha256Hex(this).take(32)
+
+private fun SafeSftpTransferRequest.sftpReceiptMetadata(): Map<String, String> = mapOf(
+    "operationKind" to "sftp_transfer",
+    "direction" to direction.name,
+    "localRootId" to roots.localRootId,
+    "remoteRootId" to roots.remoteRootId,
+    "localPathFingerprint" to localPath.redactedFingerprint(),
+    "remotePathFingerprint" to remotePath.redactedFingerprint(),
+    "maxBytes" to maxBytes.toString(),
+    "provenanceSource" to provenance.source.name,
+    "provenanceRevision" to provenance.snapshotRevision.toString(),
+)
 
 private fun MacStateSnapshot?.toHelperPreconditions(): List<ActionPrecondition> {
     val state = this ?: return emptyList()

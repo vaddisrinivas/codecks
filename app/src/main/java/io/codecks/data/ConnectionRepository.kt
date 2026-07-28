@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.jcraft.jsch.ChannelExec
+import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.JSchException
 import com.jcraft.jsch.KeyPair
@@ -14,8 +15,11 @@ import com.jcraft.jsch.Session
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.codecks.core.actions.RawCommandPolicy
 import io.codecks.data.ai.EncryptedApiKeyCodec
+import io.codecks.domain.reactive.SafeSftpTransferRequest
+import io.codecks.domain.reactive.TransferDirection
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.InputStream
 import java.net.SocketTimeoutException
 import java.util.Properties
@@ -113,6 +117,8 @@ interface ConnectionRepository {
     suspend fun runBundledCommand(command: String): Result<String> = runCommand(command)
     suspend fun runBundledCommandOnTarget(targetId: String, command: String): Result<String> =
         runCommandOnTarget(targetId, command)
+    suspend fun runSftpTransferOnTarget(targetId: String, request: SafeSftpTransferRequest): Result<String> =
+        Result.failure(UnsupportedOperationException("sftp_transfer_unavailable"))
 }
 
 @Singleton
@@ -480,6 +486,18 @@ class DefaultConnectionRepository @Inject constructor(
             }
         }
 
+    override suspend fun runSftpTransferOnTarget(
+        targetId: String,
+        request: SafeSftpTransferRequest,
+    ): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val target = targetById(targetId)
+            require(target.isReady) { "Connect ${target.host} first" }
+            runSftpTransfer(target.toConfig(), readPrivateKey(), request)
+            "SFTP transfer completed"
+        }
+    }
+
     private suspend fun currentConfig(): ConnectionConfig = config.first()
 
     private suspend fun targetById(targetId: String): ConnectionTarget {
@@ -556,6 +574,52 @@ class DefaultConnectionRepository @Inject constructor(
                 hostKey = hostKeyLine,
                 outputTruncated = output.size() >= SSH_OUTPUT_LIMIT_BYTES || errorOutput.size() >= SSH_OUTPUT_LIMIT_BYTES,
             )
+        } finally {
+            channel?.disconnect()
+            session?.disconnect()
+        }
+    }
+
+    private fun runSftpTransfer(
+        config: ConnectionConfig,
+        privateKey: String?,
+        request: SafeSftpTransferRequest,
+    ) {
+        require(config.hostKey.isNotBlank()) { "Verify the Mac fingerprint first" }
+        var session: Session? = null
+        var channel: ChannelSftp? = null
+        try {
+            val jsch = JSch()
+            jsch.setKnownHosts(ByteArrayInputStream((config.hostKey + "\n").toByteArray()))
+            if (!privateKey.isNullOrBlank()) {
+                jsch.addIdentity("Codecks", privateKey.toByteArray(), null, null)
+            }
+            session = jsch.getSession(config.user, config.host, config.port).apply {
+                setConfig(
+                    Properties().apply {
+                        put("StrictHostKeyChecking", "yes")
+                        put("PreferredAuthentications", "publickey")
+                    },
+                )
+                connect(CONNECT_TIMEOUT_MS)
+            }
+            channel = (session.openChannel("sftp") as ChannelSftp).apply {
+                connect(CONNECT_TIMEOUT_MS)
+            }
+            when (request.direction) {
+                TransferDirection.MacToPhone -> {
+                    val remoteSize = channel.stat(request.remotePath).size
+                    require(remoteSize in 0..request.maxBytes) { "SFTP remote file exceeds maxBytes" }
+                    File(request.localPath).parentFile?.mkdirs()
+                    channel.get(request.remotePath, request.localPath)
+                }
+                TransferDirection.PhoneToMac -> {
+                    val localFile = File(request.localPath)
+                    require(localFile.isFile) { "SFTP local file missing" }
+                    require(localFile.length() in 0..request.maxBytes) { "SFTP local file exceeds maxBytes" }
+                    channel.put(request.localPath, request.remotePath, ChannelSftp.OVERWRITE)
+                }
+            }
         } finally {
             channel?.disconnect()
             session?.disconnect()
