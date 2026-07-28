@@ -115,6 +115,19 @@ class ActiveAppReactiveControlProviderTest {
         assertEquals(first.actionRevision, second.actionRevision)
     }
 
+    @Test
+    fun defaultProviderEmitsBundledBrowserControls() {
+        val controls = ActiveAppReactiveControlProvider().controls(
+            state = browserState(),
+            context = ReactiveTrackpadContext(),
+            nowMillis = now,
+        )
+
+        assertEquals(listOf("browser_back", "browser_reload"), controls.map { it.actionId })
+        assertTrue(controls.all { it.providerId == "active-app" })
+        assertTrue(controls.all { it.explanation.contains("Google Chrome") })
+    }
+
     private fun browserState(
         frontApp: Observed<MacApplication> = observed(
             MacApplication(

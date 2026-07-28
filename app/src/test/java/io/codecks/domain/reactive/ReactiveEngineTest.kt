@@ -127,7 +127,68 @@ class ReactiveEngineTest {
             nowMillis = 5_000L,
         )
 
-        assertEquals(20, score)
+        assertEquals(7, score)
+    }
+
+    @Test
+    fun deniedPolicyAndAllowConflictsAreRemoved() {
+        val denied = control(
+            id = "reactive-denied",
+            actionId = "denied",
+            basePriority = 80,
+            policy = ReactiveControlPolicy.Deny,
+        )
+        val conflicted = control(
+            id = "reactive-conflict",
+            actionId = "conflict",
+            basePriority = 80,
+            conflicts = listOf(ReactiveControlConflict("same_slot")),
+        )
+        val reviewConflict = control(
+            id = "reactive-review",
+            actionId = "review",
+            basePriority = 80,
+            policy = ReactiveControlPolicy.RequiresReview,
+            conflicts = listOf(ReactiveControlConflict("needs_user_pick")),
+        )
+
+        val decision = DeterministicReactiveEngine(
+            providers = listOf(FakeReactiveProvider(denied, conflicted, reviewConflict)),
+        ).controls(
+            state = state(),
+            context = ReactiveTrackpadContext(),
+            nowMillis = now,
+        )
+
+        assertEquals(listOf("review"), decision.controls.map { it.actionId() })
+    }
+
+    @Test
+    fun staleDangerousControlIsDeniedButSafeControlIsDowngraded() {
+        val safe = control(
+            id = "reactive-safe",
+            actionId = "safe",
+            basePriority = 80,
+            staleBehavior = ReactiveStaleBehavior.Downgrade,
+        )
+        val dangerous = control(
+            id = "reactive-danger",
+            actionId = "danger",
+            basePriority = 100,
+            risk = ReactiveRisk.Dangerous,
+            staleBehavior = ReactiveStaleBehavior.Deny,
+        )
+
+        val decision = DeterministicReactiveEngine(
+            providers = listOf(FakeReactiveProvider(dangerous, safe)),
+        ).controls(
+            state = state(capturedAtMillis = 1_000L),
+            context = ReactiveTrackpadContext(),
+            nowMillis = now,
+        )
+
+        assertEquals(listOf("safe"), decision.controls.map { it.actionId() })
+        assertTrue(decision.controls.single().reason.contains("stale_state_downgraded"))
     }
 
     private fun state(
@@ -164,8 +225,13 @@ class ReactiveEngineTest {
         basePriority: Int,
         requiredCapabilities: Set<CodecksCapability> = setOf(CodecksCapability.MacCommand),
         risk: ReactiveRisk = ReactiveRisk.Safe,
+        policy: ReactiveControlPolicy = ReactiveControlPolicy.Allow,
+        conflicts: List<ReactiveControlConflict> = emptyList(),
+        staleBehavior: ReactiveStaleBehavior = ReactiveStaleBehavior.Downgrade,
     ): ReactiveControl = ReactiveControl(
         id = ControlId(id),
+        providerId = "fake",
+        actionId = actionId,
         title = actionId,
         subtitle = null,
         icon = ReactiveIcon.Generic,
@@ -173,8 +239,12 @@ class ReactiveEngineTest {
         source = ReactiveControlSource.FrontApp,
         basePriority = basePriority,
         reason = "test",
+        explanation = "test explanation",
+        policy = policy,
+        conflicts = conflicts,
         requiredCapabilities = requiredCapabilities,
         risk = risk,
+        staleBehavior = staleBehavior,
         reversible = false,
         stateRevision = 1L,
         actionRevision = ActionRevision(actionId.padEnd(32, '0').take(32)),

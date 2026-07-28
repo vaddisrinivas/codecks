@@ -32,6 +32,27 @@ enum class ReactiveRisk {
     Private,
 }
 
+enum class ReactiveControlPolicy {
+    Allow,
+    RequiresReview,
+    Deny,
+}
+
+enum class ReactiveStaleBehavior {
+    Allow,
+    Downgrade,
+    Deny,
+}
+
+data class ReactiveControlConflict(
+    val code: String,
+    val otherControlId: ControlId? = null,
+) {
+    init {
+        require(code.isNotBlank()) { "ReactiveControlConflict code must not be blank." }
+    }
+}
+
 enum class SharedHidCommand {
     BrowserBack,
     BrowserForward,
@@ -80,23 +101,40 @@ sealed interface ReactiveAction {
 
 data class ReactiveControl(
     val id: ControlId,
+    val providerId: String = "unknown",
+    val actionId: String = "unknown",
     val title: String,
     val subtitle: String?,
     val icon: ReactiveIcon,
     val action: ReactiveAction,
     val source: ReactiveControlSource,
     val basePriority: Int,
+    val confidence: Int = basePriority.coerceIn(0, 100),
     val reason: String,
+    val explanation: String = reason,
+    val policy: ReactiveControlPolicy = ReactiveControlPolicy.Allow,
+    val conflicts: List<ReactiveControlConflict> = emptyList(),
     val requiredCapabilities: Set<CodecksCapability>,
     val risk: ReactiveRisk,
+    val staleBehavior: ReactiveStaleBehavior = when (risk) {
+        ReactiveRisk.Safe -> ReactiveStaleBehavior.Downgrade
+        ReactiveRisk.Review,
+        ReactiveRisk.Dangerous,
+        ReactiveRisk.Private,
+        -> ReactiveStaleBehavior.Deny
+    },
     val reversible: Boolean,
     val stateRevision: Long,
     val actionRevision: ActionRevision,
     val expiresAtMillis: Long,
 ) {
     init {
+        require(providerId.isNotBlank()) { "ReactiveControl providerId must not be blank." }
+        require(actionId.isNotBlank()) { "ReactiveControl actionId must not be blank." }
         require(title.isNotBlank()) { "ReactiveControl title must not be blank." }
+        require(confidence in 0..100) { "ReactiveControl confidence must be between 0 and 100." }
         require(reason.isNotBlank()) { "ReactiveControl reason must not be blank." }
+        require(explanation.isNotBlank()) { "ReactiveControl explanation must not be blank." }
     }
 }
 
