@@ -1,4 +1,5 @@
 import ApplicationServices
+import AppKit
 import Foundation
 
 public struct SpotlightSearchActionHandler: ReactiveHelperActionHandler {
@@ -79,7 +80,51 @@ public struct SystemAccessibilitySnapshotter: AccessibilitySnapshotting {
         guard AXIsProcessTrusted() else {
             throw ReactiveValidationError("accessibility permission required")
         }
-        return 0
+        guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: frontAppBundleId).first else {
+            return 0
+        }
+        let root = AXUIElementCreateApplication(app.processIdentifier)
+        var traversal = AccessibilityTraversal(maxActions: maxActions, maxNodes: 200)
+        return traversal.countActions(root)
+    }
+}
+
+private struct AccessibilityTraversal {
+    let maxActions: Int
+    let maxNodes: Int
+    private var visitedNodes = 0
+    private var actionCount = 0
+
+    init(maxActions: Int, maxNodes: Int) {
+        self.maxActions = maxActions
+        self.maxNodes = maxNodes
+    }
+
+    mutating func countActions(_ element: AXUIElement) -> Int {
+        visit(element)
+        return min(actionCount, maxActions)
+    }
+
+    private mutating func visit(_ element: AXUIElement) {
+        guard visitedNodes < maxNodes, actionCount < maxActions else { return }
+        visitedNodes += 1
+
+        var actionNames: CFArray?
+        if AXUIElementCopyActionNames(element, &actionNames) == .success,
+           let names = actionNames as? [String] {
+            actionCount += names.count
+            if actionCount >= maxActions { return }
+        }
+
+        var childrenValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &childrenValue) == .success,
+              let children = childrenValue as? [AXUIElement] else {
+            return
+        }
+        for child in children {
+            visit(child)
+            if actionCount >= maxActions { return }
+        }
     }
 }
 

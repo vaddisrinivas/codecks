@@ -1,23 +1,26 @@
 import CodecksMacHelper
 import Foundation
 
-let identity = HelperIdentityPin(
-    helperId: "codecks-mac-helper",
-    publicKeyFingerprint: "0000000000000000000000000000000000000000000000000000000000000000",
-    issuedAtMillis: nowMillis(),
-    trustState: .unverified
-)
+let args = Array(CommandLine.arguments.dropFirst())
 
-_ = ReactiveSessionCoordinator(
-    macId: Host.current().localizedName ?? "mac",
-    helperIdentity: identity,
-    pairingStore: FilePairingStore(),
-    actionHandlers: [
-        "apple_shortcuts.run": AppleShortcutsActionHandler(),
-        "spotlight.search": SpotlightSearchActionHandler(),
-        "monitor_brightness.set": MonitorBrightnessActionHandler(),
-        "accessibility.discover": AccessibilityDiscoveryActionHandler()
-    ]
-)
-
-print("codecks-mac-helper scaffold ready")
+do {
+    switch args.first {
+    case "serve":
+        let config = try ReactiveMacHelperRuntimeConfig.environment()
+        let coordinator = config.makeCoordinator()
+        let framed = ReactiveFramedTransportService(coordinator: coordinator, secret: config.sharedSecret)
+        let server = ReactiveTcpHelperServer(port: config.port, handler: framed)
+        try server.start()
+        print("codecks-mac-helper serving on port \(config.port)")
+        RunLoop.main.run()
+    case "check-config":
+        _ = try ReactiveMacHelperRuntimeConfig.environment()
+        print("codecks-mac-helper config ok")
+    default:
+        print("usage: codecks-mac-helper serve | check-config")
+        exit(2)
+    }
+} catch {
+    FileHandle.standardError.write(Data("codecks-mac-helper: \(error)\n".utf8))
+    exit(1)
+}

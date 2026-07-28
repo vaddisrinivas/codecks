@@ -206,6 +206,37 @@ final class ReactiveMacHelperTests: XCTestCase {
         XCTAssertEqual(replay.code, ReactiveErrorCode.replayDetected.rawValue)
     }
 
+    func testRuntimeConfigParsesEnvironmentAndRegistersHandlers() throws {
+        let config = try ReactiveMacHelperRuntimeConfig.environment([
+            "CODECKS_HELPER_PORT": "47322",
+            "CODECKS_HELPER_MAC_ID": "mac-runtime",
+            "CODECKS_HELPER_ID": "helper-runtime",
+            "CODECKS_HELPER_FINGERPRINT": String(repeating: "b", count: 64),
+            "CODECKS_HELPER_SECRET_HEX": String(repeating: "01", count: 32),
+            "CODECKS_HELPER_ISSUED_AT_MILLIS": "1234",
+        ])
+
+        XCTAssertEqual(config.port, 47_322)
+        XCTAssertEqual(config.macId, "mac-runtime")
+        XCTAssertEqual(config.helperIdentity.helperId, "helper-runtime")
+        XCTAssertEqual(config.sharedSecret.count, 32)
+
+        let coordinator = config.makeCoordinator(pairingStore: InMemoryPairingStore())
+        let challenge = try coordinator.handleHello(
+            ReactiveHello(deviceId: "phone-runtime", clientNonce: "nonce-runtime", clientTimeMillis: 1_000),
+            nowMillis: 1_000
+        )
+        XCTAssertEqual(challenge.macId, "mac-runtime")
+    }
+
+    func testRuntimeConfigRejectsMissingSecret() {
+        XCTAssertThrowsError(
+            try ReactiveMacHelperRuntimeConfig.environment([
+                "CODECKS_HELPER_FINGERPRINT": String(repeating: "b", count: 64),
+            ])
+        )
+    }
+
     private func makeCoordinator() -> ReactiveSessionCoordinator {
         ReactiveSessionCoordinator(
             macId: "mac-fixture",
