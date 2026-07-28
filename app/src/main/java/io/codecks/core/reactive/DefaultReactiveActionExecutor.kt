@@ -445,6 +445,9 @@ class DefaultReactiveActionExecutor @Inject constructor(
         actionRevision: ActionRevision = control.actionRevision,
         idempotentSignature: String?,
     ): ReactiveExecutionOutcome {
+        if (result !is ReactiveActionResult.Succeeded) {
+            return ReactiveExecutionOutcome(result = result, receipt = null)
+        }
         val receipt = ReactiveActionReceipt(
             id = newReactiveReceiptId(),
             operationId = invocation.operationId,
