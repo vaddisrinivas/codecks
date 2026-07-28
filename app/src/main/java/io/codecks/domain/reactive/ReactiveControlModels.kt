@@ -11,6 +11,7 @@ enum class ReactiveControlSource {
     ConnectionState,
     ClipboardState,
     MediaState,
+    ShortcutCatalog,
     UndoReceipt,
 }
 

@@ -23,6 +23,7 @@ import io.codecks.domain.reactive.Observed
 import io.codecks.domain.reactive.ReactiveAction
 import io.codecks.domain.reactive.ReactiveActionReceipt
 import io.codecks.domain.reactive.ReactiveActionResult
+import io.codecks.domain.reactive.ReactiveControlPolicy
 import io.codecks.domain.reactive.ReactiveControlSource
 import io.codecks.domain.reactive.ReactiveIdempotencyKey
 import io.codecks.domain.reactive.ReactiveOperationId
@@ -131,6 +132,74 @@ class ReactiveStateControlProvidersTest {
         assertEquals(ReactiveAction.Hid(SharedHidCommand.BrowserForward), controls.single().action)
         assertEquals(ReactiveControlSource.UndoReceipt, controls.single().source)
         assertEquals(ReactiveRisk.Safe, controls.single().risk)
+    }
+
+    @Test
+    fun shortcutsParserCreatesTypedBoundedCatalog() {
+        val catalog = AppleShortcutsListParser().parse(
+            output = """
+                Shortcuts
+                Daily Standup
+                Open Desk Setup
+                Daily Standup
+            """.trimIndent(),
+            importedAtMillis = now,
+        )
+
+        assertEquals(listOf("Daily Standup", "Open Desk Setup"), catalog.shortcuts.map { it.displayName })
+        assertEquals(2, catalog.shortcuts.map { it.stableId }.distinct().size)
+        assertTrue(catalog.sourceRevision.value.startsWith("shortcuts-"))
+    }
+
+    @Test
+    fun shortcutsProviderEmitsReviewedHelperControlsOnlyFromCatalog() {
+        val catalog = AppleShortcutCatalog(
+            shortcuts = listOf(
+                AppleShortcutDefinition(
+                    stableId = "shortcut-standup",
+                    displayName = "Daily Standup",
+                    acceptsInput = false,
+                ),
+            ),
+            importedAtMillis = now,
+            sourceRevision = ActionRevision("shortcuts-test"),
+        )
+
+        val controls = AppleShortcutsReactiveControlProvider { catalog }.controls(
+            state = state(
+                capabilities = setOf(CapabilityState(CodecksCapability.MacCommand, CapabilityAvailability.Available)),
+            ),
+            context = ReactiveTrackpadContext(),
+            nowMillis = now,
+        )
+
+        val control = controls.single()
+        assertEquals("shortcut-standup", control.actionId)
+        assertEquals(ReactiveControlSource.ShortcutCatalog, control.source)
+        assertEquals(ReactiveRisk.Review, control.risk)
+        assertEquals(ReactiveControlPolicy.RequiresReview, control.policy)
+        assertEquals(
+            ReactiveAction.Helper(
+                actionId = "apple_shortcuts.run",
+                arguments = mapOf(
+                    "shortcutId" to "shortcut-standup",
+                    "shortcutName" to "Daily Standup",
+                    "acceptsInput" to "false",
+                ),
+            ),
+            control.action,
+        )
+    }
+
+    @Test
+    fun shortcutsProviderStaysEmptyWithoutCatalog() {
+        val controls = AppleShortcutsReactiveControlProvider().controls(
+            state = state(),
+            context = ReactiveTrackpadContext(),
+            nowMillis = now,
+        )
+
+        assertTrue(controls.isEmpty())
     }
 
     private fun receipt(

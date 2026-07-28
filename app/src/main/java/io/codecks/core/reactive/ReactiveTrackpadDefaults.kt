@@ -8,6 +8,8 @@ import io.codecks.domain.reactive.ReactiveEngine
 import io.codecks.domain.reactive.ReactiveIcon
 import io.codecks.domain.reactive.ReactiveActionReceipt
 import io.codecks.domain.reactive.providers.ActiveAppReactiveControlProvider
+import io.codecks.domain.reactive.providers.AppleShortcutCatalog
+import io.codecks.domain.reactive.providers.AppleShortcutsReactiveControlProvider
 import io.codecks.domain.reactive.providers.MediaReactiveControlProvider
 import io.codecks.domain.reactive.providers.ReactiveAppActionMapping
 import io.codecks.domain.reactive.providers.UndoReceiptReactiveControlProvider
@@ -16,10 +18,12 @@ import io.codecks.domain.reactive.providers.WindowReactiveControlProvider
 fun defaultReactiveTrackpadEngine(
     actionRevisions: Map<String, ActionRevision> = emptyMap(),
     receipts: () -> List<ReactiveActionReceipt> = { emptyList() },
+    shortcuts: () -> AppleShortcutCatalog? = { null },
 ): ReactiveEngine =
     DeterministicReactiveEngine(
         providers = listOf(
             UndoReceiptReactiveControlProvider(receipts),
+            AppleShortcutsReactiveControlProvider(shortcuts),
             ActiveAppReactiveControlProvider(
                 mappings = listOf(
                     ReactiveAppActionMapping(
