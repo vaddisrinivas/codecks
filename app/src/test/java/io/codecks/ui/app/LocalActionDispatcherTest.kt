@@ -94,25 +94,27 @@ class LocalActionDispatcherTest {
     }
 
     @Test
-    fun celebrationsReportSuccess() {
+    fun phoneCelebrationsAskForMacAction() {
         val state = mutableState()
         val action = deckAction("celebrate", "celebrate")
 
         val result = makeDispatcher(state).handleAction(action)
 
-        assertEquals(LocalActionResult.Succeeded, result)
-        assertEquals("celebrate", state.celebrationLabel)
+        assertTrue(result is LocalActionResult.Failed)
+        assertEquals("Use Mac celebration action", (result as LocalActionResult.Failed).message)
+        assertTrue(state.unsupportedHandled)
+        assertEquals(null, state.celebrationLabel)
     }
 
     @Test
-    fun unsupportedLocalRoutesReportFailure() {
+    fun decorRoutesAreSafeNoOps() {
         val state = mutableState()
         val action = deckAction("decor", "decor")
 
         val result = makeDispatcher(state).handleAction(action)
 
-        assertTrue(result is LocalActionResult.Failed)
-        assertEquals("Unsupported local action", (result as LocalActionResult.Failed).message)
+        assertEquals(LocalActionResult.Succeeded, result)
+        assertEquals(false, state.unsupportedHandled)
     }
 
     private fun makeDispatcher(

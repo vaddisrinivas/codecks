@@ -171,7 +171,7 @@ fun KeyboardScreen(
                     if (showHostHeader) {
                         HidHostHeader(
                             title = "Choose a paired Mac",
-                            disconnectedTitle = "Keyboard ready",
+                            disconnectedTitle = "Connect keyboard",
                             connectedTitle = "Keyboard connected",
                             icon = Icons.Outlined.Keyboard,
                             state = state,
@@ -220,10 +220,10 @@ fun KeyboardScreen(
                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
             ) {
                 if (showHostHeader) {
-                    HidHostHeader(
-                        title = "Choose a paired Mac",
-                        disconnectedTitle = "Keyboard ready",
-                        connectedTitle = "Keyboard connected",
+                        HidHostHeader(
+                            title = "Choose a paired Mac",
+                            disconnectedTitle = "Connect keyboard",
+                            connectedTitle = "Keyboard connected",
                         icon = Icons.Outlined.Keyboard,
                         state = state,
                         permissionGranted = permissionGranted,
@@ -451,7 +451,7 @@ private fun Composer(
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    text = status,
+                    text = if (connected) status else "Connect Mac first",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -483,7 +483,7 @@ private fun Composer(
                 DeckActionButton(
                     label = if (deliveryMode == KeyboardDeliveryMode.MacClipboardPaste) "Paste + Enter" else "Send + Enter",
                     onClick = onTypeText,
-                    enabled = !isSending && text.isNotBlank(),
+                    enabled = connected && !isSending && text.isNotBlank(),
                     icon = Icons.AutoMirrored.Outlined.Send,
                     modifier = Modifier.weight(1f).height(56.dp),
                 )

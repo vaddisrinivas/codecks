@@ -47,8 +47,8 @@ class LocalActionDispatcher(
                 LocalActionResult.Navigated
             }
             "celebrate" -> {
-                onCelebration(action.label)
-                LocalActionResult.Succeeded
+                onUnsupported()
+                LocalActionResult.Failed("Use Mac celebration action")
             }
             "hid_media_play_pause" -> {
                 when {
@@ -86,7 +86,10 @@ class LocalActionDispatcher(
                     }
                 }
             }
-            "decor", "list_apps_panel" -> {
+            "decor" -> {
+                LocalActionResult.Succeeded
+            }
+            "list_apps_panel" -> {
                 onUnsupported()
                 LocalActionResult.Failed("Unsupported local action")
             }

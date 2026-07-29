@@ -300,6 +300,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun warmHidIfAllowed() {
+        if (BuildConfig.DEBUG) {
+            // Debug installs sit beside the protected release app. Do not auto-register
+            // a second Bluetooth HID profile unless the tester explicitly starts input.
+            return
+        }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
             ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
         ) {

@@ -594,6 +594,7 @@ private fun AutomationRow(
     val enabled = item.enabled && controlsReady && !running
     val status = automationStatus(item, running, connectionHealth)
     val ifLine = when {
+        !controlsReady -> "Needs Mac connection before it can run"
         item.lastTestSucceeded == true -> "Test passed"
         item.lastTestSucceeded == false -> "Test failed; fix before enabling"
         item.canEnable -> "Approved and ready"
@@ -626,7 +627,11 @@ private fun AutomationRow(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = if (item.enabled) "Enabled" else "Paused",
+                        text = when {
+                            !controlsReady -> "Needs Mac"
+                            item.enabled -> "Enabled"
+                            else -> "Paused"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

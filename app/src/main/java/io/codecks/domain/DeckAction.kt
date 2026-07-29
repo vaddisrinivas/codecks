@@ -26,6 +26,7 @@ data class DeckAction(
     val confirmationBody: String? = null,
     val riskReason: String? = null,
     val executionAuthorization: ExecutionAuthorization = ExecutionAuthorization(),
+    val colorHex: String? = null,
 )
 
 enum class ActionIcon {

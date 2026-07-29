@@ -957,7 +957,7 @@ private fun TrackpadSettingsPanel(
                 onCheckedChange = { value -> onChange { it.copy(lockscreenTrackpadEnabled = value) } },
             )
             Text(
-                "Only pointer movement, scroll, and mouse buttons are allowed while locked. Codecks never reconnects HID or exposes keyboard, deck, settings, or SSH from the lockscreen path.",
+                "Only works after Trackpad is already connected and this toggle is on. While locked, Codecks never reconnects HID or exposes keyboard, deck, settings, or SSH.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

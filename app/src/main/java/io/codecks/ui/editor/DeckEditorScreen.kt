@@ -51,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -183,8 +184,8 @@ fun DeckEditorScreen(
                         selectedCategory = selectedCategory,
                         onCategoryChange = { selectedCategoryName = it.name },
                         onCreateWithAi = onCreateWithAi,
-                        onCreateCustomButton = { label ->
-                            onAssignAction(safeSelection, customDecorAction(safeSelection, label))
+                        onCreateCustomButton = { label, colorHex ->
+                            onAssignAction(safeSelection, customDecorAction(safeSelection, label, colorHex))
                         },
                     )
                 }
@@ -417,6 +418,7 @@ private fun SlotTile(
             icon = action?.deckImageVector() ?: Icons.Outlined.Add,
             onClick = onClick,
             state = if (selected || moving || dropTarget) DeckComponentState.Selected else DeckComponentState.Idle,
+            accentColor = action?.colorHex?.toComposeColorOrNull(),
             deckStyle = deckStyle,
             onLongClick = if (action != null) onPickUp else null,
             modifier = Modifier.fillMaxWidth(),
@@ -493,8 +495,8 @@ private fun EditorPane(
                     selectedCategory = selectedCategory,
                     onCategoryChange = onCategoryChange,
                     onCreateWithAi = onCreateWithAi,
-                    onCreateCustomButton = { label ->
-                        onAssignAction(slot, customDecorAction(slot, label))
+                    onCreateCustomButton = { label, colorHex ->
+                        onAssignAction(slot, customDecorAction(slot, label, colorHex))
                     },
                 )
         }
@@ -668,6 +670,7 @@ private fun EditorStylePreview(
                     icon = selectedAction?.deckImageVector() ?: Icons.Outlined.PlayArrow,
                     onClick = {},
                     state = DeckComponentState.Selected,
+                    accentColor = selectedAction?.colorHex?.toComposeColorOrNull(),
                     deckStyle = deckStyle,
                     modifier = Modifier.weight(1f).heightIn(min = 72.dp),
                 )
@@ -715,9 +718,10 @@ private fun ActionPickerHeader(
     selectedCategory: ActionCategory,
     onCategoryChange: (ActionCategory) -> Unit,
     onCreateWithAi: () -> Unit,
-    onCreateCustomButton: (String) -> Unit,
+    onCreateCustomButton: (String, String) -> Unit,
 ) {
     var customLabel by rememberSaveable { mutableStateOf("") }
+    var customColorHex by rememberSaveable { mutableStateOf(DeckBlankColors.first()) }
     val trimmedCustomLabel = customLabel.trim()
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
         Text(
@@ -737,7 +741,7 @@ private fun ActionPickerHeader(
                 modifier = Modifier.padding(12.dp),
             ) {
                 Text(
-                    text = "Make your own emoji button",
+                    text = "Make an empty colored button",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -745,17 +749,30 @@ private fun ActionPickerHeader(
                     value = customLabel,
                     onValueChange = { customLabel = it.take(32) },
                     singleLine = true,
-                    label = { Text("Emoji or label") },
-                    placeholder = { Text("💀 Deploy, 🌶️ Chaos, 🧃 Break") },
+                    label = { Text("Label (optional)") },
+                    placeholder = { Text("Build zone, Focus, blank spacer") },
                     modifier = Modifier.fillMaxWidth(),
                 )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(vertical = 2.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    items(DeckBlankColors, key = { it }) { colorHex ->
+                        ColorSwatch(
+                            colorHex = colorHex,
+                            selected = customColorHex == colorHex,
+                            onClick = { customColorHex = colorHex },
+                        )
+                    }
+                }
                 DeckActionButton(
-                    label = "Make emoji button",
+                    label = "Make colored blank",
                     onClick = {
-                        onCreateCustomButton(trimmedCustomLabel)
+                        onCreateCustomButton(trimmedCustomLabel, customColorHex)
                         customLabel = ""
                     },
-                    enabled = trimmedCustomLabel.isNotBlank(),
+                    enabled = true,
                     icon = Icons.Outlined.AutoAwesome,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                 )
@@ -821,15 +838,16 @@ private fun ActionRow(action: DeckAction, selected: Boolean, onClick: () -> Unit
             Text(action.description.ifBlank { action.id }, maxLines = 2, overflow = TextOverflow.Ellipsis)
         },
         leadingContent = {
+            val accent = action.colorHex?.toComposeColorOrNull()
             Surface(
-                color = MaterialTheme.colorScheme.primary.copy(alpha = if (selected) 0.18f else 0.10f),
+                color = (accent ?: MaterialTheme.colorScheme.primary).copy(alpha = if (selected) 0.24f else 0.14f),
                 shape = MaterialTheme.shapes.medium,
                 modifier = Modifier.size(44.dp),
             ) {
                 Icon(
                     imageVector = action.deckImageVector(),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = accent ?: MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(10.dp).size(24.dp),
                 )
             }
@@ -843,24 +861,60 @@ private fun ActionRow(action: DeckAction, selected: Boolean, onClick: () -> Unit
     )
 }
 
-private fun customDecorAction(slot: Int, label: String): DeckAction {
-    val cleanLabel = label.trim().ifBlank { "✨ Button" }.take(32)
+@Composable
+private fun ColorSwatch(colorHex: String, selected: Boolean, onClick: () -> Unit) {
+    Surface(
+        color = colorHex.toComposeColorOrNull() ?: MaterialTheme.colorScheme.primary,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(
+            width = if (selected) 3.dp else 1.dp,
+            color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline.copy(alpha = 0.42f),
+        ),
+        modifier = Modifier.size(width = 48.dp, height = 40.dp).clickable(onClick = onClick),
+    ) {}
+}
+
+private fun customDecorAction(slot: Int, label: String, colorHex: String): DeckAction {
+    val cleanLabel = label.trim().ifBlank { "Blank" }.take(32)
     val safeIdLabel = cleanLabel
         .lowercase()
         .map { if (it.isLetterOrDigit()) it else '_' }
         .joinToString("")
         .trim('_')
-        .ifBlank { "emoji" }
+        .ifBlank { "blank" }
         .take(18)
     return DeckAction(
-        id = "custom_decor_${slot}_${System.currentTimeMillis()}_$safeIdLabel",
+        id = "custom_blank_${slot}_${System.currentTimeMillis()}_$safeIdLabel",
         label = cleanLabel,
         kind = ActionKind.Local,
-        icon = ActionIcon.Emoji,
-        description = "Custom emoji/decor button",
-        route = "celebrate",
+        icon = ActionIcon.Empty,
+        description = "Empty colored deck spacer",
+        route = "decor",
         liveSafe = true,
+        colorHex = colorHex,
     )
+}
+
+private val DeckBlankColors = listOf(
+    "#7CFFC4",
+    "#8EA1FF",
+    "#FF7AA8",
+    "#FFD166",
+    "#FFFFFF",
+    "#A855F7",
+    "#22D3EE",
+    "#F97316",
+)
+
+private fun String.toComposeColorOrNull(): Color? {
+    val normalized = trim().removePrefix("#")
+    if (normalized.length != 6 && normalized.length != 8) return null
+    val value = normalized.toLongOrNull(16) ?: return null
+    return if (normalized.length == 6) {
+        Color(0xFF000000L or value)
+    } else {
+        Color(value)
+    }
 }
 
 @Composable

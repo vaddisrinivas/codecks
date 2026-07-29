@@ -247,6 +247,7 @@ class DefaultActionRepository @Inject constructor(
                 put("confirmationBody", action.confirmationBody)
                 put("riskReason", action.riskReason)
                 put("executionAuthorization", action.executionAuthorization.toJson())
+                put("colorHex", action.colorHex)
             })
         }
         })
@@ -299,6 +300,9 @@ class DefaultActionRepository @Inject constructor(
                     confirmationBody = item.optString("confirmationBody").takeIf(String::isNotBlank),
                     riskReason = item.optString("riskReason").takeIf(String::isNotBlank),
                     executionAuthorization = item.optJSONObject("executionAuthorization").toExecutionAuthorization(),
+                    colorHex = item.optString("colorHex")
+                        .ifBlank { item.optString("color") }
+                        .takeIf(String::isNotBlank),
                 )
             add(
                 DeckSlot(
@@ -333,7 +337,7 @@ class DefaultActionRepository @Inject constructor(
 
     private companion object {
         private const val TAG = "DeckStorage"
-        const val FAVORITES_SCHEMA_VERSION = 4
+        const val FAVORITES_SCHEMA_VERSION = 5
         val DEFAULT_SLOT_SPECS = listOf(
             DefaultSlotSpec("finder"), DefaultSlotSpec("terminal"), DefaultSlotSpec("spotlight"), DefaultSlotSpec("screenshot"),
             DefaultSlotSpec("mission"), DefaultSlotSpec("space_left"), DefaultSlotSpec("space_right"), DefaultSlotSpec("full_screen"),
@@ -447,23 +451,47 @@ class ActionCatalog @Inject constructor(
             repeat(array.length()) { index ->
                 val item = array.getJSONObject(index)
                 val id = item.getString("id")
+                val label = item.getString("label")
+                val curtainCommand = macCurtainCommandFor(id, label)
                 add(
                     DeckAction(
                         id = id,
-                        label = item.getString("label"),
-                        kind = if (item.optString("kind") == "ssh") ActionKind.Ssh else ActionKind.Local,
+                        label = label,
+                        kind = if (item.optString("kind") == "ssh" || curtainCommand != null) ActionKind.Ssh else ActionKind.Local,
                         icon = iconFor(id),
                         description = item.optString("description"),
-                        route = item.optString("route").takeIf(String::isNotBlank),
-                        command = item.optString("command").takeIf(String::isNotBlank),
-                        testCommand = item.optString("test_command").takeIf(String::isNotBlank),
+                        route = if (curtainCommand != null) null else item.optString("route").takeIf(String::isNotBlank),
+                        command = curtainCommand ?: item.optString("command").takeIf(String::isNotBlank),
+                        testCommand = if (curtainCommand != null) "printf 'Codecks Mac overlay ready'" else item.optString("test_command").takeIf(String::isNotBlank),
                         dangerous = item.optBoolean("dangerous"),
-                        liveSafe = item.optBoolean("live_safe"),
+                        liveSafe = item.optBoolean("live_safe") || curtainCommand != null,
                         requiresTest = item.optBoolean("requires_test"),
+                        colorHex = item.optString("colorHex")
+                            .ifBlank { item.optString("color") }
+                            .takeIf(String::isNotBlank),
                     ),
                 )
             }
         }
+    }
+
+    private fun macCurtainCommandFor(id: String, label: String): String? {
+        if (id !in setOf("confetti", "sparkle", "emoji_heart", "emoji_fire", "emoji_focus", "emoji_coffee", "magic_blank")) return null
+        val safeLabel = label.replace("'", "").replace("\"", "").take(24)
+        return """
+            tmp="${'$'}{TMPDIR:-/tmp}/codecks-celebrate.html"; cat > "${'$'}tmp" <<'HTML'
+            <!doctype html><html><head><meta charset="utf-8"><style>
+            html,body{margin:0;width:100%;height:100%;overflow:hidden;background:rgba(0,0,0,.02)}
+            body{font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+            .msg{position:fixed;inset:auto 0 12vh 0;text-align:center;color:white;font-size:48px;font-weight:800;text-shadow:0 8px 40px #000}
+            i{position:fixed;top:-8vh;width:14px;height:28px;border-radius:6px;animation:fall 2.8s linear forwards;box-shadow:0 0 24px currentColor}
+            @keyframes fall{to{transform:translate3d(var(--x),112vh,0) rotate(860deg);opacity:.1}}
+            </style></head><body><div class="msg">CODECKS</div><script>
+            const colors=['#7cffc4','#8ea1ff','#ff7aa8','#ffd166','#ffffff'];for(let n=0;n<220;n++){const e=document.createElement('i');e.style.left=Math.random()*100+'vw';e.style.color=colors[n%colors.length];e.style.background='currentColor';e.style.animationDelay=Math.random()*0.8+'s';e.style.setProperty('--x',(Math.random()*220-110)+'px');document.body.append(e)}setTimeout(()=>close(),3600)
+            </script></body></html>
+            HTML
+            open "${'$'}tmp"; printf 'Codecks Mac celebration: $safeLabel'
+        """.trimIndent()
     }
 
     private fun iconFor(id: String): ActionIcon = when (id) {

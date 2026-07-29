@@ -106,6 +106,8 @@ fun LockscreenTrackpadScreen(
                         onReleaseButtons = onReleaseButtons,
                         onDoubleTap = { onClick(LEFT_BUTTON); onClick(LEFT_BUTTON) },
                         onGestureSample = {},
+                        onTelemetry = {},
+                        onOpenDeckGesture = {},
                         onActivity = {},
                         stylusEnabled = settings.sPenPrecisionEnabled,
                         onTrace = {},

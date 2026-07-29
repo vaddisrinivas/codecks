@@ -81,13 +81,18 @@ class MouseScreenGestureInstrumentedTest {
     @Test
     fun threeAndFourFingerHoldsEmitConfiguredCommands() {
         val settings = TrackpadSettings(multiFingerHoldMillis = 350)
-        val commands = setTestContent(settings = settings)
+        var deckOpens = 0
+        val commands = setTestContent(
+            settings = settings,
+            onExitTrackpad = { deckOpens += 1 },
+        )
 
         performStationaryGesture(pointerCount = 3, durationMillis = 500L)
         performStationaryGesture(pointerCount = 4, durationMillis = 500L)
 
         composeRule.runOnIdle {
-            assertEquals(listOf(HidCommand.WindowSwitcher, HidCommand.ShowDesktop), commands)
+            assertEquals(listOf(HidCommand.WindowSwitcher), commands)
+            assertEquals(1, deckOpens)
         }
     }
 
@@ -118,6 +123,7 @@ class MouseScreenGestureInstrumentedTest {
         onRightClick: () -> Unit = {},
         onScroll: (Int) -> Unit = {},
         onGestureDiagnostic: (TrackpadGestureSample) -> Unit = {},
+        onExitTrackpad: () -> Unit = {},
     ): MutableList<HidCommand> {
         val commands = mutableListOf<HidCommand>()
         composeRule.setContent {
@@ -139,6 +145,7 @@ class MouseScreenGestureInstrumentedTest {
                         gestureSamples.add(sample)
                         onGestureDiagnostic(sample)
                     },
+                    onExitTrackpad = onExitTrackpad,
                     onCommand = { commands.add(it) },
                 )
             }

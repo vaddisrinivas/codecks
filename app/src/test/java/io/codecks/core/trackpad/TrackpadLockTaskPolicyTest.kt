@@ -20,7 +20,7 @@ class TrackpadLockTaskPolicyTest {
     fun trackpadChromeExplainsBackExitAndHidesEmptyDynamicTray() {
         val mouseScreen = File("src/main/java/io/codecks/ui/mouse/MouseScreen.kt").readText()
 
-        assertTrue(mouseScreen.contains("Tap Lock to protect against Home gestures"))
+        assertTrue(mouseScreen.contains("Back returns to Deck"))
         assertTrue(mouseScreen.contains("Pin app"))
         assertTrue(mouseScreen.contains("Quiet while using Trackpad"))
         assertTrue(mouseScreen.contains("Screen blanks after idle"))

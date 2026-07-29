@@ -164,17 +164,19 @@ fun DeckControlTile(
     state: DeckComponentState = DeckComponentState.Idle,
     enabled: Boolean = state != DeckComponentState.Disabled,
     danger: Boolean = false,
+    accentColor: Color? = null,
     showLabel: Boolean = true,
     deckStyle: CodecksDeckStyle = CodecksDeckStyle.StreamDeckPro,
     onLongClick: (() -> Unit)? = null,
 ) {
-    if (deckStyle != CodecksDeckStyle.CodexMicroGlass) {
+    if (deckStyle != CodecksDeckStyle.CodexMicroGlass || accentColor != null) {
         FlatDeckTile(
             label = label,
             icon = icon,
             state = state,
             enabled = enabled,
             danger = danger,
+            accentColor = accentColor,
             showLabel = showLabel,
             deckStyle = deckStyle,
             onClick = onClick,
@@ -205,6 +207,7 @@ private fun FlatDeckTile(
     state: DeckComponentState,
     enabled: Boolean,
     danger: Boolean,
+    accentColor: Color?,
     showLabel: Boolean,
     deckStyle: CodecksDeckStyle,
     onClick: () -> Unit,
@@ -213,7 +216,7 @@ private fun FlatDeckTile(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
-    val colors = flatDeckTileColors(label, deckStyle, state, pressed, danger, enabled)
+    val colors = flatDeckTileColors(label, deckStyle, state, pressed, danger, enabled, accentColor)
     val shape = RoundedCornerShape(
         when (deckStyle) {
             CodecksDeckStyle.AuroraGlass -> 24.dp
@@ -334,6 +337,7 @@ private fun flatDeckTileColors(
     pressed: Boolean,
     danger: Boolean,
     enabled: Boolean,
+    accentColor: Color? = null,
 ): FlatDeckTileColors {
     val scheme = MaterialTheme.colorScheme
     val stateGlow = deckKeyGlowColor(state, danger)
@@ -342,6 +346,24 @@ private fun flatDeckTileColors(
         state == DeckComponentState.Running ||
         state == DeckComponentState.Succeeded
     val disabledAlpha = if (enabled) 1f else 0.38f
+    if (accentColor != null && !danger) {
+        return FlatDeckTileColors(
+            container = Brush.verticalGradient(
+                listOf(
+                    accentColor.copy(alpha = if (active) 0.48f else 0.30f),
+                    Color(0xFF0A0D0F).copy(alpha = 0.94f * disabledAlpha),
+                    Color.Black.copy(alpha = 0.98f),
+                ),
+            ),
+            content = Color.White.copy(alpha = if (enabled) 0.94f else 0.38f),
+            icon = accentColor.copy(alpha = if (enabled) 1f else 0.38f),
+            iconContainer = accentColor.copy(alpha = if (active) 0.32f else 0.18f),
+            border = accentColor.copy(alpha = if (active) 0.92f else 0.55f),
+            borderWidth = if (active) 2.dp else 1.dp,
+            glow = accentColor,
+            glowAlpha = if (active) 0.34f else 0.16f,
+        )
+    }
     return when (deckStyle) {
         CodecksDeckStyle.AuroraGlass -> playfulDeckTileColors(
             accent = playfulTileAccent(deckStyle, label),

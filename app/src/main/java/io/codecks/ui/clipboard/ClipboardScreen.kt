@@ -81,6 +81,7 @@ fun ClipboardScreen(
                     label = "Check status",
                     onClick = onRefreshPhone,
                     icon = Icons.Outlined.Schedule,
+                    enabled = state.connectionReady && !state.isRunning,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                 )
             }
@@ -150,7 +151,7 @@ private fun ClipboardPreviewCard(
             Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             Text(preview, style = MaterialTheme.typography.bodyMedium, maxLines = 3)
             Text(
-                text = if (hash.isBlank()) "No hash yet" else "sha ${hash.take(8)}",
+                text = if (preview == "Empty" || hash.isBlank()) "No content yet" else "fingerprint ${hash.take(8)}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -293,7 +294,7 @@ private fun ClipboardHistoryPanel(state: ClipboardUiState) {
                         modifier = Modifier.weight(0.35f),
                     )
                     Text(
-                        text = "rev ${revision.revision} · ${revision.hash.take(10)}",
+                        text = "rev ${revision.revision}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f),

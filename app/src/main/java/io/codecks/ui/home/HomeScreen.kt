@@ -354,6 +354,7 @@ private fun CodecksKeybedDeck(
                                 },
                                 enabled = enabled,
                                 danger = action.dangerous,
+                                accentColor = action.deckAccentColor(),
                                 showLabel = showKeyLabels,
                                 deckStyle = deckStyle,
                                 onClick = {
@@ -789,6 +790,7 @@ fun CustomActionRow(
                 state = if (selected) DeckComponentState.Selected else DeckComponentState.Idle,
                 enabled = enabled,
                 danger = action.dangerous,
+                accentColor = action.deckAccentColor(),
                 onClick = { onAction(action) },
                 modifier = Modifier.size(width = 112.dp, height = 96.dp),
             )
@@ -818,6 +820,7 @@ private fun ActionCard(
             },
             enabled = enabled,
             danger = action.dangerous,
+            accentColor = action.deckAccentColor(),
             onClick = onClick,
             onLongClick = onLongClick,
             modifier = Modifier.fillMaxWidth().height(height),
@@ -893,9 +896,23 @@ internal fun shouldShowActionOptions(action: DeckAction, locked: Boolean): Boole
     !locked && action.id !in setOf("add_button", "blank")
 
 private fun isDeckActionEnabled(action: DeckAction, connectionReady: Boolean): Boolean =
-    action.kind != ActionKind.Ssh ||
+    action.route == "decor" ||
+        action.kind != ActionKind.Ssh ||
         action.id in setOf("add_button", "blank") ||
         (connectionReady && (!action.requiresTest || action.liveSafe))
+
+private fun DeckAction.deckAccentColor(): Color? = colorHex?.toComposeColorOrNull()
+
+private fun String.toComposeColorOrNull(): Color? {
+    val normalized = trim().removePrefix("#")
+    if (normalized.length != 6 && normalized.length != 8) return null
+    val value = normalized.toLongOrNull(16) ?: return null
+    return if (normalized.length == 6) {
+        Color(0xFF000000L or value)
+    } else {
+        Color(value)
+    }
+}
 
 @Composable
 private fun DeckConnectionHint() {

@@ -143,6 +143,11 @@ class ClipboardViewModel @Inject constructor(
     }
 
     fun refreshPhone() {
+        val current = _uiState.value
+        if (!current.connectionReady && current.latestRevision > 0L) {
+            _uiState.update { it.copy(status = "Connect Mac first") }
+            return
+        }
         val text = clipboardManager.primaryClip
             ?.takeIf { it.itemCount > 0 }
             ?.getItemAt(0)
@@ -161,10 +166,18 @@ class ClipboardViewModel @Inject constructor(
     }
 
     fun pullFromMac() {
+        if (!_uiState.value.connectionReady) {
+            _uiState.update { it.copy(isRemoteOffline = true, status = "Connect Mac first") }
+            return
+        }
         runClipboard("Reading Mac") { pullFromMacSync() }
     }
 
     fun pushToMac() {
+        if (!_uiState.value.connectionReady) {
+            _uiState.update { it.copy(isRemoteOffline = true, status = "Connect Mac first") }
+            return
+        }
         refreshPhone()
         val text = _uiState.value.phoneText
         runClipboard("Sending to Mac") { pushToMacSync(text) }

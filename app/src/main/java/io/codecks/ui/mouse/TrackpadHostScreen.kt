@@ -69,6 +69,7 @@ internal fun TrackpadHostScreen(
                 )
                 TrackpadSetupPanel(
                     bluetoothPermissionGranted = bluetoothPermissionGranted,
+                    hasPairedHosts = hidState.hosts.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth(),
                 )
             } else {
@@ -83,6 +84,7 @@ internal fun TrackpadHostScreen(
 @Composable
 private fun TrackpadSetupPanel(
     bluetoothPermissionGranted: Boolean,
+    hasPairedHosts: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -107,15 +109,19 @@ private fun TrackpadSetupPanel(
                 }
             }
             Text(
-                text = if (bluetoothPermissionGranted) "Pick a paired Mac" else "Allow Bluetooth first",
+                text = when {
+                    !bluetoothPermissionGranted -> "Allow Bluetooth first"
+                    hasPairedHosts -> "Pick a paired Mac"
+                    else -> "Pair your Mac first"
+                },
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(top = 16.dp),
             )
             Text(
-                text = if (bluetoothPermissionGranted) {
-                    "Choose a paired Mac above. Trackpad opens as soon as Bluetooth input connects."
-                } else {
-                    "Android needs Bluetooth permission before this phone can act as your Mac pointer."
+                text = when {
+                    !bluetoothPermissionGranted -> "Android needs Bluetooth permission before this phone can act as your Mac pointer."
+                    hasPairedHosts -> "Choose a paired Mac above. Trackpad opens as soon as Bluetooth input connects."
+                    else -> "Tap Choose Mac, add or pair your Mac in Bluetooth settings, then refresh."
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

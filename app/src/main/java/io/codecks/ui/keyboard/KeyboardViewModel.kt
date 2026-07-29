@@ -60,6 +60,10 @@ class KeyboardViewModel @Inject constructor(
         val snapshot = _uiState.value
         val text = snapshot.text.takeIf(String::isNotBlank) ?: return
         if (snapshot.isSending) return
+        if (!hidRepository.state.value.isConnected) {
+            _uiState.update { it.copy(status = "Connect Mac first") }
+            return
+        }
         viewModelScope.launch {
             _uiState.update { it.copy(isSending = true, status = "Sending…") }
             val deliveryResult = when (resolvedMode(snapshot.deliveryMode, text)) {
