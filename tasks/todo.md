@@ -33,8 +33,8 @@
 
 ## Consolidation
 
-- [ ] Merge verified branch to `main`
-- [ ] Make `/Projects/codecks` canonical updated main checkout
+- [x] Merge verified branch to `main`
+- [x] Make `/Projects/codecks` canonical updated main checkout
 - [ ] Remove only clean/safety-committed obsolete worktrees
 
 ---
