@@ -204,6 +204,7 @@ class MainActivity : ComponentActivity() {
 
     private var destinationRequest by mutableStateOf<String?>(null)
     private var pendingReactiveHelperPairingJson by mutableStateOf<String?>(null)
+    private var pendingSharedText by mutableStateOf<String?>(null)
     private var hardwareKeyHandler: ((KeyEvent) -> Boolean)? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -227,6 +228,7 @@ class MainActivity : ComponentActivity() {
             CodecksTheme(settings = effectiveThemeSettings) {
                 CodecksApp(
                     destinationRequest = destinationRequest,
+                    sharedText = pendingSharedText,
                     window = window,
                     hidRepository = hidRepository,
                     actionRunner = actionRunner,
@@ -249,6 +251,7 @@ class MainActivity : ComponentActivity() {
                     onDeckStyleChange = { style -> themeScope.launch { themeSettingsRepository.setDeckStyle(style) } },
                     onIconPackChange = { iconPack -> themeScope.launch { themeSettingsRepository.setIconPack(iconPack) } },
                     onRequestConsumed = { destinationRequest = null },
+                    onSharedTextConsumed = { pendingSharedText = null },
                 )
             }
         }
@@ -297,6 +300,14 @@ class MainActivity : ComponentActivity() {
             providedToken = intent?.getStringExtra(InternalIntentAuth.EXTRA_TOKEN),
             expectedToken = InternalIntentAuth.token(this),
         )
+        pendingSharedText = resolveSharedTextFromIntent(intent)
+    }
+
+    private fun resolveSharedTextFromIntent(intent: Intent?): String? {
+        if (intent?.action != Intent.ACTION_SEND || intent.type != "text/plain") return null
+        val clipText = intent.getStringExtra(Intent.EXTRA_TEXT)
+        if (!clipText.isNullOrBlank()) return clipText
+        return intent.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(this)?.toString()
     }
 
     private fun warmHidIfAllowed() {
@@ -366,6 +377,7 @@ private fun routeStateKey(route: NavKey): String = when (route) {
 @Composable
 private fun CodecksApp(
     destinationRequest: String?,
+    sharedText: String? = null,
     window: android.view.Window,
     hidRepository: HidRepository,
     actionRunner: ActionRunner,
@@ -388,6 +400,7 @@ private fun CodecksApp(
     onDeckStyleChange: (CodecksDeckStyle) -> Unit,
     onIconPackChange: (CodecksIconPack) -> Unit,
     onRequestConsumed: () -> Unit,
+    onSharedTextConsumed: () -> Unit,
     homeViewModel: HomeViewModel = viewModel(),
     connectionViewModel: ConnectionViewModel = viewModel(),
     automationsViewModel: AutomationsViewModel = viewModel(),
@@ -1201,6 +1214,15 @@ private fun CodecksApp(
                     entry<ClipboardRoute> {
                         val clipboardViewModel: ClipboardViewModel = viewModel()
                         val clipboardState by clipboardViewModel.uiState.collectAsStateWithLifecycle()
+                        LaunchedEffect(currentRoute) {
+                            clipboardViewModel.setLiveSyncSessionActive(currentRoute == ClipboardRoute)
+                        }
+                        LaunchedEffect(currentRoute, sharedText) {
+                            if (currentRoute == ClipboardRoute && !sharedText.isNullOrBlank()) {
+                                clipboardViewModel.sendSharedTextToMac(sharedText)
+                                onSharedTextConsumed()
+                            }
+                        }
                         ClipboardScreen(
                             state = clipboardState,
                             contentPadding = contentPadding,

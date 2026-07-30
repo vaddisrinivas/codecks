@@ -32,7 +32,7 @@ internal fun resolveDestinationRequest(
     expectedToken: String,
 ): String? =
     when {
-        action == Intent.ACTION_SEND && type == "text/plain" -> "ai"
+        action == Intent.ACTION_SEND && type == "text/plain" && destination.isNullOrBlank() -> "clipboard"
         action == Intent.ACTION_VIEW && dataUri == PUBLIC_AI_URI -> "ai"
         destination.isNullOrBlank() -> null
         providedToken == expectedToken -> destination

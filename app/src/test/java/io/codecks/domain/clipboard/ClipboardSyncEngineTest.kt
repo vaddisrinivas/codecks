@@ -82,6 +82,47 @@ class ClipboardSyncEngineTest {
     }
 
     @Test
+    fun duplicateTextObservationIsNoOpAndPreservesRevision() {
+        val engine = ClipboardSyncEngine()
+        val first = engine.observe(ClipboardEndpoint.Phone, "same", phoneApp, nowMillis = 1_000)
+        val second = engine.observe(ClipboardEndpoint.Phone, "same", phoneApp, nowMillis = 1_100)
+
+        assertFalse(second.changed)
+        assertEquals(first.revision.revision, second.revision.revision)
+        assertEquals(first.revision.hash, second.revision.hash)
+        assertEquals("same", second.revision.sourceId.value)
+        assertEquals(phoneApp, second.revision.sourceId)
+    }
+
+    @Test
+    fun emptyContentIsObservedAndCanPropagate() {
+        val engine = ClipboardSyncEngine()
+        val phone = engine.observe(ClipboardEndpoint.Phone, "", phoneApp, nowMillis = 1_000)
+        engine.observe(ClipboardEndpoint.Mac, "", macAgent, nowMillis = 1_010)
+
+        val action = engine.decide(ClipboardSyncMode.Bidirectional, nowMillis = 1_020)
+
+        assertTrue(phone.changed)
+        assertEquals(ClipboardSyncAction.None, action)
+    }
+
+    @Test
+    fun staleRevisionsRecoverAndResumeSyncAfterReconnect() {
+        val engine = ClipboardSyncEngine(staleAfterMillis = 500)
+
+        engine.observe(ClipboardEndpoint.Phone, "old", phoneApp, nowMillis = 1_000)
+        engine.observe(ClipboardEndpoint.Mac, "old", macAgent, nowMillis = 1_000)
+
+        val beforeReconnect = engine.snapshot(nowMillis = 1_600)
+        assertEquals(setOf(ClipboardEndpoint.Phone, ClipboardEndpoint.Mac), beforeReconnect.staleEndpoints)
+
+        engine.observe(ClipboardEndpoint.Mac, "refreshed on reconnect", macAgent, nowMillis = 2_000)
+
+        val action = engine.decide(ClipboardSyncMode.Bidirectional, nowMillis = 2_010)
+        assertEquals(ClipboardSyncAction.WriteToPhone(ClipboardHash.of("refreshed on reconnect")), action)
+    }
+
+    @Test
     fun snapshotMarksStaleEndpoints() {
         val engine = ClipboardSyncEngine(staleAfterMillis = 500)
 

@@ -1,4 +1,4 @@
-    package io.codecks
+package io.codecks
 
 import android.content.Intent
 import org.junit.Assert.assertEquals
@@ -36,14 +36,14 @@ class IntentDestinationPolicyTest {
     }
 
     @Test
-    fun routesPlainTextShareToAiWithoutToken() {
+    fun routesPlainTextShareToClipboardWithoutToken() {
         assertEquals(
-            "ai",
+            "clipboard",
             resolveDestinationRequest(
                 action = Intent.ACTION_SEND,
                 type = "text/plain",
                 dataUri = null,
-                destination = "advanced",
+                destination = null,
                 providedToken = null,
                 expectedToken = "known-token",
             ),
