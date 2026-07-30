@@ -625,7 +625,7 @@ private fun AiArtifact.saveLabel(): String =
     when (kind) {
         AiArtifactKind.Automation -> "Save Rule"
         AiArtifactKind.Deck -> "Place on Deck"
-        AiArtifactKind.Button -> "Add Button"
+        AiArtifactKind.Button -> "Place on Deck"
         AiArtifactKind.Clock -> "Save Clock"
     }
 

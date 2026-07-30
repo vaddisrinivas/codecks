@@ -1,5 +1,5 @@
 appId: app.codecks.debug
-name: Compact cross-vertical navigation
+name: Expanded cross-vertical navigation
 ---
 
 - launchApp:
@@ -10,18 +10,16 @@ name: Compact cross-vertical navigation
 - assertVisible: "Trackpad"
 - tapOn: "Keyboard"
 - assertVisible: "Keyboard"
-- tapOn: "More"
-- scrollUntilVisible:
-    element:
-      text: "Settings"
-    direction: DOWN
+- swipe:
+    start: 5%, 90%
+    end: 5%, 20%
+    duration: 500
+- assertVisible: "Settings"
 - tapOn: "Settings"
 - assertVisible: "Settings"
-- tapOn: "More"
 - tapOn: "Rules"
 - assertVisible: "Rules"
-- tapOn: "More"
 - tapOn: "AI"
 - assertVisible: "AI"
 
-- takeScreenshot: "v4-cross-vertical-endpoint"
+- takeScreenshot: "v4-cross-vertical-expanded-endpoint"

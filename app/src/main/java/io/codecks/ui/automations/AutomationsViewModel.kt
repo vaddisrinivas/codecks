@@ -284,7 +284,7 @@ class AutomationsViewModel @Inject constructor(
         }
         viewModelScope.launch {
             _uiState.update { it.copy(runningActionId = recipeId, message = null) }
-            val result = if (recipe.safety.requiresConfirmation) {
+            val result = if (recipe.safety.requiresConfirmation || recipe.steps.any { it.dangerous }) {
                 ActionResult(
                     actionId = recipe.id,
                     title = recipe.title,
@@ -421,7 +421,7 @@ class AutomationsViewModel @Inject constructor(
 
     private suspend fun executeTriggered(recipe: AutomationRecipe) {
         _uiState.update { it.copy(runningActionId = recipe.id, message = "Trigger matched: ${recipe.title}") }
-        if (recipe.safety.requiresConfirmation) {
+        if (recipe.safety.requiresConfirmation || recipe.steps.any { it.dangerous }) {
             val result = ActionResult(
                 actionId = recipe.id,
                 title = recipe.title,
@@ -696,9 +696,8 @@ class AutomationsViewModel @Inject constructor(
         )
     }
 
-    private fun connectionIdentity(config: io.codecks.data.ConnectionConfig): String {
-        return listOf(config.host, config.port.toString(), config.user, config.hostKey).joinToString("|")
-    }
+    private fun connectionIdentity(config: io.codecks.data.ConnectionConfig): String =
+        automationConnectionIdentity(config)
 
     private fun connectionTargetId(config: io.codecks.data.ConnectionConfig): String =
         if (config.isReady) "${config.host}:${config.port}:${config.user}" else "current"
@@ -825,7 +824,11 @@ private fun AutomationRecipe.toUiItem(
         lastLiveTest.assertions.all { it.passed } && lastLiveTest.cleanup.passed
     val preflightLabel = lastPreflight?.toLabel()
     val liveTestLabel = lastLiveTest?.toLabel()
-    val canEnableNow = lastValidation?.second == true
+    val canEnableNow = config.isReady && hasCurrentValidLiveTest(
+        nowMillis = System.currentTimeMillis(),
+        requiredMacIdentity = automationConnectionIdentity(config),
+        requiredPermissions = requiredPermissions(),
+    )
     return AutomationItem(
         id = id,
         label = title,
@@ -836,7 +839,7 @@ private fun AutomationRecipe.toUiItem(
         draftTriggerValue = trigger.toDraftValue(),
         draftWeekdays = (trigger as? AutomationTrigger.TimeOfDay)?.days.orEmpty(),
         draftCommand = steps.firstNotNullOfOrNull { (it as? ActionSpec.ShellCommand)?.command }.orEmpty(),
-        dangerous = safety.requiresConfirmation,
+        dangerous = safety.requiresConfirmation || steps.any { it.dangerous },
         enabled = enabled,
         lastRunLabel = lastRun?.toLabel(),
         lastRunSucceeded = lastRun?.status == ActionResultStatus.Succeeded,
@@ -852,6 +855,9 @@ private fun AutomationRecipe.toUiItem(
         runHistory = runHistory.map { it.toHistoryItem() },
     )
 }
+
+private fun automationConnectionIdentity(config: io.codecks.data.ConnectionConfig): String =
+    listOf(config.host, config.port.toString(), config.user, config.hostKey).joinToString("|")
 
 private fun AutomationPreflightReceipt.toLabel(): String =
     when {

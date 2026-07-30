@@ -1,8 +1,10 @@
 package io.codecks.ui.clipboard
 
 import android.content.ClipData
+import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.PersistableBundle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -349,10 +351,15 @@ class ClipboardViewModel @Inject constructor(
         }
 
     private suspend fun writePhoneClipboard(text: String, status: String = "Synced from Mac"): Result<String> {
-        return runResult { clipboardManager.setPrimaryClip(ClipData.newPlainText("Codecks", text)); Result.success("ok") }
+        val risk = ClipboardContentGuard.riskFor(text)
+        val clip = ClipData.newPlainText("Codecks", text).apply {
+            description.extras = PersistableBundle().apply {
+                putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, risk != null)
+            }
+        }
+        return runResult { clipboardManager.setPrimaryClip(clip); Result.success("ok") }
             .onSuccess {
                 val observation = syncEngine.observe(ClipboardEndpoint.Phone, text, phoneSource, nowMillis())
-                val risk = ClipboardContentGuard.riskFor(text)
                 _uiState.update {
                     it.copy(
                         phoneText = text,
@@ -449,7 +456,6 @@ class ClipboardViewModel @Inject constructor(
                 }
             }
             updateSnapshot()
-            refreshPhone()
         }
     }
 

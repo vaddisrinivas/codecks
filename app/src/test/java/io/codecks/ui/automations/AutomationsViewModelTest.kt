@@ -227,7 +227,7 @@ class AutomationsViewModelTest {
         runCurrent()
         viewModel.validate("focus")
         runCurrent()
-        assertTrue(viewModel.uiState.value.automations.single().canEnable)
+        assertFalse(viewModel.uiState.value.automations.single().canEnable)
         assertEquals(null, repository.recipes.value.single().lastPreflight)
         assertEquals(null, repository.recipes.value.single().lastLiveTest)
 
@@ -269,8 +269,8 @@ class AutomationsViewModelTest {
         viewModel.run("danger")
         runCurrent()
 
-        assertEquals(listOf("danger"), runner.ranIds)
-        assertEquals(listOf(false), runner.allowDangerousValues)
+        assertEquals(emptyList<String>(), runner.ranIds)
+        assertEquals(emptyList<Boolean>(), runner.allowDangerousValues)
         assertFalse(repository.recordedResults.single().succeeded)
         assertEquals(ActionResultStatus.RequiresConfirmation, repository.recordedResults.single().status)
     }

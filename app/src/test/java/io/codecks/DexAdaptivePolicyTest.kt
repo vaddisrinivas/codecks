@@ -57,5 +57,7 @@ class DexAdaptivePolicyTest {
         val shell = File("src/main/java/io/codecks/ui/app/CodecksAppShell.kt").readText()
         assertTrue(shell.contains("SECONDARY_NAV_RAIL_WIDTH = 840.dp"))
         assertTrue(shell.contains("val useRail = maxWidth >= SECONDARY_NAV_RAIL_WIDTH"))
+        assertTrue(shell.contains(".verticalScroll(rememberScrollState())"))
+        assertTrue(shell.contains("ModalBottomSheet(onDismissRequest"))
     }
 }
