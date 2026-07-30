@@ -15,6 +15,7 @@ import io.codecks.domain.ai.AiArtifactReview
 import io.codecks.domain.ai.AiArtifactRiskLevel
 import io.codecks.domain.ai.AiArtifactStepReview
 import io.codecks.domain.ai.GeneratedDraft
+import io.codecks.domain.ai.MacVisualEffectCatalog
 import io.codecks.domain.ai.SafetyLevel
 import io.codecks.domain.automation.AutomationRecipe
 import io.codecks.domain.automation.AutomationSafety
@@ -80,6 +81,7 @@ fun ActionDefinition.toDeckAction(index: Int, count: Int): Result<DeckAction> = 
         icon = ActionIcon.Apps,
         description = description,
         command = command,
+        testCommand = command.takeIf(MacVisualEffectCatalog::isKnownCommand),
         dangerous = true,
         liveSafe = false,
         requiresTest = true,

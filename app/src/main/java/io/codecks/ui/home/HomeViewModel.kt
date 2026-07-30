@@ -13,10 +13,12 @@ import io.codecks.data.ActionRepository
 import io.codecks.data.ConnectionRepository
 import io.codecks.data.InMemoryRunHistoryRepository
 import io.codecks.data.RunHistoryRepository
+import io.codecks.data.ai.AiArtifactRepository
 import io.codecks.domain.ActionStatus
 import io.codecks.domain.ActionKind
 import io.codecks.domain.DeckAction
 import io.codecks.domain.ai.AiArtifact
+import io.codecks.domain.ai.AiArtifactKind
 import io.codecks.domain.ai.GeneratedDraft
 import io.codecks.domain.deck.DeckLayout
 import io.codecks.domain.deck.DeckTemplate
@@ -70,6 +72,7 @@ class HomeViewModel @Inject constructor(
     private val actionRunner: ActionRunner,
     private val runHistoryRepository: RunHistoryRepository = InMemoryRunHistoryRepository(),
     private val aiGeneratedContentPlanner: AiGeneratedContentPlanner = AiGeneratedContentPlanner(),
+    private val aiArtifactRepository: AiArtifactRepository? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         HomeUiState(
@@ -81,6 +84,7 @@ class HomeViewModel @Inject constructor(
     )
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
     private var favoriteLayout: DeckLayout = actionRepository.layout()
+    private var aiLibraryActions: List<DeckAction> = emptyList()
 
     init {
         viewModelScope.launch {
@@ -95,8 +99,18 @@ class HomeViewModel @Inject constructor(
                     state.copy(
                         actions = visibleLayout.actions,
                         deckLayout = visibleLayout,
-                        allActions = (state.allActions + layout.actions).distinctBy(DeckAction::id),
+                        allActions = combinedActionLibrary(layout),
                     )
+                }
+            }
+        }
+        aiArtifactRepository?.let { repository ->
+            viewModelScope.launch {
+                repository.artifacts.collect { artifacts ->
+                    aiLibraryActions = artifacts.toDeckCatalogActions()
+                    _uiState.update { state ->
+                        state.copy(allActions = combinedActionLibrary(favoriteLayout))
+                    }
                 }
             }
         }
@@ -506,11 +520,21 @@ class HomeViewModel @Inject constructor(
                 activeTemplateId = CUSTOM_TEMPLATE_ID,
                 actions = favoriteLayout.actions,
                 deckLayout = favoriteLayout,
-                allActions = (it.allActions + favoriteLayout.actions + newActions).distinctBy(DeckAction::id),
+                allActions = (combinedActionLibrary(favoriteLayout) + newActions).distinctBy(DeckAction::id),
                 pendingDeckUndo = pendingUndo,
             )
         }
     }
+
+    private fun combinedActionLibrary(layout: DeckLayout): List<DeckAction> =
+        (actionRepository.allActions() + layout.actions + aiLibraryActions).distinctBy(DeckAction::id)
+
+    private fun List<AiArtifact>.toDeckCatalogActions(): List<DeckAction> =
+        filter { artifact -> artifact.kind == AiArtifactKind.Button || artifact.kind == AiArtifactKind.Deck }
+            .flatMap { artifact ->
+                aiGeneratedContentPlanner.deckActionsFromArtifact(artifact).getOrDefault(emptyList())
+            }
+            .distinctBy(DeckAction::id)
 
     private fun reportDeckFull(label: String, message: String) {
         _uiState.update {

@@ -75,6 +75,21 @@ class AiDraftConvertersTest {
     }
 
     @Test
+    fun generatedMacCelebration_hasRunnablePreviewTestCommand() {
+        val command = io.codecks.domain.ai.MacVisualEffectCatalog.commandForTemplate("codecks.love")!!
+        val action = ActionDefinition(
+            id = "love",
+            title = "Love",
+            steps = listOf(ActionStep("love", ActionStepTypes.Shell, value = command)),
+        ).toDeckAction(index = 0, count = 1).getOrThrow()
+
+        assertEquals(command, action.command)
+        assertEquals(command, action.testCommand)
+        assertTrue(action.requiresTest)
+        assertFalse(action.liveSafe)
+    }
+
+    @Test
     fun generatedAutomation_persistsDisabledManualOnly() {
         val automation = actionDefinition().toAutomationRecipe("open docs").getOrThrow()
 

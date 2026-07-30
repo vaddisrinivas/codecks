@@ -138,6 +138,53 @@ class StructuredDraftParserV2Test {
     }
 
     @Test
+    fun loveCelebrationTemplate_compilesToDeterministicMacOverlay() {
+        val result = parser.parse(
+            DraftRequest("make a love emoji confetti button", "gpt-5.5", DraftKind.Action),
+            ActionDraftJson(
+                """
+                {
+                  "schemaVersion": 2,
+                  "status": "ready",
+                  "message": "Ready",
+                  "questions": [],
+                  "assumptions": [],
+                  "proposal": {
+                    "id": "love.confetti",
+                    "title": "Love Confetti",
+                    "description": "Show love confetti on the Mac screen.",
+                    "requiredCapabilities": [],
+                    "target": {"type": "AnyConnected", "id": null},
+                    "safety": {
+                      "level": "Normal",
+                      "requiresConfirmation": false,
+                      "confirmationTitle": null,
+                      "confirmationBody": null
+                    },
+                    "steps": [
+                      {
+                        "id": "love",
+                        "type": "template",
+                        "label": "Love",
+                        "url": null,
+                        "text": null,
+                        "delayMs": null,
+                        "templateId": "codecks.love",
+                        "requiresConfirmation": false
+                      }
+                    ]
+                  }
+                }
+                """.trimIndent(),
+            ),
+        ).getOrThrow() as GeneratedDraft.Action
+
+        val command = result.draft.definition.steps.single().value.orEmpty()
+        assertTrue(command.contains("CODECKS_VISUAL_EFFECT_V1"))
+        assertTrue(command.contains("💚"))
+    }
+
+    @Test
     fun freeCommand_compilesWhenHardSafetyPolicyAllowsIt() {
         val result = parser.parse(
             DraftRequest("show front app", "gpt-5.5", DraftKind.Action),

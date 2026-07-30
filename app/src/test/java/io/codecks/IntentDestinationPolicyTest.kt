@@ -80,6 +80,21 @@ class IntentDestinationPolicyTest {
     }
 
     @Test
+    fun routesExactPublicAiUriWithoutToken() {
+        assertEquals(
+            "ai",
+            resolveDestinationRequest(
+                action = Intent.ACTION_VIEW,
+                type = null,
+                dataUri = PUBLIC_AI_URI,
+                destination = null,
+                providedToken = null,
+                expectedToken = "known-token",
+            ),
+        )
+    }
+
+    @Test
     fun rejectsUnknownPublicUriWithoutToken() {
         assertNull(
             resolveDestinationRequest(

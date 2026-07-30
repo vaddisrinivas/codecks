@@ -135,7 +135,7 @@ class AiProviderSettingsControllerTest {
 
         assertEquals(emptyList<String>(), runner.commands)
         assertEquals(AiArtifactTestStatus.Succeeded, controller.uiState.value.artifacts.single().lastTest?.status)
-        assertTrue(controller.uiState.value.artifacts.single().lastTest?.message.orEmpty().contains("passed the safety check"))
+        assertTrue(controller.uiState.value.artifacts.single().lastTest?.message.orEmpty().contains("passed Safety Check"))
     }
 
     @Test

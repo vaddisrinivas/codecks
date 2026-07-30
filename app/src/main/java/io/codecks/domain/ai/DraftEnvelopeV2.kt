@@ -44,10 +44,10 @@ object AiActionCatalog {
         "mac.volume_up",
         "mac.volume_down",
         "mac.mute",
-    )
+    ) + MacVisualEffectCatalog.templateIds
 
     fun commandFor(templateId: String): String? =
-        when (templateId) {
+        MacVisualEffectCatalog.commandForTemplate(templateId) ?: when (templateId) {
             "mac.focus_ping_30" -> "caffeinate -u -t 30"
             "mac.open_finder" -> "open -a Finder"
             "mac.open_terminal" -> "open -a Terminal"

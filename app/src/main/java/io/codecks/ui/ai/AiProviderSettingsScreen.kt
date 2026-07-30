@@ -260,6 +260,7 @@ fun AiProviderSettingsScreen(
             onCancelRefinement = onCancelRefinement,
             onTestArtifact = onTestArtifact,
             onSaveDraft = onSaveDraft,
+            onSaveArtifact = onSaveArtifact,
             onRefineArtifact = onRefineArtifact,
             onDeleteArtifact = onDeleteArtifact,
             onOpenAiSettings = onOpenAiSettings,

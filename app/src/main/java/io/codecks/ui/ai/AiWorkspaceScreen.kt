@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.codecks.core.design.CodecksDesignTokens
 import io.codecks.domain.ai.AiArtifact
+import io.codecks.domain.ai.AiArtifactKind
 import io.codecks.domain.ai.AiArtifactTest
 import io.codecks.domain.ai.AiArtifactTestStatus
 import io.codecks.domain.ai.AiGenerationRecord
@@ -64,6 +65,7 @@ internal fun AiArtifactWorkspaceScreen(
     onCancelRefinement: () -> Unit,
     onTestArtifact: (String) -> Unit,
     onSaveDraft: (GeneratedDraft) -> Unit,
+    onSaveArtifact: (AiArtifact) -> Unit,
     onRefineArtifact: (String) -> Unit,
     onDeleteArtifact: (String) -> Unit,
     onOpenAiSettings: () -> Unit,
@@ -126,16 +128,13 @@ internal fun AiArtifactWorkspaceScreen(
                 }
                 item {
                     val artifact = currentArtifact
-                    val draftToSave = state.generatedDraft.takeIf { state.generatedArtifactId == artifact.id }
                     AiArtifactCard(
                         artifact = artifact,
                         refinementSource = state.lastRefinedFromArtifact.takeIf { state.lastRefinedArtifactId == artifact.id },
                         isTesting = state.testingArtifactId == artifact.id,
                         onTest = { onTestArtifact(artifact.id) },
-                        onSave = draftToSave?.let {
-                            { onSaveDraft(it) }
-                        },
-                        saveLabel = "Save disabled",
+                        onSave = { onSaveArtifact(artifact) },
+                        saveLabel = artifact.saveLabel(),
                         onRefine = { onRefineArtifact(artifact.id) },
                         onDelete = { onDeleteArtifact(artifact.id) },
                         modifier = Modifier.padding(horizontal = 24.dp),
@@ -171,7 +170,10 @@ internal fun AiArtifactWorkspaceScreen(
                 item {
                     AiArtifactHistoryCard(
                         artifact = artifact,
-                        onRestore = { onRefineArtifact(artifact.id) },
+                        isTesting = state.testingArtifactId == artifact.id,
+                        onTest = { onTestArtifact(artifact.id) },
+                        onSave = { onSaveArtifact(artifact) },
+                        onRefine = { onRefineArtifact(artifact.id) },
                         onDelete = { onDeleteArtifact(artifact.id) },
                         modifier = Modifier.padding(horizontal = 24.dp),
                     )
@@ -197,7 +199,7 @@ internal fun AiArtifactWorkspaceScreen(
             }
             item {
                 Text(
-                    text = "Saved drafts stay disabled until you test and enable them.",
+                    text = "AI drafts stay in your library. Add them to Deck or Rules, then test before trusting live use.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
@@ -488,7 +490,7 @@ private fun AiArtifactCard(
                 }
             }
             Text(
-                "Review before saving. Test checks generated commands and never runs them.",
+                "Review first. Safety Check validates policy and never spends more AI credits. Add it, then test/run from Deck or Rules.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -505,7 +507,7 @@ private fun AiArtifactCard(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 DeckActionButton(
-                    label = if (isTesting) "Testing" else "Test draft",
+                    label = if (isTesting) "Checking" else "Safety Check",
                     onClick = onTest,
                     enabled = !isTesting,
                     icon = Icons.Outlined.PlayArrow,
@@ -539,7 +541,10 @@ private fun AiArtifactCard(
 @Composable
 private fun AiArtifactHistoryCard(
     artifact: AiArtifact,
-    onRestore: () -> Unit,
+    isTesting: Boolean,
+    onTest: () -> Unit,
+    onSave: () -> Unit,
+    onRefine: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -574,10 +579,34 @@ private fun AiArtifactHistoryCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            artifact.lastTest?.let { test ->
+                Text(
+                    text = test.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = when (test.status) {
+                        AiArtifactTestStatus.Succeeded -> MaterialTheme.colorScheme.primary
+                        AiArtifactTestStatus.Failed -> MaterialTheme.colorScheme.error
+                        AiArtifactTestStatus.RequiresConfirmation -> MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 DeckActionButton(
-                    label = "Load prompt",
-                    onClick = onRestore,
+                    label = if (isTesting) "Checking" else "Check",
+                    onClick = onTest,
+                    enabled = !isTesting,
+                    icon = Icons.Outlined.PlayArrow,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                )
+                DeckActionButton(
+                    label = artifact.saveLabel(),
+                    onClick = onSave,
+                    icon = Icons.Outlined.CheckCircle,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                )
+                DeckActionButton(
+                    label = "Refine",
+                    onClick = onRefine,
                     icon = Icons.Outlined.AutoAwesome,
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                 )
@@ -591,6 +620,14 @@ private fun AiArtifactHistoryCard(
         }
     }
 }
+
+private fun AiArtifact.saveLabel(): String =
+    when (kind) {
+        AiArtifactKind.Automation -> "Save Rule"
+        AiArtifactKind.Deck -> "Add Deck"
+        AiArtifactKind.Button -> "Add Button"
+        AiArtifactKind.Clock -> "Save Clock"
+    }
 
 @Composable
 private fun AiArtifactReviewPanel(

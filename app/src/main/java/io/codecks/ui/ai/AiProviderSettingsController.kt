@@ -290,7 +290,7 @@ class AiProviderSettingsController(
                             recordGeneration(
                                 state = state,
                                 status = AiGenerationStatus.Ready,
-                                message = "Draft ready. Test it before saving.",
+                                message = "Draft ready. Add it when it looks right; Safety Check costs no extra AI credits.",
                                 artifactId = artifact.id,
                             )
                             _uiState.update {
@@ -355,11 +355,11 @@ class AiProviderSettingsController(
             _uiState.update { it.copy(testingArtifactId = artifactId, message = null) }
             val validationError = artifact.actions.firstNotNullOfOrNull { it.command.aiDryRunError() }
             var finalStatus = if (validationError == null) AiArtifactTestStatus.Succeeded else AiArtifactTestStatus.Failed
-            var finalMessage = validationError ?: "${artifact.title} passed the safety check. No Mac command ran."
+            var finalMessage = validationError ?: "${artifact.title} passed Safety Check. No AI credits spent and no Mac command ran."
             if (validationError == null) {
                 if (artifact.actions.any { it.dangerous }) {
                     finalStatus = AiArtifactTestStatus.RequiresConfirmation
-                    finalMessage = "${artifact.title} passed the safety check. It needs confirmation before running."
+                    finalMessage = "${artifact.title} passed Safety Check. It needs confirmation before running."
                 }
             }
             val test = AiArtifactTest(finalStatus, finalMessage)
@@ -395,7 +395,7 @@ class AiProviderSettingsController(
                 refiningArtifact = null,
                 lastRefinedFromArtifact = null,
                 lastRefinedArtifactId = null,
-                message = "Saved disabled. Test it from Deck or Rules before enabling.",
+                message = "Added. Test it from Deck or Rules before trusting live use.",
             )
         }
     }

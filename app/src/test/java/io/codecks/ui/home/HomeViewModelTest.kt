@@ -3,6 +3,7 @@ package io.codecks.ui.home
 import io.codecks.data.ActionRepository
 import io.codecks.data.ConnectionConfig
 import io.codecks.data.ConnectionRepository
+import io.codecks.data.ai.AiArtifactRepository
 import io.codecks.core.actions.ActionResult
 import io.codecks.core.actions.ActionResultStatus
 import io.codecks.core.actions.ActionRunner
@@ -195,6 +196,40 @@ class HomeViewModelTest {
         assertTrue("accepted artifact action should require test", saved.requiresTest)
         assertFalse("accepted artifact action should not be live-safe", saved.liveSafe)
         assertEquals(saved, viewModel.uiState.value.actions.single { it.id == saved.id })
+    }
+
+    @Test
+    fun savedAiArtifacts_areReusableFromDeckCatalogBeforeBeingPlaced() = runTest(dispatcher) {
+        val addButton = DeckAction("add_button", "Add", ActionKind.Local, ActionIcon.Add)
+        val artifactRepository = InMemoryAiArtifactRepository(
+            listOf(
+                AiArtifact(
+                    id = "artifact_love",
+                    kind = AiArtifactKind.Button,
+                    title = "Love Confetti",
+                    prompt = "love emoji confetti",
+                    actions = listOf(
+                        AiArtifactAction(
+                            id = "love",
+                            title = "Love Confetti",
+                            command = io.codecks.domain.ai.MacVisualEffectCatalog.commandForTemplate("codecks.love")!!,
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val viewModel = HomeViewModel(
+            GatedActionRepository(favorites = listOf(addButton), allActions = listOf(addButton)),
+            ReadyConnectionRepository(),
+            ImmediateActionRunner(),
+            aiArtifactRepository = artifactRepository,
+        )
+        runCurrent()
+
+        val catalogIds = viewModel.uiState.value.allActions.map(DeckAction::id)
+        assertTrue(catalogIds.contains("artifact_love_love_0"))
+        val generated = viewModel.uiState.value.allActions.single { it.id == "artifact_love_love_0" }
+        assertEquals(generated.command, generated.testCommand)
     }
 
     @Test
@@ -412,6 +447,25 @@ private class GatedActionRepository(
     override suspend fun test(action: DeckAction): Result<String> {
         lastTestedActionId = action.id
         return Result.success("${action.label} verified")
+    }
+}
+
+private class InMemoryAiArtifactRepository(initial: List<AiArtifact>) : AiArtifactRepository {
+    private val state = MutableStateFlow(initial)
+    override val artifacts: Flow<List<AiArtifact>> = state
+
+    override suspend fun save(artifact: AiArtifact) {
+        state.value = listOf(artifact) + state.value.filterNot { it.id == artifact.id }
+    }
+
+    override suspend fun recordTest(artifactId: String, test: io.codecks.domain.ai.AiArtifactTest) = Unit
+
+    override suspend fun delete(artifactId: String) {
+        state.value = state.value.filterNot { it.id == artifactId }
+    }
+
+    override suspend fun clear() {
+        state.value = emptyList()
     }
 }
 

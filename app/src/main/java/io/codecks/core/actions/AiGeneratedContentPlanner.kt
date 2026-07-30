@@ -8,6 +8,7 @@ import io.codecks.domain.DeckAction
 import io.codecks.domain.ai.AiArtifact
 import io.codecks.domain.ai.AiArtifactKind
 import io.codecks.domain.ai.GeneratedDraft
+import io.codecks.domain.ai.MacVisualEffectCatalog
 import io.codecks.domain.automation.AutomationRecipe
 import io.codecks.domain.automation.AutomationSafety
 import io.codecks.domain.automation.AutomationTrigger
@@ -28,6 +29,7 @@ class AiGeneratedContentPlanner @Inject constructor() {
                 icon = ActionIcon.Apps,
                 description = artifact.description,
                 command = action.command,
+                testCommand = action.command.takeIf(MacVisualEffectCatalog::isKnownCommand),
                 dangerous = action.dangerous,
                 liveSafe = false,
                 requiresTest = true,

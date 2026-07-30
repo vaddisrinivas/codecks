@@ -462,7 +462,7 @@ class ActionCatalog @Inject constructor(
                         description = item.optString("description"),
                         route = if (curtainCommand != null) null else item.optString("route").takeIf(String::isNotBlank),
                         command = curtainCommand ?: item.optString("command").takeIf(String::isNotBlank),
-                        testCommand = if (curtainCommand != null) "printf 'Codecks Mac overlay ready'" else item.optString("test_command").takeIf(String::isNotBlank),
+                        testCommand = curtainCommand ?: item.optString("test_command").takeIf(String::isNotBlank),
                         dangerous = item.optBoolean("dangerous"),
                         liveSafe = item.optBoolean("live_safe") || curtainCommand != null,
                         requiresTest = item.optBoolean("requires_test"),

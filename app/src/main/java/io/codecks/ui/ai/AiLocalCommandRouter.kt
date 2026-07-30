@@ -27,6 +27,10 @@ internal suspend fun handleLocalAiCommand(
     val text = prompt.normalizedCommandText()
     if (text.isBlank()) return null
 
+    val creationIntent = text.hasAnyWord("create", "make", "build", "generate", "new", "add") &&
+        text.hasAnyWord("button", "buttons", "deck", "automation", "automations", "rule", "rules", "workflow", "control", "controls")
+    if (creationIntent) return null
+
     if (text.hasAnyWord("theme", "color", "colors", "bland", "oled", "dark", "light", "accent", "border", "shape")) {
         onOpenSettings()
         return AiLocalCommandResult("Opened Settings. Use Appearance to change theme, color, borders, and shape; AI did not change them.")
@@ -48,10 +52,6 @@ internal suspend fun handleLocalAiCommand(
         onOpenDeck()
         return AiLocalCommandResult("Opened Deck.")
     }
-
-    val creationIntent = text.hasAnyWord("create", "make", "build", "generate", "new") &&
-        text.hasAnyWord("button", "deck", "automation", "workflow")
-    if (creationIntent) return null
 
     val matchedAction = actions
         .map { it to it.aiCommandScore(text) }

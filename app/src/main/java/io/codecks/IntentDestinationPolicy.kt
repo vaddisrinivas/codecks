@@ -33,6 +33,7 @@ internal fun resolveDestinationRequest(
 ): String? =
     when {
         action == Intent.ACTION_SEND && type == "text/plain" -> "ai"
+        action == Intent.ACTION_VIEW && dataUri == PUBLIC_AI_URI -> "ai"
         destination.isNullOrBlank() -> null
         providedToken == expectedToken -> destination
         BuildConfig.DEBUG && action == InternalIntentAuth.ACTION_DEBUG_OPEN_DESTINATION -> destination
@@ -40,3 +41,4 @@ internal fun resolveDestinationRequest(
     }
 
 const val PUBLIC_TRACKPAD_URI = "codecks://trackpad"
+const val PUBLIC_AI_URI = "codecks://ai"
