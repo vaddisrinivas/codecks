@@ -5,8 +5,8 @@ Status: approved for implementation on 2026-07-29
 ## Outcome
 
 Preserve every unique dirty change, fix the confirmed Android/Mac-helper defects,
-merge the result to `main`, and leave `/Users/srinivasvaddi/Projects/codecks` as
-the canonical checkout. No worktree may be removed until its dirty state has a
+merge the result to `main`, and leave the primary repository checkout as the
+canonical checkout. No worktree may be removed until its dirty state has a
 named safety commit or an explicitly retained artifact location.
 
 ## Ordered work
