@@ -6,7 +6,7 @@ Updated: July 30, 2026
 | --- | --- |
 | Product | Codecks |
 | Application ID | `app.codecks` |
-| Version | `0.1.31` (`versionCode` 31) |
+| Version | `0.1.32` (`versionCode` 32) |
 | Minimum Android | 9 / API 28 |
 | Target Android | API 37 |
 | Default mode | Local-only; no account, billing, hosted backend, database, analytics, or cloud sync |
@@ -30,7 +30,7 @@ Updated: July 30, 2026
 
 | Component | Exposure | Protection |
 | --- | --- | --- |
-| `MainActivity` | Exported | Launcher only; internal destination extras require an app-private token |
+| `MainActivity` | Exported | Launcher and explicit `text/plain` Android Share target; internal destination extras require an app-private token |
 | `TrackpadEntryActivity` | Exported | Exact `codecks://trackpad` public route or app-signed internal widget/notification route; lockscreen policy gates input |
 | `TrackpadWidgetProvider` | Exported | App-widget broadcast entry; click uses an app-signed internal PendingIntent |
 | `HidSessionService` | Not exported | Foreground connected-device service; starts only after Bluetooth permission |
