@@ -361,7 +361,7 @@ private fun CreateAutomationDialog(
         canEnableNow -> "Validation + preflight + live test passed. Safe to enable."
         lastTestSucceeded == true -> "Validation passed. Run preflight and live test before enabling."
         lastTestSucceeded == false -> "Validation failed. Fix command, validate again, then continue."
-        else -> "Needs Validate + Preflight + Live test before enabling."
+        else -> "Needs Validation + Preflight + Live test before enabling."
     }
 
     AlertDialog(
@@ -840,7 +840,7 @@ private fun AutomationOptionsDialog(
                 }
                 if (!canEnable) {
                     Text(
-                        "Validate + preflight + live test are required before enabling this exact revision.",
+                        "Validation + preflight + live test are required before enabling this exact revision.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                     )

@@ -18,7 +18,13 @@ import io.codecks.domain.CommandOrigin
 import io.codecks.domain.CommandReview
 import io.codecks.domain.ExecutionAuthorization
 import io.codecks.domain.automation.AutomationCatalog
+import io.codecks.domain.automation.AutomationLiveTestAssertion
+import io.codecks.domain.automation.AutomationLiveTestCleanup
+import io.codecks.domain.automation.AutomationLiveTestReceipt
 import io.codecks.domain.automation.AutomationRecipe
+import io.codecks.domain.automation.AutomationPreflightArea
+import io.codecks.domain.automation.AutomationPreflightCheck
+import io.codecks.domain.automation.AutomationPreflightReceipt
 import io.codecks.domain.automation.AutomationRunSummary
 import io.codecks.domain.automation.AutomationSafety
 import io.codecks.domain.automation.AutomationTrigger
@@ -590,9 +596,10 @@ private fun JSONArray.toStringSet(): Set<String> = buildSet {
 
 private fun JSONArray.toSmartCapabilities(): Set<SmartCapability> = buildSet {
     repeat(length()) { index ->
-        optString(index)
-            .let(runCatching(SmartCapability::valueOf)::getOrNull)
-            ?.let(::add)
+        val capability = runCatching {
+            SmartCapability.valueOf(optString(index))
+        }.getOrNull()
+        capability?.let(::add)
     }
 }
 
@@ -601,8 +608,9 @@ private fun JSONArray.toPreflightChecks(): List<AutomationPreflightCheck> = buil
         val item = getJSONObject(index)
         add(
             AutomationPreflightCheck(
-                area = item.optString("area").let(runCatching(AutomationPreflightArea::valueOf)::getOrNull)
-                    ?: AutomationPreflightArea.Identity,
+                area = runCatching {
+                    AutomationPreflightArea.valueOf(item.optString("area"))
+                }.getOrNull() ?: AutomationPreflightArea.Identity,
                 passed = item.optBoolean("passed", false),
                 message = item.optString("message").ifBlank { "check failed" },
             ),

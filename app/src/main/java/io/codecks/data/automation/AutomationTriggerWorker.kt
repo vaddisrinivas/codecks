@@ -20,7 +20,9 @@ import io.codecks.core.actions.ActionResultStatus
 import io.codecks.core.actions.ActionRunner
 import io.codecks.data.ConnectionRepository
 import io.codecks.domain.automation.AutomationRecipe
+import io.codecks.domain.automation.hasCurrentValidLiveTest
 import io.codecks.domain.automation.AutomationTriggerEngine
+import io.codecks.domain.automation.requiredPermissions
 import io.codecks.domain.automation.hasCurrentSuccessfulTest
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject

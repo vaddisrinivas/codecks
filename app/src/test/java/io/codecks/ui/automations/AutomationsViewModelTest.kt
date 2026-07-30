@@ -174,7 +174,17 @@ class AutomationsViewModelTest {
 
     @Test
     fun preflightAndLiveTestBlockEnableUntilExecuted() = runTest(dispatcher) {
-        val repository = FakeAutomationRepository()
+        val repository = FakeAutomationRepository(
+            listOf(
+                AutomationRecipe(
+                    id = "focus",
+                    title = "Focus",
+                    description = "Start focus",
+                    enabled = false,
+                    steps = listOf(ActionSpec.ShellCommand("focus", "Focus", "caffeinate")),
+                ),
+            ),
+        )
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
         runCurrent()
 

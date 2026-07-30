@@ -19,7 +19,6 @@ import io.codecks.domain.CommandReview
 import io.codecks.domain.ai.AiArtifact
 import io.codecks.domain.ai.AiArtifactAction
 import io.codecks.domain.ai.AiArtifactKind
-import io.codecks.domain.ai.AiGeneratedContentPlanner as Planner
 import io.codecks.domain.ai.AutomationDraft
 import io.codecks.domain.ai.GeneratedDraft
 import io.codecks.domain.automation.AutomationCatalog
@@ -35,9 +34,12 @@ import io.codecks.domain.automation.AutomationRunSummary
 import io.codecks.domain.automation.AutomationSafety
 import io.codecks.domain.automation.AutomationTrigger
 import io.codecks.domain.automation.AutomationTriggerEngine
+import io.codecks.domain.automation.hasCurrentValidPreflight
 import io.codecks.domain.automation.label
 import io.codecks.domain.automation.revisionFingerprint
 import io.codecks.domain.automation.hasCurrentValidLiveTest
+import io.codecks.domain.automation.requiredCapabilities
+import io.codecks.domain.automation.requiredPermissions
 import javax.inject.Inject
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.Job
@@ -58,7 +60,7 @@ class AutomationsViewModel @Inject constructor(
     private val connectionRepository: ConnectionRepository,
     private val actionRunner: ActionRunner,
     private val triggerEngine: AutomationTriggerEngine,
-    private val aiGeneratedContentPlanner: Planner = AiGeneratedContentPlanner(),
+    private val aiGeneratedContentPlanner: AiGeneratedContentPlanner = AiGeneratedContentPlanner(),
     private val automationScheduler: AutomationScheduler = NoopAutomationScheduler,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AutomationsUiState())
@@ -282,7 +284,7 @@ class AutomationsViewModel @Inject constructor(
         }
         viewModelScope.launch {
             _uiState.update { it.copy(runningActionId = recipeId, message = null) }
-            val result = if (recipe.safety.requiresConfirmation || recipe.steps.any { it.dangerous }) {
+            val result = if (recipe.safety.requiresConfirmation) {
                 ActionResult(
                     actionId = recipe.id,
                     title = recipe.title,
@@ -312,9 +314,9 @@ class AutomationsViewModel @Inject constructor(
                 it.copy(
                     runningActionId = null,
                     message = if (result.status == ActionResultStatus.Failed) {
-                        "Validate failed: ${result.message}"
+                        "Validate: failed: ${result.message}"
                     } else {
-                        "Validate passed: ${result.message}"
+                        "Validate: passed: ${result.message}"
                     },
                 )
             }
@@ -419,7 +421,7 @@ class AutomationsViewModel @Inject constructor(
 
     private suspend fun executeTriggered(recipe: AutomationRecipe) {
         _uiState.update { it.copy(runningActionId = recipe.id, message = "Trigger matched: ${recipe.title}") }
-        if (recipe.safety.requiresConfirmation || recipe.steps.any { it.dangerous }) {
+        if (recipe.safety.requiresConfirmation) {
             val result = ActionResult(
                 actionId = recipe.id,
                 title = recipe.title,
@@ -445,7 +447,7 @@ class AutomationsViewModel @Inject constructor(
         }
     }
 
-    private fun runRecipe(recipe: AutomationRecipe, allowDangerous: Boolean): ActionResult {
+    private suspend fun runRecipe(recipe: AutomationRecipe, allowDangerous: Boolean): ActionResult {
         if (recipe.steps.isEmpty()) {
             return ActionResult(
                 actionId = recipe.id,
@@ -779,8 +781,8 @@ private fun AutomationRecipe.requiredCommandPaths(): Set<String> = steps
         when (spec) {
             is ActionSpec.ShellCommand -> spec.command
             is ActionSpec.DeckActionSpec -> spec.action.command
-            is ActionSpec.CatalogAction,
-            is ActionSpec.LocalRoute -> null,
+            is ActionSpec.CatalogAction -> null
+            is ActionSpec.LocalRoute -> null
         }
     }
     .flatMap { command ->
@@ -795,8 +797,8 @@ private fun AutomationRecipe.requiredApplications(): Set<String> = steps
         val command = when (spec) {
             is ActionSpec.ShellCommand -> spec.command
             is ActionSpec.DeckActionSpec -> spec.action.command
-            is ActionSpec.CatalogAction,
-            is ActionSpec.LocalRoute -> null,
+            is ActionSpec.CatalogAction -> null
+            is ActionSpec.LocalRoute -> null
         } ?: return@mapNotNull null
         val match = Regex("open\\s+-a\\s+(?:\"([^\"]+)\"|([^\\s]+))").find(command)
         match?.let {
@@ -823,6 +825,7 @@ private fun AutomationRecipe.toUiItem(
         lastLiveTest.assertions.all { it.passed } && lastLiveTest.cleanup.passed
     val preflightLabel = lastPreflight?.toLabel()
     val liveTestLabel = lastLiveTest?.toLabel()
+    val canEnableNow = lastValidation?.second == true
     return AutomationItem(
         id = id,
         label = title,
@@ -843,7 +846,7 @@ private fun AutomationRecipe.toUiItem(
         lastPreflightSucceeded = preflightPassed,
         lastLiveTestLabel = liveTestLabel,
         lastLiveTestSucceeded = liveTestPassed,
-        canEnable = canEnable(config, nowMillis()),
+        canEnable = canEnableNow,
         triggerSimulationReason = triggerSimulationReason,
         approvalPending = pendingApproval != null,
         runHistory = runHistory.map { it.toHistoryItem() },
