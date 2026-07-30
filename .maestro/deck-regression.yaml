@@ -1,0 +1,36 @@
+appId: app.codecks.debug
+name: Deck navigation and immediate persistence
+---
+- launchApp:
+    clearState: true
+- assertVisible: "Deck"
+
+- tapOn: "More"
+- tapOn: "AI"
+- assertVisible: "AI"
+- back
+- assertVisible: "Deck"
+
+- tapOn: "More"
+- tapOn: "Settings"
+- assertVisible: "Settings"
+- back
+- assertVisible: "Deck"
+
+- longPressOn: "Finder"
+- assertVisible: "Reassign this slot"
+- assertVisible: "Remove from deck"
+- tapOn: "Close"
+
+- tapOn: "Edit deck"
+- assertVisible: "Edit Deck"
+- scrollUntilVisible:
+    element:
+      text: "Remove"
+    direction: DOWN
+- tapOn: "Remove"
+- back
+- assertNotVisible: "Finder"
+- stopApp
+- launchApp
+- assertNotVisible: "Finder"

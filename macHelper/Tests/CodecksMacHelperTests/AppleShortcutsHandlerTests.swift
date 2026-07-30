@@ -55,8 +55,47 @@ final class AppleShortcutsHandlerTests: XCTestCase {
             runner: FakeCommandRunner(result: CommandResult(exitCode: 1, stdout: Data(), stderr: Data("no".utf8), timedOut: false))
         )
 
-        XCTAssertEqual(try timeout.execute(request(name: "Daily Standup"), nowMillis: 1_000), .failed(code: .timeout, retryable: true))
+        XCTAssertEqual(try timeout.execute(request(name: "Daily Standup"), nowMillis: 1_000), .failed(code: .timeout, retryable: false))
         XCTAssertEqual(try failed.execute(request(name: "Daily Standup"), nowMillis: 1_000), .failed(code: .preconditionFailed, retryable: false))
+    }
+
+    func testRejectsUnknownArgumentsAndUnavailableExecutable() throws {
+        let runner = FakeCommandRunner(
+            result: CommandResult(exitCode: 0, stdout: Data(), stderr: Data(), timedOut: false)
+        )
+        let handler = AppleShortcutsActionHandler(runner: runner)
+        var unknown = request(name: "Daily Standup")
+        unknown.arguments["shell"] = "rm"
+        let unavailable = AppleShortcutsActionHandler(
+            runner: runner,
+            executableAvailable: { false }
+        )
+
+        XCTAssertEqual(try handler.execute(unknown, nowMillis: 1_000), .denied(code: .preconditionFailed))
+        XCTAssertEqual(
+            try unavailable.execute(request(name: "Daily Standup"), nowMillis: 1_000),
+            .denied(code: .unsupportedCapability)
+        )
+        XCTAssertTrue(runner.commands.isEmpty)
+    }
+
+    func testReportsSuccessfulTruncatedOutput() throws {
+        let handler = AppleShortcutsActionHandler(
+            runner: FakeCommandRunner(
+                result: CommandResult(
+                    exitCode: 0,
+                    stdout: Data(),
+                    stderr: Data(),
+                    timedOut: false,
+                    outputLimitExceeded: true
+                )
+            )
+        )
+
+        XCTAssertEqual(
+            try handler.execute(request(name: "Daily Standup"), nowMillis: 1_000),
+            .completed(resultCode: "apple_shortcut_completed_output_truncated", undoToken: nil)
+        )
     }
 
     private func request(name: String, inputPath: String? = nil) -> ReactiveExecuteRequest {

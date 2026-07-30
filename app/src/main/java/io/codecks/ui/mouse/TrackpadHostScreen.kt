@@ -121,7 +121,7 @@ private fun TrackpadSetupPanel(
                 text = when {
                     !bluetoothPermissionGranted -> "Android needs Bluetooth permission before this phone can act as your Mac pointer."
                     hasPairedHosts -> "Choose a paired Mac above. Trackpad opens as soon as Bluetooth input connects."
-                    else -> "Tap Choose Mac, add or pair your Mac in Bluetooth settings, then refresh."
+                    else -> "Tap the Bluetooth icon above, add or pair your Mac, then refresh."
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

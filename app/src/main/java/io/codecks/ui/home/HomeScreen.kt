@@ -36,9 +36,11 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -60,6 +62,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.codecks.domain.ActionKind
 import io.codecks.domain.ActionStatus
+import io.codecks.domain.CommandOrigin
 import io.codecks.domain.DeckAction
 import io.codecks.domain.isRunnableFromSmartSuggestion
 import io.codecks.domain.deck.DeckLayout
@@ -96,6 +99,9 @@ fun HomeScreen(
     onTestAction: (DeckAction) -> Unit = {},
     onDuplicateAction: (DeckAction) -> Unit = {},
     onRemoveAction: (DeckAction) -> Unit = {},
+    onAssignSlot: (Int, DeckAction) -> Unit = { _, _ -> },
+    onMoveSlot: (Int, Int) -> Unit = { _, _ -> },
+    onForgetAction: (DeckAction) -> Unit = {},
     onOpenRunLog: (String?) -> Unit = {},
     smartSuggestions: List<SmartDeckSuggestionUi> = emptyList(),
     smartRunPending: Boolean = false,
@@ -122,8 +128,18 @@ fun HomeScreen(
     val runningActionId = (state.actionStatus as? ActionStatus.Running)?.actionId
     val currentResult = state.actionStatus.takeIf { it !is ActionStatus.Idle }
     var optionsSlot by remember { mutableStateOf<HomeDeckSlot?>(null) }
+    var reassignSlot by rememberSaveable { mutableIntStateOf(-1) }
+    var movingFromSlot by rememberSaveable { mutableIntStateOf(-1) }
+    var pendingForgetAction by remember { mutableStateOf<DeckAction?>(null) }
+    val availableActions = remember(state.allActions) {
+        state.allActions.filterNot { it.id in bottomNavShortcutIds || it.id in OPEN_SLOT_IDS }
+    }
     CodecksKeybedDeck(
-        activeDeckLabel = activeTemplateTitle(state.activeTemplateId, state.deckTemplates),
+        activeDeckLabel = deckActionSlots
+            .firstOrNull { it.slot == movingFromSlot }
+            ?.action
+            ?.let { "Move ${it.label} · tap destination" }
+            ?: activeTemplateTitle(state.activeTemplateId, state.deckTemplates),
         activeApp = state.activeMacApp,
         connectionHealth = connectionHealth,
         slots = deckActionSlots,
@@ -131,7 +147,7 @@ fun HomeScreen(
         currentResult = currentResult,
         focusedActionId = focusedActionId,
         onAction = onAction,
-        onEditSlot = onEditSlot,
+        onEditSlot = { slot -> reassignSlot = slot },
         onOpenSettings = onOpenSettings,
         onOpenConnection = onOpenConnection,
         onEditDeck = onEditDeck,
@@ -147,6 +163,12 @@ fun HomeScreen(
         onOpenOptions = { slot ->
             if (shouldShowActionOptions(slot.action, locked = false)) optionsSlot = slot
         },
+        movingFromSlot = movingFromSlot.takeIf { it >= 0 },
+        onMoveTarget = { target ->
+            val from = movingFromSlot
+            movingFromSlot = -1
+            if (from >= 0 && from != target.slot) onMoveSlot(from, target.slot)
+        },
         deckStyle = deckStyle,
         modifier = modifier
             .fillMaxSize()
@@ -156,6 +178,7 @@ fun HomeScreen(
         val action = slot.action
         ActionOptionsDialog(
             action = action,
+            canForget = action.isCatalogForgettable(),
             onDismiss = { optionsSlot = null },
             onRun = {
                 optionsSlot = null
@@ -165,21 +188,70 @@ fun HomeScreen(
                 optionsSlot = null
                 onTestAction(action)
             },
-            onEdit = {
+            onReassign = {
                 optionsSlot = null
-                onEditSlot(slot.slot)
+                reassignSlot = slot.slot
+            },
+            onMove = {
+                optionsSlot = null
+                movingFromSlot = slot.slot
             },
             onDuplicate = {
                 optionsSlot = null
                 onDuplicateAction(action)
             },
-            onDelete = {
+            onRemoveFromDeck = {
                 optionsSlot = null
                 onRemoveSlot(slot.slot)
+            },
+            onForget = {
+                optionsSlot = null
+                pendingForgetAction = action
             },
             onViewLog = {
                 optionsSlot = null
                 onOpenRunLog(action.id)
+            },
+        )
+    }
+    if (reassignSlot >= 0) {
+        val slot = reassignSlot
+        ReassignActionDialog(
+            slot = slot,
+            currentAction = renderLayout.slots.getOrNull(slot)?.action,
+            actions = availableActions,
+            onDismiss = { reassignSlot = -1 },
+            onAssign = { action ->
+                reassignSlot = -1
+                onAssignSlot(slot, action)
+            },
+            onForget = { action ->
+                reassignSlot = -1
+                pendingForgetAction = action
+            },
+        )
+    }
+    pendingForgetAction?.let { action ->
+        AlertDialog(
+            onDismissRequest = { pendingForgetAction = null },
+            title = { Text("Forget ${action.label}?") },
+            text = {
+                Text("This removes it from the catalog and every deck slot. You can undo from the confirmation message.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingForgetAction = null
+                        onForgetAction(action)
+                    },
+                ) {
+                    Text("Forget")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingForgetAction = null }) {
+                    Text("Cancel")
+                }
             },
         )
     }
@@ -209,6 +281,8 @@ private fun CodecksKeybedDeck(
     onSuppressSmartSuggestionForContext: (SmartDeckSuggestionUi) -> Unit,
     onNeverSmartSuggestionForAction: (SmartDeckSuggestionUi) -> Unit,
     onOpenOptions: (HomeDeckSlot) -> Unit,
+    movingFromSlot: Int?,
+    onMoveTarget: (HomeDeckSlot) -> Unit,
     deckStyle: CodecksDeckStyle,
     modifier: Modifier = Modifier,
 ) {
@@ -337,9 +411,10 @@ private fun CodecksKeybedDeck(
                     Row(horizontalArrangement = Arrangement.spacedBy(gapX)) {
                         row.forEach { slot ->
                             val action = slot.action
-                            val openSlot = action.id == "add_button" || action.id == "blank"
+                            val openSlot = action.id in OPEN_SLOT_IDS
                             val running = runningActionId == action.id
-                            val selected = focusedActionId == action.id
+                            val moving = movingFromSlot != null
+                            val selected = movingFromSlot == slot.slot || focusedActionId == action.id
                             val enabled = openSlot || isDeckActionEnabled(action, connectionReady)
                             DeckControlTile(
                                 label = if (openSlot) "Tap to assign" else action.label,
@@ -352,13 +427,17 @@ private fun CodecksKeybedDeck(
                                     !enabled -> DeckComponentState.Disabled
                                     else -> DeckComponentState.Idle
                                 },
-                                enabled = enabled,
+                                enabled = enabled || moving,
                                 danger = action.dangerous,
                                 accentColor = action.deckAccentColor(),
                                 showLabel = showKeyLabels,
                                 deckStyle = deckStyle,
                                 onClick = {
-                                    if (openSlot) onEditSlot(slot.slot) else onAction(action)
+                                    when {
+                                        moving -> onMoveTarget(slot)
+                                        openSlot -> onEditSlot(slot.slot)
+                                        else -> onAction(action)
+                                    }
                                 },
                                 onLongClick = if (openSlot) null else ({ onOpenOptions(slot) }),
                                 modifier = Modifier
@@ -841,6 +920,7 @@ internal data class HomeDeckSlot(
 )
 
 private val bottomNavShortcutIds = setOf("trackpad", "keyboard", "clipboard", "automations", "settings_shortcut")
+private val OPEN_SLOT_IDS = setOf("add_button", "blank")
 
 internal fun buildHomeDeckSlots(
     layout: DeckLayout,
@@ -898,8 +978,11 @@ internal fun shouldShowActionOptions(action: DeckAction, locked: Boolean): Boole
 private fun isDeckActionEnabled(action: DeckAction, connectionReady: Boolean): Boolean =
     action.route == "decor" ||
         action.kind != ActionKind.Ssh ||
-        action.id in setOf("add_button", "blank") ||
+        action.id in OPEN_SLOT_IDS ||
         (connectionReady && (!action.requiresTest || action.liveSafe))
+
+private fun DeckAction.isCatalogForgettable(): Boolean =
+    commandOrigin != CommandOrigin.Bundled || id.startsWith("artifact_") || id.startsWith("ai_") || id.startsWith("custom_")
 
 private fun DeckAction.deckAccentColor(): Color? = colorHex?.toComposeColorOrNull()
 
@@ -942,34 +1025,141 @@ private fun DeckConnectionHint() {
 @Composable
 private fun ActionOptionsDialog(
     action: DeckAction,
+    canForget: Boolean,
     onDismiss: () -> Unit,
     onRun: () -> Unit,
     onTest: () -> Unit,
-    onEdit: () -> Unit,
+    onReassign: () -> Unit,
+    onMove: () -> Unit,
     onDuplicate: () -> Unit,
-    onDelete: () -> Unit,
+    onRemoveFromDeck: () -> Unit,
+    onForget: () -> Unit,
     onViewLog: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(action.label) },
         text = {
-            Text(
-                action.description.ifBlank { "Deck control" },
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onRun) { Text("Run") }
-        },
-        dismissButton = {
-            Row {
-                TextButton(onClick = onViewLog) { Text("Log") }
-                TextButton(onClick = onTest) { Text("Test") }
-                TextButton(onClick = onEdit) { Text("Edit") }
-                TextButton(onClick = onDuplicate) { Text("Duplicate") }
-                TextButton(onClick = onDelete) { Text("Delete") }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    action.description.ifBlank { "Deck control" },
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                DialogActionButton("Run", onRun)
+                DialogActionButton("Reassign this slot", onReassign)
+                DialogActionButton("Move this button", onMove)
+                DialogActionButton("Duplicate into empty slot", onDuplicate)
+                DialogActionButton("Test", onTest)
+                DialogActionButton("Run log", onViewLog)
+                HorizontalDivider()
+                DialogActionButton("Remove from deck", onRemoveFromDeck)
+                if (canForget) DialogActionButton("Forget from catalog", onForget)
             }
         },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
+}
+
+@Composable
+private fun DialogActionButton(
+    label: String,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        )
+    }
+}
+
+@Composable
+private fun ReassignActionDialog(
+    slot: Int,
+    currentAction: DeckAction?,
+    actions: List<DeckAction>,
+    onDismiss: () -> Unit,
+    onAssign: (DeckAction) -> Unit,
+    onForget: (DeckAction) -> Unit,
+) {
+    var query by rememberSaveable { mutableStateOf("") }
+    val filtered = remember(actions, query) {
+        val needle = query.trim()
+        actions
+            .filter { action ->
+                needle.isBlank() ||
+                    action.label.contains(needle, ignoreCase = true) ||
+                    action.description.contains(needle, ignoreCase = true) ||
+                    action.id.contains(needle, ignoreCase = true)
+            }
+            .take(30)
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Reassign slot ${slot + 1}") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                currentAction?.let {
+                    Text(
+                        "Current: ${it.label}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    label = { Text("Find button") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.heightIn(max = 360.dp),
+                ) {
+                    items(filtered, key = DeckAction::id) { action ->
+                        Surface(
+                            onClick = { onAssign(action) },
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.54f),
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            shape = MaterialTheme.shapes.medium,
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                            ) {
+                                Icon(action.deckImageVector(), contentDescription = null, modifier = Modifier.size(20.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(action.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    if (action.description.isNotBlank()) {
+                                        Text(
+                                            action.description,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.74f),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                }
+                                if (action.isCatalogForgettable()) {
+                                    TextButton(onClick = { onForget(action) }) { Text("Forget") }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
     )
 }

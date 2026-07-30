@@ -191,6 +191,25 @@ class ReactiveEngineTest {
         assertTrue(decision.controls.single().reason.contains("stale_state_downgraded"))
     }
 
+    @Test
+    fun providerFailureIsIsolatedAndReported() {
+        val safe = control(id = "reactive-safe", actionId = "safe", basePriority = 10)
+
+        val decision = DeterministicReactiveEngine(
+            providers = listOf(ThrowingReactiveProvider, FakeReactiveProvider(safe)),
+        ).controls(
+            state = state(),
+            context = ReactiveTrackpadContext(),
+            nowMillis = now,
+        )
+
+        assertEquals(listOf("safe"), decision.controls.map { it.actionId() })
+        assertEquals(
+            listOf("provider_failed:throwing:IllegalStateException"),
+            decision.contractErrors,
+        )
+    }
+
     private fun state(
         capturedAtMillis: Long = now,
         capabilities: Set<CapabilityState> = setOf(
@@ -271,4 +290,14 @@ private class FakeReactiveProvider(
         context: ReactiveTrackpadContext,
         nowMillis: Long,
     ): List<ReactiveControl> = controls.toList()
+}
+
+private object ThrowingReactiveProvider : ReactiveControlProvider {
+    override val id: String = "throwing"
+
+    override fun controls(
+        state: MacStateSnapshot,
+        context: ReactiveTrackpadContext,
+        nowMillis: Long,
+    ): List<ReactiveControl> = error("boom")
 }

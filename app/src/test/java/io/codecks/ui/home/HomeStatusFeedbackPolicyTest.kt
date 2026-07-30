@@ -27,6 +27,19 @@ class HomeStatusFeedbackPolicyTest {
     }
 
     @Test
+    fun deckForgetSuccessKeepsUndoSnackbar() {
+        val feedback = homeStatusFeedback(ActionStatus.Succeeded("deck_forget", "Forgot Love"))
+
+        assertEquals(
+            HomeStatusFeedback.Snackbar(
+                message = "Forgot Love",
+                actionLabel = "Undo",
+            ),
+            feedback,
+        )
+    }
+
+    @Test
     fun connectMacFailureKeepsSetupShortcut() {
         val feedback = homeStatusFeedback(ActionStatus.Failed("finder", CONNECT_MAC_FIRST_MESSAGE))
 

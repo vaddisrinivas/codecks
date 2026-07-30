@@ -1,0 +1,15 @@
+appId: app.codecks.debug
+name: Keyboard controls stay reachable
+---
+- launchApp:
+    clearState: true
+- tapOn: "Keyboard"
+- scrollUntilVisible:
+    element:
+      text: "Delivery"
+    direction: DOWN
+- assertVisible: "Auto"
+- assertVisible: "Bluetooth"
+- assertVisible: "Pasteboard"
+- assertVisible: "Enter"
+- assertVisible: "⌘ Enter"

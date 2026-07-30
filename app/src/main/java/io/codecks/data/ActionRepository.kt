@@ -12,6 +12,7 @@ import io.codecks.domain.CommandOrigin
 import io.codecks.domain.CommandReview
 import io.codecks.domain.DeckAction
 import io.codecks.domain.ExecutionAuthorization
+import io.codecks.domain.ai.MacVisualEffectCatalog
 import io.codecks.domain.deck.DeckLayout
 import io.codecks.domain.deck.DeckSlot
 import io.codecks.domain.deck.DeckTemplate
@@ -452,7 +453,7 @@ class ActionCatalog @Inject constructor(
                 val item = array.getJSONObject(index)
                 val id = item.getString("id")
                 val label = item.getString("label")
-                val curtainCommand = macCurtainCommandFor(id, label)
+                val curtainCommand = MacVisualEffectCatalog.commandForBuiltIn(id, label)
                 add(
                     DeckAction(
                         id = id,
