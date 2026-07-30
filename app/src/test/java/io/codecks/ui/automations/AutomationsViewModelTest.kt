@@ -10,6 +10,8 @@ import io.codecks.data.ConnectionRepository
 import io.codecks.data.automation.AutomationRepository
 import io.codecks.domain.CommandOrigin
 import io.codecks.domain.CommandReview
+import io.codecks.domain.automation.AutomationLiveTestReceipt
+import io.codecks.domain.automation.AutomationPreflightReceipt
 import io.codecks.domain.ai.ActionDefinition
 import io.codecks.domain.ai.ActionStep
 import io.codecks.domain.ai.ActionStepTypes
@@ -104,7 +106,7 @@ class AutomationsViewModelTest {
     }
 
     @Test
-    fun testRecipe_dryRunsWithoutExecutingActions() = runTest(dispatcher) {
+    fun validateRecipe_onlyValidatesLocally() = runTest(dispatcher) {
         val previousRun = AutomationRunSummary(
             status = ActionResultStatus.Failed,
             message = "Previous real run failed",
@@ -127,19 +129,18 @@ class AutomationsViewModelTest {
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), runner, FakeTriggerEngine())
         runCurrent()
 
-        viewModel.test("focus")
+        viewModel.validate("focus")
         runCurrent()
 
         assertEquals(emptyList<String>(), runner.ranIds)
         assertEquals(emptyList<ActionResult>(), repository.recordedResults)
         assertEquals(previousRun, repository.recipes.value.single { it.id == "focus" }.lastRun)
         assertEquals(listOf(previousRun), repository.recipes.value.single { it.id == "focus" }.runHistory)
-        assertTrue(viewModel.uiState.value.message.orEmpty().startsWith("Test:"))
-        assertTrue(viewModel.uiState.value.message.orEmpty().contains("No Mac command ran"))
+        assertTrue(viewModel.uiState.value.message.orEmpty().startsWith("Validate:"))
     }
 
     @Test
-    fun enableRequiresPassingValidationForCurrentRevision() = runTest(dispatcher) {
+    fun enableRequiresValidatePreflightAndLiveTest() = runTest(dispatcher) {
         val repository = FakeAutomationRepository(
             listOf(
                 AutomationRecipe(
@@ -158,13 +159,48 @@ class AutomationsViewModelTest {
         runCurrent()
         assertFalse(repository.recipes.value.single().enabled)
 
-        viewModel.test("focus")
+        viewModel.validate("focus")
+        runCurrent()
+        viewModel.preflight("focus")
+        runCurrent()
+        viewModel.liveTest("focus")
         runCurrent()
         viewModel.toggle("focus", true)
         runCurrent()
 
         assertTrue(repository.recipes.value.single().enabled)
-        assertTrue(viewModel.uiState.value.automations.single().lastTestSucceeded == true)
+        assertTrue(viewModel.uiState.value.automations.single().lastLiveTestSucceeded == true)
+    }
+
+    @Test
+    fun preflightAndLiveTestBlockEnableUntilExecuted() = runTest(dispatcher) {
+        val repository = FakeAutomationRepository()
+        val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
+        runCurrent()
+
+        viewModel.toggle("focus", true)
+        runCurrent()
+        assertFalse(repository.recipes.value.single().enabled)
+
+        viewModel.validate("focus")
+        runCurrent()
+        viewModel.toggle("focus", true)
+        runCurrent()
+        assertFalse(repository.recipes.value.single().enabled)
+
+        viewModel.preflight("focus")
+        runCurrent()
+        viewModel.toggle("focus", true)
+        runCurrent()
+        assertFalse(repository.recipes.value.single().enabled)
+
+        viewModel.liveTest("focus")
+        runCurrent()
+        viewModel.toggle("focus", true)
+        runCurrent()
+
+        assertTrue(repository.recipes.value.single().enabled)
+        assertTrue(viewModel.uiState.value.automations.single().canEnable)
     }
 
     @Test
@@ -179,9 +215,11 @@ class AutomationsViewModelTest {
         val repository = FakeAutomationRepository(listOf(original))
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
         runCurrent()
-        viewModel.test("focus")
+        viewModel.validate("focus")
         runCurrent()
         assertTrue(viewModel.uiState.value.automations.single().canEnable)
+        assertEquals(null, repository.recipes.value.single().lastPreflight)
+        assertEquals(null, repository.recipes.value.single().lastLiveTest)
 
         viewModel.edit(
             AutomationDraftInput(
@@ -507,7 +545,7 @@ class AutomationsViewModelTest {
         val repository = FakeAutomationRepository(listOf(original))
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
         runCurrent()
-        viewModel.test("focus")
+        viewModel.validate("focus")
         runCurrent()
         assertTrue(repository.recipes.value.single().hasCurrentSuccessfulTest())
 
@@ -545,7 +583,13 @@ private class FakeAutomationRepository(
     override suspend fun save(recipe: AutomationRecipe) {
         val previous = recipes.value.firstOrNull { it.id == recipe.id }
         val saved = if (previous != null && previous.revisionFingerprint() != recipe.revisionFingerprint()) {
-            recipe.copy(lastTest = null, lastTestRevision = null, pendingApproval = null)
+            recipe.copy(
+                lastTest = null,
+                lastTestRevision = null,
+                lastPreflight = null,
+                lastLiveTest = null,
+                pendingApproval = null,
+            )
         } else {
             recipe
         }
@@ -584,6 +628,16 @@ private class FakeAutomationRepository(
         )
         recipes.value = recipes.value.map { recipe ->
             if (recipe.id == recipeId) recipe.copy(lastTest = summary, lastTestRevision = revision) else recipe
+        }
+    }
+    override suspend fun recordPreflight(recipeId: String, receipt: AutomationPreflightReceipt) {
+        recipes.value = recipes.value.map { recipe ->
+            if (recipe.id == recipeId) recipe.copy(lastPreflight = receipt) else recipe
+        }
+    }
+    override suspend fun recordLiveTest(recipeId: String, receipt: AutomationLiveTestReceipt) {
+        recipes.value = recipes.value.map { recipe ->
+            if (recipe.id == recipeId) recipe.copy(lastLiveTest = receipt) else recipe
         }
     }
     override suspend fun clearPendingApproval(recipeId: String) {

@@ -22,6 +22,7 @@ import io.codecks.domain.automation.AutomationRecipe
 import io.codecks.domain.automation.AutomationRunSummary
 import io.codecks.domain.automation.AutomationSafety
 import io.codecks.domain.automation.AutomationTrigger
+import io.codecks.domain.smart.SmartCapability
 import io.codecks.domain.automation.revisionFingerprint
 import io.codecks.domain.device.DeviceGroupId
 import io.codecks.domain.device.DeviceId
@@ -36,7 +37,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 private val Context.automationDataStore by preferencesDataStore(name = "automations")
-private const val RECIPES_SCHEMA_VERSION = 3
+private const val RECIPES_SCHEMA_VERSION = 4
 private const val TAG = "AutomationStorage"
 
 interface AutomationRepository {
@@ -46,6 +47,8 @@ interface AutomationRepository {
     suspend fun duplicate(recipeId: String)
     suspend fun recordRun(recipeId: String, result: ActionResult)
     suspend fun recordTest(recipeId: String, result: ActionResult, revision: String) = Unit
+    suspend fun recordPreflight(recipeId: String, receipt: AutomationPreflightReceipt) = Unit
+    suspend fun recordLiveTest(recipeId: String, receipt: AutomationLiveTestReceipt) = Unit
     suspend fun clearPendingApproval(recipeId: String) = Unit
     suspend fun exportRecipes(): Result<String>
     suspend fun validateRecipes(payload: String): Result<Unit>
@@ -78,7 +81,13 @@ class DefaultAutomationRepository @Inject constructor(
             val existing = recipes.indexOfFirst { it.id == recipe.id }
             val previous = recipes.getOrNull(existing)
             val safeRecipe = if (previous != null && previous.revisionFingerprint() != recipe.revisionFingerprint()) {
-                recipe.copy(lastTest = null, lastTestRevision = null, pendingApproval = null)
+                recipe.copy(
+                    lastTest = null,
+                    lastTestRevision = null,
+                    lastPreflight = null,
+                    lastLiveTest = null,
+                    pendingApproval = null,
+                )
             } else {
                 recipe
             }
@@ -100,6 +109,8 @@ class DefaultAutomationRepository @Inject constructor(
                 runHistory = emptyList(),
                 lastTest = null,
                 lastTestRevision = null,
+                lastPreflight = null,
+                lastLiveTest = null,
                 pendingApproval = null,
             )
         }
@@ -140,6 +151,30 @@ class DefaultAutomationRepository @Inject constructor(
                         ),
                         lastTestRevision = revision,
                     )
+                } else {
+                    recipe
+                }
+            }
+        }
+    }
+
+    override suspend fun recordPreflight(recipeId: String, receipt: AutomationPreflightReceipt) {
+        mutate { recipes ->
+            recipes.map { recipe ->
+                if (recipe.id == recipeId) {
+                    recipe.copy(lastPreflight = receipt)
+                } else {
+                    recipe
+                }
+            }
+        }
+    }
+
+    override suspend fun recordLiveTest(recipeId: String, receipt: AutomationLiveTestReceipt) {
+        mutate { recipes ->
+            recipes.map { recipe ->
+                if (recipe.id == recipeId) {
+                    recipe.copy(lastLiveTest = receipt)
                 } else {
                     recipe
                 }
@@ -225,6 +260,8 @@ class DefaultAutomationRepository @Inject constructor(
                     recipe.lastRun?.let { run -> put("lastRun", run.toJson()) }
                     recipe.lastTest?.let { test -> put("lastTest", test.toJson()) }
                     recipe.lastTestRevision?.let { revision -> put("lastTestRevision", revision) }
+                    recipe.lastPreflight?.let { preflight -> put("lastPreflight", preflight.toJson()) }
+                    recipe.lastLiveTest?.let { receipt -> put("lastLiveTest", receipt.toJson()) }
                     recipe.pendingApproval?.let { approval -> put("pendingApproval", approval.toJson()) }
                     put("runHistory", JSONArray().apply {
                         recipe.runHistory.forEach { run ->
@@ -267,6 +304,8 @@ class DefaultAutomationRepository @Inject constructor(
                         },
                         lastTest = item.optJSONObject("lastTest")?.toAutomationRunSummary(),
                         lastTestRevision = item.optString("lastTestRevision").takeIf(String::isNotBlank),
+                        lastPreflight = item.optJSONObject("lastPreflight")?.toAutomationPreflightReceipt(),
+                        lastLiveTest = item.optJSONObject("lastLiveTest")?.toAutomationLiveTestReceipt(),
                         pendingApproval = item.optJSONObject("pendingApproval")?.toAutomationRunSummary(),
                         runHistory = item.optJSONArray("runHistory")?.let { history ->
                             buildList<AutomationRunSummary> {
@@ -450,6 +489,139 @@ private fun JSONObject.putCommonTrust(spec: ActionSpec) {
 private fun CommandReview.toJson(): JSONObject = JSONObject().apply {
     put("reviewedRevision", reviewedRevision)
     put("checkedRevision", checkedRevision)
+}
+
+private fun AutomationPreflightReceipt.toJson(): JSONObject = JSONObject().apply {
+    put("recipeRevision", recipeRevision)
+    put("checkedAtMillis", checkedAtMillis)
+    put("macIdentity", macIdentity)
+    put("targetId", targetId)
+    put("requiredCapabilities", JSONArray().apply {
+        requiredCapabilities.forEach { put(it.name) }
+    })
+    put("commandTools", JSONArray().apply {
+        commandTools.forEach { put(it) }
+    })
+    put("commandPaths", JSONArray().apply {
+        commandPaths.forEach { put(it) }
+    })
+    put("permissionSnapshot", JSONArray().apply {
+        permissionSnapshot.forEach { put(it) }
+    })
+    put("checks", JSONArray().apply {
+        checks.forEach { check ->
+            put(
+                JSONObject().apply {
+                    put("area", check.area.name)
+                    put("passed", check.passed)
+                    put("message", check.message)
+                },
+            )
+        }
+    })
+}
+
+private fun JSONObject.toAutomationPreflightReceipt(): AutomationPreflightReceipt? {
+    val preflight = this
+    return AutomationPreflightReceipt(
+        recipeRevision = preflight.optString("recipeRevision").ifBlank { return null },
+        checkedAtMillis = preflight.optLong("checkedAtMillis", 0L),
+        macIdentity = preflight.optString("macIdentity").ifBlank { return null },
+        targetId = preflight.optString("targetId").ifBlank { "current" },
+        requiredCapabilities = preflight.optJSONArray("requiredCapabilities")?.toSmartCapabilities().orEmpty(),
+        checks = preflight.optJSONArray("checks")?.toPreflightChecks().orEmpty(),
+        commandTools = preflight.optJSONArray("commandTools")?.toStringSet().orEmpty(),
+        commandPaths = preflight.optJSONArray("commandPaths")?.toStringSet().orEmpty(),
+        permissionSnapshot = preflight.optJSONArray("permissionSnapshot")?.toStringSet().orEmpty(),
+    )
+}
+
+private fun JSONObject.toAutomationLiveTestReceipt(): AutomationLiveTestReceipt? {
+    return AutomationLiveTestReceipt(
+        recipeRevision = optString("recipeRevision").ifBlank { return null },
+        checkedAtMillis = optLong("checkedAtMillis", 0L),
+        preflightCheckedAtMillis = optLong("preflightCheckedAtMillis", 0L),
+        assertions = optJSONArray("assertions")?.toLiveTestAssertions().orEmpty(),
+        cleanup = optJSONObject("cleanup")?.toAutomationLiveTestCleanup() ?: return null,
+        macIdentity = optString("macIdentity").ifBlank { return null },
+    )
+}
+
+private fun AutomationLiveTestReceipt.toJson(): JSONObject = JSONObject().apply {
+    put("recipeRevision", recipeRevision)
+    put("checkedAtMillis", checkedAtMillis)
+    put("preflightCheckedAtMillis", preflightCheckedAtMillis)
+    put("macIdentity", macIdentity)
+    put("assertions", JSONArray().apply {
+        assertions.forEach { assertion ->
+            put(
+                JSONObject().apply {
+                    put("stepId", assertion.stepId)
+                    put("stepTitle", assertion.stepTitle)
+                    put("passed", assertion.passed)
+                    put("message", assertion.message)
+                },
+            )
+        }
+    })
+    put("cleanup", cleanup.toJson())
+}
+
+private fun AutomationLiveTestCleanup.toJson(): JSONObject = JSONObject().apply {
+    put("command", command)
+    put("passed", passed)
+    put("message", message)
+}
+
+private fun JSONObject.toAutomationLiveTestCleanup(): AutomationLiveTestCleanup? {
+    return AutomationLiveTestCleanup(
+        command = optString("command").ifBlank { return null },
+        passed = optBoolean("passed", false),
+        message = optString("message").ifBlank { "Unknown cleanup status" },
+    )
+}
+
+private fun JSONArray.toStringSet(): Set<String> = buildSet {
+    repeat(length()) { index ->
+        val value = optString(index).ifBlank { return@repeat }
+        add(value)
+    }
+}
+
+private fun JSONArray.toSmartCapabilities(): Set<SmartCapability> = buildSet {
+    repeat(length()) { index ->
+        optString(index)
+            .let(runCatching(SmartCapability::valueOf)::getOrNull)
+            ?.let(::add)
+    }
+}
+
+private fun JSONArray.toPreflightChecks(): List<AutomationPreflightCheck> = buildList {
+    repeat(length()) { index ->
+        val item = getJSONObject(index)
+        add(
+            AutomationPreflightCheck(
+                area = item.optString("area").let(runCatching(AutomationPreflightArea::valueOf)::getOrNull)
+                    ?: AutomationPreflightArea.Identity,
+                passed = item.optBoolean("passed", false),
+                message = item.optString("message").ifBlank { "check failed" },
+            ),
+        )
+    }
+}
+
+private fun JSONArray.toLiveTestAssertions(): List<AutomationLiveTestAssertion> = buildList {
+    repeat(length()) { index ->
+        val item = getJSONObject(index)
+        add(
+            AutomationLiveTestAssertion(
+                stepId = item.optString("stepId").ifBlank { "step-${index}" },
+                stepTitle = item.optString("stepTitle").ifBlank { "Step ${index + 1}" },
+                passed = item.optBoolean("passed", false),
+                message = item.optString("message").ifBlank { "No assertion" },
+            ),
+        )
+    }
 }
 
 private fun JSONObject?.toCommandReview(): CommandReview {

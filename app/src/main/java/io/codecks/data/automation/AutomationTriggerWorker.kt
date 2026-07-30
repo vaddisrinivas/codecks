@@ -59,12 +59,21 @@ class AutomationTriggerWorker(
             val connectionReady = deps.connectionRepository().config.first().isReady
             if (!connectionReady) return Result.success()
 
+            val macConfig = deps.connectionRepository().config.first()
+            val macIdentity = listOf(macConfig.host, macConfig.user, macConfig.port.toString(), macConfig.hostKey)
+                .joinToString("|")
+
             val recipes = deps.automationRepository().recipes.first()
             val due = deps.triggerEngine().evaluate(recipes).dueRecipes
             due.forEach { recipe ->
                 deps.automationRepository().recordRun(
                     recipe.id,
-                    runRecipe(recipe, deps.actionRunner()),
+                    runRecipe(
+                        recipe,
+                        deps.actionRunner(),
+                        macIdentity,
+                        System.currentTimeMillis(),
+                    ),
                 )
             }
             Result.success()
@@ -73,8 +82,13 @@ class AutomationTriggerWorker(
         }
     }
 
-    private suspend fun runRecipe(recipe: AutomationRecipe, actionRunner: ActionRunner): ActionResult {
-        automaticRunBlocker(recipe)?.let { return it }
+    private suspend fun runRecipe(
+        recipe: AutomationRecipe,
+        actionRunner: ActionRunner,
+        macIdentity: String,
+        nowMillis: Long,
+    ): ActionResult {
+        automaticRunBlocker(recipe, macIdentity, nowMillis)?.let { return it }
         if (recipe.safety.requiresConfirmation || recipe.steps.any { it.dangerous }) {
             return ActionResult(
                 actionId = recipe.id,
@@ -134,15 +148,19 @@ class AutomationTriggerWorker(
  * Background-triggered rules may only run after their exact current revision has passed the
  * explicit test flow. This also keeps rules persisted by older app versions fail-closed.
  */
-internal fun automaticRunBlocker(recipe: AutomationRecipe): ActionResult? =
-    if (recipe.hasCurrentSuccessfulTest()) {
+internal fun automaticRunBlocker(recipe: AutomationRecipe, macIdentity: String, nowMillis: Long): ActionResult? =
+    if (recipe.hasCurrentValidLiveTest(
+        nowMillis = nowMillis,
+        requiredMacIdentity = macIdentity,
+        requiredPermissions = recipe.requiredPermissions(),
+    )) {
         null
     } else {
         ActionResult(
             actionId = recipe.id,
             title = recipe.title,
             status = ActionResultStatus.RequiresReview,
-            message = "Trigger matched, but ${recipe.title} needs a successful test for its current revision",
+            message = "Trigger matched, but ${recipe.title} needs a recent approved live test for this revision",
         )
     }
 

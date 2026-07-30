@@ -10,6 +10,7 @@ import io.codecks.domain.automation.AutomationTriggerEvaluation
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.Duration
+import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
 import javax.inject.Inject
@@ -38,14 +39,23 @@ class DefaultAutomationTriggerEngine internal constructor(
     )
 
     override suspend fun evaluate(recipes: List<AutomationRecipe>): AutomationTriggerEvaluation {
+        val checkedAt = nowProvider()
         val enabledTriggeredRecipes = recipes.filter { it.enabled && it.trigger !is AutomationTrigger.Manual }
         val due = mutableListOf<AutomationRecipe>()
+        val reasonByRecipeId = mutableMapOf<String, String>()
         enabledTriggeredRecipes.forEach { recipe ->
-            if (isDue(recipe)) due += recipe
+            val result = isDue(recipe)
+            reasonByRecipeId[recipe.id] = result.reason
+            if (result.due) due += recipe
         }
+        val nowMillis = checkedAt.toEpochMillis()
         return AutomationTriggerEvaluation(
             dueRecipes = due,
             checkedCount = enabledTriggeredRecipes.size,
+            checkedAtMillis = nowMillis,
+            nextWindowStartAtMillis = nowMillis + TIME_TRIGGER_GRACE_MINUTES * 60_000 / 2,
+            nextWindowEndAtMillis = nowMillis + (6 * 60 * 60 * 1000L),
+            reasonByRecipeId = reasonByRecipeId,
             message = when {
                 enabledTriggeredRecipes.isEmpty() -> "No enabled scheduled rules"
                 due.isEmpty() -> "Checked ${enabledTriggeredRecipes.size} triggers"
@@ -54,38 +64,82 @@ class DefaultAutomationTriggerEngine internal constructor(
         )
     }
 
-    private suspend fun isDue(recipe: AutomationRecipe): Boolean {
+    private data class DueResult(
+        val due: Boolean,
+        val reason: String,
+    )
+
+    private suspend fun isDue(recipe: AutomationRecipe): DueResult {
         val trigger = recipe.trigger
         return when (trigger) {
             AutomationTrigger.Manual,
-            is AutomationTrigger.AiSuggested -> false
-            is AutomationTrigger.TimeOfDay -> timeDue(recipe, trigger)
+            is AutomationTrigger.AiSuggested -> DueResult(
+                due = false,
+                reason = "Manual/AI trigger not supported in background checks",
+            )
+            is AutomationTrigger.TimeOfDay -> {
+                val due = timeDue(recipe, trigger)
+                DueResult(
+                    due = due,
+                    reason = if (due) "Time-of-day trigger fired" else "Time-of-day trigger did not match schedule",
+                )
+            }
             is AutomationTrigger.ActiveApp -> macTextDue(
                 recipe = recipe,
                 command = ACTIVE_APP_COMMAND,
                 expected = trigger.appName,
-            )
+            ).run {
+                DueResult(
+                    due = this,
+                    reason = if (this) "Active app changed" else "Active app did not match ${trigger.appName}",
+                )
+            }
             is AutomationTrigger.ClipboardContains -> macTextDue(
                 recipe = recipe,
                 command = CLIPBOARD_COMMAND,
                 expected = trigger.text,
-            )
+            ).run {
+                DueResult(
+                    due = this,
+                    reason = if (this) "Clipboard now matches ${trigger.text}" else "Clipboard did not match",
+                )
+            }
             is AutomationTrigger.WifiSsid -> macTextDue(
                 recipe = recipe,
                 command = WIFI_COMMAND,
                 expected = trigger.ssid,
-            )
+            ).run {
+                DueResult(
+                    due = this,
+                    reason = if (this) "Wi-Fi changed to ${trigger.ssid}" else "Wi-Fi did not match ${trigger.ssid}",
+                )
+            }
             AutomationTrigger.MacAwake -> macFingerprintDue(
                 recipe = recipe,
                 command = BOOT_FINGERPRINT_COMMAND,
                 allowInitialFire = false,
-            )
+            ).run {
+                DueResult(
+                    due = this,
+                    reason = if (this) "Mac wake event observed" else "No new wake event",
+                )
+            }
             is AutomationTrigger.FileChanged -> macFingerprintDue(
                 recipe = recipe,
                 command = "if [ -e ${trigger.path.toShellPath()} ]; then stat -f %m ${trigger.path.toShellPath()}; fi",
                 allowInitialFire = false,
-            )
-            is AutomationTrigger.BatteryBelow -> batteryDue(recipe, trigger.percent)
+            ).run {
+                DueResult(
+                    due = this,
+                    reason = if (this) "Path changed: ${trigger.path}" else "No file-system change for ${trigger.path}",
+                )
+            }
+            is AutomationTrigger.BatteryBelow -> batteryDue(recipe, trigger.percent).run {
+                DueResult(
+                    due = this,
+                    reason = if (this) "Battery below ${trigger.percent}%" else "Battery above ${trigger.percent}%",
+                )
+            }
         }
     }
 
@@ -192,3 +246,5 @@ private fun String.toShellPath(): String =
         startsWith("~/") -> "\"\$HOME/${drop(2).replace("\"", "\\\"")}\""
         else -> "'${replace("'", "'\"'\"'")}'"
     }
+
+private fun LocalDateTime.toEpochMillis(): Long = atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()

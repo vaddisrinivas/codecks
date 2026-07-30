@@ -72,7 +72,9 @@ fun AutomationsScreen(
     connectionHealth: ConnectionHealth = simpleConnectionHealth(state.connectionReady),
     contentPadding: PaddingValues,
     onRunAutomation: (String) -> Unit,
-    onTestAutomation: (String) -> Unit = {},
+    onValidateAutomation: (String) -> Unit = {},
+    onPreflightAutomation: (String) -> Unit = {},
+    onLiveTestAutomation: (String) -> Unit = {},
     onApproveAutomation: (String) -> Unit = {},
     onToggleAutomation: (String, Boolean) -> Unit = { _, _ -> },
     onDuplicateAutomation: (String) -> Unit = {},
@@ -115,6 +117,9 @@ fun AutomationsScreen(
                 enabledCount = state.automations.count { it.enabled },
                 triggerCount = state.automations.map { it.triggerLabel }.distinct().size,
                 triggerMonitorLabel = state.triggerMonitorLabel,
+                lastTriggerCheckedAtMillis = state.lastTriggerCheckedAtMillis,
+                nextWindowStartAtMillis = state.nextWindowStartAtMillis,
+                nextWindowEndAtMillis = state.nextWindowEndAtMillis,
                 visibleCount = visibleItems.size,
                 onCheckTriggers = onCheckTriggers,
                 onCreate = { createOpen = true },
@@ -145,6 +150,9 @@ fun AutomationsScreen(
                             connectionReady = state.connectionReady,
                             connectionHealth = connectionHealth,
                             onRun = { onRunAutomation(item.id) },
+                            onValidate = { onValidateAutomation(item.id) },
+                            onPreflight = { onPreflightAutomation(item.id) },
+                            onLiveTest = { onLiveTestAutomation(item.id) },
                             onOptions = { optionsItem = item },
                         )
                     }
@@ -162,6 +170,9 @@ fun AutomationsScreen(
                             connectionReady = state.connectionReady,
                             connectionHealth = connectionHealth,
                             onRun = { onRunAutomation(item.id) },
+                            onValidate = { onValidateAutomation(item.id) },
+                            onPreflight = { onPreflightAutomation(item.id) },
+                            onLiveTest = { onLiveTestAutomation(item.id) },
                             onOptions = { optionsItem = item },
                         )
                     }
@@ -173,9 +184,17 @@ fun AutomationsScreen(
         AutomationOptionsDialog(
             item = item,
             onDismiss = { optionsItem = null },
-            onTest = {
+            onValidate = {
                 optionsItem = null
-                onTestAutomation(item.id)
+                onValidateAutomation(item.id)
+            },
+            onPreflight = {
+                optionsItem = null
+                onPreflightAutomation(item.id)
+            },
+            onLiveTest = {
+                optionsItem = null
+                onLiveTestAutomation(item.id)
             },
             onDuplicate = {
                 optionsItem = null
@@ -209,6 +228,7 @@ fun AutomationsScreen(
             initial = item.toDraftInput(),
             lastTestPreview = item.lastTestLabel,
             lastTestSucceeded = item.lastTestSucceeded,
+            canEnable = item.canEnable,
             onDismiss = { editItem = null },
             onSave = { input ->
                 editItem = null
@@ -243,6 +263,9 @@ private fun AutomationHeader(
     enabledCount: Int,
     triggerCount: Int,
     triggerMonitorLabel: String,
+    lastTriggerCheckedAtMillis: Long,
+    nextWindowStartAtMillis: Long,
+    nextWindowEndAtMillis: Long,
     visibleCount: Int,
     onCheckTriggers: () -> Unit,
     onCreate: () -> Unit,
@@ -261,6 +284,22 @@ private fun AutomationHeader(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth(),
         )
+        if (lastTriggerCheckedAtMillis > 0L) {
+            Text(
+                text = "Last evaluation: ${formatAutomationTime(lastTriggerCheckedAtMillis)}",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+            )
+        }
+        if (nextWindowStartAtMillis > 0L && nextWindowEndAtMillis > 0L) {
+            Text(
+                text = "Next window: ${formatAutomationTime(nextWindowStartAtMillis)} to ${formatAutomationTime(nextWindowEndAtMillis)}",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+            )
+        }
         DeckActionButton(
             label = "New rule",
             onClick = onCreate,
@@ -306,6 +345,7 @@ private fun CreateAutomationDialog(
     ),
     lastTestPreview: String? = null,
     lastTestSucceeded: Boolean? = null,
+    canEnable: Boolean = false,
     onDismiss: () -> Unit,
     onSave: (AutomationDraftInput) -> Unit,
 ) {
@@ -315,12 +355,13 @@ private fun CreateAutomationDialog(
     var triggerType by remember(initial.recipeId) { mutableStateOf(initial.triggerType) }
     var enabled by remember(initial.recipeId) { mutableStateOf(initial.enabled) }
     var weekdays by remember(initial.recipeId) { mutableStateOf(initial.weekdays) }
-    val canEnable = initial.recipeId != null && lastTestSucceeded == true
+    val canEnableNow = initial.recipeId != null && canEnable
     val enableHelp = when {
-        initial.recipeId == null -> "Save disabled, test it from options, then enable."
-        lastTestSucceeded == true -> "Last test passed. Safe to enable."
-        lastTestSucceeded == false -> "Last test failed. Fix command, test again, then enable."
-        else -> "No test result yet. Run Test before enabling."
+        initial.recipeId == null -> "Save disabled. Validate + preflight + live test first."
+        canEnableNow -> "Validation + preflight + live test passed. Safe to enable."
+        lastTestSucceeded == true -> "Validation passed. Run preflight and live test before enabling."
+        lastTestSucceeded == false -> "Validation failed. Fix command, validate again, then continue."
+        else -> "Needs Validate + Preflight + Live test before enabling."
     }
 
     AlertDialog(
@@ -414,11 +455,12 @@ private fun CreateAutomationDialog(
                 }
                 AutomationSectionHeader(
                     label = "If",
-                    help = "Keep drafts disabled until you test them; dangerous commands still require confirmation.",
+                    help = "Keep drafts disabled until validation + preflight + live test pass.",
                 )
                 TestPreviewCard(
                     preview = lastTestPreview,
                     succeeded = lastTestSucceeded,
+                    stage = "Validation",
                     help = enableHelp,
                 )
                 Row(
@@ -426,18 +468,18 @@ private fun CreateAutomationDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Enabled", style = MaterialTheme.typography.bodyLarge)
+                        Text("Enabled", style = MaterialTheme.typography.bodyLarge)
                     Switch(
                         checked = enabled,
                         onCheckedChange = { checked ->
-                            enabled = checked && canEnable
+                            enabled = checked && canEnableNow
                         },
-                        enabled = canEnable || enabled,
+                        enabled = canEnableNow || enabled,
                     )
                 }
                 AutomationSectionHeader(
                     label = "Then",
-                    help = "Use a safe template or write a reviewed Mac command. Test before enabling.",
+                    help = "Use a safe template or write a reviewed Mac command. Validation is local and never executes commands.",
                 )
                 androidx.compose.foundation.lazy.LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -493,6 +535,7 @@ private fun CreateAutomationDialog(
 private fun TestPreviewCard(
     preview: String?,
     succeeded: Boolean?,
+    stage: String = "Validation",
     help: String,
 ) {
     val danger = succeeded == false
@@ -507,9 +550,9 @@ private fun TestPreviewCard(
         ) {
             Text(
                 text = when (succeeded) {
-                    true -> "Test passed"
-                    false -> "Test failed"
-                    null -> "Test required"
+                    true -> "$stage passed"
+                    false -> "$stage failed"
+                    null -> "$stage required"
                 },
                 style = MaterialTheme.typography.labelLarge,
                 color = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
@@ -588,6 +631,9 @@ private fun AutomationRow(
     connectionReady: Boolean,
     connectionHealth: ConnectionHealth,
     onRun: () -> Unit,
+    onValidate: () -> Unit,
+    onPreflight: () -> Unit,
+    onLiveTest: () -> Unit,
     onOptions: () -> Unit,
 ) {
     val controlsReady = connectionReady && connectionHealth.isReady
@@ -595,14 +641,18 @@ private fun AutomationRow(
     val status = automationStatus(item, running, connectionHealth)
     val ifLine = when {
         !controlsReady -> "Needs Mac connection before it can run"
-        item.lastTestSucceeded == true -> "Test passed"
-        item.lastTestSucceeded == false -> "Test failed; fix before enabling"
-        item.canEnable -> "Approved and ready"
-        item.enabled -> "Enabled; test again when changed"
-        else -> "Paused until checked"
+        item.lastLiveTestSucceeded == true -> "Ready for background execution"
+        item.lastPreflightSucceeded == false -> "Preflight failed; rerun preflight"
+        item.lastPreflightSucceeded == true -> "Preflight passed; run live test"
+        item.lastTestSucceeded == true -> "Validation passed; preflight and live test required"
+        item.lastTestSucceeded == false -> "Validation failed; fix before enabling"
+        item.canEnable -> "Ready to enable once action is scheduled"
+        item.enabled -> "Enabled; requires latest receipts"
+        else -> "Paused until validated and tested"
     }
+    val selected = running || item.lastLiveTestSucceeded == true
     CodecksPanel(
-        selected = running || item.lastTestSucceeded == true,
+        selected = selected,
         danger = item.dangerous || item.lastRunSucceeded == false || item.lastTestSucceeded == false,
         modifier = Modifier
             .fillMaxWidth()
@@ -637,7 +687,7 @@ private fun AutomationRow(
                     )
                 }
                 AutomationStatusPill(status)
-                if (running) {
+            if (running) {
                     CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 2.5.dp)
                 } else {
                     IconButton(onClick = onRun, enabled = enabled) {
@@ -655,6 +705,9 @@ private fun AutomationRow(
             AutomationRuleLine("WHEN", item.triggerLabel)
             AutomationRuleLine("IF", ifLine, failed = item.lastTestSucceeded == false)
             AutomationRuleLine("THEN", item.draftCommand.ifBlank { item.description })
+            item.triggerSimulationReason?.let {
+                AutomationRuleLine("SIM", it, compact = true)
+            }
             item.lastRunLabel?.let { label ->
                 AutomationRuleLine("LAST", label, failed = item.lastRunSucceeded == false, compact = true)
             }
@@ -749,7 +802,9 @@ private fun AutomationStatusPill(status: AutomationStatus) {
 private fun AutomationOptionsDialog(
     item: AutomationItem,
     onDismiss: () -> Unit,
-    onTest: () -> Unit,
+    onValidate: () -> Unit,
+    onPreflight: () -> Unit,
+    onLiveTest: () -> Unit,
     onEdit: () -> Unit,
     onHistory: () -> Unit,
     onDuplicate: () -> Unit,
@@ -785,7 +840,7 @@ private fun AutomationOptionsDialog(
                 }
                 if (!canEnable) {
                     Text(
-                        "Test first. Enable unlocks after a passing result for this exact rule.",
+                        "Validate + preflight + live test are required before enabling this exact revision.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -794,10 +849,35 @@ private fun AutomationOptionsDialog(
                     TestPreviewCard(
                         preview = it,
                         succeeded = item.lastTestSucceeded,
+                        stage = "Validation",
                         help = if (item.lastTestSucceeded == true) {
-                            "Ready to enable."
+                            "Local validation passed."
                         } else {
-                            "Fix and test again before enabling."
+                            "Run validation to verify this rule."
+                        },
+                    )
+                }
+                item.lastPreflightLabel?.let {
+                    TestPreviewCard(
+                        preview = it,
+                        succeeded = item.lastPreflightSucceeded,
+                        stage = "Preflight",
+                        help = if (item.lastPreflightSucceeded == true) {
+                            "Mac preflight passed."
+                        } else {
+                            "Run preflight to refresh capability checks."
+                        },
+                    )
+                }
+                item.lastLiveTestLabel?.let {
+                    TestPreviewCard(
+                        preview = it,
+                        succeeded = item.lastLiveTestSucceeded,
+                        stage = "Live test",
+                        help = if (item.lastLiveTestSucceeded == true) {
+                            "Live assertions and cleanup passed."
+                        } else {
+                            "Run a bounded live test with assertions and cleanup."
                         },
                     )
                 }
@@ -824,15 +904,17 @@ private fun AutomationOptionsDialog(
                     TextButton(onClick = onHistory, modifier = Modifier.weight(1f)) { Text("History") }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    TextButton(onClick = onValidate, modifier = Modifier.weight(1f)) { Text("Validate") }
+                    TextButton(onClick = onPreflight, modifier = Modifier.weight(1f)) { Text("Preflight") }
+                    TextButton(onClick = onLiveTest, modifier = Modifier.weight(1f)) { Text("Live test") }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     TextButton(onClick = onDuplicate, modifier = Modifier.weight(1f)) { Text("Duplicate") }
                     TextButton(onClick = onDelete, modifier = Modifier.weight(1f)) { Text("Delete") }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onTest) { Text("Test") }
-        },
-        dismissButton = {
             TextButton(onClick = onDismiss) { Text("Done") }
         },
     )

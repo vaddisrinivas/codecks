@@ -24,8 +24,13 @@ data class AutomationItem(
     val lastRunSucceeded: Boolean? = null,
     val lastTestLabel: String? = null,
     val lastTestSucceeded: Boolean? = null,
+    val lastPreflightLabel: String? = null,
+    val lastPreflightSucceeded: Boolean? = null,
+    val lastLiveTestLabel: String? = null,
+    val lastLiveTestSucceeded: Boolean? = null,
     val canEnable: Boolean = false,
     val approvalPending: Boolean = false,
+    val triggerSimulationReason: String? = null,
     val runHistory: List<AutomationHistoryItem> = emptyList(),
 ) {
     val runHistoryLabels: List<String>
@@ -46,6 +51,10 @@ data class AutomationsUiState(
     val runningActionId: String? = null,
     val connectionReady: Boolean = false,
     val triggerMonitorLabel: String = "Triggers idle",
+    val lastTriggerCheckedAtMillis: Long = 0L,
+    val nextWindowStartAtMillis: Long = 0L,
+    val nextWindowEndAtMillis: Long = 0L,
+    val triggerSimulatorReasons: Map<String, String> = emptyMap(),
     val message: String? = null,
     val pendingUndo: PendingAutomationUndo? = null,
 )
