@@ -1,3 +1,57 @@
+# TODO: Product trust and daily-use closure
+
+## Frozen contracts
+
+- [x] Record artifact lifecycle and catalog/placement distinction
+- [x] Record automation Validate/Preflight/Live-test distinction
+- [x] Record clipboard platform boundary
+- [x] Partition files and release/device stop conditions
+
+## V1 Deck + AI
+
+- [ ] Remove redundant Deck pencil; retain explicit bulk customization
+- [ ] Empty slot opens catalog with contextual AI creation
+- [ ] Generated artifact persists without an empty Deck slot
+- [ ] Add slot picker with replace/other Deck/new Deck
+- [ ] Add artifact lifecycle states, revision history, real previews
+- [ ] Add focused tests and Maestro flow
+
+## V2 Clipboard
+
+- [ ] Remove Mac dependency from local refresh
+- [ ] Add terminal Send/Get receipts and actionable failures
+- [ ] Separate Manual, Visible live sync, and unavailable background read
+- [ ] Add user-driven Share/quick-action path
+- [ ] Avoid redundant app clipboard toast and mark sensitive clips
+- [ ] Add lifecycle, conflict, reconnect, and platform-restriction tests
+
+## V3 Automations
+
+- [ ] Rename current dry run to Validate
+- [ ] Add typed Mac preflight checks
+- [ ] Add explicit bounded live test with assertions and cleanup
+- [ ] Bind enablement to revision/Mac/capability/time receipt
+- [ ] Add trigger simulator and scheduling explanations
+- [ ] Add failure, invalidation, WorkManager, and real-Mac contract tests
+
+## V4 DeX + battery + regression
+
+- [ ] Fix clipped secondary-display navigation at 1280x720
+- [ ] Test resize, focus, Back, reconnect, and restore behavior
+- [ ] Profile HID 15-second keepalive before changing it
+- [ ] Record repeatable battery evidence
+- [ ] Add cross-vertical isolated-emulator Maestro flows
+
+## Integration and acceptance
+
+- [ ] Review file ownership and evidence for all verticals
+- [ ] Integrate on one branch
+- [ ] Run Android, Mac-helper, no-shrink, secret, AI, and Maestro gates
+- [ ] Run user-driven real-Mac and real Samsung DeX acceptance
+- [ ] Make a separate release decision; no worker releases or installs
+
+---
+
 # TODO: v0.1.30 preservation, bug repair, and consolidation
 
 ## Preservation

@@ -1,3 +1,261 @@
+# Active Implementation Plan: Product trust and daily-use closure
+
+Status: scheduled for parallel implementation on 2026-07-30
+
+## Outcome
+
+Make Deck creation/editing coherent, make AI artifacts durable and reusable,
+replace misleading clipboard and automation claims with verified behavior, and
+make Codecks reliable in secondary-display/DeX use without risking the installed
+`app.codecks` release.
+
+## Shared contracts frozen before parallel work
+
+- Artifact lifecycle: `Draft -> Validated -> Tested -> Catalogued -> Placed/Enabled`.
+- Saving to the catalog never requires an empty Deck slot.
+- Placing an artifact always uses an explicit slot picker with replace/new-Deck
+  choices.
+- Automation `Validate`, `Preflight`, `Live test`, and `Enable` are distinct.
+- Clipboard phone-to-Mac background reads are never promised; manual/share and
+  visible-session sync are the supported contracts.
+- No vertical may edit release versioning, signing, shrinking, GitHub release
+  workflows, or production-package device state.
+
+## Dependency graph
+
+```text
+Contract freeze
+  |-- V1 Deck + AI artifact lifecycle
+  |-- V2 Clipboard reliability + honest background behavior
+  |-- V3 Automation validation + Mac preflight/test receipts
+  `-- V4 DeX/adaptive + battery + cross-vertical regression harness
+          |
+          v
+     Integration checkpoint
+          |
+          v
+     Emulator + real-Mac acceptance
+          |
+          v
+     Separate release decision
+```
+
+## V1: Deck and AI artifact lifecycle
+
+**Ownership:** Deck/Home, Deck editor, AI workspace, artifact repository/view
+model, and focused tests. Avoid clipboard, automation execution, HID service,
+release, and CI files.
+
+### V1.1: Replace redundant editing navigation
+
+Acceptance:
+
+- Populated button long-press owns per-button management.
+- Empty-slot tap opens the catalog with search and `Create with AI`.
+- Deck overflow owns rename, layout, reset, and bulk customization.
+- The unexplained Deck-header pencil is removed.
+
+Verification:
+
+- Compose/unit tests cover long-press, empty-slot, overflow, Back, and rotation.
+- Maestro covers create, reassign, move, remove, undo, and catalog forget.
+
+### V1.2: Separate catalog persistence from placement
+
+Acceptance:
+
+- Successful generation creates a durable Draft without consuming a Deck slot.
+- UI says `Saved to catalog` or `Place on Deck`; never uses ambiguous `Add`.
+- Full Decks allow replace, pick another Deck, or create a new Deck.
+- Delete/forget and regeneration never lose the last valid artifact revision.
+
+Verification:
+
+- Repository/view-model tests cover empty/full Decks, process recreation,
+  replacement, duplicates, deletion, and failed regeneration.
+
+### V1.3: Rebuild the AI workspace around artifact states
+
+Acceptance:
+
+- Phone flow is `Describe -> Review/Test -> Place/Enable`.
+- Contextual AI entry exists from Deck, button management, and automation.
+- Result preview renders the actual artifact; destructive/secondary actions use
+  overflow.
+- Refine preserves revision history and shows provider/model/error/cost state.
+
+Verification:
+
+- Screenshot/Compose tests at phone and expanded widths.
+- AI corpus/evaluation gate remains green.
+
+## V2: Clipboard reliability and system behavior
+
+**Ownership:** Clipboard domain/data/UI, explicit Android share/quick-action
+surfaces if required, and focused tests. Avoid Deck/AI, automation, HID, release,
+and CI files.
+
+### V2.1: Fix correctness and observability
+
+Acceptance:
+
+- Local clipboard refresh never requires a Mac connection.
+- Manual Send/Get gives a terminal receipt with direction, time, target, retry,
+  and exact failure class.
+- Loop suppression/conflict resolution remains deterministic.
+- No redundant app toast duplicates the Android/Samsung clipboard overlay.
+
+Verification:
+
+- View-model tests cover disconnected, reconnect, stale revision, empty content,
+  conflict, duplicate, SSH failure, and process recreation.
+
+### V2.2: Implement honest supported sync modes
+
+Acceptance:
+
+- UI distinguishes Manual, Visible live sync, and unavailable background read.
+- Phone-to-Mac user-driven Share/quick action works without opening Clipboard UI.
+- Reads happen only on explicit action or while the visible live-sync session is
+  active.
+- Sensitive clips use supported sensitive-preview metadata.
+
+Verification:
+
+- Emulator tests exercise share target, focus loss/resume, notification denial,
+  Android clipboard overlay coexistence, and background restriction messaging.
+
+### V2.3: Measure and cap resource use
+
+Acceptance:
+
+- No polling job survives after its advertised visible-sync lifecycle.
+- Sync intervals/backoff are bounded and observable.
+- A repeatable battery/CPU measurement protocol is documented.
+
+Verification:
+
+- Coroutine lifecycle tests and an emulator battery/process-state evidence file.
+
+## V3: Automation proof and Mac capability testing
+
+**Ownership:** Automation models/repository/engine/UI/worker, typed Mac
+preflight/receipt contracts, Mac-helper capability checks, and focused tests.
+Avoid Deck/AI workspace implementation, clipboard, HID, release, and CI files.
+
+### V3.1: Split validation from execution proof
+
+Acceptance:
+
+- `Validate` performs local deterministic schema/policy checks only.
+- `Preflight Mac` checks trusted identity, connection, provider/tool/app/target,
+  permissions, and required paths without performing the final action.
+- `Live test` is explicit, bounded, produces assertions and cleanup/undo.
+- Labels never call a no-execution dry run a successful Mac test.
+
+Verification:
+
+- Tests cover offline Mac, identity mismatch, missing binary/app/Shortcut,
+  permission denial, timeout, partial execution, cleanup failure, and success.
+
+### V3.2: Bind enablement to a trustworthy receipt
+
+Acceptance:
+
+- Receipt binds recipe revision, Mac identity, capability snapshot, assertions,
+  timestamp, and cleanup result.
+- Editing, Mac change, capability/permission change, or expiry invalidates it.
+- Dangerous actions remain confirmation-gated.
+
+Verification:
+
+- Unit tests prove every invalidation path and replay rejection.
+
+### V3.3: Make scheduling explainable
+
+Acceptance:
+
+- UI shows next evaluation window, last evaluation, last result, retry/backoff,
+  and why a trigger was missed.
+- Trigger simulator explains whether and why a recipe would fire now.
+- Periodic WorkManager timing is described as a window, never exact time.
+
+Verification:
+
+- Worker tests cover battery/network constraints, process death, duplicate
+  suppression, revision changes, retries, and confirmation queues.
+
+## V4: DeX/adaptive, battery, and regression harness
+
+**Ownership:** adaptive app shell/navigation, secondary-display tests, HID
+keepalive profiling/fix if evidence supports it, Maestro/instrumentation, and
+evidence docs. Avoid feature-domain rewrites, release, and CI files.
+
+### V4.1: Close secondary-display layout gaps
+
+Acceptance:
+
+- Navigation remains reachable at 1280x720 and 1920x1080 secondary displays.
+- Phone, landscape, resizable/freeform, and expanded layouts preserve state.
+- Keyboard/mouse focus, Back, display disconnect/reconnect, and window restore
+  have explicit behavior.
+
+Verification:
+
+- Emulator secondary-display tests plus screenshots for both resolutions.
+- Real Samsung DeX remains a named acceptance gate, not an emulator claim.
+
+### V4.2: Profile HID service and battery behavior
+
+Acceptance:
+
+- Measure connected idle, active Trackpad, disconnected idle, visible clipboard,
+  and overnight screen-off scenarios.
+- Replace the 15-second HID restart loop only if tests prove a lower-wakeup
+  lifecycle preserves reconnection and held-input release safety.
+- Battery claims include interval, screen state, CPU/wakeup data, and device.
+
+Verification:
+
+- HID lifecycle/reconnect tests and before/after device or emulator evidence.
+
+### V4.3: Cross-vertical black-box coverage
+
+Acceptance:
+
+- Maestro covers Deck-to-AI, generated artifact catalog/placement, clipboard
+  receipts, automation stage labels, Back, rotation, and secondary display.
+- Test data is isolated to `app.codecks.debug`.
+- No instrumentation targets the physical production package.
+
+Verification:
+
+- `./gradlew :app:testDebugUnitTest`
+- `./gradlew :app:lintDebug :app:assembleDebug`
+- Maestro isolated-emulator suite
+
+## Integration checkpoint
+
+- Rebase each vertical on the frozen base and inspect ownership violations.
+- Merge only verticals with focused tests and evidence.
+- Resolve shared navigation/composition wiring in one integration branch.
+- Run full Android unit/lint/debug gates, secret-surface check, no-shrink check,
+  AI evaluation, Mac-helper Swift tests, and isolated-emulator Maestro.
+- Perform explicit user-driven real-Mac/real-DeX acceptance later.
+- Release/version/tag/push/install are separate approval and exact-artifact steps.
+
+## Stop conditions
+
+- Never uninstall, clear, downgrade, instrument, or differently sign
+  `app.codecks`.
+- Never enable release minification or resource shrinking.
+- Never print, persist in tests, or commit private AI/SSH credentials.
+- No worker publishes, merges to `main`, releases, or installs production.
+- A passing emulator test is not real Samsung DeX, real-Mac permission, or
+  physical battery proof.
+
+---
+
 # Active Implementation Plan: Preserve, fix, and consolidate v0.1.30
 
 Status: approved for implementation on 2026-07-29
