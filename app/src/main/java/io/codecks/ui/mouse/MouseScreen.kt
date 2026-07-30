@@ -377,18 +377,6 @@ fun MouseScreen(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
-            if (!controlsOpen && inputMode == MouseInputMode.Trackpad) {
-                DeckActionButton(
-                    label = "Controls",
-                    onClick = { controlsOpen = true },
-                    icon = Icons.Outlined.Tune,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 88.dp, end = 18.dp)
-                        .widthIn(min = 116.dp)
-                        .height(48.dp),
-                )
-            }
             if (controlsOpen && inputMode == MouseInputMode.Trackpad) {
                 val tray = quickTray ?: TrackpadQuickTray.Settings
                 TrackpadExpandedBottomSheet(
@@ -1381,7 +1369,6 @@ private fun Trackpad(
     var idleBlanked by remember { mutableStateOf(false) }
     var latestTapSample by remember { mutableStateOf<TrackpadGestureSample?>(null) }
     var latestTapFeedbackVisible by remember { mutableStateOf(false) }
-    var dashboardStats by remember { mutableStateOf(TrackpadDashboardStats()) }
     fun recordTrackpadActivity() {
         lastActivityMillis = SystemClock.uptimeMillis()
         if (idleBlanked) idleBlanked = false
@@ -1448,7 +1435,6 @@ private fun Trackpad(
                 onPress = onPress,
                 onReleaseButtons = onReleaseButtons,
                 onGestureSample = { sample ->
-                    dashboardStats = dashboardStats.withGesture(sample.feedbackLabel())
                     onGestureDiagnostic(sample)
                     if (sample.classification == "left_click" ||
                         sample.classification == "right_click" ||
@@ -1461,9 +1447,7 @@ private fun Trackpad(
                         latestTapFeedbackVisible = true
                     }
                 },
-                onTelemetry = { sample ->
-                    dashboardStats = dashboardStats.withTelemetry(sample, enabled)
-                },
+                onTelemetry = {},
                 onOpenDeckGesture = onOpenDeckGesture,
                 stylusEnabled = stylusEnabled,
                 onTrace = { point ->
@@ -1514,24 +1498,6 @@ private fun Trackpad(
             }
             if (!controlsOpen && !idleBlanked) {
                 TrackpadSurfaceDecoration(modifier = Modifier.matchParentSize())
-                TrackpadCyberDashboard(
-                    stats = dashboardStats,
-                    modifier = Modifier
-                        .matchParentSize()
-                        .padding(
-                            start = 18.dp,
-                            end = if (railSide == TrackpadRailSide.Right) 48.dp else 18.dp,
-                            top = 18.dp,
-                            bottom = 24.dp,
-                        )
-                        .zIndex(2f),
-                )
-                TrackpadGestureStrip(
-                    enabled = enabled,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(start = 18.dp, end = 18.dp, bottom = 104.dp),
-                )
             }
             if (!controlsOpen && (tracePoints.isEmpty() || !enabled || dragLockEnabled)) {
                 TrackpadCenterHint(
@@ -1635,109 +1601,6 @@ internal data class TrackpadTelemetrySample(
     val dispatchMillis: Long,
 )
 
-private data class TrackpadDashboardStats(
-    val sampleRateHz: Int = 0,
-    val jitterPx: Float = 0f,
-    val dispatchMillis: Long = 0L,
-    val lastGesture: String = "Idle",
-    val connected: Boolean = false,
-    val touchCount: Int = 0,
-    val lastTimestampMillis: Long = 0L,
-    val lastDeltaPx: Float = 0f,
-) {
-    fun withGesture(label: String): TrackpadDashboardStats =
-        copy(lastGesture = label.take(28))
-
-    fun withTelemetry(sample: TrackpadTelemetrySample, isConnected: Boolean): TrackpadDashboardStats {
-        val interval = sample.timestampMillis - lastTimestampMillis
-        val hz = if (interval in 1..1_000) {
-            (1_000f / interval).roundToInt().coerceIn(0, 240)
-        } else {
-            sampleRateHz
-        }
-        val jitter = if (lastTimestampMillis == 0L) {
-            0f
-        } else {
-            (jitterPx * 0.72f) + (abs(sample.deltaPx - lastDeltaPx) * 0.28f)
-        }
-        return copy(
-            sampleRateHz = hz,
-            jitterPx = jitter.coerceIn(0f, 999f),
-            dispatchMillis = sample.dispatchMillis.coerceAtLeast(0L),
-            connected = isConnected,
-            touchCount = sample.pointerCount,
-            lastTimestampMillis = sample.timestampMillis,
-            lastDeltaPx = sample.deltaPx,
-        )
-    }
-}
-
-@Composable
-private fun BoxScope.TrackpadCyberDashboard(
-    stats: TrackpadDashboardStats,
-    modifier: Modifier = Modifier,
-) {
-    Box(modifier = modifier.semantics { contentDescription = "Trackpad live stats dashboard" }) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.align(Alignment.TopCenter).widthIn(max = 620.dp).fillMaxWidth(),
-        ) {
-            TrackpadStatCell("SAMPLE", "${stats.sampleRateHz}", "hz", Modifier.weight(1f))
-            TrackpadStatCell("JITTER", String.format("%.1f", stats.jitterPx), "px", Modifier.weight(1f))
-            TrackpadStatCell("DISPATCH", "${stats.dispatchMillis}", "ms", Modifier.weight(1f))
-        }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.align(Alignment.BottomCenter).widthIn(max = 620.dp).fillMaxWidth(),
-        ) {
-            TrackpadStatCell("GESTURE", stats.lastGesture, "last", Modifier.weight(1f))
-            TrackpadStatCell("LINK", if (stats.connected) "ON" else "OFF", "hid", Modifier.weight(1f))
-            TrackpadStatCell("TOUCH", "${stats.touchCount}", "fingers", Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-private fun TrackpadStatCell(
-    label: String,
-    value: String,
-    unit: String,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.52f),
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.34f)),
-        shape = MaterialTheme.shapes.medium,
-        modifier = modifier.heightIn(min = 58.dp),
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                maxLines = 1,
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = unit,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
-        }
-    }
-}
-
 @Composable
 private fun TrackpadCenterHint(
     enabled: Boolean,
@@ -1787,48 +1650,6 @@ private fun TrackpadCenterHint(
 }
 
 @Composable
-private fun TrackpadGestureStrip(
-    enabled: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = if (enabled) 0.58f else 0.36f),
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.32f)),
-        shape = MaterialTheme.shapes.large,
-        modifier = modifier.widthIn(max = 520.dp),
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
-        ) {
-            TrackpadGestureChip("Tap", "click")
-            TrackpadGestureChip("2 fingers", "scroll")
-            TrackpadGestureChip("Back", "controls")
-        }
-    }
-}
-
-@Composable
-private fun TrackpadGestureChip(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-        )
-    }
-}
-
-@Composable
 private fun TrackpadGuardHint(sessionPinned: Boolean, modifier: Modifier = Modifier) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.72f),
@@ -1841,7 +1662,7 @@ private fun TrackpadGuardHint(sessionPinned: Boolean, modifier: Modifier = Modif
             text = if (sessionPinned) {
                 "Session locked · Exit or Android unpin gesture releases Trackpad"
             } else {
-                "Back returns to Deck · use dashboard gestures or controls for more"
+                "Back returns to Deck"
             },
             style = MaterialTheme.typography.labelMedium,
             textAlign = TextAlign.Center,

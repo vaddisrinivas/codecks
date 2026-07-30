@@ -479,18 +479,83 @@ class ActionCatalog @Inject constructor(
         if (id !in setOf("confetti", "sparkle", "emoji_heart", "emoji_fire", "emoji_focus", "emoji_coffee", "magic_blank")) return null
         val safeLabel = label.replace("'", "").replace("\"", "").take(24)
         return """
-            tmp="${'$'}{TMPDIR:-/tmp}/codecks-celebrate.html"; cat > "${'$'}tmp" <<'HTML'
-            <!doctype html><html><head><meta charset="utf-8"><style>
-            html,body{margin:0;width:100%;height:100%;overflow:hidden;background:rgba(0,0,0,.02)}
-            body{font-family:-apple-system,BlinkMacSystemFont,sans-serif}
-            .msg{position:fixed;inset:auto 0 12vh 0;text-align:center;color:white;font-size:48px;font-weight:800;text-shadow:0 8px 40px #000}
-            i{position:fixed;top:-8vh;width:14px;height:28px;border-radius:6px;animation:fall 2.8s linear forwards;box-shadow:0 0 24px currentColor}
-            @keyframes fall{to{transform:translate3d(var(--x),112vh,0) rotate(860deg);opacity:.1}}
-            </style></head><body><div class="msg">CODECKS</div><script>
-            const colors=['#7cffc4','#8ea1ff','#ff7aa8','#ffd166','#ffffff'];for(let n=0;n<220;n++){const e=document.createElement('i');e.style.left=Math.random()*100+'vw';e.style.color=colors[n%colors.length];e.style.background='currentColor';e.style.animationDelay=Math.random()*0.8+'s';e.style.setProperty('--x',(Math.random()*220-110)+'px');document.body.append(e)}setTimeout(()=>close(),3600)
-            </script></body></html>
-            HTML
-            open "${'$'}tmp"; printf 'Codecks Mac celebration: $safeLabel'
+            tmp="${'$'}{TMPDIR:-/tmp}/codecks-celebrate.jxa"; cat > "${'$'}tmp" <<'JXA'
+            ObjC.import('Cocoa')
+            ObjC.import('CoreGraphics')
+            const app = ${'$'}.NSApplication.sharedApplication
+            app.setActivationPolicy(${'$'}.NSApplicationActivationPolicyAccessory)
+            const colors = ['#7cffc4', '#8ea1ff', '#ff7aa8', '#ffd166', '#ffffff']
+            const glyphs = ['✦', '●', '◆', '■', '★', '✹']
+            function nsColor(hex, alpha) {
+              const r = parseInt(hex.slice(1, 3), 16) / 255
+              const g = parseInt(hex.slice(3, 5), 16) / 255
+              const b = parseInt(hex.slice(5, 7), 16) / 255
+              return ${'$'}.NSColor.colorWithCalibratedRedGreenBlueAlpha(r, g, b, alpha)
+            }
+            const pieces = []
+            const windows = []
+            const screens = ${'$'}.NSScreen.screens
+            const level = ${'$'}.CGWindowLevelForKey(${'$'}.kCGScreenSaverWindowLevelKey)
+            for (let s = 0; s < screens.count; s++) {
+              const frame = screens.objectAtIndex(s).frame
+              const win = ${'$'}.NSWindow.alloc.initWithContentRectStyleMaskBackingDefer(
+                frame,
+                ${'$'}.NSWindowStyleMaskBorderless,
+                ${'$'}.NSBackingStoreBuffered,
+                false,
+              )
+              win.setOpaque(false)
+              win.setBackgroundColor(${'$'}.NSColor.clearColor)
+              win.setIgnoresMouseEvents(true)
+              win.setLevel(level)
+              win.setCollectionBehavior(
+                ${'$'}.NSWindowCollectionBehaviorCanJoinAllSpaces |
+                ${'$'}.NSWindowCollectionBehaviorFullScreenAuxiliary |
+                ${'$'}.NSWindowCollectionBehaviorStationary,
+              )
+              win.orderFront(null)
+              windows.push(win)
+              for (let n = 0; n < 120; n++) {
+                const size = 18 + Math.random() * 22
+                const view = ${'$'}.NSTextField.alloc.initWithFrame(${'$'}.NSMakeRect(
+                  Math.random() * frame.size.width,
+                  frame.size.height + Math.random() * 260,
+                  44,
+                  44,
+                ))
+                view.setStringValue(glyphs[n % glyphs.length])
+                view.setBezeled(false)
+                view.setDrawsBackground(false)
+                view.setEditable(false)
+                view.setSelectable(false)
+                view.setAlignment(${'$'}.NSTextAlignmentCenter)
+                view.setTextColor(nsColor(colors[n % colors.length], 0.94))
+                view.setFont(${'$'}.NSFont.boldSystemFontOfSize(size))
+                win.contentView.addSubview(view)
+                pieces.push({
+                  view,
+                  speed: 4.5 + Math.random() * 8.5,
+                  sway: 0.8 + Math.random() * 3.2,
+                  phase: Math.random() * 6.28,
+                  spin: Math.random() > 0.5 ? 1 : -1,
+                })
+              }
+            }
+            const started = Date.now()
+            while (Date.now() - started < 3600) {
+              const t = (Date.now() - started) / 1000
+              pieces.forEach((piece, index) => {
+                const f = piece.view.frame
+                f.origin.y -= piece.speed
+                f.origin.x += Math.sin(t * 4 + piece.phase) * piece.sway
+                piece.view.setFrame(f)
+                piece.view.setAlphaValue(Math.max(0, 1 - (Date.now() - started - 2600) / 900))
+              })
+              ${'$'}.NSRunLoop.currentRunLoop.runUntilDate(${'$'}.NSDate.dateWithTimeIntervalSinceNow(0.016))
+            }
+            windows.forEach(win => win.orderOut(null))
+            JXA
+            /usr/bin/osascript -l JavaScript "${'$'}tmp"; printf 'Codecks Mac celebration: $safeLabel'
         """.trimIndent()
     }
 

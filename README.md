@@ -83,7 +83,7 @@ Release signing instructions live in [docs/release/RELEASING.md](docs/release/RE
 
 ## Project Status
 
-`v0.1.28` is the current public beta. Core deck, trackpad, keyboard, clipboard, rules, editing, settings, optional AI-assisted drafting, default-off Smart/Reactive foundations, and experimental Reactive Mac-helper infrastructure are implemented in the single signed APK. Broader physical-device coverage, TalkBack validation, live helper pairing validation, and longer crash-free field testing remain GA gates. See the [production launch plan](docs/release/PRODUCTION_LAUNCH_PLAN.md).
+`v0.1.29` is the current public beta. Core deck, trackpad, keyboard, clipboard, rules, editing, settings, optional AI-assisted drafting, default-off Smart/Reactive foundations, and experimental Reactive Mac-helper infrastructure are implemented in the single signed APK. Broader physical-device coverage, TalkBack validation, live helper pairing validation, and longer crash-free field testing remain GA gates. See the [production launch plan](docs/release/PRODUCTION_LAUNCH_PLAN.md).
 
 ## FOSS Distribution
 
