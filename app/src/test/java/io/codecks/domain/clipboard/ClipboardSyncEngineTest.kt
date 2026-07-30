@@ -90,7 +90,6 @@ class ClipboardSyncEngineTest {
         assertFalse(second.changed)
         assertEquals(first.revision.revision, second.revision.revision)
         assertEquals(first.revision.hash, second.revision.hash)
-        assertEquals("same", second.revision.sourceId.value)
         assertEquals(phoneApp, second.revision.sourceId)
     }
 

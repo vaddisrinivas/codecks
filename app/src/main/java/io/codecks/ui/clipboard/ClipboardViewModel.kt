@@ -5,7 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.HiltViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.codecks.data.ConnectionRepository
 import io.codecks.data.clipboard.ClipboardSettingsRepository
@@ -78,8 +78,8 @@ class ClipboardViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val connectionRepository: ConnectionRepository,
     private val settingsRepository: ClipboardSettingsRepository,
-    private val nowMillis: () -> Long = { System.currentTimeMillis() },
 ) : ViewModel() {
+    private val nowMillis: () -> Long = { System.currentTimeMillis() }
     private val clipboardManager = context.getSystemService(ClipboardManager::class.java)
     private val _uiState = MutableStateFlow(ClipboardUiState())
     val uiState: StateFlow<ClipboardUiState> = _uiState.asStateFlow()
@@ -349,7 +349,7 @@ class ClipboardViewModel @Inject constructor(
         }
 
     private suspend fun writePhoneClipboard(text: String, status: String = "Synced from Mac"): Result<String> {
-        return runResult { clipboardManager.setPrimaryClip(ClipData.newPlainText("Codecks", text)); "ok" }
+        return runResult { clipboardManager.setPrimaryClip(ClipData.newPlainText("Codecks", text)); Result.success("ok") }
             .onSuccess {
                 val observation = syncEngine.observe(ClipboardEndpoint.Phone, text, phoneSource, nowMillis())
                 val risk = ClipboardContentGuard.riskFor(text)
