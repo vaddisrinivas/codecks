@@ -1069,6 +1069,9 @@ private fun CodecksApp(
                             onTestAction = homeViewModel::test,
                             onDuplicateAction = homeViewModel::duplicateAction,
                             onRemoveAction = { action -> homeViewModel.removeAction(action.id) },
+                            onAssignSlot = homeViewModel::assign,
+                            onMoveSlot = homeViewModel::move,
+                            onForgetAction = homeViewModel::forgetAction,
                             onRemoveSlot = { slot ->
                                 if (slot in homeState.actions.indices) {
                                     homeViewModel.remove(slot)

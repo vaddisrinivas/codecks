@@ -1,4 +1,45 @@
-# TODO: Post-v0.1.21 gap closure
+# TODO: v0.1.30 preservation, bug repair, and consolidation
+
+## Preservation
+
+- [ ] Commit current four-file deck cleanup
+- [ ] Safety-commit old `/Projects/codecks` dirty state
+- [ ] Safety-commit Shortcuts-handler dirty state
+- [ ] Record all dirty/clean worktrees before removal
+
+## Confirmed bug repairs
+
+- [ ] Back from AI/Settings returns inside Codecks
+- [ ] Offline long-press opens deck management
+- [ ] Immediate-save deck contract; remove staged Apply layout
+- [ ] Forget confirmation and undo
+- [ ] Search-bounded editor catalog
+- [ ] Clear move semantics and labels
+- [ ] Template/Favorite isolation
+- [ ] Landscape accessibility names
+- [ ] Keyboard and trackpad copy/layout cleanup
+- [ ] Unified animated Mac visual effects
+- [ ] Reactive provider failure isolation
+- [ ] Shortcuts runner/importer/capability hardening
+
+## Verification
+
+- [ ] Focused Android tests
+- [ ] Full release unit tests
+- [ ] Lint/no-shrink/build
+- [ ] Mac-helper Swift tests
+- [ ] Maestro emulator regression suite
+- [ ] No physical-phone instrumentation
+
+## Consolidation
+
+- [ ] Merge verified branch to `main`
+- [ ] Make `/Projects/codecks` canonical updated main checkout
+- [ ] Remove only clean/safety-committed obsolete worktrees
+
+---
+
+# Historical TODO: Post-v0.1.21 gap closure
 
 ## Current decision
 

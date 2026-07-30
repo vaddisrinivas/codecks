@@ -16,6 +16,7 @@ import io.codecks.data.RunHistoryRepository
 import io.codecks.data.ai.AiArtifactRepository
 import io.codecks.domain.ActionStatus
 import io.codecks.domain.ActionKind
+import io.codecks.domain.CommandOrigin
 import io.codecks.domain.DeckAction
 import io.codecks.domain.ai.AiArtifact
 import io.codecks.domain.ai.AiArtifactKind
@@ -85,6 +86,7 @@ class HomeViewModel @Inject constructor(
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
     private var favoriteLayout: DeckLayout = actionRepository.layout()
     private var aiLibraryActions: List<DeckAction> = emptyList()
+    private var aiArtifactIds: Set<String> = emptySet()
 
     init {
         viewModelScope.launch {
@@ -107,6 +109,7 @@ class HomeViewModel @Inject constructor(
         aiArtifactRepository?.let { repository ->
             viewModelScope.launch {
                 repository.artifacts.collect { artifacts ->
+                    aiArtifactIds = artifacts.map(AiArtifact::id).toSet()
                     aiLibraryActions = artifacts.toDeckCatalogActions()
                     _uiState.update { state ->
                         state.copy(allActions = combinedActionLibrary(favoriteLayout))
@@ -303,12 +306,14 @@ class HomeViewModel @Inject constructor(
         if (slot !in favoriteLayout.slots.indices) return
         val next = favoriteLayout.replacingAction(slot, action)
         updateCustomDeck(next, pendingUndo = null)
+        persistDeck(next)
     }
 
     fun move(from: Int, to: Int) {
         if (from !in favoriteLayout.slots.indices || to !in favoriteLayout.slots.indices) return
         val next = favoriteLayout.swapping(from, to)
         updateCustomDeck(next, pendingUndo = null)
+        persistDeck(next)
     }
 
     fun resize(slot: Int, columnSpan: Int) {
@@ -322,6 +327,7 @@ class HomeViewModel @Inject constructor(
         if (previous.id in setOf("blank", "add_button")) return
         val next = favoriteLayout.replacingAction(slot, blank).resizing(slot, 1)
         updateCustomDeck(next, pendingUndo = PendingDeckUndo(slot, previous))
+        persistDeck(next)
         _uiState.update {
             it.copy(
                 actionStatus = ActionStatus.Succeeded("deck_remove", "Removed ${previous.label}"),
@@ -335,11 +341,35 @@ class HomeViewModel @Inject constructor(
         if (slot >= 0) remove(slot)
     }
 
+    fun forgetAction(action: DeckAction) {
+        if (!action.isForgettable()) return
+        val blank = _uiState.value.allActions.firstOrNull { it.id == "blank" } ?: return
+        val next = favoriteLayout.copy(
+            slots = favoriteLayout.slots.map { slot ->
+                if (slot.action.id == action.id) slot.copy(action = blank, columnSpan = 1) else slot
+            },
+        )
+        updateCustomDeck(next, pendingUndo = null)
+        viewModelScope.launch {
+            artifactIdForAction(action.id)?.let { artifactId ->
+                aiArtifactRepository?.delete(artifactId)
+            }
+            actionRepository.saveLayout(next)
+            _uiState.update {
+                it.copy(
+                    actionStatus = ActionStatus.Succeeded("deck_forget", "Forgot ${action.label}"),
+                    activity = listOf(ActionEvent("deck_forget", "Deck", "Forgot ${action.label}", true)) + it.activity.take(49),
+                )
+            }
+        }
+    }
+
     fun undoLastDeckEdit() {
         val undo = _uiState.value.pendingDeckUndo ?: return
         if (undo.slot !in favoriteLayout.slots.indices) return
         val next = favoriteLayout.replacingAction(undo.slot, undo.action)
         updateCustomDeck(next, pendingUndo = null)
+        persistDeck(next)
         _uiState.update {
             it.copy(
                 actionStatus = ActionStatus.Succeeded("deck_undo", "Restored ${undo.action.label}"),
@@ -357,6 +387,7 @@ class HomeViewModel @Inject constructor(
             return
         }
         updateCustomDeck(favoriteLayout.replacingAction(slot, copy).resizing(slot, 1), listOf(copy), pendingUndo = null)
+        persistDeck(favoriteLayout)
     }
 
     fun pinAction(action: DeckAction) {
@@ -528,6 +559,18 @@ class HomeViewModel @Inject constructor(
 
     private fun combinedActionLibrary(layout: DeckLayout): List<DeckAction> =
         (actionRepository.allActions() + layout.actions + aiLibraryActions).distinctBy(DeckAction::id)
+
+    private fun persistDeck(layout: DeckLayout) {
+        viewModelScope.launch { actionRepository.saveLayout(layout) }
+    }
+
+    private fun DeckAction.isForgettable(): Boolean =
+        commandOrigin != CommandOrigin.Bundled || id.startsWith("artifact_") || id.startsWith("ai_") || id.startsWith("custom_")
+
+    private fun artifactIdForAction(actionId: String): String? =
+        aiArtifactIds
+            .filter { artifactId -> actionId.startsWith("${artifactId}_") }
+            .maxByOrNull(String::length)
 
     private fun List<AiArtifact>.toDeckCatalogActions(): List<DeckAction> =
         filter { artifact -> artifact.kind == AiArtifactKind.Button || artifact.kind == AiArtifactKind.Deck }

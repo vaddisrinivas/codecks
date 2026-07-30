@@ -12,6 +12,7 @@ import io.codecks.core.actions.commandRevision
 import io.codecks.domain.ActionIcon
 import io.codecks.domain.ActionKind
 import io.codecks.domain.ActionStatus
+import io.codecks.domain.CommandOrigin
 import io.codecks.domain.DeckAction
 import io.codecks.domain.ai.ActionDefinition
 import io.codecks.domain.ai.ActionDraft
@@ -336,6 +337,7 @@ class HomeViewModelTest {
         runCurrent()
 
         assertEquals(listOf("blank"), viewModel.uiState.value.actions.map(DeckAction::id))
+        assertEquals(listOf("blank"), repository.savedFavorites.map(DeckAction::id))
         assertEquals(PendingDeckUndo(0, original), viewModel.uiState.value.pendingDeckUndo)
         assertEquals(ActionStatus.Succeeded("deck_remove", "Removed Focus"), viewModel.uiState.value.actionStatus)
 
@@ -343,8 +345,75 @@ class HomeViewModelTest {
         runCurrent()
 
         assertEquals(listOf("focus"), viewModel.uiState.value.actions.map(DeckAction::id))
+        assertEquals(listOf("focus"), repository.savedFavorites.map(DeckAction::id))
         assertEquals(null, viewModel.uiState.value.pendingDeckUndo)
         assertEquals(ActionStatus.Succeeded("deck_undo", "Restored Focus"), viewModel.uiState.value.actionStatus)
+    }
+
+    @Test
+    fun assignAndMove_persistImmediatelyFromDeck() = runTest(dispatcher) {
+        val focus = DeckAction("focus", "Focus", ActionKind.Ssh, ActionIcon.Apps)
+        val browser = DeckAction("browser", "Browser", ActionKind.Ssh, ActionIcon.Browser)
+        val blank = DeckAction("blank", "Blank", ActionKind.Local, ActionIcon.Add)
+        val repository = GatedActionRepository(
+            favorites = listOf(focus, blank),
+            allActions = listOf(focus, browser, blank),
+        )
+        val viewModel = HomeViewModel(repository, ReadyConnectionRepository(), ImmediateActionRunner())
+        runCurrent()
+
+        viewModel.assign(1, browser)
+        runCurrent()
+
+        assertEquals(listOf("focus", "browser"), repository.savedFavorites.map(DeckAction::id))
+
+        viewModel.move(0, 1)
+        runCurrent()
+
+        assertEquals(listOf("browser", "focus"), viewModel.uiState.value.actions.map(DeckAction::id))
+        assertEquals(listOf("browser", "focus"), repository.savedFavorites.map(DeckAction::id))
+    }
+
+    @Test
+    fun forgetAiArtifact_removesCatalogActionAndDeckSlot() = runTest(dispatcher) {
+        val blank = DeckAction("blank", "Blank", ActionKind.Local, ActionIcon.Add)
+        val artifact = AiArtifact(
+            id = "artifact_love",
+            kind = AiArtifactKind.Button,
+            title = "Love Confetti",
+            prompt = "love emoji confetti",
+            actions = listOf(
+                AiArtifactAction(
+                    id = "love",
+                    title = "Love Confetti",
+                    command = io.codecks.domain.ai.MacVisualEffectCatalog.commandForTemplate("codecks.love")!!,
+                ),
+            ),
+        )
+        val artifactRepository = InMemoryAiArtifactRepository(listOf(artifact))
+        val repository = GatedActionRepository(
+            favorites = listOf(blank),
+            allActions = listOf(blank),
+        )
+        val viewModel = HomeViewModel(
+            repository,
+            ReadyConnectionRepository(),
+            ImmediateActionRunner(),
+            aiArtifactRepository = artifactRepository,
+        )
+        runCurrent()
+
+        val action = viewModel.uiState.value.allActions.single { it.id == "artifact_love_love_0" }
+        viewModel.assign(0, action.copy(commandOrigin = CommandOrigin.AiGenerated))
+        runCurrent()
+
+        viewModel.forgetAction(action)
+        runCurrent()
+
+        assertEquals(listOf("blank"), viewModel.uiState.value.actions.map(DeckAction::id))
+        assertFalse(viewModel.uiState.value.allActions.any { it.id == "artifact_love_love_0" })
+        assertEquals(emptyList<AiArtifact>(), artifactRepository.snapshot())
+        assertEquals(listOf("blank"), repository.savedFavorites.map(DeckAction::id))
     }
 
     @Test
@@ -453,6 +522,8 @@ private class GatedActionRepository(
 private class InMemoryAiArtifactRepository(initial: List<AiArtifact>) : AiArtifactRepository {
     private val state = MutableStateFlow(initial)
     override val artifacts: Flow<List<AiArtifact>> = state
+
+    fun snapshot(): List<AiArtifact> = state.value
 
     override suspend fun save(artifact: AiArtifact) {
         state.value = listOf(artifact) + state.value.filterNot { it.id == artifact.id }
