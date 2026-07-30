@@ -220,10 +220,10 @@ fun KeyboardScreen(
                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
             ) {
                 if (showHostHeader) {
-                        HidHostHeader(
-                            title = "Choose a paired Mac",
-                            disconnectedTitle = "Connect keyboard",
-                            connectedTitle = "Keyboard connected",
+                    HidHostHeader(
+                        title = "Choose a paired Mac",
+                        disconnectedTitle = "Connect keyboard",
+                        connectedTitle = "Keyboard connected",
                         icon = Icons.Outlined.Keyboard,
                         state = state,
                         permissionGranted = permissionGranted,
@@ -456,13 +456,16 @@ private fun Composer(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            ) {
                 KeyboardDeliveryMode.entries.forEach { mode ->
                     DeckFilterPill(
                         label = mode.label,
                         selected = deliveryMode == mode,
                         onClick = { onDeliveryModeChange(mode) },
-                        modifier = Modifier.weight(1f).heightIn(min = 44.dp),
+                        modifier = Modifier.widthIn(min = 112.dp).heightIn(min = 48.dp),
                     )
                 }
             }

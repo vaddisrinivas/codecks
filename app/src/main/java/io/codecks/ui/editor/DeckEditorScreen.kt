@@ -31,7 +31,6 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -80,10 +79,7 @@ fun DeckEditorScreen(
     onRemoveAction: (Int) -> Unit,
     onTestAction: (DeckAction) -> Unit,
     onCreateWithAi: () -> Unit,
-    onSave: () -> Unit,
     modifier: Modifier = Modifier,
-    isSaving: Boolean = false,
-    hasUnsavedChanges: Boolean = false,
     deckStyle: CodecksDeckStyle = CodecksDeckStyle.StreamDeckPro,
     slotSpans: List<Int> = List(slots.size) { 1 },
     onResizeAction: (slot: Int, columnSpan: Int) -> Unit = { _, _ -> },
@@ -99,12 +95,14 @@ fun DeckEditorScreen(
     val safeSelection = draftSelectedSlot.coerceIn(0, (slots.size - 1).coerceAtLeast(0))
     val selectedAction = slots.getOrNull(safeSelection)
     val trimmedQuery = query.trim()
-    val filteredActions = allActions.filter { action ->
+    val matchingActions = allActions.filter { action ->
         selectedCategory.matches(action) && (
             trimmedQuery.isBlank() || action.searchTokens(selectedCategory)
                 .any { it.contains(trimmedQuery, ignoreCase = true) }
             )
     }
+    val filteredActions = matchingActions.take(MAX_VISIBLE_CATALOG_ACTIONS)
+    val hiddenActionCount = matchingActions.size - filteredActions.size
     val selectSlot: (Int) -> Unit = {
         draftSelectedSlot = it
         onSelectSlot(it)
@@ -168,9 +166,7 @@ fun DeckEditorScreen(
                     onTestAction = onTestAction,
                     onResizeAction = onResizeAction,
                     onCreateWithAi = onCreateWithAi,
-                    onSave = onSave,
-                    isSaving = isSaving,
-                    hasUnsavedChanges = hasUnsavedChanges,
+                    hiddenActionCount = hiddenActionCount,
                     deckStyle = deckStyle,
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                 )
@@ -213,6 +209,9 @@ fun DeckEditorScreen(
                     )
                     if (index < filteredActions.lastIndex) EditorDivider()
                 }
+                if (hiddenActionCount > 0) {
+                    item { CatalogResultLimit(hiddenActionCount) }
+                }
                 item { SectionTitle("Deck layout") }
                 item {
                     Text(
@@ -233,13 +232,6 @@ fun DeckEditorScreen(
                         onPickUpSlot = pickUpSlot,
                         deckStyle = deckStyle,
                         modifier = Modifier.heightIn(min = 112.dp, max = 360.dp),
-                    )
-                }
-                item {
-                    SaveBar(
-                        isSaving = isSaving,
-                        hasUnsavedChanges = hasUnsavedChanges,
-                        onSave = onSave,
                     )
                 }
             }
@@ -468,9 +460,7 @@ private fun EditorPane(
     onTestAction: (DeckAction) -> Unit,
     onResizeAction: (Int, Int) -> Unit,
     onCreateWithAi: () -> Unit,
-    onSave: () -> Unit,
-    isSaving: Boolean,
-    hasUnsavedChanges: Boolean,
+    hiddenActionCount: Int,
     deckStyle: CodecksDeckStyle,
     modifier: Modifier = Modifier,
 ) {
@@ -511,12 +501,8 @@ private fun EditorPane(
             )
             if (index < filteredActions.lastIndex) EditorDivider()
         }
-        item {
-            SaveBar(
-                isSaving = isSaving,
-                hasUnsavedChanges = hasUnsavedChanges,
-                onSave = onSave,
-            )
+        if (hiddenActionCount > 0) {
+            item { CatalogResultLimit(hiddenActionCount) }
         }
     }
 }
@@ -918,37 +904,16 @@ private fun String.toComposeColorOrNull(): Color? {
 }
 
 @Composable
-private fun SaveBar(
-    isSaving: Boolean,
-    hasUnsavedChanges: Boolean,
-    onSave: () -> Unit,
-) {
-    Row(
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
-    ) {
-        if (hasUnsavedChanges) {
-            Text(
-                text = "Unsaved changes",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-            )
-        }
-        DeckActionButton(
-            label = when {
-                isSaving -> "Saving"
-                hasUnsavedChanges -> "Apply layout"
-                else -> "Saved"
-            },
-            onClick = onSave,
-            enabled = hasUnsavedChanges && !isSaving,
-            icon = Icons.Outlined.Save,
-            modifier = Modifier.heightIn(min = 56.dp),
-        )
-    }
+private fun CatalogResultLimit(hiddenActionCount: Int) {
+    Text(
+        text = "$hiddenActionCount more result(s). Search or choose a category to narrow the catalog.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(16.dp),
+    )
 }
+
+private const val MAX_VISIBLE_CATALOG_ACTIONS = 30
 
 @Composable
 private fun SectionTitle(text: String) {

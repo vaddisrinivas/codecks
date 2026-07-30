@@ -184,7 +184,7 @@ fun HidHostHeader(
                 }
                 if (permissionGranted) {
                     IconButton(onClick = { pickerOpen = true }) {
-                        Icon(Icons.Outlined.Bluetooth, contentDescription = "Choose Mac")
+                        Icon(Icons.Outlined.Bluetooth, contentDescription = "Choose paired Mac")
                     }
                     IconButton(onClick = onRefreshHosts) {
                         Icon(Icons.Outlined.Refresh, contentDescription = "Refresh Macs")

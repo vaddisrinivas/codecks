@@ -1,4 +1,84 @@
-# Implementation Plan: Close post-v0.1.21 gaps
+# Active Implementation Plan: Preserve, fix, and consolidate v0.1.30
+
+Status: approved for implementation on 2026-07-29
+
+## Outcome
+
+Preserve every unique dirty change, fix the confirmed Android/Mac-helper defects,
+merge the result to `main`, and leave the primary repository checkout as the
+canonical checkout. No worktree may be removed until its dirty state has a
+named safety commit or an explicitly retained artifact location.
+
+## Ordered work
+
+### C1: Preserve dirty worktrees
+
+- Commit the four current v0.1.30 deck-cleanup files on their existing branch.
+- Create named preservation commits for the old foundation checkout and the
+  dirty Shortcuts-handler checkout.
+- Preserve `release-downloads/` outside source history; it is an artifact, not
+  product code.
+- Verify all other registered worktrees are clean before cleanup.
+
+### C2: Repair navigation and deck editing
+
+- Android Back from AI, Settings, Editor, and other More destinations returns to
+  the prior in-app destination instead of exiting Codecks.
+- Offline Mac buttons remain runnable-disabled but long-press management stays
+  enabled.
+- Deck changes use one contract: immediate persistence with undo; remove the
+  contradictory staged `Apply layout` state.
+- Keep management on the deck: reassign, move, duplicate, test, remove, and
+  forget. Destructive catalog forgetting requires confirmation and undo.
+- Replace the long editor catalog with search/category-driven bounded results
+  so controls are not buried below dozens of rows.
+
+### C3: Repair polish and adaptive behavior
+
+- Keep labels and accessible names during move mode.
+- Decouple template viewing from Favorite layout mutation.
+- Fix landscape semantics, keyboard clipping, trackpad connection copy, and
+  launcher/notification icon surfaces.
+- Preserve portrait/landscape editor state and 48dp touch targets.
+
+### C4: Unify Mac visual effects
+
+- Built-in and AI-generated celebration buttons resolve through one reviewed
+  Mac visual-effect catalog.
+- Confetti/love/fire/focus/coffee/magic use a full-screen, click-through,
+  multi-display animated overlay with bounded duration and cleanup.
+- Tests assert catalog identity and reviewed-command recognition.
+
+### C5: Preserve missing hardening
+
+- Port Reactive provider exception isolation without reverting current policy,
+  pinning, confidence, stale-state, or protocol contracts.
+- Port the Shortcuts bounded runner, concurrent pipe draining, timeout kill,
+  truncation reporting, safe catalog import, unknown-argument rejection, and
+  capability advertisement onto the current Mac-helper runtime.
+- Do not port obsolete unavailable Spotlight/SFTP stubs.
+
+### C6: Verification and consolidation
+
+- Focused Android unit tests, full release unit tests, lint, no-shrink, and
+  debug/release assembly pass.
+- Current Mac-helper Swift tests plus new hardening tests pass.
+- Maestro emulator flows cover Back, offline long-press, deletion/undo,
+  persistence, rotation, keyboard, and AI/Settings navigation.
+- Merge the verified branch into `main`.
+- Repoint the canonical `/Projects/codecks` checkout to updated `main`.
+- Remove only clean or safety-committed obsolete worktrees.
+
+## Stop conditions
+
+- Never uninstall, clear, downgrade, or differently sign `app.codecks`.
+- Never target the physical phone with instrumentation.
+- Keep production minification and resource shrinking disabled.
+- Stop consolidation if any dirty worktree lacks a recoverable named commit.
+
+---
+
+# Historical Implementation Plan: Close post-v0.1.21 gaps
 
 Status: active remediation plan
 

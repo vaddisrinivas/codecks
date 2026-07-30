@@ -256,9 +256,9 @@ private fun FlatDeckTile(
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = LocalIndication.current,
-                enabled = enabled && state != DeckComponentState.Running,
+                enabled = (enabled || onLongClick != null) && state != DeckComponentState.Running,
                 role = Role.Button,
-                onClick = onClick,
+                onClick = { if (enabled) onClick() },
                 onLongClick = onLongClick,
             ),
         contentAlignment = Alignment.Center,

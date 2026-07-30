@@ -34,7 +34,10 @@ object MacVisualEffectCatalog {
             "magic_blank" -> "✨,💫,✦,✧,⭐"
             else -> return null
         }
-        val title = label.filterNot { it.isISOControl() }.ifBlank { "Codecks" }
+        val title = label
+            .filter { it.isLetterOrDigit() || it in " _-!?" }
+            .take(32)
+            .ifBlank { "Codecks" }
         return macOverlayCommand(glyphs = glyphs, title = title)
     }
 
@@ -45,46 +48,73 @@ object MacVisualEffectCatalog {
         """
         osascript -l JavaScript <<'CODECKS_VISUAL_EFFECT_V1'
         ObjC.import('Cocoa')
-        const glyphs = '$glyphs'.split(',')
-        const title = '$title'.replace(/'/g, '')
-        const screen = $.NSScreen.mainScreen.frame
-        const window = $.NSWindow.alloc.initWithContentRectStyleMaskBackingDefer(
-          screen,
-          $.NSBorderlessWindowMask,
-          $.NSBackingStoreBuffered,
-          false
-        )
-        window.level = $.NSScreenSaverWindowLevel
-        window.opaque = false
-        window.backgroundColor = $.NSColor.clearColor
-        window.ignoresMouseEvents = true
-        window.collectionBehavior = $.NSWindowCollectionBehaviorCanJoinAllSpaces | $.NSWindowCollectionBehaviorFullScreenAuxiliary
-        const root = $.NSView.alloc.initWithFrame(screen)
-        window.contentView = root
-        const makeLabel = (text, size, x, y) => {
-          const label = $.NSTextField.alloc.initWithFrame($.NSMakeRect(x, y, 90, 90))
-          label.stringValue = text
-          label.font = $.NSFont.systemFontOfSize(size)
-          label.drawsBackground = false
-          label.bezeled = false
-          label.editable = false
-          label.selectable = false
-          label.alignment = $.NSCenterTextAlignment
-          root.addSubview(label)
-          return label
-        }
-        makeLabel(title, 28, screen.size.width / 2 - 180, screen.size.height / 2 - 32)
-        for (let i = 0; i < 70; i++) {
-          const glyph = glyphs[i % glyphs.length]
-          makeLabel(glyph, 28 + (i % 6) * 4, Math.random() * screen.size.width, screen.size.height - Math.random() * 160)
-        }
-        window.makeKeyAndOrderFront(null)
+        ObjC.import('CoreGraphics')
         const app = $.NSApplication.sharedApplication
-        const deadline = Date.now() + 1600
-        while (Date.now() < deadline) {
-          app.nextEventMatchingMaskUntilDateInModeDequeue($.NSAnyEventMask, $.NSDate.dateWithTimeIntervalSinceNow(0.05), $.NSDefaultRunLoopMode, true)
+        app.setActivationPolicy($.NSApplicationActivationPolicyAccessory)
+        const glyphs = '$glyphs'.split(',')
+        const effectTitle = '$title'
+        const pieces = []
+        const windows = []
+        const screens = $.NSScreen.screens
+        const level = $.CGWindowLevelForKey($.kCGScreenSaverWindowLevelKey)
+        for (let screenIndex = 0; screenIndex < screens.count; screenIndex++) {
+          const frame = screens.objectAtIndex(screenIndex).frame
+          const window = $.NSWindow.alloc.initWithContentRectStyleMaskBackingDefer(
+            frame,
+            $.NSWindowStyleMaskBorderless,
+            $.NSBackingStoreBuffered,
+            false
+          )
+          window.setOpaque(false)
+          window.setBackgroundColor($.NSColor.clearColor)
+          window.setIgnoresMouseEvents(true)
+          window.setLevel(level)
+          window.setCollectionBehavior(
+            $.NSWindowCollectionBehaviorCanJoinAllSpaces |
+            $.NSWindowCollectionBehaviorFullScreenAuxiliary |
+            $.NSWindowCollectionBehaviorStationary
+          )
+          window.orderFront(null)
+          windows.push(window)
+          for (let index = 0; index < 96; index++) {
+            const view = $.NSTextField.alloc.initWithFrame($.NSMakeRect(
+              Math.random() * Math.max(1, frame.size.width - 64),
+              frame.size.height + Math.random() * 320,
+              64,
+              64
+            ))
+            view.setStringValue(glyphs[index % glyphs.length])
+            view.setFont($.NSFont.systemFontOfSize(24 + Math.random() * 22))
+            view.setBezeled(false)
+            view.setDrawsBackground(false)
+            view.setEditable(false)
+            view.setSelectable(false)
+            view.setAlignment($.NSTextAlignmentCenter)
+            window.contentView.addSubview(view)
+            pieces.push({
+              view: view,
+              speed: 4.5 + Math.random() * 8.5,
+              sway: 0.8 + Math.random() * 3.2,
+              phase: Math.random() * 6.28
+            })
+          }
         }
-        window.orderOut(null)
+        const started = Date.now()
+        while (Date.now() - started < 3600) {
+          const elapsed = Date.now() - started
+          const seconds = elapsed / 1000
+          pieces.forEach(piece => {
+            const frame = piece.view.frame
+            frame.origin.y -= piece.speed
+            frame.origin.x += Math.sin(seconds * 4 + piece.phase) * piece.sway
+            piece.view.setFrame(frame)
+            piece.view.setAlphaValue(Math.max(0, 1 - (elapsed - 2700) / 850))
+          })
+          $.NSRunLoop.currentRunLoop.runUntilDate($.NSDate.dateWithTimeIntervalSinceNow(0.016))
+        }
+        windows.forEach(window => window.orderOut(null))
+        // CODECKS_VISUAL_EFFECT_V1
+        effectTitle
         CODECKS_VISUAL_EFFECT_V1
         """.trimIndent()
 }

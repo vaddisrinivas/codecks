@@ -78,14 +78,14 @@ class HidSessionService : Service() {
             Notification.Builder(this)
         }
         return builder
-            .setSmallIcon(R.drawable.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Codecks Bluetooth input")
             .setContentText("Keeping Trackpad and Keyboard ready for your Mac.")
             .setContentIntent(pendingOpen)
             .setOngoing(true)
             .setShowWhen(false)
             .setCategory(Notification.CATEGORY_SERVICE)
-            .addAction(R.drawable.ic_launcher, "Trackpad", pendingOpen)
+            .addAction(R.drawable.ic_notification, "Trackpad", pendingOpen)
             .build()
     }
 
