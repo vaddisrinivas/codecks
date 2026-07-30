@@ -86,6 +86,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard"
             android:resizeableActivity="true"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>

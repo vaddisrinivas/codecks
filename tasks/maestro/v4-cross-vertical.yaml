@@ -1,0 +1,24 @@
+appId: app.codecks.debug
+
+- launchApp:
+    clearState: true
+    permissions: []
+
+- assertVisible: "Deck"
+- tapOn: "Trackpad"
+- assertVisible: "Trackpad"
+- tapOn: "Keyboard"
+- assertVisible: "Keyboard"
+- back
+- tapOn: "Settings"
+- assertVisible: "Settings"
+- back
+- tapOn: "Rules"
+- assertVisible: "Rules"
+- back
+- tapOn: "More"
+- tapOn: "AI"
+- assertVisible: "AI"
+- back
+
+- takeScreenshot: "v4-cross-vertical-endpoint"

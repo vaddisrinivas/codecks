@@ -333,6 +333,35 @@ private fun DeckAction.visibleForFlags(flags: Map<FeatureFlag, Boolean>): Boolea
         false
 }
 
+private fun navRouteFromStateKey(routeName: String?): NavKey = when (routeName) {
+    "mouse" -> MouseRoute
+    "keyboard" -> KeyboardRoute
+    "clipboard" -> ClipboardRoute
+    "automations" -> AutomationsRoute
+    "settings" -> SettingsRoute
+    "editor" -> EditorRoute
+    "ai_builder" -> AiBuilderRoute
+    "ai_provider" -> AiProviderRoute
+    "run_log" -> RunLogRoute
+    "command_palette" -> CommandPaletteRoute
+    else -> HomeRoute
+}
+
+private fun routeStateKey(route: NavKey): String = when (route) {
+    HomeRoute -> "home"
+    MouseRoute -> "mouse"
+    KeyboardRoute -> "keyboard"
+    ClipboardRoute -> "clipboard"
+    AutomationsRoute -> "automations"
+    SettingsRoute -> "settings"
+    EditorRoute -> "editor"
+    AiBuilderRoute -> "ai_builder"
+    AiProviderRoute -> "ai_provider"
+    RunLogRoute -> "run_log"
+    CommandPaletteRoute -> "command_palette"
+    else -> "home"
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CodecksApp(
@@ -363,6 +392,8 @@ private fun CodecksApp(
     connectionViewModel: ConnectionViewModel = viewModel(),
     automationsViewModel: AutomationsViewModel = viewModel(),
 ) {
+    val restoredTopRouteName = rememberSaveable { mutableStateOf("home") }
+    val backStack = rememberNavBackStack(navRouteFromStateKey(restoredTopRouteName.value))
     val homeState by homeViewModel.uiState.collectAsStateWithLifecycle()
     val connectionState by connectionViewModel.uiState.collectAsStateWithLifecycle()
     val connectionHealth = connectionState.connectionHealth()
@@ -388,8 +419,10 @@ private fun CodecksApp(
         }
     }
     val phoneNotifications by phoneNotificationFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val backStack = rememberNavBackStack(HomeRoute)
     val currentRoute = backStack.lastOrNull() ?: HomeRoute
+    LaunchedEffect(currentRoute) {
+        restoredTopRouteName.value = routeStateKey(currentRoute)
+    }
     LaunchedEffect(Unit) {
         val launchRoute = launchRouteForRestoredTop(currentRoute)
         if (launchRoute != currentRoute) {

@@ -73,7 +73,7 @@ fun CodecksAppShell(
 
     Box(modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val useRail = maxWidth >= 600.dp
+            val useRail = maxWidth >= SECONDARY_NAV_RAIL_WIDTH
             Scaffold(
                 topBar = if (fullscreen || currentRoute == HomeRoute) {
                     {}
@@ -170,6 +170,8 @@ private fun rememberShellDestinations(tabs: List<PrimaryTab>): List<ShellDestina
         group = ShellGroup.Manage,
     )
 }
+
+private val SECONDARY_NAV_RAIL_WIDTH = 840.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
