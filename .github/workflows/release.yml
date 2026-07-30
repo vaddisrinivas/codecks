@@ -18,39 +18,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  mac-action-verifier:
-    name: Bundled Mac action verifier
-    if: github.event_name == 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
-    runs-on: macos-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    env:
-      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: refs/tags/${{ inputs.tag || github.ref_name }}
-          persist-credentials: false
-      - name: Verify exact release tag checkout
-        run: |
-          test -n "$RELEASE_TAG"
-          case "$RELEASE_TAG" in
-            v*) ;;
-            *) echo "Release tag must start with v: $RELEASE_TAG" >&2; exit 1 ;;
-          esac
-          git check-ref-format "refs/tags/$RELEASE_TAG"
-          git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"
-          test "$(git rev-parse HEAD)" = \
-            "$(git rev-list -n 1 "refs/tags/$RELEASE_TAG")"
-      - name: Verify bundled Mac actions
-        run: python3 scripts/verify_mac_actions.py
-
   build-release-candidate:
     name: Build signed release candidate
     if: github.event_name == 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
-    needs: mac-action-verifier
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -77,6 +47,8 @@ jobs:
           git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"
           test "$(git rev-parse HEAD)" = \
             "$(git rev-list -n 1 "refs/tags/$RELEASE_TAG")"
+          git fetch origin main
+          git merge-base --is-ancestor HEAD origin/main
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -90,14 +62,8 @@ jobs:
           printf '%s' "$CODECKS_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/codecks-release.jks"
           chmod 600 "$RUNNER_TEMP/codecks-release.jks"
           echo "CODECKS_RELEASE_STORE_FILE=$RUNNER_TEMP/codecks-release.jks" >> "$GITHUB_ENV"
-      - name: Public-source privacy check
-        run: python3 tools/secret_surface_check.py
       - name: Enforce unshrunk production release
         run: ./scripts/verify_release_no_shrink.sh
-      - name: AI Creator V2 local corpus check
-        run: python3 tools/ai_creator_v2_eval.py
-      - name: Test, lint, and release-surface checks
-        run: ./gradlew --no-daemon :shared:jvmTest :app:check
       - name: Build signed release emulator candidate
         run: |
           ./gradlew --no-daemon :app:assembleRelease :app:assembleReleaseAndroidTest
@@ -166,12 +132,6 @@ jobs:
           sha256sum --check "$RUNNER_TEMP/codecks-release-androidTest.sha256"
           cd release-candidate
           sha256sum -c SHA256SUMS.txt
-      - name: Run debug functional suite on managed emulator
-        run: |
-          ./gradlew --no-daemon \
-            -PcodecksInstrumentedTestBuildType=debug \
-            -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect \
-            :app:pixel6Api35DebugAndroidTest
       - name: Archive signed release emulator results
         uses: actions/upload-artifact@v4
         if: always()
@@ -180,8 +140,6 @@ jobs:
           path: |
             app/build/reports/androidTests/managedDevice/release/
             app/build/outputs/androidTest-results/managedDevice/release/
-            app/build/reports/androidTests/managedDevice/debug/
-            app/build/outputs/androidTest-results/managedDevice/debug/
           if-no-files-found: warn
           retention-days: 3
       - name: Upload release candidate
