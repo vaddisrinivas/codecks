@@ -1113,12 +1113,18 @@ private fun CodecksApp(
                                 selectedDeckSlot = slot.coerceIn(0, homeState.actions.lastIndex.coerceAtLeast(0))
                                 navigate(EditorRoute)
                             },
+                            onCreateWithAiForSlot = { slot ->
+                                selectedDeckSlot = slot.coerceIn(0, homeState.actions.lastIndex.coerceAtLeast(0))
+                                navigate(AiBuilderRoute)
+                            },
                             visibleSlotIndices = visibleDeckSlots.map { it.index },
                             onTestAction = homeViewModel::test,
                             onDuplicateAction = homeViewModel::duplicateAction,
                             onRemoveAction = { action -> homeViewModel.removeAction(action.id) },
                             onAssignSlot = homeViewModel::assign,
                             onMoveSlot = homeViewModel::move,
+                            onPlacePendingDeckPlacement = homeViewModel::placePendingDeckPlacement,
+                            onCancelPendingDeckPlacement = homeViewModel::clearPendingDeckPlacement,
                             onForgetAction = homeViewModel::forgetAction,
                             onRemoveSlot = { slot ->
                                 if (slot in homeState.actions.indices) {

@@ -624,7 +624,7 @@ private fun AiArtifactHistoryCard(
 private fun AiArtifact.saveLabel(): String =
     when (kind) {
         AiArtifactKind.Automation -> "Save Rule"
-        AiArtifactKind.Deck -> "Add Deck"
+        AiArtifactKind.Deck -> "Place on Deck"
         AiArtifactKind.Button -> "Add Button"
         AiArtifactKind.Clock -> "Save Clock"
     }

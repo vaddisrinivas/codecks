@@ -26,9 +26,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material3.Checkbox
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Computer
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Refresh
@@ -91,6 +91,7 @@ fun HomeScreen(
     onEditDeck: () -> Unit = {},
     onOpenPalette: () -> Unit = {},
     onEditSlot: (Int) -> Unit = { onEditDeck() },
+    onCreateWithAiForSlot: (Int) -> Unit = {},
     visibleSlotIndices: List<Int> = if (state.deckLayout.slots.isEmpty()) {
         state.actions.indices.toList()
     } else {
@@ -111,6 +112,8 @@ fun HomeScreen(
     onExplainSmartSuggestion: (SmartDeckSuggestionUi) -> Unit = {},
     onSuppressSmartSuggestionForContext: (SmartDeckSuggestionUi) -> Unit = {},
     onNeverSmartSuggestionForAction: (SmartDeckSuggestionUi) -> Unit = {},
+    onPlacePendingDeckPlacement: (List<Int>) -> Unit = {},
+    onCancelPendingDeckPlacement: () -> Unit = {},
     onRemoveSlot: (Int) -> Unit = { slot ->
         state.deckLayout.slots.getOrNull(slot)?.action?.let(onRemoveAction)
     },
@@ -131,9 +134,102 @@ fun HomeScreen(
     var reassignSlot by rememberSaveable { mutableIntStateOf(-1) }
     var movingFromSlot by rememberSaveable { mutableIntStateOf(-1) }
     var pendingForgetAction by remember { mutableStateOf<DeckAction?>(null) }
+    var selectedPlacementSlots by remember { mutableStateOf<List<Int>>(emptyList()) }
     val availableActions = remember(state.allActions) {
         state.allActions.filterNot { it.id in bottomNavShortcutIds || it.id in OPEN_SLOT_IDS }
     }
+    LaunchedEffect(state.pendingDeckPlacement) {
+        selectedPlacementSlots = emptyList()
+    }
+
+    state.pendingDeckPlacement?.let { pending ->
+        AlertDialog(
+            onDismissRequest = {
+                selectedPlacementSlots = emptyList()
+                onCancelPendingDeckPlacement()
+            },
+            title = { Text("Place generated controls") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Deck is full. Choose ${pending.actions.size} slot(s) to place ${pending.actions.size} generated control(s).")
+                    val selectedActionLabels = if (selectedPlacementSlots.isEmpty()) {
+                        "No slots selected"
+                    } else {
+                        selectedPlacementSlots.joinToString { (it + 1).toString() }
+                    }
+                    Text("Selected slots: $selectedActionLabels")
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.heightIn(max = 320.dp)) {
+                        state.actions.forEachIndexed { slot, action ->
+                            val selected = selectedPlacementSlots.contains(slot)
+                            val canSelectMore = selectedPlacementSlots.size < pending.actions.size || selected
+                            Surface(
+                                onClick = {
+                                    val updated = if (selected) {
+                                        selectedPlacementSlots.filterNot { it == slot }
+                                    } else if (canSelectMore) {
+                                        selectedPlacementSlots + slot
+                                    } else {
+                                        selectedPlacementSlots
+                                    }
+                                    selectedPlacementSlots = updated
+                                },
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (selected) 0.24f else 0.08f),
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)),
+                                shape = MaterialTheme.shapes.medium,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text("Slot ${slot + 1} · ${action.label}", maxLines = 1)
+                                    Checkbox(
+                                        checked = selected,
+                                        onCheckedChange = { checked ->
+                                            val updated = if (checked) {
+                                                if (selectedPlacementSlots.size < pending.actions.size) {
+                                                    selectedPlacementSlots + slot
+                                                } else {
+                                                    selectedPlacementSlots
+                                                }
+                                            } else {
+                                                selectedPlacementSlots.filterNot { it == slot }
+                                            }
+                                            selectedPlacementSlots = updated
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onPlacePendingDeckPlacement(selectedPlacementSlots)
+                        selectedPlacementSlots = emptyList()
+                    },
+                    enabled = selectedPlacementSlots.size == pending.actions.size,
+                ) {
+                    Text("Place on Deck")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        selectedPlacementSlots = emptyList()
+                        onCancelPendingDeckPlacement()
+                    },
+                ) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
     CodecksKeybedDeck(
         activeDeckLabel = deckActionSlots
             .firstOrNull { it.slot == movingFromSlot }
@@ -148,6 +244,7 @@ fun HomeScreen(
         focusedActionId = focusedActionId,
         onAction = onAction,
         onEditSlot = { slot -> reassignSlot = slot },
+        onCreateWithAiForSlot = onCreateWithAiForSlot,
         onOpenSettings = onOpenSettings,
         onOpenConnection = onOpenConnection,
         onEditDeck = onEditDeck,
@@ -268,6 +365,7 @@ private fun CodecksKeybedDeck(
     focusedActionId: String?,
     onAction: (DeckAction) -> Unit,
     onEditSlot: (Int) -> Unit,
+    onCreateWithAiForSlot: (Int) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenConnection: () -> Unit,
     onEditDeck: () -> Unit,
@@ -291,6 +389,7 @@ private fun CodecksKeybedDeck(
     val deckCanvasColor = MaterialTheme.colorScheme.background
     val deckTextColor = MaterialTheme.colorScheme.onBackground
     val connectionTone = connectionToneColor(connectionHealth.kind)
+    var deckMenuExpanded by remember { mutableStateOf(false) }
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
@@ -364,8 +463,26 @@ private fun CodecksKeybedDeck(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                IconButton(onClick = onEditDeck) {
-                    Icon(Icons.Outlined.Edit, contentDescription = "Edit deck", tint = deckTextColor.copy(alpha = 0.82f))
+                Box {
+                    IconButton(onClick = { deckMenuExpanded = true }) {
+                        Icon(
+                            Icons.Outlined.MoreVert,
+                            contentDescription = "Deck options",
+                            tint = deckTextColor.copy(alpha = 0.82f),
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = deckMenuExpanded,
+                        onDismissRequest = { deckMenuExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Deck customization") },
+                            onClick = {
+                                deckMenuExpanded = false
+                                onEditDeck()
+                            },
+                        )
+                    }
                 }
                 Surface(
                     onClick = onOpenConnection,
@@ -435,7 +552,7 @@ private fun CodecksKeybedDeck(
                                 onClick = {
                                     when {
                                         moving -> onMoveTarget(slot)
-                                        openSlot -> onEditSlot(slot.slot)
+                                        openSlot -> onCreateWithAiForSlot(slot.slot)
                                         else -> onAction(action)
                                     }
                                 },
@@ -615,6 +732,7 @@ private fun LandscapeDeckLayout(
     focusedActionId: String?,
     onAction: (DeckAction) -> Unit,
     onEditSlot: (Int) -> Unit,
+    onCreateWithAiForSlot: (Int) -> Unit,
     onTemplateSelected: (String) -> Unit,
     onRefreshContext: () -> Unit,
     onDynamicDeckChange: (Boolean) -> Unit,
@@ -700,13 +818,13 @@ private fun LandscapeDeckLayout(
                     running = runningActionId == action.id,
                     selected = action.id == focusedActionId,
                     enabled = isDeckActionEnabled(action, state.connectionReady),
-                    onClick = {
-                        if (action.id == "add_button" || action.id == "blank") {
-                            onEditSlot(slot.slot)
-                        } else {
-                            onAction(action)
-                        }
-                    },
+                        onClick = {
+                            if (action.id == "add_button" || action.id == "blank") {
+                                onCreateWithAiForSlot(slot.slot)
+                            } else {
+                                onAction(action)
+                            }
+                        },
                     onLongClick = { if (shouldShowActionOptions(action, locked)) onLongClick(slot) },
                 )
             }

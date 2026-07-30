@@ -37,6 +37,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -502,7 +503,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun saveGeneratedDeck_whenDeckFull_failsWithoutGrowingDeck() = runTest(dispatcher) {
+    fun saveGeneratedDeck_whenDeckFull_storesGeneratedInCatalogAndDefersPlacement() = runTest(dispatcher) {
         val favorites = (1..12).map { index ->
             DeckAction("slot_$index", "Slot $index", ActionKind.Ssh, ActionIcon.Apps)
         }
@@ -531,9 +532,94 @@ class HomeViewModelTest {
         val ids = viewModel.uiState.value.actions.map(DeckAction::id)
         assertEquals((1..12).map { "slot_$it" }, ids)
         assertEquals(emptyList<DeckAction>(), repository.savedFavorites)
+        assertEquals(1, viewModel.uiState.value.pendingDeckPlacement?.actions?.size)
+        assertNotNull(viewModel.uiState.value.allActions.find { it.label == "New Action" })
         assertEquals(
-            ActionStatus.Failed("deck_full", "Deck needs 1 empty slot(s). Empty slots before saving this draft."),
+            ActionStatus.Failed("deck_full", "Deck is full. Select 1 slot(s) to place 1 generated control(s)."),
             viewModel.uiState.value.actionStatus,
+        )
+    }
+
+    @Test
+    fun placePendingDeckPlacement_replacesChosenSlot() = runTest(dispatcher) {
+        val favorites = (1..12).map { index ->
+            DeckAction("slot_$index", "Slot $index", ActionKind.Ssh, ActionIcon.Apps)
+        }
+        val repository = GatedActionRepository(
+            action = favorites.first(),
+            favorites = favorites,
+            allActions = favorites,
+        )
+        val viewModel = HomeViewModel(repository, ReadyConnectionRepository(), ImmediateActionRunner())
+        runCurrent()
+
+        viewModel.saveGeneratedDraft(
+            GeneratedDraft.Action(
+                ActionDraft(
+                    prompt = "add one",
+                    definition = ActionDefinition(
+                        id = "new.action",
+                        title = "New Action",
+                        steps = listOf(ActionStep("open", ActionStepTypes.Shell, value = "open -a Notes")),
+                    ),
+                ),
+            ),
+        )
+        runCurrent()
+        assertEquals(1, viewModel.uiState.value.pendingDeckPlacement?.actions?.size)
+
+        viewModel.placePendingDeckPlacement(listOf(5))
+        runCurrent()
+
+        assertEquals(
+            listOf("slot_1", "slot_2", "slot_3", "slot_4", "slot_5", "ai_new_action", "slot_7", "slot_8", "slot_9", "slot_10", "slot_11", "slot_12"),
+            viewModel.uiState.value.actions.map(DeckAction::id),
+        )
+        assertEquals(
+            ActionStatus.Succeeded("ai_deck", "1 generated control(s) placed"),
+            viewModel.uiState.value.actionStatus,
+        )
+        assertEquals(null, viewModel.uiState.value.pendingDeckPlacement)
+        assertEquals(12, repository.savedFavorites.size)
+    }
+
+    @Test
+    fun placePendingDeckPlacement_rejectsWrongSlotCount() = runTest(dispatcher) {
+        val favorites = (1..12).map { index ->
+            DeckAction("slot_$index", "Slot $index", ActionKind.Ssh, ActionIcon.Apps)
+        }
+        val repository = GatedActionRepository(
+            action = favorites.first(),
+            favorites = favorites,
+            allActions = favorites,
+        )
+        val viewModel = HomeViewModel(repository, ReadyConnectionRepository(), ImmediateActionRunner())
+        runCurrent()
+
+        viewModel.saveGeneratedDraft(
+            GeneratedDraft.Action(
+                ActionDraft(
+                    prompt = "add one",
+                    definition = ActionDefinition(
+                        id = "new.action",
+                        title = "New Action",
+                        steps = listOf(ActionStep("open", ActionStepTypes.Shell, value = "open -a Notes")),
+                    ),
+                ),
+            ),
+        )
+        runCurrent()
+        viewModel.placePendingDeckPlacement(listOf(0, 1))
+        runCurrent()
+
+        assertEquals(
+            ActionStatus.Failed("deck_full", "Choose 1 slot(s) to place generated deck control(s)."),
+            viewModel.uiState.value.actionStatus,
+        )
+        assertEquals(1, viewModel.uiState.value.pendingDeckPlacement?.actions?.size)
+        assertEquals(
+            listOf("slot_1", "slot_2", "slot_3", "slot_4", "slot_5", "slot_6", "slot_7", "slot_8", "slot_9", "slot_10", "slot_11", "slot_12"),
+            viewModel.uiState.value.actions.map(DeckAction::id),
         )
     }
 }

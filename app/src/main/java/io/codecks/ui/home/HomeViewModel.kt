@@ -42,6 +42,7 @@ data class HomeUiState(
     val actionStatus: ActionStatus = ActionStatus.Idle,
     val connectionReady: Boolean = false,
     val pendingDeckUndo: PendingDeckUndo? = null,
+    val pendingDeckPlacement: PendingDeckPlacement? = null,
 )
 
 data class ActionEvent(
@@ -60,6 +61,12 @@ data class PendingDeckUndo(
     val action: DeckAction,
     val layoutBefore: DeckLayout? = null,
     val artifact: AiArtifact? = null,
+)
+
+data class PendingDeckPlacement(
+    val actions: List<DeckAction>,
+    val statusId: String,
+    val statusLabel: String,
 )
 
 sealed interface HomeActionDispatchResult {
@@ -481,20 +488,94 @@ class HomeViewModel @Inject constructor(
             return
         }
         val current = favoriteLayout
-        val slots = current.actions.openDeckSlots(generatedActions.size)
-        if (slots.size < generatedActions.size) {
-            reportDeckFull(
-                label = "AI Builder",
-                message = "Deck needs ${generatedActions.size} empty slot(s). Empty slots before saving this draft.",
-            )
-            return
-        }
-        val nextActions = generatedActions.withUniqueIds(existingIds = current.actions.map(DeckAction::id).toSet()) { index ->
+        val normalizedActions = generatedActions.withUniqueIds(existingIds = current.actions.map(DeckAction::id).toSet()) { index ->
             "ai_${index + 1}"
         }
+        val openSlots = current.actions.openDeckSlots(normalizedActions.size)
+        if (openSlots.size < normalizedActions.size) {
+            val fillCount = openSlots.size.coerceAtMost(normalizedActions.size)
+            val immediateActions = normalizedActions.take(fillCount)
+            val remainingActions = normalizedActions.drop(fillCount)
+            var nextLayout = current
+            openSlots.forEachIndexed { index, slot ->
+                val action = immediateActions.getOrNull(index) ?: return@forEachIndexed
+                nextLayout = nextLayout.replacingAction(slot, action).resizing(slot, 1)
+            }
+            if (openSlots.isNotEmpty() && remainingActions.isNotEmpty()) {
+                viewModelScope.launch { actionRepository.saveLayout(nextLayout) }
+            }
+            if (remainingActions.isNotEmpty()) {
+                updateCustomDeck(
+                    nextLayout,
+                    newActions = normalizedActions,
+                    pendingDeckPlacement = PendingDeckPlacement(
+                        actions = remainingActions,
+                        statusId = "ai_deck",
+                        statusLabel = "AI Builder",
+                    ),
+                    pendingUndo = null,
+                )
+                _uiState.update {
+                    it.copy(
+                        actionStatus = ActionStatus.Failed(
+                            "deck_full",
+                            "Deck is full. Select ${remainingActions.size} slot(s) to place ${remainingActions.size} generated control(s).",
+                        ),
+                        activity = listOf(
+                            ActionEvent(
+                                "deck_full",
+                                "AI Builder",
+                                "Deck is full. Select ${remainingActions.size} slot(s) to place ${remainingActions.size} generated control(s).",
+                                false,
+                            ),
+                        ) + it.activity.take(49),
+                    )
+                }
+                return
+            }
+            if (openSlots.isNotEmpty()) {
+                updateCustomDeck(nextLayout, normalizedActions)
+                viewModelScope.launch {
+                    actionRepository.saveLayout(nextLayout)
+                }
+                _uiState.update {
+                    it.copy(
+                        actionStatus = ActionStatus.Succeeded(
+                            "ai_deck",
+                            if (normalizedActions.size == 1) {
+                                "${normalizedActions.single().label} saved"
+                            } else {
+                                "${normalizedActions.size} deck controls saved"
+                            },
+                        )
+                    )
+                }
+                return
+            }
+            val message = "Deck is full. Select ${normalizedActions.size} slot(s) to place ${normalizedActions.size} generated control(s)."
+            updateCustomDeck(
+                nextLayout,
+                newActions = normalizedActions,
+                pendingDeckPlacement = PendingDeckPlacement(
+                    actions = normalizedActions,
+                    statusId = "ai_deck",
+                    statusLabel = "AI Builder",
+                ),
+            )
+            _uiState.update {
+                it.copy(
+                    actionStatus = ActionStatus.Failed("deck_full", message),
+                    activity = listOf(ActionEvent("deck_full", "AI Builder", message, false)) + it.activity.take(49),
+                )
+            }
+            return
+        }
+
+        val nextActions = normalizedActions
         var nextLayout = current
-        nextActions.forEachIndexed { index, action ->
-            nextLayout = nextLayout.replacingAction(slots[index], action).resizing(slots[index], 1)
+        openSlots.forEachIndexed { index, slot ->
+            val action = nextActions[index]
+            nextLayout = nextLayout.replacingAction(slot, action).resizing(slot, 1)
         }
         val message = if (nextActions.size == 1) {
             "${nextActions.single().label} saved"
@@ -537,18 +618,91 @@ class HomeViewModel @Inject constructor(
             return
         }
         val current = favoriteLayout
-        val slots = current.actions.openDeckSlots(generatedActions.size)
-        if (slots.size < generatedActions.size) {
-            reportDeckFull(
-                label = "AI draft",
-                message = "Deck needs ${generatedActions.size} empty slot(s). Empty slots before saving this draft.",
+        val normalizedActions = generatedActions.withUniqueIds(existingIds = current.actions.map(DeckAction::id).toSet()) { "artifact" }
+        val openSlots = current.actions.openDeckSlots(normalizedActions.size)
+        if (openSlots.size < normalizedActions.size) {
+            val fillCount = openSlots.size.coerceAtMost(normalizedActions.size)
+            val immediateActions = normalizedActions.take(fillCount)
+            val remainingActions = normalizedActions.drop(fillCount)
+            var nextLayout = current
+            openSlots.forEachIndexed { index, slot ->
+                val action = immediateActions.getOrNull(index) ?: return@forEachIndexed
+                nextLayout = nextLayout.replacingAction(slot, action).resizing(slot, 1)
+            }
+            if (openSlots.isNotEmpty() && remainingActions.isNotEmpty()) {
+                viewModelScope.launch { actionRepository.saveLayout(nextLayout) }
+            }
+            if (remainingActions.isNotEmpty()) {
+                updateCustomDeck(
+                    nextLayout,
+                    newActions = normalizedActions,
+                    pendingDeckPlacement = PendingDeckPlacement(
+                        actions = remainingActions,
+                        statusId = "ai_draft",
+                        statusLabel = "AI draft",
+                    ),
+                    pendingUndo = null,
+                )
+                _uiState.update {
+                    it.copy(
+                        actionStatus = ActionStatus.Failed(
+                            "deck_full",
+                            "Deck is full. Select ${remainingActions.size} slot(s) to place ${remainingActions.size} generated control(s).",
+                        ),
+                        activity = listOf(
+                            ActionEvent(
+                                "deck_full",
+                                "AI draft",
+                                "Deck is full. Select ${remainingActions.size} slot(s) to place ${remainingActions.size} generated control(s).",
+                                false,
+                            ),
+                        ) + it.activity.take(49),
+                    )
+                }
+                return
+            }
+            if (openSlots.isNotEmpty()) {
+                updateCustomDeck(nextLayout, normalizedActions)
+                viewModelScope.launch {
+                    actionRepository.saveLayout(nextLayout)
+                }
+                _uiState.update {
+                    it.copy(
+                        actionStatus = ActionStatus.Succeeded(
+                            "ai_draft",
+                            if (normalizedActions.size == 1) {
+                                "${normalizedActions.single().label} saved"
+                            } else {
+                                "${normalizedActions.size} deck controls saved"
+                            },
+                        )
+                    )
+                }
+                return
+            }
+            val message = "Deck is full. Select ${normalizedActions.size} slot(s) to place ${normalizedActions.size} generated control(s)."
+            updateCustomDeck(
+                nextLayout,
+                newActions = normalizedActions,
+                pendingDeckPlacement = PendingDeckPlacement(
+                    actions = normalizedActions,
+                    statusId = "ai_draft",
+                    statusLabel = "AI draft",
+                ),
             )
+            _uiState.update {
+                it.copy(
+                    actionStatus = ActionStatus.Failed("deck_full", message),
+                    activity = listOf(ActionEvent("deck_full", "AI draft", message, false)) + it.activity.take(49),
+                )
+            }
             return
         }
-        val nextActions = generatedActions.withUniqueIds(existingIds = current.actions.map(DeckAction::id).toSet()) { "artifact" }
+        val nextActions = normalizedActions
         var nextLayout = current
-        nextActions.forEachIndexed { index, action ->
-            nextLayout = nextLayout.replacingAction(slots[index], action).resizing(slots[index], 1)
+        openSlots.forEachIndexed { index, slot ->
+            val action = nextActions[index]
+            nextLayout = nextLayout.replacingAction(slot, action).resizing(slot, 1)
         }
         val message = if (nextActions.size == 1) {
             "${nextActions.single().label} saved"
@@ -571,6 +725,7 @@ class HomeViewModel @Inject constructor(
         layout: DeckLayout,
         newActions: List<DeckAction> = emptyList(),
         pendingUndo: PendingDeckUndo? = null,
+        pendingDeckPlacement: PendingDeckPlacement? = null,
     ) {
         favoriteLayout = layout.normalized()
         _uiState.update {
@@ -580,8 +735,79 @@ class HomeViewModel @Inject constructor(
                 deckLayout = favoriteLayout,
                 allActions = (combinedActionLibrary(favoriteLayout) + newActions).distinctBy(DeckAction::id),
                 pendingDeckUndo = pendingUndo,
+                pendingDeckPlacement = pendingDeckPlacement,
             )
         }
+    }
+
+    fun placePendingDeckPlacement(selectedSlots: List<Int>) {
+        val pending = _uiState.value.pendingDeckPlacement ?: return
+        if (selectedSlots.size != pending.actions.size) {
+            _uiState.update {
+                it.copy(
+                    actionStatus = ActionStatus.Failed(
+                        "deck_full",
+                        "Choose ${pending.actions.size} slot(s) to place generated deck control(s).",
+                    ),
+                )
+            }
+            return
+        }
+        val distinctSlots = selectedSlots.distinct()
+        if (distinctSlots.size != pending.actions.size) {
+            _uiState.update {
+                it.copy(
+                    actionStatus = ActionStatus.Failed(
+                        "deck_full",
+                        "Select ${pending.actions.size} different slots to place generated deck control(s).",
+                    ),
+                )
+            }
+            return
+        }
+
+        val current = editableLayout()
+        val availableIndices = current.slots.indices.toSet()
+        if (distinctSlots.any { it !in availableIndices }) {
+            _uiState.update {
+                it.copy(
+                    actionStatus = ActionStatus.Failed(
+                        "deck_full",
+                        "Selected deck slot is not valid for placement.",
+                    ),
+                )
+            }
+            return
+        }
+
+        var next = current
+        pending.actions.zip(distinctSlots) { action, slot ->
+            next = next.replacingAction(slot, action).resizing(slot, 1)
+        }
+        updateCustomDeck(next, pending.actions, pendingDeckPlacement = null)
+        viewModelScope.launch {
+            actionRepository.saveLayout(next)
+            _uiState.update {
+                it.copy(
+                    actionStatus = ActionStatus.Succeeded(
+                        pending.statusId,
+                        "${pending.actions.size} generated control(s) placed",
+                    ),
+                    activity = listOf(
+                        ActionEvent(
+                            pending.statusId,
+                            pending.statusLabel,
+                            "${pending.actions.size} generated control(s) placed",
+                            true,
+                        ),
+                    ) + it.activity.take(49),
+                )
+            }
+        }
+    }
+
+    fun clearPendingDeckPlacement() {
+        _uiState.update { it.copy(pendingDeckPlacement = null) }
     }
 
     private fun combinedActionLibrary(layout: DeckLayout): List<DeckAction> =
