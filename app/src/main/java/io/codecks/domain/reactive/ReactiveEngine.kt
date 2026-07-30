@@ -58,7 +58,14 @@ class DeterministicReactiveEngine(
         val contractErrors = mutableListOf<String>()
         val merged = providers
             .filterNot { provider -> provider.id in context.disabledProviderIds }
-            .flatMap { provider -> provider.controls(state, context, nowMillis) }
+            .flatMap { provider ->
+                runCatching {
+                    provider.controls(state, context, nowMillis)
+                }.getOrElse { error ->
+                    contractErrors += "provider_failed:${provider.id}:${error::class.simpleName ?: "unknown"}"
+                    emptyList()
+                }
+            }
             .groupBy { it.id }
             .mapNotNull { (id, duplicates) ->
                 val first = duplicates.first()
@@ -66,7 +73,8 @@ class DeterministicReactiveEngine(
                     candidate.action == first.action &&
                         candidate.actionRevision == first.actionRevision &&
                         candidate.risk == first.risk &&
-                        candidate.requiredCapabilities == first.requiredCapabilities
+                        candidate.requiredCapabilities == first.requiredCapabilities &&
+                        candidate.conflicts == first.conflicts
                 }
                 if (!sameContract) {
                     contractErrors += "duplicate_mismatch:${id.value}"

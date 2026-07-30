@@ -130,11 +130,16 @@ fun HomeScreen(
     var optionsSlot by remember { mutableStateOf<HomeDeckSlot?>(null) }
     var reassignSlot by rememberSaveable { mutableIntStateOf(-1) }
     var movingFromSlot by rememberSaveable { mutableIntStateOf(-1) }
+    var pendingForgetAction by remember { mutableStateOf<DeckAction?>(null) }
     val availableActions = remember(state.allActions) {
         state.allActions.filterNot { it.id in bottomNavShortcutIds || it.id in OPEN_SLOT_IDS }
     }
     CodecksKeybedDeck(
-        activeDeckLabel = activeTemplateTitle(state.activeTemplateId, state.deckTemplates),
+        activeDeckLabel = deckActionSlots
+            .firstOrNull { it.slot == movingFromSlot }
+            ?.action
+            ?.let { "Move ${it.label} · tap destination" }
+            ?: activeTemplateTitle(state.activeTemplateId, state.deckTemplates),
         activeApp = state.activeMacApp,
         connectionHealth = connectionHealth,
         slots = deckActionSlots,
@@ -201,7 +206,7 @@ fun HomeScreen(
             },
             onForget = {
                 optionsSlot = null
-                onForgetAction(action)
+                pendingForgetAction = action
             },
             onViewLog = {
                 optionsSlot = null
@@ -220,7 +225,34 @@ fun HomeScreen(
                 reassignSlot = -1
                 onAssignSlot(slot, action)
             },
-            onForget = onForgetAction,
+            onForget = { action ->
+                reassignSlot = -1
+                pendingForgetAction = action
+            },
+        )
+    }
+    pendingForgetAction?.let { action ->
+        AlertDialog(
+            onDismissRequest = { pendingForgetAction = null },
+            title = { Text("Forget ${action.label}?") },
+            text = {
+                Text("This removes it from the catalog and every deck slot. You can undo from the confirmation message.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingForgetAction = null
+                        onForgetAction(action)
+                    },
+                ) {
+                    Text("Forget")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingForgetAction = null }) {
+                    Text("Cancel")
+                }
+            },
         )
     }
 }
@@ -385,12 +417,7 @@ private fun CodecksKeybedDeck(
                             val selected = movingFromSlot == slot.slot || focusedActionId == action.id
                             val enabled = openSlot || isDeckActionEnabled(action, connectionReady)
                             DeckControlTile(
-                                label = when {
-                                    movingFromSlot == slot.slot -> "Moving"
-                                    moving -> "Drop here"
-                                    openSlot -> "Tap to assign"
-                                    else -> action.label
-                                },
+                                label = if (openSlot) "Tap to assign" else action.label,
                                 icon = action.deckImageVector(),
                                 state = when {
                                     running -> DeckComponentState.Running

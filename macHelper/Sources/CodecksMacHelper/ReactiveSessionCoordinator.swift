@@ -27,6 +27,7 @@ public final class ReactiveSessionCoordinator {
     private let helperIdentity: HelperIdentityPin
     private let pairingStore: PairingStore
     private let supportedActionIds: Set<String>
+    private let advertisedCapabilities: [String]
     private let actionHandlers: [String: ReactiveHelperActionHandler]
     private let jsonEncoder = JSONEncoder()
     private let jsonDecoder = JSONDecoder()
@@ -45,6 +46,9 @@ public final class ReactiveSessionCoordinator {
         self.pairingStore = pairingStore
         self.actionHandlers = actionHandlers
         self.supportedActionIds = supportedActionIds.union(actionHandlers.keys)
+        self.advertisedCapabilities = Array(
+            Set(["state.front_app", "action.execute"]).union(self.supportedActionIds)
+        ).sorted()
         jsonEncoder.outputFormatting = [.sortedKeys]
     }
 
@@ -132,7 +136,7 @@ public final class ReactiveSessionCoordinator {
             let capabilities = ReactiveHelperCapabilities(
                 helperId: helperIdentity.helperId,
                 protocolMajor: ReactiveConstants.currentMajor,
-                values: ["state.front_app", "action.execute"]
+                values: advertisedCapabilities
             )
             return try encodedResponse(for: envelope, status: .completed, body: capabilities, secret: session.secret)
         case "basic_state":
@@ -144,7 +148,7 @@ public final class ReactiveSessionCoordinator {
                 provenance: .helper,
                 frontAppBundleId: nil,
                 frontAppName: nil,
-                capabilities: ["state.front_app", "action.execute"],
+                capabilities: advertisedCapabilities,
                 stale: false
             )
             return try encodedResponse(for: envelope, status: .completed, body: state, secret: session.secret)

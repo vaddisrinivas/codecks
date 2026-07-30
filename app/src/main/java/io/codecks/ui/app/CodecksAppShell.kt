@@ -73,7 +73,7 @@ fun CodecksAppShell(
 
     Box(modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val useRail = maxWidth >= 840.dp
+            val useRail = maxWidth >= 600.dp
             Scaffold(
                 topBar = if (fullscreen || currentRoute == HomeRoute) {
                     {}

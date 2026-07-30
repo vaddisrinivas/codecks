@@ -242,24 +242,30 @@ fun CkDeckKey(
     val keyShape = RoundedCornerShape(resolved.geometry.cornerRadius)
     val wellShape = RoundedCornerShape((resolved.geometry.cornerRadius - 4.dp).coerceAtLeast(10.dp))
     val semanticState = keyStateDescription(effectiveState, dangerous)
+    val manageable = onLongClick != null
+    val interactive = enabled || manageable
 
     Box(
         modifier = modifier
             .semantics(mergeDescendants = true) {
                 contentDescription = label
-                stateDescription = semanticState
+                stateDescription = if (!enabled && manageable) {
+                    "Run unavailable. Long press for options"
+                } else {
+                    semanticState
+                }
                 role = Role.Button
-                if (!enabled) disabled()
+                if (!interactive) disabled()
             }
-            .focusable(enabled = enabled, interactionSource = interactionSource)
+            .focusable(enabled = interactive, interactionSource = interactionSource)
             .onFocusChanged { focused = it.isFocused }
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = LocalIndication.current,
-                enabled = enabled && effectiveState != DeckKeyVisualState.Running,
+                enabled = interactive && effectiveState != DeckKeyVisualState.Running,
                 role = Role.Button,
                 onClickLabel = "Run $label",
-                onClick = onClick,
+                onClick = { if (enabled) onClick() },
                 onLongClickLabel = onLongClick?.let { "Open $label options" },
                 onLongClick = onLongClick,
             ),

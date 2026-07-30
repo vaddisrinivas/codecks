@@ -417,6 +417,69 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun forgetAiArtifact_canRestoreCatalogAndDeckWithUndo() = runTest(dispatcher) {
+        val blank = DeckAction("blank", "Blank", ActionKind.Local, ActionIcon.Add)
+        val artifact = AiArtifact(
+            id = "artifact_love",
+            kind = AiArtifactKind.Button,
+            title = "Love Confetti",
+            prompt = "love emoji confetti",
+            actions = listOf(
+                AiArtifactAction(
+                    id = "love",
+                    title = "Love Confetti",
+                    command = io.codecks.domain.ai.MacVisualEffectCatalog.commandForTemplate("codecks.love")!!,
+                ),
+            ),
+        )
+        val artifactRepository = InMemoryAiArtifactRepository(listOf(artifact))
+        val repository = GatedActionRepository(favorites = listOf(blank), allActions = listOf(blank))
+        val viewModel = HomeViewModel(
+            repository,
+            ReadyConnectionRepository(),
+            ImmediateActionRunner(),
+            aiArtifactRepository = artifactRepository,
+        )
+        runCurrent()
+        val action = viewModel.uiState.value.allActions.single { it.id == "artifact_love_love_0" }
+        viewModel.assign(0, action.copy(commandOrigin = CommandOrigin.AiGenerated))
+        runCurrent()
+
+        viewModel.forgetAction(action)
+        runCurrent()
+        viewModel.undoLastDeckEdit()
+        runCurrent()
+
+        assertEquals(listOf("artifact_love_love_0"), viewModel.uiState.value.actions.map(DeckAction::id))
+        assertEquals(listOf(artifact), artifactRepository.snapshot())
+        assertEquals(listOf("artifact_love_love_0"), repository.savedFavorites.map(DeckAction::id))
+    }
+
+    @Test
+    fun editingTemplateCopiesVisibleTemplateIntoCustomAndPersistsResize() = runTest(dispatcher) {
+        val custom = DeckAction("custom", "Custom", ActionKind.Ssh, ActionIcon.Apps)
+        val template = DeckAction("template", "Template", ActionKind.Ssh, ActionIcon.Apps)
+        val replacement = DeckAction("replacement", "Replacement", ActionKind.Ssh, ActionIcon.Apps)
+        val repository = GatedActionRepository(
+            favorites = listOf(custom),
+            allActions = listOf(custom, template, replacement),
+            templateActions = mapOf("work" to listOf(template)),
+        )
+        val viewModel = HomeViewModel(repository, ReadyConnectionRepository(), ImmediateActionRunner())
+        runCurrent()
+
+        viewModel.applyTemplate("work")
+        viewModel.assign(0, replacement)
+        viewModel.resize(0, 2)
+        runCurrent()
+
+        assertEquals(CUSTOM_TEMPLATE_ID, viewModel.uiState.value.activeTemplateId)
+        assertEquals(listOf("replacement"), viewModel.uiState.value.actions.map(DeckAction::id))
+        assertEquals(2, viewModel.uiState.value.deckLayout.slots.single().columnSpan)
+        assertEquals(listOf("replacement"), repository.savedFavorites.map(DeckAction::id))
+    }
+
+    @Test
     fun duplicateAction_whenDeckFull_failsWithoutGrowingDeck() = runTest(dispatcher) {
         val original = DeckAction("focus", "Focus", ActionKind.Ssh, ActionIcon.Apps)
         val second = DeckAction("browser", "Browser", ActionKind.Ssh, ActionIcon.Browser)

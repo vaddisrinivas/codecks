@@ -2,34 +2,34 @@
 
 ## Preservation
 
-- [ ] Commit current four-file deck cleanup
-- [ ] Safety-commit old `/Projects/codecks` dirty state
-- [ ] Safety-commit Shortcuts-handler dirty state
-- [ ] Record all dirty/clean worktrees before removal
+- [x] Commit current four-file deck cleanup
+- [x] Safety-commit old `/Projects/codecks` dirty state
+- [x] Safety-commit Shortcuts-handler dirty state
+- [x] Record all dirty/clean worktrees before removal
 
 ## Confirmed bug repairs
 
-- [ ] Back from AI/Settings returns inside Codecks
-- [ ] Offline long-press opens deck management
-- [ ] Immediate-save deck contract; remove staged Apply layout
-- [ ] Forget confirmation and undo
-- [ ] Search-bounded editor catalog
-- [ ] Clear move semantics and labels
-- [ ] Template/Favorite isolation
-- [ ] Landscape accessibility names
-- [ ] Keyboard and trackpad copy/layout cleanup
-- [ ] Unified animated Mac visual effects
-- [ ] Reactive provider failure isolation
-- [ ] Shortcuts runner/importer/capability hardening
+- [x] Back from AI/Settings returns inside Codecks
+- [x] Offline long-press opens deck management
+- [x] Immediate-save deck contract; remove staged Apply layout
+- [x] Forget confirmation and undo
+- [x] Search-bounded editor catalog
+- [x] Clear move semantics and labels
+- [x] Template/Favorite isolation
+- [x] Landscape accessibility names
+- [x] Keyboard and trackpad copy/layout cleanup
+- [x] Unified animated Mac visual effects
+- [x] Reactive provider failure isolation
+- [x] Shortcuts runner/importer/capability hardening
 
 ## Verification
 
-- [ ] Focused Android tests
-- [ ] Full release unit tests
-- [ ] Lint/no-shrink/build
-- [ ] Mac-helper Swift tests
-- [ ] Maestro emulator regression suite
-- [ ] No physical-phone instrumentation
+- [x] Focused Android tests
+- [x] Full release unit tests
+- [x] Lint/no-shrink/build
+- [x] Mac-helper Swift tests
+- [x] Maestro emulator regression suite
+- [x] No physical-phone instrumentation
 
 ## Consolidation
 

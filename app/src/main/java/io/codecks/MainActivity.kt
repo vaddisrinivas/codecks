@@ -759,7 +759,6 @@ private fun CodecksApp(
     var pendingDangerousAction by remember { mutableStateOf<DeckAction?>(null) }
     var acceptedSmartHomeRunId by remember { mutableStateOf<SmartRunId?>(null) }
     var selectedDeckSlot by remember { mutableStateOf(0) }
-    var deckDirty by remember { mutableStateOf(false) }
     var focusedDeckActionId by remember { mutableStateOf<String?>(null) }
     var celebrationLabel by remember { mutableStateOf<String?>(null) }
     var fullscreenOverride by remember { mutableStateOf<Boolean?>(null) }
@@ -1037,7 +1036,10 @@ private fun CodecksApp(
             tabs = PrimaryTab.entries.filter { tab -> routeEnabled(tab.route, featureFlags) },
             onBack = { backStack.removeLastOrNull() },
             onDestinationSelected = { route ->
-                navigate(route, topLevel = true)
+                navigate(
+                    route,
+                    topLevel = route in setOf(HomeRoute, MouseRoute, KeyboardRoute, ClipboardRoute),
+                )
             },
             onOpenSettings = { navigate(SettingsRoute) },
             onRequestFullscreen = { fullscreenConfirmOpen = true },
@@ -1075,7 +1077,6 @@ private fun CodecksApp(
                             onRemoveSlot = { slot ->
                                 if (slot in homeState.actions.indices) {
                                     homeViewModel.remove(slot)
-                                    deckDirty = true
                                 }
                             },
                             onOpenRunLog = { actionId ->
@@ -1369,28 +1370,19 @@ private fun CodecksApp(
                             onSelectSlot = { selectedDeckSlot = it },
                             onAssignAction = { slot, action ->
                                 homeViewModel.assign(slot, action)
-                                deckDirty = true
                             },
                             onMoveAction = { from, to ->
                                 homeViewModel.move(from, to)
                                 selectedDeckSlot = to.coerceIn(homeState.actions.indices)
-                                deckDirty = true
                             },
                             onRemoveAction = {
                                 homeViewModel.remove(it)
-                                deckDirty = true
                             },
                             onResizeAction = { slot, span ->
                                 homeViewModel.resize(slot, span)
-                                deckDirty = true
                             },
                             onTestAction = homeViewModel::test,
                             onCreateWithAi = { navigate(AiBuilderRoute) },
-                            onSave = {
-                                homeViewModel.saveDeck()
-                                deckDirty = false
-                            },
-                            hasUnsavedChanges = deckDirty,
                             deckStyle = themeSettings.deckStyle,
                         )
                     }
