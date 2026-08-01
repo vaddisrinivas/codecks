@@ -172,7 +172,7 @@ jobs:
           git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"
           test "$(git rev-parse HEAD)" = \
             "$(git rev-list -n 1 "refs/tags/$RELEASE_TAG")"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: codecks-release-candidate
           path: release-candidate
