@@ -25,6 +25,7 @@ class ConnectionIssueContractTest {
                 "bluetooth_disabled",
                 "hid_profile_unregistered",
                 "hid_profile_registration_failed",
+                "hid_transport_timeout",
                 "host_unpaired",
                 "connecting",
                 "connect_backoff",

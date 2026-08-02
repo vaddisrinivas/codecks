@@ -6,46 +6,43 @@ import android.bluetooth.BluetoothHidDevice;
 import android.bluetooth.BluetoothHidDeviceAppSdpSettings;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
-import android.os.Handler;
-import android.os.Looper;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.Executor;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 final class HidController {
+    private static final long CONNECT_TIMEOUT_MILLIS = 5_000L;
+
     interface Listener {
         void onStateChanged(String status);
     }
 
     private final Context context;
-    private final Handler main = new Handler(Looper.getMainLooper());
-    private final Executor mainExecutor = new Executor() {
-        @Override
-        public void execute(Runnable command) {
-            main.post(command);
-        }
-    };
     private final ExecutorService tx = Executors.newSingleThreadExecutor();
+    private final ScheduledExecutorService watchdog = Executors.newSingleThreadScheduledExecutor();
     private final BluetoothAdapter adapter;
     private final Listener listener;
+    private final AtomicBoolean connectPending = new AtomicBoolean();
 
-    private BluetoothHidDevice hidDevice;
-    private BluetoothDevice connectedDevice;
-    private boolean appRegistered;
-    private boolean profileOpening;
-    private boolean appRegistering;
-    private boolean closed;
+    private volatile BluetoothHidDevice hidDevice;
+    private volatile BluetoothDevice connectedDevice;
+    private volatile boolean appRegistered;
+    private volatile boolean profileOpening;
+    private volatile boolean appRegistering;
+    private volatile boolean closed;
     private int buttonMask;
-    private String status = "Bluetooth idle";
+    private volatile String status = "Bluetooth idle";
     private final Object mouseLock = new Object();
     private int pendingDx;
     private int pendingDy;
@@ -62,6 +59,10 @@ final class HidController {
     }
 
     void openProfile() {
+        enqueueControl(this::openProfileNow);
+    }
+
+    private void openProfileNow() {
         if (adapter == null) {
             setStatus("Bluetooth unavailable");
             return;
@@ -95,23 +96,37 @@ final class HidController {
             return;
         }
         invalidatePendingInputs();
-        releaseAllInputsNow();
         closed = true;
-        tx.shutdownNow();
         try {
-            if (hidDevice != null) {
-                hidDevice.unregisterApp();
-                adapter.closeProfileProxy(BluetoothProfile.HID_DEVICE, hidDevice);
-            }
-        } catch (SecurityException ignored) {
-            setStatus("Bluetooth permission missing");
-        } catch (RuntimeException ignored) {
+            tx.execute(new Runnable() {
+                @Override
+                public void run() {
+                    releaseAllInputsNow();
+                    try {
+                        if (hidDevice != null) {
+                            hidDevice.unregisterApp();
+                            adapter.closeProfileProxy(BluetoothProfile.HID_DEVICE, hidDevice);
+                        }
+                    } catch (SecurityException ignored) {
+                        setStatus("Bluetooth permission missing");
+                    } catch (RuntimeException ignored) {
+                    } finally {
+                        hidDevice = null;
+                        connectedDevice = null;
+                        appRegistered = false;
+                        appRegistering = false;
+                        profileOpening = false;
+                        connectPending.set(false);
+                        watchdog.shutdownNow();
+                        tx.shutdown();
+                    }
+                }
+            });
+        } catch (RejectedExecutionException ignored) {
+            connectPending.set(false);
+            watchdog.shutdownNow();
+            tx.shutdownNow();
         }
-        hidDevice = null;
-        connectedDevice = null;
-        appRegistered = false;
-        appRegistering = false;
-        profileOpening = false;
     }
 
     List<BluetoothDevice> bondedDevices() {
@@ -147,6 +162,10 @@ final class HidController {
     }
 
     void registerApp() {
+        enqueueControl(this::registerAppNow);
+    }
+
+    private void registerAppNow() {
         if (hidDevice == null) {
             setStatus("HID profile not ready");
             return;
@@ -167,7 +186,7 @@ final class HidController {
                 HidReports.DESCRIPTOR
         );
         try {
-            boolean ok = hidDevice.registerApp(sdp, null, null, mainExecutor, callback);
+            boolean ok = hidDevice.registerApp(sdp, null, null, tx, callback);
             appRegistering = ok;
             setStatus(ok ? "Registering HID app" : "HID registration failed");
         } catch (SecurityException e) {
@@ -175,19 +194,48 @@ final class HidController {
         }
     }
 
-    void connect(BluetoothDevice device) {
-        if (!isReady()) {
-            setStatus("Register HID first");
+    void connect(final BluetoothDevice device) {
+        if (closed || !connectPending.compareAndSet(false, true)) {
             return;
         }
         try {
-            setStatus("Connecting " + deviceLabel(device));
-            boolean ok = hidDevice.connect(device);
-            if (!ok) {
-                setStatus("Connect request failed");
-            }
-        } catch (SecurityException e) {
-            setStatus("Bluetooth permission missing");
+            tx.execute(new Runnable() {
+                @Override
+                public void run() {
+                    if (!isReady()) {
+                        connectPending.set(false);
+                        setStatus("Register HID first");
+                        return;
+                    }
+                    setStatus("Connecting " + deviceLabel(device));
+                    ScheduledFuture<?> timeout = watchdog.schedule(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (connectPending.compareAndSet(true, false)) {
+                                setStatus("HID connect timed out");
+                            }
+                        }
+                    }, CONNECT_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+                    try {
+                        boolean ok = hidDevice.connect(device);
+                        if (connectPending.compareAndSet(true, false) && !ok) {
+                            setStatus("Connect request failed");
+                        }
+                    } catch (SecurityException e) {
+                        if (connectPending.compareAndSet(true, false)) {
+                            setStatus("Bluetooth permission missing");
+                        }
+                    } catch (RuntimeException e) {
+                        if (connectPending.compareAndSet(true, false)) {
+                            setStatus("Connect request failed");
+                        }
+                    } finally {
+                        timeout.cancel(false);
+                    }
+                }
+            });
+        } catch (RejectedExecutionException ignored) {
+            connectPending.set(false);
         }
     }
 
@@ -521,12 +569,7 @@ final class HidController {
         try {
             return device.sendReport(target, reportId, payload);
         } catch (SecurityException e) {
-            main.post(new Runnable() {
-                @Override
-                public void run() {
-                    setStatus("Bluetooth permission missing");
-                }
-            });
+            setStatus("Bluetooth permission missing");
             return false;
         }
     }
@@ -595,13 +638,19 @@ final class HidController {
         public void onServiceDisconnected(int profile) {
             if (profile == BluetoothProfile.HID_DEVICE) {
                 invalidatePendingInputs();
-                releaseAllInputsNow();
-                profileOpening = false;
-                hidDevice = null;
-                appRegistered = false;
-                appRegistering = false;
-                connectedDevice = null;
-                setStatus("HID profile closed");
+                connectPending.set(false);
+                enqueueControl(new Runnable() {
+                    @Override
+                    public void run() {
+                        releaseAllInputsNow();
+                        profileOpening = false;
+                        hidDevice = null;
+                        appRegistered = false;
+                        appRegistering = false;
+                        connectedDevice = null;
+                        setStatus("HID profile closed");
+                    }
+                });
             }
         }
     };
@@ -624,6 +673,7 @@ final class HidController {
         @Override
         public void onConnectionStateChanged(BluetoothDevice device, int state) {
             if (state == BluetoothProfile.STATE_CONNECTED) {
+                connectPending.set(false);
                 invalidatePendingInputs();
                 connectedDevice = device;
                 releaseAllInputsNow();

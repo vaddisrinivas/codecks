@@ -23,6 +23,7 @@ class HidRepositoryLifecycleTest {
             "HID profile open failed" to HidLifecycleSignal.ProfileUnregistered,
             "HID registration failed" to HidLifecycleSignal.ProfileRegistrationFailed,
             "Connect request failed" to HidLifecycleSignal.ConnectionRequestFailed,
+            "HID connect timed out" to HidLifecycleSignal.ConnectionTimedOut,
         )
 
         cases.forEach { (status, expected) ->

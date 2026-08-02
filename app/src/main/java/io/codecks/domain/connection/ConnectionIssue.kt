@@ -56,6 +56,14 @@ enum class ConnectionIssueCode(
             RemediationAction.ContactSupport,
         ),
     ),
+    HID_TRANSPORT_TIMEOUT(
+        persistedCode = "hid_transport_timeout",
+        severity = ConnectionIssueSeverity.ERROR,
+        remediations = listOf(
+            RemediationAction.OpenBluetoothSettings,
+            RemediationAction.RetryHidRegistration,
+        ),
+    ),
     HOST_UNPAIRED(
         persistedCode = "host_unpaired",
         severity = ConnectionIssueSeverity.ERROR,

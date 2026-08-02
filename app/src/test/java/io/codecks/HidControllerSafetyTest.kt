@@ -102,7 +102,7 @@ class HidControllerSafetyTest {
         val closeIndex = source.indexOf("void close()")
         val disconnectIndex = source.indexOf("void disconnect()")
         val closeReleaseIndex = source.indexOf("releaseAllInputsNow();", closeIndex)
-        val closeShutdownIndex = source.indexOf("tx.shutdownNow();", closeIndex)
+        val closeShutdownIndex = source.indexOf("tx.shutdown();", closeIndex)
         val disconnectReleaseIndex = source.indexOf("releaseAllInputsNow();", disconnectIndex)
         val disconnectTransportIndex = source.indexOf("hidDevice.disconnect(device);", disconnectIndex)
 
@@ -118,5 +118,26 @@ class HidControllerSafetyTest {
         assertTrue(disconnectTransportIndex >= 0)
         assertTrue(closeReleaseIndex < closeShutdownIndex)
         assertTrue(disconnectReleaseIndex < disconnectTransportIndex)
+    }
+
+    @Test
+    fun sourceContractKeepsHidBinderControlOffMainAndBoundsReconnect() {
+        val controller = File("src/main/java/io/codecks/HidController.java").readText()
+        val repository = File("src/main/java/io/codecks/HidRepository.kt").readText()
+        val connectIndex = controller.indexOf("void connect(final BluetoothDevice device)")
+        val connectDispatchIndex = controller.indexOf("tx.execute(new Runnable()", connectIndex)
+        val binderConnectIndex = controller.indexOf("hidDevice.connect(device)", connectIndex)
+
+        assertTrue(connectIndex >= 0)
+        assertTrue(connectDispatchIndex in (connectIndex + 1)..<binderConnectIndex)
+        assertTrue(controller.contains("connectPending.compareAndSet(false, true)"))
+        assertTrue(controller.contains("CONNECT_TIMEOUT_MILLIS"))
+        assertTrue(controller.contains("HID connect timed out"))
+        assertTrue(controller.contains("hidDevice.registerApp(sdp, null, null, tx, callback)"))
+        assertFalse(controller.contains("mainExecutor"))
+        assertTrue(repository.contains("Dispatchers.Default.limitedParallelism(1)"))
+        assertTrue(repository.contains("is HidControlEvent.Connect -> connectNow(event.address)"))
+        assertTrue(repository.contains("HidControlEvent.RefreshHosts -> refreshHostsNow()"))
+        assertFalse(repository.contains("SupervisorJob() + Dispatchers.Main.immediate"))
     }
 }

@@ -120,6 +120,13 @@ fun presentConnectionDiagnostic(
                 issue,
                 repairActions = listOf(ConnectionRepairAction.InstallRequiredTool),
             )
+            ConnectionIssueCode.HID_TRANSPORT_TIMEOUT -> ConnectionDiagnostic(
+                ConnectionDiagnosticState.Offline,
+                "Bluetooth service timed out",
+                "Toggle Bluetooth off and on, then retry Bluetooth input.",
+                issue,
+                repairActions = listOf(ConnectionRepairAction.RetryNow),
+            )
             ConnectionIssueCode.HID_PROFILE_UNREGISTERED,
             ConnectionIssueCode.HID_PROFILE_REGISTRATION_FAILED,
             ConnectionIssueCode.UNKNOWN,

@@ -280,6 +280,7 @@ enum class HidLifecycleSignal {
     ProfileUnregistered,
     ProfileRegistrationFailed,
     ConnectionRequestFailed,
+    ConnectionTimedOut,
     Unknown,
 }
 
@@ -308,6 +309,7 @@ internal fun classifyHidLifecycleSignal(
             "hid unregistered",
             "bluetooth closed",
         ) -> HidLifecycleSignal.ProfileUnregistered
+        normalized == "hid connect timed out" -> HidLifecycleSignal.ConnectionTimedOut
         normalized == "connect request failed" -> HidLifecycleSignal.ConnectionRequestFailed
         normalized == "disconnected" -> HidLifecycleSignal.Disconnected
         isConnected || normalized.startsWith("connected ") -> HidLifecycleSignal.Connected
@@ -393,6 +395,12 @@ internal fun resolveHidLifecycleTransition(
         HidFailureClass.Transient,
         ConnectionIssueCode.CONNECT_BACKOFF,
         HidRetryDisposition.Scheduled,
+    )
+    HidLifecycleSignal.ConnectionTimedOut -> HidTransitionDecision(
+        HidLifecycle.Failed,
+        HidFailureClass.RepairRequired,
+        ConnectionIssueCode.HID_TRANSPORT_TIMEOUT,
+        HidRetryDisposition.BlockedUntilRepair,
     )
     HidLifecycleSignal.Unknown -> if (current == HidLifecycle.Connected) {
         HidTransitionDecision(HidLifecycle.Connected, HidFailureClass.None, null, HidRetryDisposition.Idle)
@@ -536,7 +544,7 @@ class DefaultHidRepository @Inject constructor(
     private val _state = MutableStateFlow(HidState())
     override val state: StateFlow<HidState> = _state.asStateFlow()
     private var devices: List<BluetoothDevice> = emptyList()
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default.limitedParallelism(1))
     private val priorityEvents = Channel<HidControlEvent>(capacity = HID_CONTROL_QUEUE_CAPACITY)
     private val persistenceWrites = Channel<HidPersistenceWrite>(capacity = Channel.UNLIMITED)
     private val controllerStatuses = Channel<String>(capacity = Channel.CONFLATED)
@@ -569,6 +577,9 @@ class DefaultHidRepository @Inject constructor(
                     when (event) {
                         is HidControlEvent.ControllerStatus -> refreshState(event.status)
                         is HidControlEvent.System -> applySystemEvent(event.event)
+                        is HidControlEvent.Connect -> connectNow(event.address)
+                        HidControlEvent.Disconnect -> disconnectNow()
+                        HidControlEvent.RefreshHosts -> refreshHostsNow()
                         HidControlEvent.Maintain -> maintainNow()
                         HidControlEvent.ProfileRepair -> maintainNow(allowSingleRepairAttempt = true)
                     }
@@ -626,11 +637,15 @@ class DefaultHidRepository @Inject constructor(
             return
         }
         if (!controller.isReady) controller.openProfile()
-        refreshHosts()
+        refreshHostsNow()
         ensureReconnectLoop()
     }
 
     override fun refreshHosts() {
+        enqueueControlEvent(HidControlEvent.RefreshHosts)
+    }
+
+    private fun refreshHostsNow() {
         devices = controller.bondedDevices()
         val hosts = devices.mapNotNull { device ->
             runCatching {
@@ -660,6 +675,10 @@ class DefaultHidRepository @Inject constructor(
     }
 
     override fun connect(address: String) {
+        enqueueControlEvent(HidControlEvent.Connect(address))
+    }
+
+    private fun connectNow(address: String) {
         userDisconnected = false
         persistDesiredConnectionState(HidDesiredConnectionState.Connected)
         saveSelectedHost(address)
@@ -686,6 +705,10 @@ class DefaultHidRepository @Inject constructor(
     }
 
     override fun disconnect() {
+        enqueueControlEvent(HidControlEvent.Disconnect)
+    }
+
+    private fun disconnectNow() {
         userDisconnected = true
         _state.update {
             it.copy(
@@ -940,7 +963,7 @@ class DefaultHidRepository @Inject constructor(
                     !controller.isConnected
                 ) {
                     if (!controller.isReady) controller.openProfile()
-                    refreshHosts()
+                    refreshHostsNow()
                 }
                 delay(RECONNECT_TICK_MS)
             }
@@ -1072,6 +1095,9 @@ private data class HidPersistenceWrite(
 private sealed interface HidControlEvent {
     data class ControllerStatus(val status: String) : HidControlEvent
     data class System(val event: HidSystemEvent) : HidControlEvent
+    data class Connect(val address: String) : HidControlEvent
+    data object Disconnect : HidControlEvent
+    data object RefreshHosts : HidControlEvent
     data object Maintain : HidControlEvent
     data object ProfileRepair : HidControlEvent
 }
