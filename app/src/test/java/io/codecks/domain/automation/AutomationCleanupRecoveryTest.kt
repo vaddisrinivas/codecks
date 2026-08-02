@@ -196,5 +196,6 @@ class AutomationCleanupRecoveryTest {
             commandTools = setOf("open"),
             commandPaths = emptySet(),
             permissionSnapshot = emptySet(),
+            requiredCheckCodes = setOf(AutomationCapabilityCodes.Connection),
         )
 }

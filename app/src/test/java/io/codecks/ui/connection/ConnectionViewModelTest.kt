@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.CancellationException
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -38,6 +39,7 @@ class ConnectionViewModelTest {
     fun discoverySelectsSingleMacAndAuthorizationDiscardsPassword() = runTest(dispatcher) {
         val repository = FakeConnectionRepository()
         val snapshotStore = SetupSnapshotStore.inMemory()
+        val terminalProofStore = SetupTerminalProofStore.inMemory()
         var scanCount = 0
         val viewModel = ConnectionViewModel(
             connectionRepository = repository,
@@ -46,6 +48,7 @@ class ConnectionViewModelTest {
                 listOf("10.0.0.173")
             },
             setupSnapshotStore = snapshotStore,
+            setupTerminalProofStore = terminalProofStore,
         )
 
         runCurrent()
@@ -60,7 +63,7 @@ class ConnectionViewModelTest {
         viewModel.verifyHostKey()
         runCurrent()
         assertTrue(repository.trustCalled)
-        assertEquals("Fingerprint found: ssh-ed25519 SHA256:test", viewModel.uiState.value.pendingFingerprint)
+        assertEquals("ssh-ed25519 SHA256:test", viewModel.uiState.value.pendingFingerprint)
 
         viewModel.confirmHostKey()
         runCurrent()
@@ -81,9 +84,14 @@ class ConnectionViewModelTest {
             connectionRepository = repository,
             sshDiscovery = SshDiscovery { emptyList() },
             setupSnapshotStore = snapshotStore,
+            setupTerminalProofStore = terminalProofStore,
         )
         runCurrent()
         assertNull(recreated.resumeSetupStep())
+        assertEquals(
+            viewModel.uiState.value.sshTerminalReceipt,
+            recreated.uiState.value.sshTerminalReceipt,
+        )
     }
 
     @Test
@@ -164,6 +172,75 @@ class ConnectionViewModelTest {
     }
 
     @Test
+    fun everyEndpointMutationClearsPasswordAndRequiresCredentialReselection() = runTest(dispatcher) {
+        val viewModel = ConnectionViewModel(FakeConnectionRepository(), SshDiscovery { emptyList() })
+        runCurrent()
+
+        listOf<(ConnectionViewModel) -> Unit>(
+            { it.setHost("mac.local") },
+            { it.setPort("2222") },
+            { it.setUser("new-user") },
+            { it.selectHost("other.local") },
+        ).forEach { mutate ->
+            viewModel.setPassword("endpoint-bound-secret")
+            mutate(viewModel)
+            assertEquals("", viewModel.uiState.value.password)
+            assertEquals(
+                "Mac changed. Choose the matching password again.",
+                viewModel.uiState.value.message,
+            )
+        }
+    }
+
+    @Test
+    fun savedTargetSwitchAtomicallyReplacesFormAndClearsPassword() = runTest(dispatcher) {
+        val repository = FakeConnectionRepository(
+            ConnectionConfig(host = "old.local", port = 22, user = "old"),
+        )
+        val viewModel = ConnectionViewModel(repository, SshDiscovery { emptyList() })
+        runCurrent()
+        viewModel.setPassword("old-target-secret")
+
+        repository.config.value = ConnectionConfig(
+            host = "new.local",
+            port = 2222,
+            user = "new",
+            hasKey = true,
+            hostKey = "new.local ssh-ed25519 key",
+        )
+        runCurrent()
+
+        assertEquals("new.local", viewModel.uiState.value.host)
+        assertEquals("2222", viewModel.uiState.value.port)
+        assertEquals("new", viewModel.uiState.value.user)
+        assertEquals("", viewModel.uiState.value.password)
+        assertNull(viewModel.uiState.value.pendingFingerprint)
+    }
+
+    @Test
+    fun setupCancellationDoesNotBecomeOrdinaryFailure() = runTest(dispatcher) {
+        val repository = FakeConnectionRepository(
+            ConnectionConfig(
+                host = "mac.local",
+                port = 22,
+                user = "user",
+                hasKey = true,
+                hostKey = "mac.local ssh-ed25519 key",
+            ),
+        )
+        repository.testFailure = CancellationException("screen left")
+        val viewModel = ConnectionViewModel(repository, SshDiscovery { emptyList() })
+        runCurrent()
+
+        viewModel.test()
+        runCurrent()
+
+        assertNull(viewModel.uiState.value.error)
+        assertEquals(ConnectionOperation.Idle, viewModel.uiState.value.operation)
+        assertNull(viewModel.uiState.value.sshTerminalReceipt)
+    }
+
+    @Test
     fun resetTrustClearsFingerprintAndRequiresReverify() = runTest(dispatcher) {
         val repository = FakeConnectionRepository(
             initialConfig = ConnectionConfig(
@@ -223,6 +300,7 @@ private class FakeConnectionRepository(
     var resetTrustCalled = false
     var removeTargetCalled = false
     var removedTargetId: String? = null
+    var testFailure: Throwable? = null
 
     override suspend fun save(host: String, port: Int, user: String) {
         val previous = config.value
@@ -287,8 +365,11 @@ private class FakeConnectionRepository(
 
     override suspend fun test(password: String?): Result<String> {
         testCalled = true
+        testFailure?.let { throw it }
         return Result.success("Connected")
     }
+
+    override suspend fun runRequiredSetupProbe(): Result<String> = Result.success("ready")
 
     override suspend fun runAction(actionId: String, dangerous: Boolean): Result<String> =
         Result.success("sent")

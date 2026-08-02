@@ -14,14 +14,4 @@ class MacTextDelivery @Inject constructor(
 ) {
     suspend fun copy(text: String): Result<Unit> =
         connectionRepository.writeMacClipboard(text).map { }
-
-    suspend fun pasteWithoutHid(): Result<Unit> =
-        connectionRepository.runCommand(
-            "osascript -e 'tell application \"System Events\" to keystroke \"v\" using command down'",
-        ).map { }
-
-    suspend fun enterWithoutHid(): Result<Unit> =
-        connectionRepository.runCommand(
-            "osascript -e 'tell application \"System Events\" to key code 36'",
-        ).map { }
 }

@@ -93,7 +93,8 @@ class AiGeneratedContentPlanner @Inject constructor() {
 }
 
 private fun String.requireGeneratedAllowed() {
-    RawCommandPolicy.firstViolation(this)?.let { reason ->
+    if (MacVisualEffectCatalog.isKnownCommand(this)) return
+    RawCommandPolicy.firstAllowlistViolation(this)?.let { reason ->
         error("Generated command blocked: $reason")
     }
 }

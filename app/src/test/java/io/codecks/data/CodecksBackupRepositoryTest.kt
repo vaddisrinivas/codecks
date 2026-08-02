@@ -90,6 +90,10 @@ private class FakeBackupAutomationRepository(exported: String) : AutomationRepos
     override suspend fun delete(recipeId: String) = Unit
     override suspend fun duplicate(recipeId: String) = Unit
     override suspend fun recordRun(recipeId: String, result: ActionResult) = Unit
+    override suspend fun recordLiveTest(
+        recipeId: String,
+        receipt: io.codecks.domain.automation.AutomationLiveTestReceipt,
+    ): Boolean = false
     override suspend fun resetDefaults() = Unit
     override suspend fun exportRecipes(): Result<String> = Result.success(current)
     override suspend fun validateRecipes(payload: String): Result<Unit> = Result.success(Unit)

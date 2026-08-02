@@ -24,7 +24,6 @@ class MouseViewModel @Inject constructor(
 
     fun start() = hidRepository.start()
     fun refreshHosts() = hidRepository.refreshHosts()
-    fun connect(address: String) = hidRepository.connect(address)
     fun disconnect() = hidRepository.disconnect()
     fun move(dx: Float, dy: Float) {
         pointerAccumulator.consume(dx, dy)?.let { delta ->

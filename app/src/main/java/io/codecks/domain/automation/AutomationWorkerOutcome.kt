@@ -1,7 +1,12 @@
 package io.codecks.domain.automation
 
+import io.codecks.core.actions.ActionResultStatus
+
 enum class AutomationWorkerOutcomeCode(val persistedCode: String) {
     ELIGIBLE("eligible"),
+    EXECUTION_STARTED("execution_started"),
+    EXECUTION_UNCERTAIN("execution_uncertain"),
+    CONFIRMATION_REQUIRED("confirmation_required"),
     EXECUTED("executed"),
     EXECUTION_FAILED("execution_failed"),
     DISABLED("disabled"),
@@ -10,6 +15,7 @@ enum class AutomationWorkerOutcomeCode(val persistedCode: String) {
     PERMISSIONS_CHANGED("permissions_changed"),
     TRUST_CHANGED("trust_changed"),
     TOOLS_CHANGED("tools_changed"),
+    REQUIREMENTS_CHANGED("requirements_changed"),
     RECOVERY_REQUIRED("recovery_required"),
     INTERRUPTED("interrupted"),
     RETRY_SCHEDULED("retry_scheduled"),
@@ -20,6 +26,13 @@ enum class AutomationWorkerOutcomeCode(val persistedCode: String) {
         fun fromPersistedCode(value: String?): AutomationWorkerOutcomeCode =
             entries.firstOrNull { it.persistedCode == value } ?: GATE_INVALID
     }
+}
+
+fun automaticOutcomeCode(status: ActionResultStatus): AutomationWorkerOutcomeCode = when (status) {
+    ActionResultStatus.Succeeded -> AutomationWorkerOutcomeCode.EXECUTED
+    ActionResultStatus.RequiresConfirmation -> AutomationWorkerOutcomeCode.CONFIRMATION_REQUIRED
+    ActionResultStatus.RequiresReview -> AutomationWorkerOutcomeCode.GATE_INVALID
+    ActionResultStatus.Failed -> AutomationWorkerOutcomeCode.EXECUTION_FAILED
 }
 
 enum class AutomationWorkerRetryDisposition(val persistedCode: String) {
@@ -49,8 +62,10 @@ data class AutomationWorkerOutcome(
             AutomationWorkerOutcomeCode.PERMISSIONS_CHANGED,
             AutomationWorkerOutcomeCode.TRUST_CHANGED,
             AutomationWorkerOutcomeCode.TOOLS_CHANGED,
+            AutomationWorkerOutcomeCode.REQUIREMENTS_CHANGED,
             AutomationWorkerOutcomeCode.RECOVERY_REQUIRED,
             AutomationWorkerOutcomeCode.EXECUTION_FAILED,
+            AutomationWorkerOutcomeCode.EXECUTION_UNCERTAIN,
         )
 }
 
@@ -87,6 +102,9 @@ fun evaluateAutomationWorkerEligibility(
         return outcome(AutomationWorkerOutcomeCode.STALE_REVISION)
     }
     if (!recipe.enabled) return outcome(AutomationWorkerOutcomeCode.DISABLED)
+    if (recipe.lastWorkerOutcome?.code == AutomationWorkerOutcomeCode.EXECUTION_STARTED &&
+        recipe.lastWorkerOutcome.scheduledRevision == scheduledRevision
+    ) return outcome(AutomationWorkerOutcomeCode.EXECUTION_UNCERTAIN)
     if (recipe.recoveryRequired) return outcome(AutomationWorkerOutcomeCode.RECOVERY_REQUIRED)
     val preflight = recipe.lastPreflight ?: return outcome(AutomationWorkerOutcomeCode.GATE_INVALID)
     if (preflight.macIdentity != currentMacIdentity) {

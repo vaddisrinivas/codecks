@@ -256,6 +256,7 @@ class AutomationLiveTestEngine(
             preflightCheckedAtMillis = preflight.checkedAtMillis,
             assertions = assertions,
             cleanup = cleanup,
+            macIdentity = preflight.macIdentity,
             normalizedPlanHash = plan?.planHash.orEmpty(),
             preflightReceiptId = preflight.receiptId,
             timeoutPolicyCode = policy.persistedCode,
@@ -355,7 +356,6 @@ private fun AutomationLiveTestTerminalStatus.cleanupTrigger(): AutomationCleanup
 
 fun AutomationLiveTestReceipt.redactedTerminal(): AutomationLiveTestReceipt =
     copy(
-        macIdentity = "",
         assertions = assertions.map { assertion ->
             assertion.copy(
                 stepId = assertion.assertionId.ifBlank { "terminal" },

@@ -127,6 +127,7 @@ class AutomationRevisionGateTest {
             commandTools = setOf("open"),
             commandPaths = emptySet(),
             permissionSnapshot = emptySet(),
+            requiredCheckCodes = setOf(AutomationCapabilityCodes.Connection),
         )
 
     private fun passingLiveTest(recipe: AutomationRecipe): AutomationLiveTestReceipt =
@@ -155,6 +156,7 @@ class AutomationRevisionGateTest {
                 message = AutomationLiveTestCleanupCode.NOT_REQUIRED.persistedCode,
                 outcomeCode = AutomationLiveTestCleanupCode.NOT_REQUIRED,
             ),
+            macIdentity = preflight.macIdentity,
             normalizedPlanHash = plan.planHash,
             preflightReceiptId = preflight.receiptId,
             timeoutPolicyCode = AutomationLiveTestTimeoutPolicy.BOUNDED_V1.persistedCode,

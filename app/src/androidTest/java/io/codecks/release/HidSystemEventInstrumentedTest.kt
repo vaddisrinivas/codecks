@@ -17,7 +17,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class HidSystemEventInstrumentedTest {
     @Test
-    fun managedDeviceLifecycleSequenceKeepsBackgroundConnectionAndRecoversBluetooth() {
+    fun reducerMarksLockForInputInvalidationAndKeepsPointerSessionConnected() {
         val connected = HidState(
             lifecycle = HidLifecycle.Connected,
             isReady = true,
@@ -28,6 +28,11 @@ class HidSystemEventInstrumentedTest {
         val background = reduceHidSystemEvent(connected, HidSystemEvent.AppBackgrounded).state
         assertEquals(HidAppVisibility.Background, background.appVisibility)
         assertTrue(background.isConnected)
+
+        val locked = reduceHidSystemEvent(background, HidSystemEvent.UserLocked)
+        assertTrue(locked.invalidatePendingInputs)
+        assertTrue(locked.state.isConnected)
+        assertEquals(io.codecks.HidInputAccess.PointerOnly, locked.state.inputAccess)
 
         val off = reduceHidSystemEvent(background, HidSystemEvent.BluetoothOff)
         assertTrue(off.cancelConnectionAttempt)

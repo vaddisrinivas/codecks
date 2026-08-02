@@ -174,6 +174,7 @@ fun SettingsScreen(
     onExportBackup: () -> Unit = {},
     onImportBackup: () -> Unit = {},
     pendingBackupRecovery: Boolean = false,
+    corruptBackupRecovery: Boolean = false,
     onRecoverBackup: () -> Unit = {},
     restorePlan: RestorePlan? = null,
     onCancelRestore: () -> Unit = {},
@@ -187,6 +188,9 @@ fun SettingsScreen(
     supportBundleState: SupportBundleUiState = SupportBundleUiState.Idle,
     onGenerateSupportBundle: () -> Unit = {},
     onCancelSupportBundle: () -> Unit = {},
+    onRetrySupportBundleShare: () -> Unit = {},
+    onDeletePendingSupportBundle: () -> Unit = {},
+    onCloseSupportBundleRetaining: () -> Unit = {},
     themeSettings: CodecksThemeSettings = CodecksThemeSettings(),
     onThemeModeChange: (CodecksThemeMode) -> Unit = {},
     onThemeAccentChange: (CodecksAccent) -> Unit = {},
@@ -347,8 +351,16 @@ fun SettingsScreen(
                     item {
                         SettingsRow(
                             icon = Icons.Outlined.ErrorOutline,
-                            title = "Finish backup recovery",
-                            summary = "Restore the preserved prior Deck and Rules before importing another backup.",
+                            title = if (corruptBackupRecovery) {
+                                "Resolve corrupt backup recovery"
+                            } else {
+                                "Finish backup recovery"
+                            },
+                            summary = if (corruptBackupRecovery) {
+                                "Recovery data is unreadable. Review and quarantine it before importing another backup."
+                            } else {
+                                "Restore the preserved prior Deck and Rules before importing another backup."
+                            },
                             value = "Required",
                             onClick = onRecoverBackup,
                         )
@@ -504,9 +516,21 @@ fun SettingsScreen(
                     item {
                         SettingsRow(
                             icon = Icons.Outlined.BugReport,
-                            title = "Create support bundle",
-                            summary = "Preview exactly what is included, then use Android’s share picker",
-                            onClick = onDebugBundle,
+                            title = if (supportBundleState is SupportBundleUiState.PendingRetained) {
+                                "Pending support bundle"
+                            } else {
+                                "Create support bundle"
+                            },
+                            summary = if (supportBundleState is SupportBundleUiState.PendingRetained) {
+                                "Retained on this device. Tap to retry sharing; delete from the dialog."
+                            } else {
+                                "Preview exactly what is included, then use Android’s share picker"
+                            },
+                            onClick = if (supportBundleState is SupportBundleUiState.PendingRetained) {
+                                onRetrySupportBundleShare
+                            } else {
+                                onDebugBundle
+                            },
                         )
                     }
                 }
@@ -548,6 +572,9 @@ fun SettingsScreen(
         state = supportBundleState,
         onGenerate = onGenerateSupportBundle,
         onCancel = onCancelSupportBundle,
+        onRetryShare = onRetrySupportBundleShare,
+        onDeletePending = onDeletePendingSupportBundle,
+        onCloseRetaining = onCloseSupportBundleRetaining,
     )
     restorePlan?.let { plan ->
         BackupRestoreDialog(
@@ -596,6 +623,7 @@ private fun UpdateSettingsPanel(
                 UpdateFailureKind.NetworkOrMetadata -> "Could not verify the latest release. Try again later."
                 UpdateFailureKind.BlockedReleaseUrl -> "GitHub returned a release link Codecks will not open."
                 UpdateFailureKind.NoBrowser -> "No browser could open the GitHub release page."
+                UpdateFailureKind.NotForeground -> "Keep Settings open while Codecks checks for updates."
             },
             AccessibleStatusKind.Error,
         )

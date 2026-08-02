@@ -1,8 +1,16 @@
 package io.codecks.core.actions
 
 object RawCommandPolicy {
+    private val generatedExpansionPatterns = listOf(
+        Regex("""\$\(""") to "command substitution is not allowed in generated commands",
+        Regex("""\$\{""") to "variable expansion is not allowed in generated commands",
+        Regex("""`""") to "backtick substitution is not allowed in generated commands",
+        Regex("""<\(""") to "process substitution is not allowed in generated commands",
+        Regex(""">\(""") to "process substitution is not allowed in generated commands",
+        Regex("""[\r\u0000]""") to "control characters are not allowed in generated commands",
+    )
     private val blockedPatterns = listOf(
-        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)sudo(\s|$)"""), "sudo is not allowed from Codecks"),
+        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)(?:/[^\s;&|]+/)*sudo(\s|$)"""), "sudo is not allowed from Codecks"),
         BlockedPattern(Regex("""(?i)(^|[;&|]\s*)(command|env)\s+sudo(\s|$)"""), "sudo is not allowed from Codecks"),
         BlockedPattern(Regex("""(?i)\brm\s+(-[^\s]*r[^\s]*f|-rf|-fr)\b"""), "recursive force delete is blocked"),
         BlockedPattern(Regex("""(?i)\brm\b(?=[^;&|]*\s-r\b)(?=[^;&|]*\s-f\b)"""), "recursive force delete is blocked"),
@@ -14,32 +22,31 @@ object RawCommandPolicy {
         BlockedPattern(Regex("""(?i)\bchown\s+-R\s+[^;&|]+/"""), "broad ownership changes are blocked"),
         BlockedPattern(Regex("""(?i)\b(curl|wget)\b[^;&|]*\|\s*(sh|bash|zsh)\b"""), "download-and-run shell pipelines are blocked"),
         BlockedPattern(Regex("""(?i)\b(eval|sh|bash|zsh)\b[^;&|]*\$\([^)]*\b(curl|wget)\b"""), "download-and-run shell substitution is blocked"),
-        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)(sh|bash|zsh)\b[^;&|]*\s-c\b"""), "nested shell evaluation is blocked"),
-        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)(python3?|perl|ruby|node)\b[^;&|]*\s(-c|-e|--eval)\b"""), "inline interpreter evaluation is blocked"),
+        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)(?:/[^\s;&|]+/)*(sh|bash|zsh)\b[^;&|]*\s-c\b"""), "nested shell evaluation is blocked"),
+        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)(?:/[^\s;&|]+/)*(python3?|perl|ruby|node)\b[^;&|]*\s(-c|-e|--eval)\b"""), "inline interpreter evaluation is blocked"),
         BlockedPattern(Regex("""(?i)\bbase64\b[^;&|]*\|\s*(sh|bash|zsh)\b"""), "encoded shell payloads are blocked"),
         BlockedPattern(Regex("""(?i)\bxargs\b[^;&|]*(sh|bash|zsh)\b"""), "xargs shell execution is blocked"),
         BlockedPattern(Regex("""(?i)\bfind\b[^;&|]*\s-delete\b"""), "find delete is blocked"),
         BlockedPattern(Regex("""(?i)(>\s*|tee\s+)(~|/(?:[^/\s]+/){0,3}[^/\s]+)?/?\.ssh/authorized_keys\b"""), "authorized_keys mutation is blocked"),
         BlockedPattern(Regex("""(?i)\b(nc|ncat)\b[^;&|]*\s-e\s"""), "reverse shell execution is blocked"),
-        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)(scp|sftp|ftp)\b"""), "remote file transfer is blocked"),
-        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)rsync\b"""), "remote file transfer is blocked"),
+        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)(?:/[^\s;&|]+/)*(scp|sftp|ftp)\b"""), "remote file transfer is blocked"),
+        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)(?:/[^\s;&|]+/)*rsync\b"""), "remote file transfer is blocked"),
         BlockedPattern(Regex("""(?i)(^|[;&|]\s*)(cat|less|more|cp|pbcopy|open)\b[^;&|]*(\.ssh/id_(rsa|ed25519)|\.aws/credentials|\.config/agent-secrets|\.codex/auth\.json|\.claude/settings\.json|\.gemini/\.env)"""), "secret file access is blocked"),
         BlockedPattern(Regex("""(?i)\bsecurity\s+(dump-keychain|find-generic-password|find-internet-password|unlock-keychain|export)\b"""), "keychain extraction is blocked"),
-        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)osascript\b.*\bkeystroke\b.*\b(password|passcode|token|secret)\b"""), "secret keystroke UI scripting is blocked"),
-        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)osascript\b.*\b(password|passcode|keychain)\b"""), "password/keychain UI scripting is blocked"),
-        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)osascript\b.*\bwith\s+administrator\s+privileges\b"""), "administrator UI scripting is blocked"),
-        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)launchctl\s+(bootstrap|bootout|load|unload|enable|disable|kickstart)\b"""), "launch service mutation is blocked"),
+        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)(?:/[^\s;&|]+/)*osascript\b.*\bkeystroke\b.*\b(password|passcode|token|secret)\b"""), "secret keystroke UI scripting is blocked"),
+        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)(?:/[^\s;&|]+/)*osascript\b.*\b(password|passcode|keychain)\b"""), "password/keychain UI scripting is blocked"),
+        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)(?:/[^\s;&|]+/)*osascript\b.*\bwith\s+administrator\s+privileges\b"""), "administrator UI scripting is blocked"),
+        BlockedPattern(Regex("""(?i)(^|[;&|]\s*)(?:/[^\s;&|]+/)*launchctl\s+(bootstrap|bootout|load|unload|enable|disable|kickstart)\b"""), "launch service mutation is blocked"),
     )
 
     private val safeTemplatePatterns = listOf(
         Regex("""(?is)^\s*pbcopy\s*$"""),
         Regex("""(?is)^\s*pbpaste\s*$"""),
         Regex("""(?is)^\s*pbpaste\s+2>/dev/null\s*\|\s*head\s+-c\s+[0-9]{1,5}\s*$"""),
-        Regex("""(?is)^\s*printf(\s+%s)?\s+.+\|\s*pbcopy\s*$"""),
-        Regex("""(?is)^\s*printf\s+[^|;&<>]+$"""),
+        Regex("""(?is)^\s*printf(\s+%s)?\s+("[^"$`\\]*"|'[^']*'|[A-Za-z0-9_.:/~%+,-]+)\s*\|\s*pbcopy\s*$"""),
+        Regex("""(?is)^\s*printf\s+("[^"$`\\]*"|'[^']*'|[A-Za-z0-9_.:/~%+,-]+)\s*$"""),
         Regex("""(?is)^\s*open\s+-a\s+("[^"]+"|'[^']+'|[A-Za-z0-9_.:/~%+-]+)(\s+("[^"]+"|'[^']+'|https?://[^\s;&|]+|[A-Za-z0-9_.:/~%+-]+))?\s*$"""),
         Regex("""(?is)^\s*open(\s+-[a-zA-Z]+\s+("[^"]+"|'[^']+'|[^\s;&|]+))*\s+("[^"]+"|'[^']+'|https?://[^\s;&|]+|[A-Za-z0-9_.:/~%+-]+)\s*$"""),
-        Regex("""(?is)^\s*osascript\s+(-e\s+("[^"]*"|'[^']*')\s*)+$"""),
         Regex("""(?is)^\s*shortcuts\s+run\s+("[^"]+"|'[^']+'|[A-Za-z0-9_.: /~%+-]+)\s*$"""),
         Regex("""(?is)^\s*networksetup\s+-getairportnetwork\s+en0\s+2>/dev/null\s*\|\s*sed\s+'s/\^Current Wi-Fi Network: //'\s*$"""),
         Regex("""(?is)^\s*sysctl\s+-n\s+kern\.boottime\s*\|\s*sed\s+'s/\.\*sec = \\\([0-9]\*\\\)\.\*/\\1/'\s*$"""),
@@ -55,6 +62,9 @@ object RawCommandPolicy {
 
     fun firstAllowlistViolation(command: String): String? {
         firstViolation(command)?.let { return it }
+        generatedExpansionPatterns.firstOrNull { (pattern, _) ->
+            pattern.containsMatchIn(command)
+        }?.let { return it.second }
         val fragments = command
             .lineSequence()
             .map(String::trim)

@@ -8,6 +8,7 @@ import io.codecks.core.actions.commandRevision
 import io.codecks.data.ConnectionConfig
 import io.codecks.data.ConnectionRepository
 import io.codecks.data.automation.AutomationRepository
+import io.codecks.data.automation.AutomationScheduler
 import io.codecks.domain.CommandOrigin
 import io.codecks.domain.CommandReview
 import io.codecks.domain.automation.AutomationLiveTestReceipt
@@ -25,6 +26,7 @@ import io.codecks.domain.automation.AutomationRunSummary
 import io.codecks.domain.automation.AutomationSafety
 import io.codecks.domain.automation.AutomationTrigger
 import io.codecks.domain.automation.AutomationTriggerEngine
+import io.codecks.domain.automation.AutomationTriggerClaim
 import io.codecks.domain.automation.AutomationTriggerEvaluation
 import io.codecks.domain.automation.hasCurrentSuccessfulTest
 import io.codecks.domain.automation.revisionFingerprint
@@ -45,6 +47,19 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AutomationsViewModelTest {
+    @Test
+    fun preflightProbeQuotesCommandSubstitutionAsLiteralData() {
+        assertEquals("'/tmp/$(touch /tmp/pwn)'", "/tmp/\$(touch /tmp/pwn)".shellQuotedForProbe())
+    }
+
+    @Test
+    fun shellTokenizerPreservesQuotedPathsAndHomeExpansion() {
+        assertEquals(
+            listOf("python3", "/Users/me/My File.py", "~/Other File.txt"),
+            "python3 \"/Users/me/My File.py\" '~/Other File.txt'".shellTokens(),
+        )
+        assertEquals("\"\$HOME\"/'Other File.txt'", "~/Other File.txt".shellPathForProbe())
+    }
     private val dispatcher = StandardTestDispatcher()
 
     @Before
@@ -61,6 +76,8 @@ class AutomationsViewModelTest {
     fun runRecipe_recordsLastRun() = runTest(dispatcher) {
         val repository = FakeAutomationRepository()
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
+            .also { it.setTerminalProofReady(true) }
+        viewModel.setTerminalProofReady(true)
         runCurrent()
 
         viewModel.run("focus")
@@ -75,19 +92,88 @@ class AutomationsViewModelTest {
     }
 
     @Test
-    fun checkTriggersNow_runsDueRecipes() = runTest(dispatcher) {
+    fun corruptStorePublishesRecoveryStateAndResetClearsIt() = runTest(dispatcher) {
+        val repository = FakeAutomationRepository(
+            initialRecipes = emptyList(),
+            initialRecoveryRequired = true,
+        )
+        val viewModel = AutomationsViewModel(
+            repository,
+            ReadyConnectionRepository(),
+            FakeRunner(),
+            FakeTriggerEngine(),
+        )
+        runCurrent()
+
+        assertTrue(viewModel.uiState.value.storageRecoveryRequired)
+        assertEquals("Automation storage needs recovery", viewModel.uiState.value.message)
+
+        viewModel.resetDefaults()
+        runCurrent()
+
+        assertFalse(viewModel.uiState.value.storageRecoveryRequired)
+        assertEquals("Automation defaults restored", viewModel.uiState.value.message)
+    }
+
+    @Test
+    fun terminalProofDefaultsFailClosedForMacExecution() = runTest(dispatcher) {
+        val repository = FakeAutomationRepository()
+        val runner = FakeRunner()
+        val viewModel = AutomationsViewModel(
+            repository,
+            ReadyConnectionRepository(),
+            runner,
+            FakeTriggerEngine(),
+        )
+        runCurrent()
+
+        viewModel.run("focus")
+        viewModel.checkTriggersNow()
+        runCurrent()
+
+        assertTrue(runner.ranIds.isEmpty())
+        assertTrue(repository.recordedResults.isEmpty())
+        assertEquals("Connect your Mac first", viewModel.uiState.value.message)
+        assertFalse(viewModel.uiState.value.connectionReady)
+    }
+
+    @Test
+    fun revokingTerminalProofStopsScheduledAutomationWork() = runTest(dispatcher) {
+        val scheduler = RecordingAutomationScheduler()
+        val viewModel = AutomationsViewModel(
+            FakeAutomationRepository(),
+            ReadyConnectionRepository(),
+            FakeRunner(),
+            FakeTriggerEngine(),
+            automationScheduler = scheduler,
+        )
+        runCurrent()
+
+        viewModel.setTerminalProofReady(true)
+        viewModel.startTriggerMonitor()
+        viewModel.setTerminalProofReady(false)
+
+        assertEquals(1, scheduler.startCalls)
+        assertEquals(1, scheduler.stopCalls)
+        assertFalse(viewModel.uiState.value.connectionReady)
+    }
+
+    @Test
+    fun checkTriggersNow_appliesSameGateAndBlocksUnprovedRecipe() = runTest(dispatcher) {
         val repository = FakeAutomationRepository()
         val runner = FakeRunner()
         val triggerEngine = FakeTriggerEngine(dueRecipeIds = setOf("focus"))
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), runner, triggerEngine)
+            .also { it.setTerminalProofReady(true) }
+        viewModel.setTerminalProofReady(true)
         runCurrent()
 
         viewModel.checkTriggersNow()
         runCurrent()
 
-        assertEquals(listOf("focus"), runner.ranIds)
+        assertEquals(emptyList<String>(), runner.ranIds)
         assertEquals("1 trigger matched", viewModel.uiState.value.triggerMonitorLabel)
-        assertTrue(repository.recordedResults.single().succeeded)
+        assertEquals(ActionResultStatus.RequiresReview, repository.recordedResults.single().status)
     }
 
     @Test
@@ -95,6 +181,8 @@ class AutomationsViewModelTest {
         val repository = FakeAutomationRepository()
         val triggerEngine = FakeTriggerEngine(dueRecipeIds = setOf("focus"))
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), triggerEngine)
+            .also { it.setTerminalProofReady(true) }
+        viewModel.setTerminalProofReady(true)
         runCurrent()
 
         viewModel.checkTriggersNow()
@@ -134,6 +222,7 @@ class AutomationsViewModelTest {
         )
         val runner = FakeRunner()
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), runner, FakeTriggerEngine())
+            .also { it.setTerminalProofReady(true) }
         runCurrent()
 
         viewModel.validate("focus")
@@ -167,6 +256,8 @@ class AutomationsViewModelTest {
             ),
         )
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
+            .also { it.setTerminalProofReady(true) }
+        viewModel.setTerminalProofReady(true)
         runCurrent()
 
         viewModel.toggle("focus", true)
@@ -207,6 +298,8 @@ class AutomationsViewModelTest {
             ),
         )
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
+            .also { it.setTerminalProofReady(true) }
+        viewModel.setTerminalProofReady(true)
         runCurrent()
 
         viewModel.toggle("focus", true)
@@ -245,6 +338,7 @@ class AutomationsViewModelTest {
         )
         val repository = FakeAutomationRepository(listOf(original))
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
+            .also { it.setTerminalProofReady(true) }
         runCurrent()
         viewModel.validate("focus")
         runCurrent()
@@ -285,6 +379,8 @@ class AutomationsViewModelTest {
         val repository = FakeAutomationRepository(listOf(dangerousRecipe))
         val runner = FakeRunner()
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), runner, FakeTriggerEngine())
+            .also { it.setTerminalProofReady(true) }
+        viewModel.setTerminalProofReady(true)
         runCurrent()
 
         viewModel.run("danger")
@@ -297,7 +393,7 @@ class AutomationsViewModelTest {
     }
 
     @Test
-    fun triggeredDangerousRecipe_recordsConfirmationWithoutExecuting() = runTest(dispatcher) {
+    fun triggeredDangerousRecipe_appliesSharedGateBeforeConfirmation() = runTest(dispatcher) {
         val dangerousRecipe = AutomationRecipe(
             id = "danger",
             title = "Danger",
@@ -321,20 +417,22 @@ class AutomationsViewModelTest {
             runner,
             FakeTriggerEngine(dueRecipeIds = setOf("danger")),
         )
+        viewModel.setTerminalProofReady(true)
         runCurrent()
 
         viewModel.checkTriggersNow()
         runCurrent()
 
         assertEquals(emptyList<String>(), runner.ranIds)
-        assertEquals(ActionResultStatus.RequiresConfirmation, repository.recordedResults.single().status)
-        assertEquals("Trigger needs confirmation: Danger", viewModel.uiState.value.message)
+        assertEquals(ActionResultStatus.RequiresReview, repository.recordedResults.single().status)
+        assertTrue(viewModel.uiState.value.message.orEmpty().contains("Execution gate"))
     }
 
     @Test
     fun create_savesRunnableTriggeredRecipe() = runTest(dispatcher) {
         val repository = FakeAutomationRepository()
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
+            .also { it.setTerminalProofReady(true) }
         runCurrent()
 
         viewModel.create(
@@ -360,6 +458,7 @@ class AutomationsViewModelTest {
     fun create_rejectsKnownBlockedCommand() = runTest(dispatcher) {
         val repository = FakeAutomationRepository(emptyList())
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
+            .also { it.setTerminalProofReady(true) }
         runCurrent()
 
         viewModel.create(
@@ -380,6 +479,7 @@ class AutomationsViewModelTest {
     fun create_supportsWeekdayTimeTrigger() = runTest(dispatcher) {
         val repository = FakeAutomationRepository(emptyList())
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
+            .also { it.setTerminalProofReady(true) }
         runCurrent()
 
         viewModel.create(
@@ -411,6 +511,7 @@ class AutomationsViewModelTest {
         )
         val repository = FakeAutomationRepository(listOf(recipe))
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
+            .also { it.setTerminalProofReady(true) }
         runCurrent()
 
         viewModel.delete("focus")
@@ -438,6 +539,7 @@ class AutomationsViewModelTest {
         )
         val repository = FakeAutomationRepository(listOf(recipe))
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
+            .also { it.setTerminalProofReady(true) }
         runCurrent()
 
         viewModel.edit(
@@ -465,6 +567,7 @@ class AutomationsViewModelTest {
     fun saveGeneratedAutomationDraft_createsDisabledManualRecipe() = runTest(dispatcher) {
         val repository = FakeAutomationRepository(emptyList())
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
+            .also { it.setTerminalProofReady(true) }
         runCurrent()
 
         val consumed = viewModel.saveGeneratedDraft(
@@ -496,6 +599,7 @@ class AutomationsViewModelTest {
     fun saveAutomationArtifact_createsDisabledManualRecipe() = runTest(dispatcher) {
         val repository = FakeAutomationRepository(emptyList())
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
+            .also { it.setTerminalProofReady(true) }
         runCurrent()
 
         val consumed = viewModel.saveArtifact(
@@ -525,6 +629,7 @@ class AutomationsViewModelTest {
     fun generatedAutomationStep_persistsReviewedButUntestedRevision() = runTest(dispatcher) {
         val repository = FakeAutomationRepository(emptyList())
         val viewModel = AutomationsViewModel(repository, ReadyConnectionRepository(), FakeRunner(), FakeTriggerEngine())
+            .also { it.setTerminalProofReady(true) }
         runCurrent()
 
         val consumed = viewModel.saveArtifact(
@@ -608,8 +713,10 @@ private class FakeAutomationRepository(
             steps = listOf(ActionSpec.ShellCommand("focus", "Focus", "caffeinate")),
         ),
     ),
+    initialRecoveryRequired: Boolean = false,
 ) : AutomationRepository {
     override val recipes = MutableStateFlow(initialRecipes)
+    override val recoveryRequired = MutableStateFlow(initialRecoveryRequired)
     val recordedResults = mutableListOf<ActionResult>()
     override suspend fun save(recipe: AutomationRecipe) {
         val previous = recipes.value.firstOrNull { it.id == recipe.id }
@@ -666,10 +773,11 @@ private class FakeAutomationRepository(
             if (recipe.id == recipeId) recipe.copy(lastPreflight = receipt) else recipe
         }
     }
-    override suspend fun recordLiveTest(recipeId: String, receipt: AutomationLiveTestReceipt) {
+    override suspend fun recordLiveTest(recipeId: String, receipt: AutomationLiveTestReceipt): Boolean {
         recipes.value = recipes.value.map { recipe ->
             if (recipe.id == recipeId) recipe.copy(lastLiveTest = receipt) else recipe
         }
+        return true
     }
     override suspend fun clearPendingApproval(recipeId: String) {
         recipes.value = recipes.value.map { recipe ->
@@ -679,7 +787,9 @@ private class FakeAutomationRepository(
     override suspend fun exportRecipes(): Result<String> = Result.success("")
     override suspend fun validateRecipes(payload: String): Result<Unit> = Result.success(Unit)
     override suspend fun importRecipes(payload: String): Result<Unit> = Result.success(Unit)
-    override suspend fun resetDefaults() = Unit
+    override suspend fun resetDefaults() {
+        recoveryRequired.value = false
+    }
 }
 
 private class FakeRunner : ActionRunner {
@@ -706,6 +816,7 @@ private class FakeTriggerEngine(
     private val dueRecipeIds: Set<String> = emptySet(),
 ) : AutomationTriggerEngine {
     var evaluateCount = 0
+    var releasedClaims = 0
 
     override suspend fun evaluate(recipes: List<AutomationRecipe>): AutomationTriggerEvaluation {
         evaluateCount += 1
@@ -714,7 +825,35 @@ private class FakeTriggerEngine(
             dueRecipes = due,
             checkedCount = recipes.size,
             message = if (due.isEmpty()) "Checked ${recipes.size} triggers" else "${due.size} trigger matched",
+            claimsByRecipeId = due.associate { recipe ->
+                recipe.id to AutomationTriggerClaim(
+                    recipeId = recipe.id,
+                    recipeRevision = recipe.revisionFingerprint(),
+                    fingerprint = "test",
+                    claimId = "claim-${recipe.id}",
+                    leaseUntilMillis = Long.MAX_VALUE,
+                )
+            },
         )
+    }
+
+    override suspend fun complete(claim: AutomationTriggerClaim): Boolean = true
+    override suspend fun release(claim: AutomationTriggerClaim): Boolean {
+        releasedClaims += 1
+        return true
+    }
+}
+
+private class RecordingAutomationScheduler : AutomationScheduler {
+    var startCalls = 0
+    var stopCalls = 0
+
+    override fun start() {
+        startCalls += 1
+    }
+
+    override fun stop() {
+        stopCalls += 1
     }
 }
 

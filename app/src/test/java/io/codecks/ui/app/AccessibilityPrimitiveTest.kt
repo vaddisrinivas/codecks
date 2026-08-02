@@ -1,6 +1,5 @@
 package io.codecks.ui.app
 
-import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -18,6 +17,7 @@ class AccessibilityPrimitiveTest {
         )
 
         assertEquals("Connection blocked", semantics.stateDescription)
+        assertNull(semantics.detailDescription)
         assertEquals("Bluetooth permission required", semantics.errorDescription)
         assertTrue(semantics.announcesPolitely)
     }
@@ -32,6 +32,7 @@ class AccessibilityPrimitiveTest {
         )
 
         assertNull(semantics.errorDescription)
+        assertEquals("Mac is ready", semantics.detailDescription)
         assertFalse(semantics.announcesPolitely)
     }
 
@@ -76,13 +77,15 @@ class AccessibilityPrimitiveTest {
     }
 
     @Test
-    fun terminalAnnouncementIsConsumedOncePerStableStateKey() {
-        val gate = TerminalAnnouncementGate()
-
-        assertTrue(gate.consume("clipboard:conflict:1"))
-        assertFalse(gate.consume("clipboard:conflict:1"))
-        assertTrue(gate.consume("clipboard:resolved:2"))
-        assertFalse(gate.consume("clipboard:resolved:2"))
+    fun liveRegionRemainsEnabledSoCommittedTextChangesCanAnnounce() {
+        assertTrue(
+            accessibleStatusSemantics(
+                kind = AccessibleStatusKind.Error,
+                stateDescription = "Conflict",
+                detail = null,
+                announceChanges = true,
+            ).announcesPolitely,
+        )
     }
 
     @Test
@@ -102,26 +105,4 @@ class AccessibilityPrimitiveTest {
         assertEquals(48, policy.minimumTargetDp)
     }
 
-    @Test
-    fun writesAccessibilityPrimitiveEvidence() {
-        val output = evidenceDirectory().resolve("accessibility_primitives.xml")
-        requireNotNull(output.parentFile).mkdirs()
-        output.writeText(
-            """
-            <accessibility-primitives version="1">
-              <status role="image" state-description="required" error-semantics="typed" live-region="optional-polite" />
-              <action role="button" minimum-target-dp="48" visual-size="independent" />
-              <focus policy="first-invalid-or-blocking-in-visual-order" repeat="new-failure-key-only" />
-              <reflow font-scale="2.0" controls="stacked" long-content="scrollable" minimum-target-dp="48" />
-            </accessibility-primitives>
-            """.trimIndent(),
-        )
-
-        assertTrue(output.isFile)
-    }
-
-    private fun evidenceDirectory(): File {
-        val moduleDirectory = File(requireNotNull(System.getProperty("user.dir")))
-        return requireNotNull(moduleDirectory.parentFile).resolve("build/ga-evidence/A11Y-01")
-    }
 }

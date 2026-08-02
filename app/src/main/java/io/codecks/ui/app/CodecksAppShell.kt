@@ -42,6 +42,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,6 +56,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -82,7 +84,7 @@ fun CodecksAppShell(
     onStopInput: () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    val shellDestinations = rememberShellDestinations(tabs)
+    val shellDestinations = remember(tabs) { shellDestinations(tabs) }
     val currentDestination = shellDestinations.firstOrNull { it.route == currentRoute }
     val showNavigation = !fullscreen && currentDestination != null
     val focusManager = LocalFocusManager.current
@@ -102,7 +104,14 @@ fun CodecksAppShell(
             },
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val useRail = maxWidth >= SECONDARY_NAV_RAIL_WIDTH
+            val fontScale = LocalDensity.current.fontScale
+            val accessibilityLayout = shellAccessibilityLayout(
+                widthDp = maxWidth.value.toInt().coerceAtLeast(1),
+                heightDp = maxHeight.value.toInt().coerceAtLeast(1),
+                fontScale = fontScale,
+                fullscreen = fullscreen,
+            )
+            val useRail = accessibilityLayout.navigationMode == ShellNavigationMode.Rail
             Scaffold(
                 topBar = if (fullscreen || currentRoute == HomeRoute) {
                     {}
@@ -166,8 +175,6 @@ fun CodecksAppShell(
     }
 }
 
-private val SECONDARY_NAV_RAIL_WIDTH = 840.dp
-
 private data class ShellDestination(
     val route: NavKey,
     val label: String,
@@ -181,8 +188,7 @@ private enum class ShellGroup {
     Manage,
 }
 
-@Composable
-private fun rememberShellDestinations(tabs: List<PrimaryTab>): List<ShellDestination> {
+private fun shellDestinations(tabs: List<PrimaryTab>): List<ShellDestination> {
     return tabs.map { tab ->
         ShellDestination(
             route = tab.route,
@@ -248,6 +254,16 @@ private fun CodecksBottomBar(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown &&
+                            (event.key == Key.Escape || event.key == Key.Back)
+                        ) {
+                            moreOpen = false
+                            true
+                        } else {
+                            false
+                        }
+                    }
                     .verticalScroll(rememberScrollState())
                     .padding(bottom = 24.dp),
             ) {

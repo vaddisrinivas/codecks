@@ -2,10 +2,9 @@ package io.codecks.domain.automation
 
 import io.codecks.core.actions.ActionResult
 import io.codecks.core.actions.ActionResultStatus
-import io.codecks.domain.privacy.DiagnosticRedactor
 import java.security.MessageDigest
 
-const val AUTOMATION_POLICY_VERSION: Int = 1
+const val AUTOMATION_POLICY_VERSION: Int = 2
 
 enum class AutomationStage {
     DRAFT,
@@ -153,8 +152,8 @@ fun AutomationRecipe.withValidationResult(
     if (revision != revisionFingerprint()) return this
     val summary = AutomationRunSummary(
         status = result.status,
-        message = DiagnosticRedactor.redact(result.message, maxLength = 240),
-        logs = DiagnosticRedactor.redact(result.logs, maxLength = 1_200),
+        message = "Validation ${result.status.name.lowercase()}",
+        logs = "",
         timestampMillis = result.timestampMillis,
     )
     if (result.status != ActionResultStatus.Succeeded) {
@@ -221,7 +220,9 @@ fun AutomationRecipe.withLiveTestReceipt(receipt: AutomationLiveTestReceipt): Au
     val revision = revisionFingerprint()
     val stamp = gateStamp ?: return this
     val preflight = lastPreflight ?: return this
-    val redactedReceipt = receipt.redactedTerminal()
+    val redactedReceipt = receipt.redactedTerminal().copy(
+        macIdentity = receipt.macIdentity.takeIf { it == preflight.macIdentity }.orEmpty(),
+    )
     val plan = AutomationExecutionPlanCompiler.compile(this).getOrNull()
     if (stage != AutomationStage.PREFLIGHT_PASSED ||
         stamp.revisionId != revision ||
@@ -272,6 +273,14 @@ private fun AutomationPreflightReceipt.capabilityFingerprint(): String =
             append('|')
             append(commandTools.sorted().joinToString(","))
             append('|')
+            append(commandPaths.sorted().joinToString(","))
+            append('|')
+            append(commandApps.sorted().joinToString(","))
+            append('|')
+            append(requiredPermissions.sorted().joinToString(","))
+            append('|')
+            append(targetId)
+            append('|')
             append(
                 checks.sortedBy { it.capability.capabilityCode }.joinToString(",") { check ->
                     "${check.capability.capabilityCode}:${check.capability.status.persistedCode}:${check.mandatory}"
@@ -292,7 +301,7 @@ internal fun AutomationLiveTestReceipt.isValidTerminalPass(
     if (preflightCheckedAtMillis != preflight.checkedAtMillis) return false
     if (timeoutPolicyCode != AutomationLiveTestTimeoutPolicy.BOUNDED_V1.persistedCode) return false
     if (completedAtMillis < checkedAtMillis) return false
-    if (macIdentity.isNotEmpty()) return false
+    if (macIdentity != preflight.macIdentity) return false
     if (!cleanup.passed || cleanup.command.isNotEmpty()) return false
     val declaredCleanup = plan.cleanup?.takeIf {
         AutomationCleanupTrigger.SUCCESS in it.runAfter
@@ -328,6 +337,49 @@ internal fun AutomationLiveTestReceipt.isValidTerminalPass(
 
 fun automationReceiptId(kind: String, revision: String, timestampMillis: Long): String =
     automationOpaqueVersion("$kind|$revision|$timestampMillis")
+
+fun automationPreflightReceiptId(
+    recipeRevision: String,
+    checkedAtMillis: Long,
+    macIdentity: String,
+    targetId: String,
+    requiredCapabilities: Set<io.codecks.domain.smart.SmartCapability>,
+    checks: List<AutomationPreflightCheck>,
+    commandTools: Set<String>,
+    commandPaths: Set<String>,
+    commandApps: Set<String>,
+    requiredPermissions: Set<String>,
+    permissionSnapshot: Set<String>,
+    requiredCheckCodes: Set<String>,
+): String = automationOpaqueVersion(
+    buildList {
+        add("preflight_v2")
+        add(recipeRevision)
+        add(checkedAtMillis.toString())
+        add(macIdentity)
+        add(targetId)
+        add(requiredCapabilities.map(Enum<*>::name).sorted().joinToString(","))
+        add(commandTools.sorted().joinToString(","))
+        add(commandPaths.sorted().joinToString(","))
+        add(commandApps.sorted().joinToString(","))
+        add(requiredPermissions.sorted().joinToString(","))
+        add(permissionSnapshot.sorted().joinToString(","))
+        add(requiredCheckCodes.sorted().joinToString(","))
+        checks.sortedBy { it.capability.capabilityCode }.forEach { check ->
+            add(
+                listOf(
+                    check.area.name,
+                    check.mandatory,
+                    check.capability.capabilityCode,
+                    check.capability.status.persistedCode,
+                    check.capability.issueCode?.persistedCode.orEmpty(),
+                    check.capability.checkedAtEpochMs,
+                    check.capability.validUntilEpochMs,
+                ).joinToString(":"),
+            )
+        }
+    }.joinToString("\u0000"),
+)
 
 fun automationLiveTestReceiptId(
     recipeRevision: String,

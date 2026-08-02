@@ -21,6 +21,7 @@ import io.codecks.domain.connection.ConnectionIssueCode
 import io.codecks.domain.connection.ChangedHostKeyException
 import io.codecks.domain.connection.HostTrustState
 import io.codecks.domain.connection.evaluateHostTrust
+import io.codecks.ui.connection.TerminalProofExecutionGuard
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -174,17 +175,36 @@ data class SshResult(
         }.take(240)
 }
 
+data class HostKeyVerification(
+    val message: String,
+    val fingerprint: String? = null,
+    val confirmationRequired: Boolean = false,
+)
+
 interface ConnectionRepository {
     val config: Flow<ConnectionConfig>
     suspend fun save(host: String, port: Int, user: String)
     suspend fun generateKey(): Result<String>
     suspend fun publicKey(): String
     suspend fun trustHostKey(): Result<String>
+    suspend fun verifyHostKey(): Result<HostKeyVerification> = trustHostKey().map { message ->
+        val fingerprintPrefix = "Fingerprint found:"
+        HostKeyVerification(
+            message = message,
+            fingerprint = message
+                .takeIf { it.startsWith(fingerprintPrefix) }
+                ?.removePrefix(fingerprintPrefix)
+                ?.trim(),
+            confirmationRequired = message.startsWith(fingerprintPrefix),
+        )
+    }
     suspend fun confirmPendingHostKey(): Result<String>
     suspend fun rotateKey(): Result<String>
     suspend fun resetTrust(): Result<String>
     suspend fun installKey(password: String): Result<String>
     suspend fun test(password: String? = null): Result<String>
+    suspend fun runRequiredSetupProbe(): Result<String> =
+        Result.failure(UnsupportedOperationException("required_setup_probe_unavailable"))
     suspend fun runAction(actionId: String, dangerous: Boolean): Result<String>
     suspend fun runCommand(command: String): Result<String>
     suspend fun runCommandRaw(command: String): Result<String> = runCommand(command)
@@ -214,6 +234,7 @@ class DefaultConnectionRepository @Inject constructor(
 ) : ConnectionRepository {
     private val keyRevision = MutableStateFlow(0)
     private val privateKeyCodec = EncryptedApiKeyCodec("ssh.private")
+    private val terminalProofExecutionGuard = TerminalProofExecutionGuard(context)
 
     override val config: Flow<ConnectionConfig> = combine(
         context.connectionDataStore.data.onStart { migrateTargetIdentities() },
@@ -290,7 +311,7 @@ class DefaultConnectionRepository @Inject constructor(
         readPublicKeyOrNull()?.trim().orEmpty()
     }
 
-    override suspend fun trustHostKey(): Result<String> = withContext(Dispatchers.IO) {
+    override suspend fun verifyHostKey(): Result<HostKeyVerification> = withContext(Dispatchers.IO) {
         runCatching {
             val current = currentConfig()
             require(current.isConfigured) { "Save the Mac address and username first" }
@@ -298,13 +319,21 @@ class DefaultConnectionRepository @Inject constructor(
             when (evaluateHostTrust(current.hostKey, hostKey.line)) {
                 HostTrustState.FirstSeenConfirmationRequired -> {
                     rememberPendingHostKey(hostKey)
-                    "Fingerprint found: ${hostKey.fingerprint}"
+                    HostKeyVerification(
+                        message = "Fingerprint found: ${hostKey.fingerprint}",
+                        fingerprint = hostKey.fingerprint,
+                        confirmationRequired = true,
+                    )
                 }
-                HostTrustState.Trusted -> "Mac fingerprint already trusted"
+                HostTrustState.Trusted -> HostKeyVerification(
+                    message = "Mac fingerprint already trusted",
+                )
                 HostTrustState.ChangedHostKeyBlocked -> throw ChangedHostKeyException()
             }
         }
     }
+
+    override suspend fun trustHostKey(): Result<String> = verifyHostKey().map(HostKeyVerification::message)
 
     override suspend fun confirmPendingHostKey(): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
@@ -476,8 +505,21 @@ class DefaultConnectionRepository @Inject constructor(
     override suspend fun runCommand(command: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val current = currentConfig()
+            terminalProofExecutionGuard.requireVerified(current)
             require(current.isReady) { "Connect your Mac first" }
             require(command.isNotBlank()) { "Command is empty" }
+            RawCommandPolicy.requireSafeTemplate(command)
+            val result = runSsh(current, null, readPrivateKey(), command)
+            check(result.isSuccess) { result.summary }
+            result.summary
+        }
+    }
+
+    override suspend fun runRequiredSetupProbe(): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val current = currentConfig()
+            require(current.isReady) { "Connect your Mac first" }
+            val command = io.codecks.domain.connection.requiredCoreMacCapabilityProbeCommand()
             RawCommandPolicy.requireSafeTemplate(command)
             val result = runSsh(current, null, readPrivateKey(), command)
             check(result.isSuccess) { result.summary }
@@ -488,6 +530,7 @@ class DefaultConnectionRepository @Inject constructor(
     override suspend fun runBundledCommand(command: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val current = currentConfig()
+            terminalProofExecutionGuard.requireVerified(current)
             require(current.isReady) { "Connect your Mac first" }
             require(command.isNotBlank()) { "Command is empty" }
             RawCommandPolicy.requireAllowed(command)
@@ -500,6 +543,7 @@ class DefaultConnectionRepository @Inject constructor(
     override suspend fun runCommandRaw(command: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val current = currentConfig()
+            terminalProofExecutionGuard.requireVerified(current)
             require(current.isReady) { "Connect your Mac first" }
             require(command.isNotBlank()) { "Command is empty" }
             RawCommandPolicy.requireSafeTemplate(command)
@@ -512,6 +556,7 @@ class DefaultConnectionRepository @Inject constructor(
     override suspend fun runCommandWithInput(command: String, stdin: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val current = currentConfig()
+            terminalProofExecutionGuard.requireVerified(current)
             require(current.isReady) { "Connect your Mac first" }
             require(command.isNotBlank()) { "Command is empty" }
             RawCommandPolicy.requireSafeTemplate(command)
@@ -524,6 +569,7 @@ class DefaultConnectionRepository @Inject constructor(
     override suspend fun validateCommandSyntax(command: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val current = currentConfig()
+            terminalProofExecutionGuard.requireVerified(current)
             require(current.isReady) { "Connect your Mac first" }
             require(command.isNotBlank()) { "Command is empty" }
             val result = runSsh(current, null, readPrivateKey(), "zsh -n", command)
@@ -535,6 +581,7 @@ class DefaultConnectionRepository @Inject constructor(
     override suspend fun runCommandSecret(command: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val current = currentConfig()
+            terminalProofExecutionGuard.requireVerified(current)
             require(current.isReady) { "Connect your Mac first" }
             require(command.isNotBlank()) { "Command is empty" }
             RawCommandPolicy.requireSafeTemplate(command)
@@ -548,6 +595,7 @@ class DefaultConnectionRepository @Inject constructor(
         withContext(Dispatchers.IO) {
             runCatching {
                 val target = targetById(targetId)
+                terminalProofExecutionGuard.requireVerified(target.toConfig())
                 require(target.isReady) { "Connect ${target.host} first" }
                 require(command.isNotBlank()) { "Command is empty" }
                 RawCommandPolicy.requireSafeTemplate(command)
@@ -561,6 +609,7 @@ class DefaultConnectionRepository @Inject constructor(
         withContext(Dispatchers.IO) {
             runCatching {
                 val target = targetById(targetId)
+                terminalProofExecutionGuard.requireVerified(target.toConfig())
                 require(target.isReady) { "Connect ${target.host} first" }
                 require(command.isNotBlank()) { "Command is empty" }
                 RawCommandPolicy.requireAllowed(command)
@@ -575,6 +624,7 @@ class DefaultConnectionRepository @Inject constructor(
         withContext(Dispatchers.IO) {
             runCatching {
                 val target = targetById(targetId)
+                terminalProofExecutionGuard.requireVerified(target.toConfig())
                 require(target.isReady) { "Connect ${target.host} first" }
                 require(command.isNotBlank()) { "Command is empty" }
                 RawCommandPolicy.requireAllowed(command)
@@ -590,6 +640,7 @@ class DefaultConnectionRepository @Inject constructor(
     ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val target = targetById(targetId)
+            terminalProofExecutionGuard.requireVerified(target.toConfig())
             require(target.isReady) { "Connect ${target.host} first" }
             runSftpTransfer(target.toConfig(), readPrivateKey(), request)
             "SFTP transfer completed"

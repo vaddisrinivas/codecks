@@ -11,6 +11,14 @@ import org.junit.Test
 
 class HidSystemEventTest {
     @Test
+    fun lockAndBluetoothOffTakeImmediateInputInvalidationLane() {
+        assertTrue(HidSystemEvent.UserLocked.requiresImmediateInputInvalidation())
+        assertTrue(HidSystemEvent.BluetoothOff.requiresImmediateInputInvalidation())
+        assertFalse(HidSystemEvent.AppBackgrounded.requiresImmediateInputInvalidation())
+        assertFalse(HidSystemEvent.ManualRetry.requiresImmediateInputInvalidation())
+    }
+
+    @Test
     fun everyRequiredAndroidInputHasTypedEventAndServiceIngress() {
         assertEquals(
             setOf(

@@ -66,4 +66,25 @@ class ClipboardSessionLifecycleTest {
         assertEquals(ClipboardSessionPhase.Inactive, active.stop().phase)
         assertFalse(active.stop().canReadPhoneClipboard)
     }
+
+    @Test
+    fun wallClockRollbackCannotExtendSessionAuthority() {
+        val active = ClipboardSessionState(
+            appForeground = true,
+            surfaceVisible = true,
+            deviceUnlocked = true,
+        ).start(
+            nowMillis = 100_000,
+            durationMillis = 5_000,
+            elapsedRealtimeMillis = 10_000,
+        )
+
+        val expired = active.withEnvironment(
+            nowMillis = 1_000,
+            elapsedRealtimeMillis = 15_000,
+        )
+
+        assertEquals(ClipboardSessionPhase.Expired, expired.phase)
+        assertFalse(expired.canReadPhoneClipboard)
+    }
 }

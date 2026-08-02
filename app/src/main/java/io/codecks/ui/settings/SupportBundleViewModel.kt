@@ -21,6 +21,7 @@ enum class SupportBundleFailure {
     BUILD_FAILED,
     CACHE_WRITE_FAILED,
     SHARE_PICKER_UNAVAILABLE,
+    DELETE_FAILED,
 }
 
 sealed interface SupportBundleUiState {
@@ -32,6 +33,11 @@ sealed interface SupportBundleUiState {
     ) : SupportBundleUiState
     data object Generating : SupportBundleUiState
     data class Ready(val file: File) : SupportBundleUiState
+    data class ChooserOpened(
+        val file: File,
+        val targetChosen: Boolean = false,
+    ) : SupportBundleUiState
+    data class PendingRetained(val file: File) : SupportBundleUiState
     data class Failure(val kind: SupportBundleFailure) : SupportBundleUiState
 }
 
@@ -44,10 +50,14 @@ class SupportBundleViewModel(
     val state: StateFlow<SupportBundleUiState> = _state.asStateFlow()
     private var generationJob: Job? = null
     private var pendingFile: File? = null
-
-    init {
-        viewModelScope.launch(backgroundContext) {
-            tempFiles.cleanupExpired(nowEpochMs())
+    private val initializationJob = viewModelScope.launch(backgroundContext) {
+        tempFiles.cleanupExpired(nowEpochMs())
+        val recovered = tempFiles.pendingFiles().firstOrNull()
+        if (recovered != null) {
+            pendingFile = recovered
+            if (_state.value !is SupportBundleUiState.Generating) {
+                _state.value = SupportBundleUiState.PendingRetained(recovered)
+            }
         }
     }
 
@@ -71,9 +81,15 @@ class SupportBundleViewModel(
         _state.value = SupportBundleUiState.Generating
         generationJob?.cancel()
         generationJob = viewModelScope.launch {
-            val archive = withContext(backgroundContext) {
-                runCatching { SupportBundleBuilder.build(snapshot) }
-            }.getOrElse {
+            initializationJob.join()
+            pendingFile?.takeIf(File::isFile)?.let { recovered ->
+                _state.value = SupportBundleUiState.PendingRetained(recovered)
+                return@launch
+            }
+            val archive = try {
+                withContext(backgroundContext) { SupportBundleBuilder.build(snapshot) }
+            } catch (error: Throwable) {
+                error.rethrowIfCancellationOrFatal()
                 _state.value = SupportBundleUiState.Failure(SupportBundleFailure.BUILD_FAILED)
                 return@launch
             }
@@ -85,8 +101,11 @@ class SupportBundleViewModel(
             }
             pendingFile = file
             if (!isActive || _state.value !is SupportBundleUiState.Generating) {
-                withContext(backgroundContext) { tempFiles.cancel(file) }
-                pendingFile = null
+                val deleted = withContext(backgroundContext + NonCancellable) { tempFiles.cancel(file) }
+                pendingFile = if (deleted) null else file
+                if (!deleted) {
+                    _state.value = SupportBundleUiState.Failure(SupportBundleFailure.DELETE_FAILED)
+                }
                 return@launch
             }
             _state.value = SupportBundleUiState.Ready(file)
@@ -97,15 +116,68 @@ class SupportBundleViewModel(
         generationJob?.cancel()
         generationJob = null
         val file = (_state.value as? SupportBundleUiState.Ready)?.file ?: pendingFile
-        pendingFile = null
-        viewModelScope.launch(backgroundContext) { tempFiles.cancel(file) }
-        _state.value = SupportBundleUiState.Idle
+        if (file == null) {
+            _state.value = SupportBundleUiState.Idle
+        } else {
+            deletePending()
+        }
     }
 
-    fun shared() {
-        if (_state.value is SupportBundleUiState.Ready) {
-            pendingFile = null
-            _state.value = SupportBundleUiState.Idle
+    fun chooserOpened() {
+        val ready = _state.value as? SupportBundleUiState.Ready ?: return
+        _state.value = SupportBundleUiState.ChooserOpened(ready.file)
+    }
+
+    fun shareTargetChosen() {
+        val opened = _state.value as? SupportBundleUiState.ChooserOpened ?: return
+        _state.value = opened.copy(targetChosen = true)
+    }
+
+    fun dismissRetaining() {
+        val file = when (val current = _state.value) {
+            is SupportBundleUiState.ChooserOpened -> current.file
+            is SupportBundleUiState.Failure -> pendingFile
+            else -> null
+        } ?: return
+        if (file.isFile) {
+            _state.value = SupportBundleUiState.PendingRetained(file)
+        }
+    }
+
+    fun retryShare() {
+        val file = when (val current = _state.value) {
+            is SupportBundleUiState.ChooserOpened -> current.file
+            is SupportBundleUiState.PendingRetained -> current.file
+            is SupportBundleUiState.Failure -> pendingFile
+            else -> null
+        }
+        if (file?.isFile == true) {
+            _state.value = SupportBundleUiState.Ready(file)
+        }
+    }
+
+    fun deletePending() {
+        generationJob?.cancel()
+        generationJob = null
+        val file = pendingFile ?: when (val current = _state.value) {
+            is SupportBundleUiState.Ready -> current.file
+            is SupportBundleUiState.ChooserOpened -> current.file
+            is SupportBundleUiState.PendingRetained -> current.file
+            else -> null
+        }
+        viewModelScope.launch(backgroundContext) {
+            val deleted = tempFiles.cancel(file)
+            if (!deleted) {
+                _state.value = SupportBundleUiState.Failure(SupportBundleFailure.DELETE_FAILED)
+                return@launch
+            }
+            val next = tempFiles.pendingFiles().firstOrNull()
+            pendingFile = next
+            _state.value = if (next == null) {
+                SupportBundleUiState.Idle
+            } else {
+                SupportBundleUiState.PendingRetained(next)
+            }
         }
     }
 
@@ -113,5 +185,15 @@ class SupportBundleViewModel(
         if (_state.value is SupportBundleUiState.Ready) {
             _state.value = SupportBundleUiState.Failure(SupportBundleFailure.SHARE_PICKER_UNAVAILABLE)
         }
+    }
+}
+
+private fun Throwable.rethrowIfCancellationOrFatal() {
+    when (this) {
+        is kotlinx.coroutines.CancellationException,
+        is VirtualMachineError,
+        is ThreadDeath,
+        is LinkageError,
+        -> throw this
     }
 }

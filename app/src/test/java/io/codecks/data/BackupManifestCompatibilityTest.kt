@@ -93,7 +93,9 @@ internal class BackupFakes {
 }
 
 internal fun resource(path: String): ByteArray =
-    checkNotNull(Thread.currentThread().contextClassLoader.getResourceAsStream(path)).use { it.readBytes() }
+    checkNotNull(
+        Thread.currentThread().contextClassLoader?.getResourceAsStream(path),
+    ) { "Test resource not found: $path" }.use { it.readBytes() }
 
 internal fun zip(vararg entries: Pair<String, ByteArray>): ByteArray {
     val output = java.io.ByteArrayOutputStream()
@@ -110,13 +112,17 @@ internal fun zip(vararg entries: Pair<String, ByteArray>): ByteArray {
 internal class FakeArchiveActionRepository : ActionRepository {
     var importCalls = 0
     var exported = "{\"schemaVersion\":3,\"items\":[]}"
+    var throwOnExport: Throwable? = null
     override fun favorites(): List<DeckAction> = emptyList()
     override fun observeFavorites(): Flow<List<DeckAction>> = flowOf(emptyList())
     override fun allActions(): List<DeckAction> = emptyList()
     override suspend fun saveFavorites(actions: List<DeckAction>) = Unit
     override suspend fun run(action: DeckAction): Result<String> = Result.success("")
     override suspend fun test(action: DeckAction): Result<String> = Result.success("")
-    override suspend fun exportLayout(): Result<String> = Result.success(exported)
+    override suspend fun exportLayout(): Result<String> {
+        throwOnExport?.let { throw it }
+        return Result.success(exported)
+    }
     override suspend fun validateLayout(payload: String): Result<Unit> = Result.success(Unit)
     override suspend fun importLayout(payload: String): Result<Unit> {
         importCalls += 1
@@ -127,17 +133,26 @@ internal class FakeArchiveActionRepository : ActionRepository {
 
 internal class FakeArchiveAutomationRepository : AutomationRepository {
     var importCalls = 0
+    var failNextImport = false
     var exported = "{\"schemaVersion\":3,\"items\":[]}"
     override val recipes: Flow<List<AutomationRecipe>> = flowOf(emptyList())
     override suspend fun save(recipe: AutomationRecipe) = Unit
     override suspend fun delete(recipeId: String) = Unit
     override suspend fun duplicate(recipeId: String) = Unit
     override suspend fun recordRun(recipeId: String, result: ActionResult) = Unit
+    override suspend fun recordLiveTest(
+        recipeId: String,
+        receipt: io.codecks.domain.automation.AutomationLiveTestReceipt,
+    ): Boolean = false
     override suspend fun resetDefaults() = Unit
     override suspend fun exportRecipes(): Result<String> = Result.success(exported)
     override suspend fun validateRecipes(payload: String): Result<Unit> = Result.success(Unit)
     override suspend fun importRecipes(payload: String): Result<Unit> {
         importCalls += 1
+        if (failNextImport) {
+            failNextImport = false
+            return Result.failure(IllegalStateException("Injected automation import failure"))
+        }
         exported = payload
         return Result.success(Unit)
     }

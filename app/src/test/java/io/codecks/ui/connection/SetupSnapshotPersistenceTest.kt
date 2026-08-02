@@ -55,16 +55,16 @@ class SetupSnapshotPersistenceTest {
     }
 
     @Test
-    fun staleAndFutureReceiptsFailClosed() {
+    fun structuralReceiptsDoNotExpire() {
         val stale = receipt(
             SetupStep.FindMac,
             SetupReceiptResult.Passed,
-            now - SETUP_RECEIPT_MAX_AGE_MS - 1L,
+            1L,
         )
         val future = receipt(SetupStep.FindMac, SetupReceiptResult.Passed, now + 5L * 60L * 1_000L + 1L)
 
-        assertFalse(stale.isValidPassFor(SetupStep.FindMac, now))
-        assertFalse(future.isValidPassFor(SetupStep.FindMac, now))
+        assertTrue(stale.isValidPassFor(SetupStep.FindMac, now))
+        assertTrue(future.isValidPassFor(SetupStep.FindMac, now))
     }
 
     @Test

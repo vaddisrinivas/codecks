@@ -6,6 +6,7 @@ import io.codecks.domain.update.UpdateAvailability
 import io.codecks.domain.update.UpdateChecker
 import io.codecks.domain.update.UpdateIntentPolicy
 import io.codecks.domain.update.UpdateSourcePolicy
+import io.codecks.domain.update.UpdateCheckNotForegroundException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -19,6 +20,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import io.codecks.domain.privacy.DiagnosticResultCode
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class UpdateSettingsViewModelTest {
@@ -88,6 +90,71 @@ class UpdateSettingsViewModelTest {
             viewModel.state.value,
         )
         assertFalse(viewModel.state.value is UpdateSettingsState.UpToDate)
+    }
+
+    @Test
+    fun blockedReleaseUrlRecordsBlockedInsteadOfSuccess() = runTest(dispatcher) {
+        val events = mutableListOf<DiagnosticResultCode>()
+        val checker = FakeChecker(
+            Result.success(
+                UpdateAvailability.Available(
+                    currentVersion = version("1.0.0"),
+                    latestVersion = version("1.1.0"),
+                    releasePageUrl = "https://github.com/another/repository/releases/tag/v1.1.0",
+                ),
+            ),
+        )
+        val viewModel = UpdateViewModel(
+            checker = checker,
+            currentVersionName = "1.0.0",
+            nowMillis = { 100L },
+            appForeground = { true },
+            intentPolicy = intentPolicy,
+            terminalEvent = { result, _ -> events += result },
+        )
+
+        viewModel.checkForUpdate()
+        runCurrent()
+
+        assertEquals(UpdateSettingsState.Failure(UpdateFailureKind.BlockedReleaseUrl), viewModel.state.value)
+        assertEquals(listOf(DiagnosticResultCode.BLOCKED), events)
+    }
+
+    @Test
+    fun foregroundExitIsCancelledNotNetworkFailure() = runTest(dispatcher) {
+        val events = mutableListOf<DiagnosticResultCode>()
+        val viewModel = UpdateViewModel(
+            checker = FakeChecker(Result.failure(UpdateCheckNotForegroundException())),
+            currentVersionName = "1.0.0",
+            nowMillis = { 100L },
+            appForeground = { true },
+            intentPolicy = intentPolicy,
+            terminalEvent = { result, _ -> events += result },
+        )
+
+        viewModel.checkForUpdate()
+        runCurrent()
+
+        assertEquals(UpdateSettingsState.Failure(UpdateFailureKind.NotForeground), viewModel.state.value)
+        assertEquals(listOf(DiagnosticResultCode.CANCELLED), events)
+    }
+
+    @Test
+    fun initiallyBackgroundRequestPublishesTerminalCancellation() {
+        val events = mutableListOf<DiagnosticResultCode>()
+        val viewModel = UpdateViewModel(
+            checker = FakeChecker(Result.success(upToDate())),
+            currentVersionName = "1.0.0",
+            nowMillis = { 100L },
+            appForeground = { false },
+            intentPolicy = intentPolicy,
+            terminalEvent = { result, _ -> events += result },
+        )
+
+        viewModel.checkForUpdate()
+
+        assertEquals(UpdateSettingsState.Failure(UpdateFailureKind.NotForeground), viewModel.state.value)
+        assertEquals(listOf(DiagnosticResultCode.CANCELLED), events)
     }
 
     private fun viewModel(checker: UpdateChecker) = UpdateViewModel(

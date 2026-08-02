@@ -133,7 +133,16 @@ CI/release verification can detect stale reports without writing:
 python3 tools/ai_creator_v2_eval.py --check-report
 ```
 
-The JSON contract records corpus hashes, case counts, required unit gates, and `providerCalls: false`. Live-provider scoring remains separate; local tooling must not fake provider pass rates.
+The JSON contract records corpus hashes, case counts, required unit gates, and
+`providerCalls: false`. A listed gate is not claimed as executed unless `--run-unit-gates`
+runs the exact Gradle tests itself and creates a receipt bound to every Kotlin source and test in
+the AI parser/compiler, action-policy, and automation-policy trees, plus both corpus hashes.
+Visual-effect commands are trusted only when they exactly match compiler-owned output; the public
+heredoc marker is not provenance. External receipt files are never trusted. Without that flag, `unitGateReceipt`
+is null and the execution claim is false.
+The deterministic receipt is written under `build/reports/`; verify its source and corpus binding
+with `--check-receipt`. Volatile timestamps are deliberately excluded so the round trip is stable.
+Live-provider scoring remains separate; local tooling must not fake provider or unit-test passes.
 
 Live-provider release-gate scoring is opt-in because it uses real provider keys and network calls:
 

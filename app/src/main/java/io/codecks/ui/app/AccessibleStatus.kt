@@ -17,10 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 
@@ -35,6 +36,7 @@ enum class AccessibleStatusKind {
 
 data class AccessibleStatusSemantics(
     val stateDescription: String,
+    val detailDescription: String?,
     val errorDescription: String?,
     val announcesPolitely: Boolean,
 )
@@ -46,6 +48,9 @@ fun accessibleStatusSemantics(
     announceChanges: Boolean,
 ): AccessibleStatusSemantics = AccessibleStatusSemantics(
     stateDescription = stateDescription,
+    detailDescription = detail?.takeIf {
+        it.isNotBlank() && kind != AccessibleStatusKind.Error
+    },
     errorDescription = detail?.takeIf { kind == AccessibleStatusKind.Error }
         ?: stateDescription.takeIf { kind == AccessibleStatusKind.Error },
     announcesPolitely = announceChanges,
@@ -62,14 +67,16 @@ fun AccessibleStatus(
     detail: String? = null,
     announceChanges: Boolean = false,
     announcementKey: String = "$kind:$stateDescription:${detail.orEmpty()}",
-    role: Role = Role.Image,
+    role: Role? = null,
 ) {
-    val announcementGate = remember { TerminalAnnouncementGate() }
+    // Live-region semantics remain stable for the committed status node. Android announces when
+    // its merged text/state changes; no mutable gate is consumed during speculative composition.
+    val shouldAnnounce = remember(announcementKey, announceChanges) { announceChanges }
     val semanticState = accessibleStatusSemantics(
         kind = kind,
         stateDescription = stateDescription,
         detail = detail,
-        announceChanges = announceChanges && announcementGate.consume(announcementKey),
+        announceChanges = shouldAnnounce,
     )
     val colors = accessibleStatusColors(kind)
     Surface(
@@ -78,9 +85,12 @@ fun AccessibleStatus(
         shape = MaterialTheme.shapes.medium,
         modifier = modifier
             .fillMaxWidth()
-            .semantics(mergeDescendants = true) {
-                this.role = role
+            .clearAndSetSemantics {
+                role?.let { this.role = it }
                 this.stateDescription = semanticState.stateDescription
+                semanticState.detailDescription?.let {
+                    contentDescription = it
+                }
                 semanticState.errorDescription?.let { error(it) }
                 if (semanticState.announcesPolitely) {
                     liveRegion = LiveRegionMode.Polite
@@ -109,16 +119,6 @@ fun AccessibleStatus(
                 }
             }
         }
-    }
-}
-
-class TerminalAnnouncementGate {
-    private var lastKey: String? = null
-
-    fun consume(key: String): Boolean {
-        if (key == lastKey) return false
-        lastKey = key
-        return true
     }
 }
 

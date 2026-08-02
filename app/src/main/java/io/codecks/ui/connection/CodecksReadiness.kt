@@ -11,10 +11,7 @@ data class CodecksReadiness(
     val issueCodes: Set<ConnectionIssueCode> = emptySet(),
     val setupRepairTarget: SetupRepairTarget? = null,
     val setupCompletionConfirmed: Boolean = false,
-) {
-    val coreReady: Boolean
-        get() = macCommandsReady && trackpadReady && setupCompletionConfirmed
-}
+)
 
 fun codecksReadiness(
     connectionHealth: ConnectionHealth,

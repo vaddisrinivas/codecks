@@ -39,7 +39,6 @@ class KeyboardViewModel @Inject constructor(
 
     fun start() = hidRepository.start()
     fun refreshHosts() = hidRepository.refreshHosts()
-    fun connect(address: String) = hidRepository.connect(address)
     fun setText(value: String) {
         _uiState.update { it.copy(text = value) }
     }
@@ -65,7 +64,7 @@ class KeyboardViewModel @Inject constructor(
             _uiState.update { it.copy(status = LOCKED_INPUT_MESSAGE) }
             return
         }
-        if (mode == KeyboardDeliveryMode.BluetoothTyping && !hidRepository.state.value.isConnected) {
+        if (!hidRepository.state.value.isConnected) {
             _uiState.update { it.copy(status = "Connect Mac first") }
             return
         }
@@ -104,11 +103,11 @@ class KeyboardViewModel @Inject constructor(
             KeyboardDeliveryMode.MacClipboardPaste
         }
 
-    private fun sendViaBluetooth(text: String): Result<String> = runCatching {
+    private suspend fun sendViaBluetooth(text: String): Result<String> = runCatching {
         requireFullInputAccess()
         require(hidRepository.state.value.isConnected) { "Bluetooth keyboard is not connected" }
         require(text.isHidTextFriendly()) { "Use Pasteboard mode for emoji, smart quotes, or non-ASCII text" }
-        hidRepository.typeText(text)
+        hidRepository.deliverText(text).getOrThrow()
         "Typed ${text.length} chars over Bluetooth"
     }
 
@@ -117,11 +116,8 @@ class KeyboardViewModel @Inject constructor(
             .mapCatching { macTextDelivery.copy(text).getOrThrow() }
             .mapCatching {
             requireFullInputAccess()
-            if (hidRepository.state.value.isConnected) {
-                hidRepository.send(HidCommand.Paste)
-            } else {
-                macTextDelivery.pasteWithoutHid().getOrThrow()
-            }
+            require(hidRepository.state.value.isConnected) { "Bluetooth keyboard is not connected" }
+            hidRepository.deliver(HidCommand.Paste).getOrThrow()
             requireFullInputAccess()
             "Pasted ${text.length} chars into Mac"
         }
@@ -129,12 +125,8 @@ class KeyboardViewModel @Inject constructor(
     private suspend fun submitEnter(): Result<Unit> = runCatching {
         requireFullInputAccess()
     }.mapCatching {
-        if (hidRepository.state.value.isConnected) {
-            runCatching { hidRepository.send(HidCommand.Enter) }
-                .getOrThrow()
-        } else {
-            macTextDelivery.enterWithoutHid().getOrThrow()
-        }
+        require(hidRepository.state.value.isConnected) { "Bluetooth keyboard is not connected" }
+        hidRepository.deliver(HidCommand.Enter).getOrThrow()
         requireFullInputAccess()
     }
 

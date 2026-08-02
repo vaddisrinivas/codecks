@@ -12,6 +12,7 @@ import argparse
 import collections
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 
@@ -22,6 +23,48 @@ BYPASS_CORPUS = ROOT / "app/src/test/resources/automation/generated_output_bypas
 JSON_REPORT = ROOT / "docs/ai/AI_CREATOR_V2_OFFLINE_EVAL_REPORT.json"
 EXPECTED = {"Action": 40, "Deck": 40, "Automation": 40}
 REPORT_SCHEMA_VERSION = 1
+REQUIRED_UNIT_GATES = [
+    "io.codecks.domain.ai.AiCreatorV2EvalCorpusTest",
+    "io.codecks.core.actions.AiGeneratedContentPlannerTest",
+    "io.codecks.core.actions.AiDraftConvertersTest",
+    "io.codecks.core.actions.ActionRunnerTest",
+    "io.codecks.data.RawCommandPolicyTest",
+    "io.codecks.domain.ai.MacVisualEffectCatalogTest",
+    "io.codecks.domain.ai.StructuredDraftParserV2Test",
+    "io.codecks.domain.automation.AutomationExecutionPlanTest",
+]
+
+
+def receipt_source_paths() -> list[Path]:
+    """Bind receipts to every local AI policy/compiler source and test dependency."""
+    roots = [
+        ROOT / "app/src/main/java/io/codecks/core/actions",
+        ROOT / "app/src/main/java/io/codecks/domain/ai",
+        ROOT / "app/src/main/java/io/codecks/domain/automation",
+        ROOT / "app/src/test/java/io/codecks/core/actions",
+        ROOT / "app/src/test/java/io/codecks/domain/ai",
+        ROOT / "app/src/test/java/io/codecks/domain/automation",
+        ROOT / "app/src/test/java/io/codecks/data",
+    ]
+    paths = {
+        ROOT / "app/build.gradle.kts",
+        ROOT / "tools/ai_creator_v2_eval.py",
+    }
+    for source_root in roots:
+        paths.update(source_root.rglob("*.kt"))
+    return sorted(paths)
+
+
+def receipt_source_hash() -> str:
+    digest = hashlib.sha256()
+    for path in receipt_source_paths():
+        relative = path.relative_to(ROOT).as_posix().encode("utf-8")
+        digest.update(len(relative).to_bytes(4, "big"))
+        digest.update(relative)
+        payload = path.read_bytes()
+        digest.update(len(payload).to_bytes(8, "big"))
+        digest.update(payload)
+    return digest.hexdigest()
 
 
 def read_corpus(path: Path) -> list[tuple[str, str]]:
@@ -74,11 +117,38 @@ def read_bypass_corpus(path: Path) -> list[tuple[str, str]]:
     return rows
 
 
+def run_unit_gates(
+    enabled: bool,
+    corpus_hash: str,
+    bypass_hash: str,
+    required_gates: list[str],
+) -> dict[str, object] | None:
+    if not enabled:
+        return None
+    command = [str(ROOT / "gradlew"), "--no-daemon", ":app:testReleaseUnitTest"]
+    for gate in required_gates:
+        command += ["--tests", gate]
+    completed = subprocess.run(command, cwd=ROOT, check=False)
+    if completed.returncode != 0:
+        raise SystemExit("required unit gates failed; no receipt created")
+    return {
+        "schemaVersion": 1,
+        "sourceSha256": receipt_source_hash(),
+        "corpusSha256": corpus_hash,
+        "bypassSha256": bypass_hash,
+        "passedUnitGates": required_gates,
+    }
+
+
 def report_contract(
     counts: dict[str, int],
     corpus_hash: str,
     bypass_rows: list[tuple[str, str]],
+    run_gates: bool = False,
 ) -> dict[str, object]:
+    required_gates = REQUIRED_UNIT_GATES
+    bypass_hash = canonical_hash(bypass_rows)
+    receipt = run_unit_gates(run_gates, corpus_hash, bypass_hash, required_gates)
     return {
         "schemaVersion": REPORT_SCHEMA_VERSION,
         "mode": "offline_static",
@@ -89,18 +159,15 @@ def report_contract(
             "counts": {kind: counts[kind] for kind in sorted(counts)},
         },
         "generatedOutputBypassCorpus": {
-            "sha256": canonical_hash(bypass_rows),
+            "sha256": bypass_hash,
             "total": len(bypass_rows),
         },
-        "requiredUnitGates": [
-            "io.codecks.domain.ai.AiCreatorV2EvalCorpusTest",
-            "io.codecks.core.actions.AiGeneratedContentPlannerTest",
-            "io.codecks.domain.automation.AutomationExecutionPlanTest",
-        ],
+        "requiredUnitGates": required_gates,
+        "unitGateReceipt": receipt,
         "claims": {
             "corpusManifestValid": True,
             "providerQualityEvaluated": False,
-            "generatedOutputPolicyEvaluatedByUnitGate": True,
+            "generatedOutputPolicyEvaluatedByUnitGate": receipt is not None,
         },
     }
 
@@ -127,15 +194,12 @@ def write_report(contract: dict[str, object], report_path: Path, json_path: Path
         f"- Automation prompts: {counts['Automation']}",
         f"- Generated-output bypass cases: {bypass['total']}",
         "",
-        "## Proven Local Gates",
+        "## Verified Static Facts",
         "",
         "- Corpus has required 40/40/40 prompt split.",
-        "- Unit tests verify strict V2 schema shape.",
-        "- Unit tests verify parser success, refusal/needs-input handling, bounded repair, oversized deck rejection, missing-template rejection, dangerous-confirmation metadata, and adversarial command/URL rejection.",
-        "- Unit tests verify generated artifacts cannot be saved before dry run evidence.",
-        "- Unit tests require one deterministic assertion per normalized executable automation action.",
-        "- Unit tests reject the checked-in generated-output bypass corpus.",
-        "- Secret surface scan is required separately by release verification.",
+        "- Corpus files have the recorded hashes and required case counts.",
+        "- Unit gates listed below are requirements, not proven executions, unless `unitGateReceipt` is non-null in the JSON report.",
+        f"- SHA-bound unit-gate receipt supplied: {'yes' if contract['unitGateReceipt'] else 'no'}.",
         "- Live-provider scoring is available through the opt-in AiCreatorV2LiveEvalTest and writes docs/ai/AI_CREATOR_V2_LIVE_EVAL_REPORT.md.",
         "",
         "## Pending Live Gates",
@@ -163,6 +227,18 @@ def main() -> None:
         help="write deterministic Markdown and JSON offline reports",
     )
     parser.add_argument(
+        "--receipt",
+        type=Path,
+        default=ROOT / "build/reports/ai_creator_v2_unit_receipt.json",
+        help="deterministic unit-gate receipt path",
+    )
+    parser.add_argument("--check-receipt", action="store_true")
+    parser.add_argument(
+        "--run-unit-gates",
+        action="store_true",
+        help="run the exact required Gradle tests and create a source-bound receipt",
+    )
+    parser.add_argument(
         "--check-report",
         action="store_true",
         help="fail if checked-in offline reports differ from deterministic output",
@@ -172,7 +248,24 @@ def main() -> None:
     rows = read_corpus(CORPUS)
     counts = validate_counts(rows)
     bypass_rows = read_bypass_corpus(BYPASS_CORPUS)
-    contract = report_contract(counts, canonical_hash(rows), bypass_rows)
+    contract = report_contract(counts, canonical_hash(rows), bypass_rows, args.run_unit_gates)
+    if args.run_unit_gates:
+        args.receipt.parent.mkdir(parents=True, exist_ok=True)
+        args.receipt.write_text(json.dumps(contract["unitGateReceipt"], indent=2, sort_keys=True) + "\n")
+        print(f"unit receipt: {args.receipt}")
+    if args.check_receipt:
+        expected = report_contract(counts, canonical_hash(rows), bypass_rows, False)
+        current = json.loads(args.receipt.read_text(encoding="utf-8"))
+        # A receipt is valid only for the current exact sources/corpora and required gate set.
+        required = {
+            "schemaVersion": 1,
+            "sourceSha256": receipt_source_hash(),
+            "corpusSha256": expected["corpus"]["sha256"],
+            "bypassSha256": expected["generatedOutputBypassCorpus"]["sha256"],
+            "passedUnitGates": expected["requiredUnitGates"],
+        }
+        if current != required:
+            raise SystemExit(f"{args.receipt}: stale or invalid")
     markdown_before = REPORT.read_text(encoding="utf-8") if REPORT.exists() else None
     json_before = JSON_REPORT.read_text(encoding="utf-8") if JSON_REPORT.exists() else None
     if args.write_report:

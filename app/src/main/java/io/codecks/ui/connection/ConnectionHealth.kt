@@ -145,8 +145,44 @@ fun connectionHealth(
     }
 }
 
-fun ConnectionUiState.connectionHealth(): ConnectionHealth =
-    connectionHealth(config = config, operation = operation, error = error)
+fun ConnectionUiState.connectionHealth(
+    nowEpochMs: Long = System.currentTimeMillis(),
+): ConnectionHealth {
+    val configuredHealth = connectionHealth(config = config, operation = operation, error = error)
+    if (!configuredHealth.isReady) return configuredHealth
+    val receipt = sshTerminalReceipt
+    val targetMatches = receipt?.macTargetId == config.setupTargetId()
+    val revisionMatches = receipt?.setupRevision == setupSnapshot.revisionToken()
+    val currentCapabilities = macCapabilityReceipts
+        .filter { it.result == io.codecks.domain.connection.MacCapabilityCheckResult.Passed }
+        .associate { it.capability to it.checkedAtEpochMs }
+    val capabilityProofCurrent = receipt != null &&
+        receipt.confirmedCapabilities.containsAll(REQUIRED_CORE_MAC_CAPABILITIES) &&
+        receipt.completedAtEpochMs.isFreshSetupProofAt(nowEpochMs) &&
+        currentCapabilities == receipt.capabilityCheckedAtEpochMs &&
+        macCapabilityReceipts.all { it.checkedAtEpochMs.isFreshSetupProofAt(nowEpochMs) }
+    return if (targetMatches && revisionMatches && capabilityProofCurrent) {
+        configuredHealth.copy(
+            detail = "Mac controls were verified recently. Password is not stored.",
+        )
+    } else {
+        ConnectionHealth(
+            kind = ConnectionHealthKind.Offline,
+            title = "Mac controls need verification",
+            detail = "Saved setup exists, but no current live connection proof is available.",
+            actionHint = "Test connection.",
+        )
+    }
+}
+
+internal fun ConnectionUiState.nextSetupProofExpiryAtEpochMs(): Long? = buildList {
+    sshTerminalReceipt?.completedAtEpochMs?.let {
+        add(it + SETUP_TERMINAL_RECEIPT_MAX_AGE_MS + 1L)
+    }
+    macCapabilityReceipts.forEach {
+        add(it.checkedAtEpochMs + SETUP_TERMINAL_RECEIPT_MAX_AGE_MS + 1L)
+    }
+}.minOrNull()
 
 private fun ConnectionOperation.toHealthOrNull(): ConnectionHealth? =
     when (this) {

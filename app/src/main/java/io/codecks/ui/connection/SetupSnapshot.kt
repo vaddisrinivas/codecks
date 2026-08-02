@@ -5,10 +5,12 @@ import android.content.SharedPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 private const val SETUP_SNAPSHOT_SCHEMA_VERSION = 1
-internal const val SETUP_RECEIPT_MAX_AGE_MS = 7L * 24L * 60L * 60L * 1_000L
-private const val SETUP_RECEIPT_MAX_FUTURE_SKEW_MS = 5L * 60L * 1_000L
 
 enum class SetupStep(val persistedCode: String) {
     FindMac("find_mac"),
@@ -31,14 +33,12 @@ data class SetupReceipt(
 ) {
     fun isValidPassFor(
         expectedStep: SetupStep,
-        nowMillis: Long = System.currentTimeMillis(),
+        @Suppress("UNUSED_PARAMETER") nowMillis: Long = System.currentTimeMillis(),
     ): Boolean =
         schemaVersion == SETUP_SNAPSHOT_SCHEMA_VERSION &&
             step == expectedStep &&
             result == SetupReceiptResult.Passed &&
-            completedAtMillis > 0L &&
-            completedAtMillis <= nowMillis + SETUP_RECEIPT_MAX_FUTURE_SKEW_MS &&
-            nowMillis - completedAtMillis <= SETUP_RECEIPT_MAX_AGE_MS
+            completedAtMillis > 0L
 }
 
 data class SetupSnapshot(
@@ -106,6 +106,7 @@ class SetupSnapshotStore private constructor(
     private val preferences: SharedPreferences?,
 ) {
     private var inMemoryEncoded: String? = null
+    private val writeMutex = Mutex()
 
     @Inject
     constructor(@ApplicationContext context: Context) : this(
@@ -117,38 +118,60 @@ class SetupSnapshotStore private constructor(
         preferences?.getString(SNAPSHOT_KEY, null) ?: inMemoryEncoded,
     )
 
-    @Synchronized
-    fun record(receipt: SetupReceipt): SetupSnapshot {
-        val current = load()
-        val retainedReceipts = if (
-            receipt.result == SetupReceiptResult.Passed &&
-            current.isPassed(receipt.step)
-        ) {
-            current.receipts
-        } else {
-            current.receipts.filterKeys { it.ordinal < receipt.step.ordinal }
+    suspend fun record(receipt: SetupReceipt): SetupSnapshot {
+        return writeMutex.withLock {
+            fun nextSnapshot(): SetupSnapshot = synchronized(this@SetupSnapshotStore) {
+                val current = load()
+                val retainedReceipts = if (
+                    receipt.result == SetupReceiptResult.Passed &&
+                    current.isPassed(receipt.step)
+                ) {
+                    current.receipts
+                } else {
+                    current.receipts.filterKeys { it.ordinal < receipt.step.ordinal }
+                }
+                val next = current.copy(receipts = retainedReceipts + (receipt.step to receipt))
+                if (preferences == null) {
+                    inMemoryEncoded = SetupSnapshotCodec.encode(next)
+                }
+                next
+            }
+            if (preferences == null) {
+                nextSnapshot()
+            } else {
+                withContext(Dispatchers.IO) {
+                    val next = nextSnapshot()
+                    synchronized(this@SetupSnapshotStore) {
+                        check(preferences.edit().putString(SNAPSHOT_KEY, SetupSnapshotCodec.encode(next)).commit()) {
+                            "Could not durably save setup progress"
+                        }
+                    }
+                    next
+                }
+            }
         }
-        val next = current.copy(receipts = retainedReceipts + (receipt.step to receipt))
-        val encoded = SetupSnapshotCodec.encode(next)
-        if (preferences != null) {
-            preferences.edit().putString(SNAPSHOT_KEY, encoded).apply()
-        } else {
-            inMemoryEncoded = encoded
-        }
-        return next
     }
 
-    @Synchronized
-    fun clear(): SetupSnapshot {
-        if (preferences != null) {
-            preferences.edit().remove(SNAPSHOT_KEY).apply()
-        } else {
-            inMemoryEncoded = null
+    suspend fun clear(): SetupSnapshot {
+        writeMutex.withLock {
+            if (preferences == null) {
+                synchronized(this@SetupSnapshotStore) {
+                    inMemoryEncoded = null
+                }
+            } else {
+                withContext(Dispatchers.IO) {
+                    synchronized(this@SetupSnapshotStore) {
+                        check(preferences.edit().remove(SNAPSHOT_KEY).commit()) {
+                            "Could not durably clear setup progress"
+                        }
+                    }
+                }
+            }
         }
         return SetupSnapshot()
     }
 
-    fun record(
+    suspend fun record(
         step: SetupStep,
         result: SetupReceiptResult,
         completedAtMillis: Long = System.currentTimeMillis(),

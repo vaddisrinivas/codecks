@@ -4,8 +4,6 @@ import io.codecks.domain.connection.MacCapabilityCheckReceipt
 import io.codecks.domain.connection.MacCapabilityCheckResult
 import io.codecks.domain.connection.MacSetupCapability
 import java.io.File
-import org.json.JSONArray
-import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -106,8 +104,13 @@ class SetupCompletionTest {
 
         val runtimeSource = File("src/main/java/io/codecks/ui/connection/SetupCompletion.kt").readText()
             .substringAfter("fun evaluateRuntimeSetupCompletion")
-            .substringBefore("private fun Long.isFreshAt")
+            .substringBefore("internal fun Long.isFreshSetupProofAt")
         assertFalse(runtimeSource.contains("HidTerminalReceipt("))
+        assertFalse(
+            evaluateSetupCompletion(
+                valid.copy(currentHidHostToken = hidHostToken("CC:DD")),
+            ) is SetupCompletionEvaluation.COMPLETE,
+        )
     }
 
     @Test
@@ -124,48 +127,7 @@ class SetupCompletionTest {
 
         assertEquals(SetupRepairTarget.HidPairing, readiness.setupRepairTarget)
         assertTrue(readiness.title.contains("Pair a Mac"))
-        assertFalse(readiness.coreReady)
-    }
-
-    @Test
-    fun writesTerminalReceiptEvidence() {
-        val rows = JSONArray()
-        SshTerminalResult.entries.forEach { result ->
-            val proof = completeProof().let { valid ->
-                valid.copy(
-                    sshReceipt = requireNotNull(valid.sshReceipt).copy(
-                        result = result,
-                        confirmedCapabilities = if (result == SshTerminalResult.Passed) {
-                            valid.requiredMacCapabilities
-                        } else {
-                            emptySet()
-                        },
-                        capabilityCheckedAtEpochMs = if (result == SshTerminalResult.Passed) {
-                            valid.requiredMacCapabilities.associateWith { now - 150L }
-                        } else {
-                            emptyMap()
-                        },
-                    ),
-                )
-            }
-            val evaluation = evaluateSetupCompletion(proof)
-            rows.put(
-                JSONObject()
-                    .put("terminalResult", result.name)
-                    .put("complete", evaluation is SetupCompletionEvaluation.COMPLETE)
-                    .put(
-                        "repairTarget",
-                        (evaluation as? SetupCompletionEvaluation.REPAIR_REQUIRED)?.target?.name
-                            ?: JSONObject.NULL,
-                    ),
-            )
-        }
-        val output = evidenceDirectory().resolve("terminal_receipt_matrix.json")
-        requireNotNull(output.parentFile).mkdirs()
-        output.writeText(rows.toString(2))
-
-        assertEquals(SshTerminalResult.entries.size, rows.length())
-        assertTrue(output.isFile)
+        assertFalse(readiness.setupCompletionConfirmed)
     }
 
     private fun completeProof(): SetupCompletionProof {
@@ -201,7 +163,7 @@ class SetupCompletionTest {
             hidReceipt = HidTerminalReceipt(
                 setupRevision = revision,
                 macTargetId = "mac-target",
-                hidHostAddress = "AA:BB",
+                hidHostToken = hidHostToken("AA:BB"),
                 result = HidTerminalResult.USER_CONFIRMED,
                 completedAtEpochMs = now - 50L,
             ),
@@ -226,13 +188,9 @@ class SetupCompletionTest {
                     connectedToSelectedHost = true,
                 ),
             ),
-            currentHidHostAddress = "AA:BB",
+            currentHidHostToken = hidHostToken("AA:BB"),
             evaluatedAtEpochMs = now,
         )
     }
 
-    private fun evidenceDirectory(): File {
-        val moduleDirectory = File(requireNotNull(System.getProperty("user.dir")))
-        return requireNotNull(moduleDirectory.parentFile).resolve("build/ga-evidence/SET-04")
-    }
 }

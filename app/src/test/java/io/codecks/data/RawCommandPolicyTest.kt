@@ -15,7 +15,6 @@ class RawCommandPolicyTest {
             "open 'https://example.com'",
             "open -a Calendar",
             "open -a 'Google Chrome'",
-            "osascript -e 'tell application \"System Events\" to key code 126'",
             "python3 -m py_compile '/tmp/codecks_action.py'",
         )
 
@@ -33,14 +32,12 @@ class RawCommandPolicyTest {
             "open 'https://example.com'",
             "open -a Calendar",
             "open -a 'Google Chrome'",
-            "osascript -e 'tell application \"System Events\" to key code 126'",
             "python3 -m py_compile '/tmp/codecks_action.py'",
             "sleep 0.5",
             "caffeinate -u -t 30",
             "pbpaste 2>/dev/null | head -c 4096",
             "networksetup -getairportnetwork en0 2>/dev/null | sed 's/^Current Wi-Fi Network: //'",
             "pmset -g batt | grep -Eo '[0-9]+%' | head -1 | tr -d '%'",
-            "if [ -e '${'$'}HOME/Desktop/file.txt' ]; then stat -f %m '${'$'}HOME/Desktop/file.txt'; fi",
         )
 
         commands.forEach { command ->
@@ -72,6 +69,11 @@ class RawCommandPolicyTest {
             "S=sudo; \$S whoami",
             "printf hi | xargs sh",
             "osascript -e 'tell app \"System Events\" to keystroke \"secret\"'",
+            "osascript -e 'do shell script \"touch /tmp/pwned\"'",
+            "printf %s \"$(whoami)\" | pbcopy",
+            "open -a Notes '$(touch /tmp/pwned)'",
+            "printf %s '${'$'}{HOME}' | pbcopy",
+            "printf %s '`whoami`' | pbcopy",
         )
 
         commands.forEach { command ->
@@ -109,6 +111,10 @@ class RawCommandPolicyTest {
             "security unlock-keychain login.keychain-db",
             "osascript -e 'do shell script \"touch /tmp/a\" with administrator privileges'",
             "diskutil eraseDisk APFS Test disk9",
+            "/usr/bin/sudo whoami",
+            "/bin/sh -c 'whoami'",
+            "/usr/bin/python3 -c 'print(1)'",
+            "/bin/launchctl bootout gui/501/bad",
         )
 
         commands.forEach { command ->

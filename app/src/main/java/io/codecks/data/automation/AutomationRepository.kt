@@ -53,7 +53,6 @@ import io.codecks.domain.automation.withPreflightReceipt
 import io.codecks.domain.automation.withValidationResult
 import io.codecks.domain.automation.redactedTerminal
 import io.codecks.domain.automation.withWorkerOutcome
-import io.codecks.domain.privacy.DiagnosticRedactor
 import io.codecks.domain.privacy.DiagnosticComponent
 import io.codecks.domain.privacy.DiagnosticResultCode
 import io.codecks.domain.device.DeviceGroupId
@@ -66,26 +65,29 @@ import io.codecks.domain.connection.RemediationAction
 import io.codecks.domain.connection.persistedCode
 import javax.inject.Inject
 import javax.inject.Singleton
+import java.security.MessageDigest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onStart
 import org.json.JSONArray
 import org.json.JSONObject
 
 private val Context.automationDataStore by preferencesDataStore(name = "automations")
-private const val RECIPES_SCHEMA_VERSION = 8
+private const val RECIPES_SCHEMA_VERSION = 9
 private const val TAG = "AutomationStorage"
 
 interface AutomationRepository {
     val recipes: Flow<List<AutomationRecipe>>
+    val recoveryRequired: Flow<Boolean> get() = flowOf(false)
     suspend fun save(recipe: AutomationRecipe)
     suspend fun delete(recipeId: String)
     suspend fun duplicate(recipeId: String)
     suspend fun recordRun(recipeId: String, result: ActionResult)
     suspend fun recordTest(recipeId: String, result: ActionResult, revision: String) = Unit
     suspend fun recordPreflight(recipeId: String, receipt: AutomationPreflightReceipt) = Unit
-    suspend fun recordLiveTest(recipeId: String, receipt: AutomationLiveTestReceipt) = Unit
+    suspend fun recordLiveTest(recipeId: String, receipt: AutomationLiveTestReceipt): Boolean
     suspend fun recordWorkerOutcome(recipeId: String, outcome: AutomationWorkerOutcome) = Unit
     suspend fun clearPendingApproval(recipeId: String) = Unit
     suspend fun exportRecipes(): Result<String>
@@ -101,21 +103,21 @@ class DefaultAutomationRepository @Inject constructor(
     private val connectionRepository: ConnectionRepository,
 ) : AutomationRepository {
     private val diagnosticEventStore = DiagnosticEventStore(context)
+    override val recoveryRequired: Flow<Boolean> = context.automationDataStore.data.map { preferences ->
+        preferences[RECIPES]?.let(::decodeRecipes) == null && preferences[RECIPES] != null
+    }
     override val recipes: Flow<List<AutomationRecipe>> = context.automationDataStore.data
         .onStart {
             migratePersistedTargetSelectors()
             sanitizePersistedExecutionProofs()
         }
         .map { preferences ->
-            preferences[RECIPES]
-                ?.let { raw ->
-                    decodeRecipes(raw) ?: run {
-                        reportRecipeDecodeFailure(raw)
-                        null
-                    }
-                }
-                ?.takeIf { it.isNotEmpty() }
-                ?: defaultRecipes()
+            val raw = preferences[RECIPES] ?: return@map defaultRecipes()
+            val decoded = decodeRecipes(raw) ?: run {
+                reportRecipeDecodeFailure(raw)
+                return@map emptyList()
+            }
+            decoded.ifEmpty { defaultRecipes() }
         }
 
     override suspend fun save(recipe: AutomationRecipe) {
@@ -206,16 +208,21 @@ class DefaultAutomationRepository @Inject constructor(
         }
     }
 
-    override suspend fun recordLiveTest(recipeId: String, receipt: AutomationLiveTestReceipt) {
+    override suspend fun recordLiveTest(recipeId: String, receipt: AutomationLiveTestReceipt): Boolean {
+        var promoted = false
         mutate { recipes ->
             recipes.map { recipe ->
                 if (recipe.id == recipeId) {
-                    recipe.withLiveTestReceipt(receipt)
+                    recipe.withLiveTestReceipt(receipt).also { updated ->
+                        promoted = updated.lastLiveTest?.receiptId == receipt.receiptId &&
+                            updated.stage == AutomationStage.LIVE_TEST_PASSED
+                    }
                 } else {
                     recipe
                 }
             }
         }
+        return promoted
     }
 
     override suspend fun recordWorkerOutcome(
@@ -281,11 +288,18 @@ class DefaultAutomationRepository @Inject constructor(
 
     private suspend fun mutate(transform: (List<AutomationRecipe>) -> List<AutomationRecipe>) {
         val legacyIds = connectionRepository.legacyTargetIdMigrations()
+        val snapshot = context.automationDataStore.data.first()[RECIPES]
+        if (snapshot != null && decodeRecipes(snapshot) == null) {
+            context.automationDataStore.edit { preferences ->
+                preferences[RECIPES_QUARANTINE] = quarantinePayload(snapshot, "recipes")
+            }
+            error("Automation storage is unreadable; reset or restore it before making changes")
+        }
         context.automationDataStore.edit { preferences ->
             val raw = preferences[RECIPES]
             val decoded = raw?.let(::decodeRecipes)
             if (raw != null && decoded == null) {
-                preferences[RECIPES_QUARANTINE] = quarantinePayload(raw, "recipes")
+                error("Automation storage is unreadable; reset or restore it before making changes")
             }
             val current = decoded?.takeIf { it.isNotEmpty() } ?: defaultRecipes()
             val encoded = encodeRecipes(transform(current))
@@ -406,15 +420,37 @@ class DefaultAutomationRepository @Inject constructor(
         }
     }.getOrNull()
 
-    /**
-     * Every persisted schema is named here. Additive fields are decoded with fail-closed defaults;
-     * execution gates are then rebuilt by normalizePersistedRevisionGate().
-     */
-    private fun migrateRecipeForDecode(item: JSONObject, sourceSchema: Int): JSONObject =
-        when (sourceSchema) {
-            1, 2, 3, 4, 5, 6, 7, RECIPES_SCHEMA_VERSION -> item
-            else -> error("Unsupported automation schema $sourceSchema")
+    /** Explicit, ordered migrations. Proof is deliberately invalidated by the v8 -> v9 policy. */
+    private fun migrateRecipeForDecode(item: JSONObject, sourceSchema: Int): JSONObject {
+        require(sourceSchema in 1..RECIPES_SCHEMA_VERSION)
+        val migrated = JSONObject(item.toString())
+        for (version in sourceSchema until RECIPES_SCHEMA_VERSION) {
+            when (version) {
+                1 -> migrated.putIfMissing("description", "")
+                2 -> migrated.putIfMissing("requiresConfirmation", false)
+                3 -> migrated.putIfMissing("cleanupDefinition", JSONObject())
+                4 -> migrated.putIfMissing("runHistory", JSONArray())
+                5 -> migrated.putIfMissing("recoveryRequired", false)
+                6 -> migrated.putIfMissing("stage", AutomationStage.DRAFT.name)
+                7 -> migrated.putIfMissing("enabled", false)
+                8 -> {
+                    migrated.put("enabled", false)
+                    migrated.put("stage", AutomationStage.DRAFT.name)
+                    listOf(
+                        "lastTest",
+                        "lastTestRevision",
+                        "lastPreflight",
+                        "lastLiveTest",
+                        "lastWorkerOutcome",
+                        "pendingApproval",
+                        "gateStamp",
+                    ).forEach { key -> migrated.remove(key) }
+                }
+                else -> error("Missing migration from automation schema $version")
+            }
         }
+        return migrated
+    }
 
     private suspend fun migratePersistedTargetSelectors() {
         val legacyIds = connectionRepository.legacyTargetIdMigrations()
@@ -440,7 +476,10 @@ class DefaultAutomationRepository @Inject constructor(
     private suspend fun sanitizePersistedExecutionProofs() {
         context.automationDataStore.edit { preferences ->
             val raw = preferences[RECIPES] ?: return@edit
-            val sanitized = decodeRecipes(raw) ?: return@edit
+            val sanitized = decodeRecipes(raw) ?: run {
+                preferences[RECIPES_QUARANTINE] = quarantinePayload(raw, "recipes")
+                return@edit
+            }
             val encoded = encodeRecipes(sanitized)
             if (encoded != raw) preferences[RECIPES] = encoded
         }
@@ -582,24 +621,36 @@ class DefaultAutomationRepository @Inject constructor(
     }
 
     private fun reportRecipeDecodeFailure(raw: String) {
-        Log.w(TAG, "Automation recipe decode failed; preserving raw value for recovery (${raw.length} chars)")
+        Log.w(TAG, "Automation recipe decode failed; stored hash-only recovery metadata (${raw.length} chars)")
     }
+}
+
+private fun JSONObject.putIfMissing(key: String, value: Any) {
+    if (!has(key) || isNull(key)) put(key, value)
 }
 
 private fun ActionResult.toStoredAutomationSummary(): AutomationRunSummary =
     AutomationRunSummary(
         status = status,
-        message = DiagnosticRedactor.redact(message, maxLength = 240),
-        logs = DiagnosticRedactor.redact(logs, maxLength = 1_200),
+        message = "Automation ${status.name.lowercase()}",
+        logs = "",
         timestampMillis = timestampMillis,
     )
 
-private fun quarantinePayload(raw: String, store: String): String = JSONObject().apply {
-    put("schemaVersion", 1)
+internal fun quarantinePayload(raw: String, store: String): String = JSONObject().apply {
+    put("schemaVersion", 2)
     put("store", store)
     put("quarantinedAtMillis", System.currentTimeMillis())
-    put("raw", raw)
+    put("payloadLength", raw.length.coerceAtMost(MAX_QUARANTINE_REPORTED_LENGTH))
+    put("payloadSha256", raw.sha256())
 }.toString()
+
+private fun String.sha256(): String =
+    MessageDigest.getInstance("SHA-256")
+        .digest(toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it) }
+
+private const val MAX_QUARANTINE_REPORTED_LENGTH = 10_000_000
 
 private fun AutomationRunSummary.toJson(): JSONObject = JSONObject().apply {
     put("status", status.name)
@@ -632,15 +683,16 @@ private fun JSONObject?.toAutomationWorkerOutcome(): AutomationWorkerOutcome? {
 }
 
 private fun JSONObject.toAutomationRunSummary(): AutomationRunSummary =
-    AutomationRunSummary(
-        status = optString("status").let { status ->
-            ActionResultStatus.entries.firstOrNull { it.name == status }
-                ?: ActionResultStatus.Failed
-        },
-        message = optString("message"),
-        logs = optString("logs").ifBlank { optString("message") },
+    optString("status").let { rawStatus ->
+        val status = ActionResultStatus.entries.firstOrNull { it.name == rawStatus }
+            ?: ActionResultStatus.Failed
+        AutomationRunSummary(
+        status = status,
+        message = "Automation ${status.name.lowercase()}",
+        logs = "",
         timestampMillis = optLong("timestampMillis", System.currentTimeMillis()),
     )
+    }
 
 private fun JSONObject.putCommonTrust(spec: ActionSpec) {
     put("commandOrigin", spec.commandOrigin.name)
@@ -674,8 +726,17 @@ private fun AutomationPreflightReceipt.toJson(): JSONObject = JSONObject().apply
     put("commandPaths", JSONArray().apply {
         commandPaths.forEach { put(it) }
     })
+    put("commandApps", JSONArray().apply {
+        commandApps.forEach { put(it) }
+    })
     put("permissionSnapshot", JSONArray().apply {
         permissionSnapshot.forEach { put(it) }
+    })
+    put("requiredPermissions", JSONArray().apply {
+        requiredPermissions.forEach { put(it) }
+    })
+    put("requiredCheckCodes", JSONArray().apply {
+        requiredCheckCodes.forEach { put(it) }
     })
     put("checks", JSONArray().apply {
         checks.forEach { check ->
@@ -716,7 +777,10 @@ private fun JSONObject.toAutomationPreflightReceipt(): AutomationPreflightReceip
         checks = preflight.optJSONArray("checks")?.toPreflightChecks().orEmpty(),
         commandTools = preflight.optJSONArray("commandTools")?.toStringSet().orEmpty(),
         commandPaths = preflight.optJSONArray("commandPaths")?.toStringSet().orEmpty(),
+        commandApps = preflight.optJSONArray("commandApps")?.toStringSet().orEmpty(),
         permissionSnapshot = preflight.optJSONArray("permissionSnapshot")?.toStringSet().orEmpty(),
+        requiredPermissions = preflight.optJSONArray("requiredPermissions")?.toStringSet().orEmpty(),
+        requiredCheckCodes = preflight.optJSONArray("requiredCheckCodes")?.toStringSet().orEmpty(),
         receiptId = preflight.optString("receiptId").ifBlank {
             io.codecks.domain.automation.automationReceiptId(
                 "preflight",
@@ -734,7 +798,7 @@ private fun JSONObject.toAutomationLiveTestReceipt(): AutomationLiveTestReceipt?
         preflightCheckedAtMillis = optLong("preflightCheckedAtMillis", 0L),
         assertions = optJSONArray("assertions")?.toLiveTestAssertions().orEmpty(),
         cleanup = optJSONObject("cleanup")?.toAutomationLiveTestCleanup() ?: return null,
-        macIdentity = "",
+        macIdentity = optString("macIdentity"),
         normalizedPlanHash = optString("normalizedPlanHash"),
         preflightReceiptId = optString("preflightReceiptId"),
         timeoutPolicyCode = optString("timeoutPolicyCode"),
@@ -757,6 +821,7 @@ private fun AutomationLiveTestReceipt.toJson(): JSONObject = JSONObject().apply 
     put("checkedAtMillis", terminal.checkedAtMillis)
     put("completedAtMillis", terminal.completedAtMillis)
     put("preflightCheckedAtMillis", terminal.preflightCheckedAtMillis)
+    put("macIdentity", terminal.macIdentity)
     put("normalizedPlanHash", terminal.normalizedPlanHash)
     put("preflightReceiptId", terminal.preflightReceiptId)
     put("timeoutPolicyCode", terminal.timeoutPolicyCode)

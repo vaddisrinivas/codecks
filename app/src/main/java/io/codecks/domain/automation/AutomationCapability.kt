@@ -4,6 +4,7 @@ import io.codecks.domain.connection.CapabilityCheck
 import io.codecks.domain.connection.CapabilityStatus
 import io.codecks.domain.connection.ConnectionIssueCode
 import io.codecks.domain.connection.RemediationAction
+import java.security.MessageDigest
 
 object AutomationCapabilityCodes {
     const val Identity = "automation.ssh.identity"
@@ -53,7 +54,7 @@ fun automationToolPreflightCheck(
 ): AutomationPreflightCheck =
     AutomationPreflightCheck.typed(
         area = AutomationPreflightArea.Tool,
-        capabilityCode = "${AutomationCapabilityCodes.Tool}.${toolCode.stableCapabilitySegment()}",
+        capabilityCode = automationRequirementCode(AutomationCapabilityCodes.Tool, toolCode),
         status = if (available) CapabilityStatus.SATISFIED else CapabilityStatus.BLOCKED,
         issueCode = ConnectionIssueCode.MAC_TOOL_MISSING.takeUnless { available },
         remediation = RemediationAction.OpenMissingToolInstructions(toolCode.stableCapabilitySegment())
@@ -62,12 +63,50 @@ fun automationToolPreflightCheck(
         message = if (available) "satisfied" else "blocked",
     )
 
-fun AutomationPreflightReceipt.mandatoryChecksSatisfied(): Boolean =
-    checks.isNotEmpty() &&
-        checks.filter(AutomationPreflightCheck::mandatory).isNotEmpty() &&
-        checks.filter(AutomationPreflightCheck::mandatory).all { check ->
-            check.capability.status == CapabilityStatus.SATISFIED
-        }
+fun AutomationPreflightReceipt.mandatoryChecksSatisfied(): Boolean {
+    if (requiredCheckCodes.isEmpty()) return false
+    val mandatory = checks.filter(AutomationPreflightCheck::mandatory)
+    val actualCodes = mandatory.map { it.capability.capabilityCode }
+    return receiptId == canonicalReceiptId() &&
+        actualCodes.size == actualCodes.distinct().size &&
+        actualCodes.toSet() == requiredCheckCodes &&
+        mandatory.all { it.capability.status == CapabilityStatus.SATISFIED }
+}
+
+private fun AutomationPreflightReceipt.canonicalReceiptId(): String =
+    automationPreflightReceiptId(
+        recipeRevision,
+        checkedAtMillis,
+        macIdentity,
+        targetId,
+        requiredCapabilities,
+        checks,
+        commandTools,
+        commandPaths,
+        commandApps,
+        requiredPermissions,
+        permissionSnapshot,
+        requiredCheckCodes,
+    )
+
+fun automationRequiredPreflightCheckCodes(
+    tools: Set<String>,
+    paths: Set<String>,
+    apps: Set<String>,
+    permissions: Set<String>,
+): Set<String> = buildSet {
+    add(AutomationCapabilityCodes.Identity)
+    add(AutomationCapabilityCodes.Connection)
+    add(AutomationCapabilityCodes.Provider)
+    add(AutomationCapabilityCodes.Target)
+    tools.forEach { add(automationRequirementCode(AutomationCapabilityCodes.Tool, it)) }
+    paths.forEach { add(automationRequirementCode(AutomationCapabilityCodes.Path, it)) }
+    apps.forEach { add(automationRequirementCode(AutomationCapabilityCodes.App, it)) }
+    permissions.forEach { add(automationRequirementCode(AutomationCapabilityCodes.Permission, it)) }
+}
+
+fun automationRequirementCode(prefix: String, value: String): String =
+    "$prefix.${value.stableCapabilitySegment().take(20)}.${value.capabilityHash().take(12)}"
 
 internal fun AutomationPreflightArea.defaultCapability(
     passed: Boolean,
@@ -124,3 +163,8 @@ private fun String.stableCapabilitySegment(): String =
         .trim('_')
         .take(32)
         .ifBlank { "unknown" }
+
+private fun String.capabilityHash(): String =
+    MessageDigest.getInstance("SHA-256")
+        .digest(toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it) }

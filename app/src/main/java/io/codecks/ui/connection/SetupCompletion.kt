@@ -63,14 +63,14 @@ enum class HidTerminalResult {
 data class HidTerminalReceipt(
     val setupRevision: String,
     val macTargetId: String,
-    val hidHostAddress: String,
+    val hidHostToken: String,
     val result: HidTerminalResult,
     val completedAtEpochMs: Long,
 ) {
     init {
         require(setupRevision.matches(RevisionPattern))
         require(macTargetId.isNotBlank())
-        require(hidHostAddress.isNotBlank())
+        require(hidHostToken.matches(RevisionPattern))
         require(completedAtEpochMs >= 0L)
     }
 }
@@ -103,7 +103,7 @@ data class SetupCompletionProof(
     val currentMacCapabilityReceipts: List<MacCapabilityCheckReceipt>,
     val currentMacTargetId: String,
     val currentHidStatus: BluetoothSetupStatus,
-    val currentHidHostAddress: String?,
+    val currentHidHostToken: String?,
     val evaluatedAtEpochMs: Long = System.currentTimeMillis(),
 )
 
@@ -111,6 +111,13 @@ fun SetupSnapshot.revisionToken(): String {
     val safeSnapshot = SetupSnapshotCodec.encode(this)
     return MessageDigest.getInstance("SHA-256")
         .digest(safeSnapshot.toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it) }
+}
+
+fun hidHostToken(address: String): String {
+    require(address.isNotBlank())
+    return MessageDigest.getInstance("SHA-256")
+        .digest(address.trim().uppercase().toByteArray(Charsets.UTF_8))
         .joinToString("") { "%02x".format(it) }
 }
 
@@ -142,7 +149,7 @@ fun evaluateSetupCompletion(proof: SetupCompletionProof): SetupCompletionEvaluat
             "ssh_target_mismatch",
         )
     }
-    if (!ssh.completedAtEpochMs.isFreshAt(proof.evaluatedAtEpochMs)) {
+    if (!ssh.completedAtEpochMs.isFreshSetupProofAt(proof.evaluatedAtEpochMs)) {
         return SetupCompletionEvaluation.REPAIR_REQUIRED(
             SetupRepairTarget.VerifyControls,
             "ssh_receipt_expired",
@@ -177,7 +184,7 @@ fun evaluateSetupCompletion(proof: SetupCompletionProof): SetupCompletionEvaluat
         return SetupCompletionEvaluation.REPAIR_REQUIRED(target, "current_mac_capability_missing")
     }
     if (proof.currentMacCapabilityReceipts.any {
-            !it.checkedAtEpochMs.isFreshAt(proof.evaluatedAtEpochMs)
+            !it.checkedAtEpochMs.isFreshSetupProofAt(proof.evaluatedAtEpochMs)
         }
     ) {
         return SetupCompletionEvaluation.REPAIR_REQUIRED(
@@ -193,8 +200,8 @@ fun evaluateSetupCompletion(proof: SetupCompletionProof): SetupCompletionEvaluat
     if (hid.setupRevision != revision ||
         hid.result != HidTerminalResult.USER_CONFIRMED ||
         hid.macTargetId != proof.currentMacTargetId ||
-        hid.hidHostAddress != proof.currentHidHostAddress ||
-        !hid.completedAtEpochMs.isFreshAt(proof.evaluatedAtEpochMs)
+        hid.hidHostToken != proof.currentHidHostToken ||
+        !hid.completedAtEpochMs.isFreshSetupProofAt(proof.evaluatedAtEpochMs)
     ) {
         return SetupCompletionEvaluation.REPAIR_REQUIRED(
             SetupRepairTarget.HidConnection,
@@ -240,13 +247,13 @@ fun evaluateRuntimeSetupCompletion(
             currentMacCapabilityReceipts = state.macCapabilityReceipts,
             currentMacTargetId = targetId,
             currentHidStatus = hidStatus,
-            currentHidHostAddress = hidAddress,
+            currentHidHostToken = hidAddress?.let(::hidHostToken),
             evaluatedAtEpochMs = nowEpochMs,
         ),
     )
 }
 
-private fun Long.isFreshAt(nowEpochMs: Long): Boolean =
+internal fun Long.isFreshSetupProofAt(nowEpochMs: Long): Boolean =
     this <= nowEpochMs + SETUP_TERMINAL_RECEIPT_MAX_FUTURE_SKEW_MS &&
         nowEpochMs - this <= SETUP_TERMINAL_RECEIPT_MAX_AGE_MS
 

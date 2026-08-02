@@ -3,11 +3,54 @@ package io.codecks.ui.connection
 import io.codecks.data.ConnectionConfig
 import io.codecks.domain.connection.ConnectionIssueCode
 import io.codecks.domain.connection.RemediationAction
+import io.codecks.domain.connection.MacCapabilityCheckReceipt
+import io.codecks.domain.connection.MacCapabilityCheckResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class ConnectionHealthTest {
+    @Test
+    fun proofClockTransitionsReadyStateAtEarliestDurableExpiry() {
+        val checkedAt = 2_000_000_000_000L
+        val config = ConnectionConfig(
+            host = "mac.local",
+            user = "me",
+            hostKey = "mac.local ssh-ed25519 key",
+            hasKey = true,
+        )
+        val snapshot = SetupSnapshot(
+            receipts = SetupStep.entries.associateWith {
+                SetupReceipt(step = it, result = SetupReceiptResult.Passed, completedAtMillis = checkedAt)
+            },
+        )
+        val capabilities = REQUIRED_CORE_MAC_CAPABILITIES.map {
+            MacCapabilityCheckReceipt(it, MacCapabilityCheckResult.Passed, null, checkedAt)
+        }
+        val state = ConnectionUiState(
+            config = config,
+            setupSnapshot = snapshot,
+            sshTerminalReceipt = SshTerminalReceipt(
+                setupRevision = snapshot.revisionToken(),
+                macTargetId = config.setupTargetId(),
+                result = SshTerminalResult.Passed,
+                attempt = 1,
+                durationMs = 1,
+                completedAtEpochMs = checkedAt,
+                confirmedCapabilities = REQUIRED_CORE_MAC_CAPABILITIES,
+                capabilityCheckedAtEpochMs = capabilities.associate {
+                    it.capability to it.checkedAtEpochMs
+                },
+            ),
+            macCapabilityReceipts = capabilities,
+        )
+        val expiry = checkedAt + SETUP_TERMINAL_RECEIPT_MAX_AGE_MS + 1L
+
+        assertEquals(expiry, state.nextSetupProofExpiryAtEpochMs())
+        assertEquals(ConnectionHealthKind.Ready, state.connectionHealth(checkedAt).kind)
+        assertEquals(ConnectionHealthKind.Offline, state.connectionHealth(expiry).kind)
+    }
+
     @Test
     fun mapsSetupProgressIntoDistinctHealthStates() {
         assertEquals(

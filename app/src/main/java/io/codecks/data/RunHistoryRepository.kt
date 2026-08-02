@@ -7,12 +7,12 @@ import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.codecks.core.actions.ActionResult
 import io.codecks.core.actions.ActionResultStatus
-import io.codecks.domain.privacy.DiagnosticRedactor
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -28,8 +28,15 @@ interface RunHistoryRepository {
 class DefaultRunHistoryRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) : RunHistoryRepository {
-    override val results: Flow<List<ActionResult>> = context.runHistoryDataStore.data.map { preferences ->
-        decodeResults(preferences[RESULTS].orEmpty())
+    override val results: Flow<List<ActionResult>> = context.runHistoryDataStore.data
+        .onStart { sanitizePersistedHistory() }
+        .map { preferences -> decodeResults(preferences[RESULTS].orEmpty()).map(ActionResult::redactedForStorage) }
+
+    private suspend fun sanitizePersistedHistory() {
+        context.runHistoryDataStore.edit { preferences ->
+            val raw = preferences[RESULTS] ?: return@edit
+            preferences[RESULTS] = encodeResults(decodeResults(raw).map(ActionResult::redactedForStorage))
+        }
     }
 
     override suspend fun record(result: ActionResult) {
@@ -69,13 +76,11 @@ class InMemoryRunHistoryRepository(
 }
 
 private const val MAX_RESULTS = 50
-private const val MAX_STORED_LOG_LENGTH = 1_200
-
 private fun ActionResult.redactedForStorage(): ActionResult =
     copy(
-        message = DiagnosticRedactor.redact(message, maxLength = 240),
-        logs = DiagnosticRedactor.redact(logs, maxLength = MAX_STORED_LOG_LENGTH),
-        target = target?.let { DiagnosticRedactor.redact(it, maxLength = 80) },
+        message = "Action ${status.name.lowercase()}",
+        logs = "",
+        target = null,
     )
 
 private fun encodeResults(results: List<ActionResult>): String {

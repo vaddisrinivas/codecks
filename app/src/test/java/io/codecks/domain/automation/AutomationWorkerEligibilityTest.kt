@@ -156,6 +156,7 @@ class AutomationWorkerEligibilityTest {
             commandTools = setOf("osascript"),
             commandPaths = emptySet(),
             permissionSnapshot = setOf("permission.accessibility"),
+            requiredCheckCodes = setOf(AutomationCapabilityCodes.Connection),
         )
         val ready = validated.withPreflightReceipt(preflight)
         val receipt = AutomationLiveTestEngine(

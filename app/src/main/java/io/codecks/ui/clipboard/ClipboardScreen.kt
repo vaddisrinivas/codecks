@@ -54,6 +54,8 @@ fun ClipboardScreen(
     onStartSession: () -> Unit,
     onStopSession: () -> Unit,
     onForegroundVisibleChange: (Boolean) -> Unit,
+    onRetrySharedText: () -> Unit = {},
+    onDiscardSharedText: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     LifecycleResumeEffect(Unit) {
@@ -65,6 +67,15 @@ fun ClipboardScreen(
         modifier = modifier,
     ) {
         item { ClipboardStatusSummary(state, modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) }
+        if (state.pendingSharedText) {
+            item {
+                SharedTextPendingPanel(
+                    isRunning = state.isRunning,
+                    onRetry = onRetrySharedText,
+                    onDiscard = onDiscardSharedText,
+                )
+            }
+        }
         item {
             ClipboardSessionPanel(
                 state = state,
@@ -102,6 +113,45 @@ fun ClipboardScreen(
         }
         if (state.history.isNotEmpty()) {
             item { ClipboardHistoryPanel(state) }
+        }
+    }
+}
+
+@Composable
+private fun SharedTextPendingPanel(
+    isRunning: Boolean,
+    onRetry: () -> Unit,
+    onDiscard: () -> Unit,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(16.dp),
+        ) {
+            AccessibleStatus(
+                stateDescription = if (isRunning) "Sending shared text" else "Shared text waiting",
+                detail = "Retained until Mac delivery is applied or you discard it.",
+                kind = if (isRunning) AccessibleStatusKind.Busy else AccessibleStatusKind.Information,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                DeckActionButton(
+                    label = "Retry shared text",
+                    onClick = onRetry,
+                    enabled = !isRunning,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                )
+                DeckActionButton(
+                    label = "Discard shared text",
+                    onClick = onDiscard,
+                    enabled = !isRunning,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                )
+            }
         }
     }
 }
@@ -238,8 +288,9 @@ internal enum class ClipboardConnectionStatus(val label: String) {
 
 internal fun clipboardConnectionStatus(state: ClipboardUiState): ClipboardConnectionStatus = when {
     state.isRunning -> ClipboardConnectionStatus.Checking
+    (state.connectionConfigured || state.connectionReady) && state.isRemoteOffline ->
+        ClipboardConnectionStatus.Offline
     !state.connectionReady -> ClipboardConnectionStatus.SetupNeeded
-    state.isRemoteOffline -> ClipboardConnectionStatus.Offline
     state.hasConflict || state.lastFailureClass != null -> ClipboardConnectionStatus.Failed
     else -> ClipboardConnectionStatus.Ready
 }
@@ -247,8 +298,9 @@ internal fun clipboardConnectionStatus(state: ClipboardUiState): ClipboardConnec
 internal fun clipboardStatusDetail(state: ClipboardUiState): String = when {
     state.isRunning -> "Checking the phone and Mac clipboards."
     state.hasConflict -> "Both sides changed. Choose the copy to keep."
+    (state.connectionConfigured || state.connectionReady) && state.isRemoteOffline ->
+        "The Mac is offline. Manual and automatic sync cannot run."
     !state.connectionReady -> "Connect a Mac in Settings before transferring text."
-    state.isRemoteOffline -> "The Mac is offline. Manual and automatic sync cannot run."
     state.lastFailureClass != null -> "The last transfer failed. Try again or check Mac setup."
     state.mode == ClipboardSyncMode.Off -> "Manual transfer is available. Automatic sync is off."
     state.batterySaverActive -> "Battery Saver paused automatic sync. Manual refresh remains available."

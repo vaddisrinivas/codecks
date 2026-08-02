@@ -5,6 +5,7 @@ import io.codecks.core.actions.ActionResultStatus
 import io.codecks.core.actions.ActionRunner
 import io.codecks.core.actions.ActionSpec
 import io.codecks.domain.CommandOrigin
+import io.codecks.domain.device.DeviceId
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -18,7 +19,7 @@ class AutomationExecutionEngineTest {
         val runner = recordingRunner(calls) { spec ->
             if (spec.id == "step") ActionResultStatus.Failed else ActionResultStatus.Succeeded
         }
-        val result = AutomationExecutionEngine(runner).run(recipe(), allowDangerous = false)
+        val result = AutomationExecutionEngine(runner).run(recipe().executable(), allowDangerous = false) { true }
 
         assertEquals(listOf("step", "cleanup"), calls)
         assertEquals(ActionResultStatus.Failed, result.status)
@@ -36,7 +37,7 @@ class AutomationExecutionEngineTest {
         }
 
         val failure = runCatching {
-            AutomationExecutionEngine(runner).run(recipe(), allowDangerous = false)
+            AutomationExecutionEngine(runner).run(recipe().executable(), allowDangerous = false) { true }
         }.exceptionOrNull()
 
         assertTrue(failure is CancellationException)
@@ -49,7 +50,7 @@ class AutomationExecutionEngineTest {
             recordingRunner(mutableListOf()) { spec ->
                 if (spec.id == "cleanup") ActionResultStatus.Failed else ActionResultStatus.Succeeded
             },
-        ).run(recipe(), allowDangerous = false)
+        ).run(recipe().executable(), allowDangerous = false) { true }
 
         assertEquals(ActionResultStatus.Failed, result.status)
         assertEquals("cleanup_failed", result.logs)
@@ -66,6 +67,14 @@ class AutomationExecutionEngineTest {
             runAfter = AutomationCleanupTrigger.entries.toSet(),
             undoGuarantee = AutomationUndoGuarantee.GUARANTEED,
         ),
+    )
+
+    private fun AutomationRecipe.executable(): ExecutableAutomation = ExecutableAutomation(
+        recipe = this,
+        sourceRecipeId = id,
+        revision = revisionFingerprint(),
+        macIdentity = "automation-identity-v1:" + "a".repeat(64),
+        targetId = DeviceId("mac"),
     )
 
     private fun shell(id: String, command: String): ActionSpec.ShellCommand =

@@ -50,6 +50,7 @@ data class AutomationHistoryItem(
 
 data class AutomationsUiState(
     val automations: List<AutomationItem> = emptyList(),
+    val storageRecoveryRequired: Boolean = false,
     val runningActionId: String? = null,
     val connectionReady: Boolean = false,
     val triggerMonitorLabel: String = "Triggers idle",

@@ -95,8 +95,24 @@ data class AutomationPreflightReceipt(
     val checks: List<AutomationPreflightCheck>,
     val commandTools: Set<String>,
     val commandPaths: Set<String>,
+    val commandApps: Set<String> = emptySet(),
     val permissionSnapshot: Set<String>,
-    val receiptId: String = automationReceiptId("preflight", recipeRevision, checkedAtMillis),
+    val requiredPermissions: Set<String> = permissionSnapshot,
+    val requiredCheckCodes: Set<String> = emptySet(),
+    val receiptId: String = automationPreflightReceiptId(
+        recipeRevision = recipeRevision,
+        checkedAtMillis = checkedAtMillis,
+        macIdentity = macIdentity,
+        targetId = targetId,
+        requiredCapabilities = requiredCapabilities,
+        checks = checks,
+        commandTools = commandTools,
+        commandPaths = commandPaths,
+        commandApps = commandApps,
+        requiredPermissions = requiredPermissions,
+        permissionSnapshot = permissionSnapshot,
+        requiredCheckCodes = requiredCheckCodes,
+    ),
 )
 
 data class AutomationLiveTestAssertion(
@@ -313,6 +329,7 @@ fun AutomationRecipe.hasCurrentSuccessfulTest(): Boolean =
 
 private const val AUTOMATION_ENABLEMENT_TTL_MILLIS = 24 * 60 * 60 * 1000L
 private const val AUTOMATION_PREFLIGHT_TTL_MILLIS = 30 * 60 * 1000L
+private const val AUTOMATION_CLOCK_SKEW_MILLIS = 2 * 60 * 1000L
 
 fun AutomationRecipe.hasCurrentValidPreflight(
     nowMillis: Long,
@@ -325,6 +342,7 @@ fun AutomationRecipe.hasCurrentValidPreflight(
     if (preflight.macIdentity != requiredMacIdentity) return false
     if (!preflight.requiredCapabilities.containsAll(requiredCapabilities())) return false
     if (!preflight.permissionSnapshot.containsAll(requiredPermissions)) return false
+    if (preflight.checkedAtMillis > nowMillis + AUTOMATION_CLOCK_SKEW_MILLIS) return false
     if (nowMillis - preflight.checkedAtMillis > AUTOMATION_PREFLIGHT_TTL_MILLIS) return false
     return true
 }
@@ -337,10 +355,20 @@ fun AutomationRecipe.hasCurrentValidLiveTest(
     if (recoveryRequired) return false
     val receipt = lastLiveTest ?: return false
     if (receipt.recipeRevision != revisionFingerprint()) return false
-    if (!hasCurrentValidPreflight(nowMillis, requiredMacIdentity, requiredPermissions)) return false
     val preflight = lastPreflight ?: return false
+    // A successful live test binds the preflight snapshot for the full enablement window.
+    // Interactive preflight still uses the shorter TTL before a live test is created.
+    if (!preflight.mandatoryChecksSatisfied()) return false
+    if (preflight.recipeRevision != revisionFingerprint()) return false
+    if (preflight.macIdentity != requiredMacIdentity) return false
+    if (!preflight.permissionSnapshot.containsAll(requiredPermissions)) return false
     val plan = AutomationExecutionPlanCompiler.compile(this).getOrNull() ?: return false
     if (!receipt.isValidTerminalPass(revisionFingerprint(), plan, preflight)) return false
+    if (preflight.checkedAtMillis > nowMillis + AUTOMATION_CLOCK_SKEW_MILLIS) return false
+    if (receipt.preflightCheckedAtMillis > nowMillis + AUTOMATION_CLOCK_SKEW_MILLIS) return false
+    if (receipt.checkedAtMillis > nowMillis + AUTOMATION_CLOCK_SKEW_MILLIS) return false
+    if (receipt.completedAtMillis > nowMillis + AUTOMATION_CLOCK_SKEW_MILLIS) return false
+    if (receipt.completedAtMillis < receipt.checkedAtMillis) return false
     if (nowMillis - receipt.preflightCheckedAtMillis > AUTOMATION_ENABLEMENT_TTL_MILLIS) return false
     return nowMillis - receipt.checkedAtMillis <= AUTOMATION_ENABLEMENT_TTL_MILLIS
 }
@@ -380,7 +408,10 @@ private fun String.requiredPermissions(): Set<String> = lowercasedTokens().let {
 }
 
 private fun String.lowercasedTokens(): Set<String> =
-    trim().lowercase().split(Regex("\\s+")).map { it.trim() }.filter { it.isNotBlank() }.toSet()
+    trim().lowercase().split(Regex("\\s+"))
+        .map { it.trim().trim('"', '\'').substringAfterLast('/') }
+        .filter { it.isNotBlank() }
+        .toSet()
 
 fun automationPermissionProbeCommand(permission: String): String? = when (permission) {
     "permission.accessibility" ->

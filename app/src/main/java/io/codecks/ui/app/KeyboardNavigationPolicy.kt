@@ -56,9 +56,13 @@ fun shellAccessibilityLayout(
     fullscreen: Boolean,
 ): ShellAccessibilityLayout {
     require(widthDp > 0 && heightDp > 0)
-    require(fontScale in 0.5f..3f)
+    require(fontScale.isFinite() && fontScale > 0f)
     return ShellAccessibilityLayout(
-        navigationMode = if (widthDp >= 840) ShellNavigationMode.Rail else ShellNavigationMode.BottomBar,
+        navigationMode = if (widthDp >= 840 && !accessibilityReflowPolicy(fontScale).stackControls) {
+            ShellNavigationMode.Rail
+        } else {
+            ShellNavigationMode.BottomBar
+        },
         navigationVisible = !fullscreen,
         stopInputVisible = fullscreen,
     )

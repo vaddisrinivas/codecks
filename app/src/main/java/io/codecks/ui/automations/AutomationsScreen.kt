@@ -19,7 +19,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Bolt
@@ -87,6 +89,8 @@ fun AutomationsScreen(
     onCheckTriggers: () -> Unit = {},
     onCreateAutomation: (AutomationDraftInput) -> Unit = {},
     onEditAutomation: (AutomationDraftInput) -> Unit = {},
+    onResetRecovery: () -> Unit = {},
+    onRestoreRecovery: () -> Unit = {},
     onCreateWithAi: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -130,14 +134,20 @@ fun AutomationsScreen(
                 onCreate = { createOpen = true },
                 onCreateWithAi = onCreateWithAi,
             )
-            CategoryFilters(
-                categories = state.automations.map(AutomationItem::category).distinct(),
-                selected = selectedCategory,
-                onSelect = { selectedCategory = it },
-            )
-            if (visibleItems.isEmpty()) {
-                EmptyAutomations(hasFilter = query.isNotBlank() || selectedCategory != null)
-            } else if (wide) {
+            if (state.storageRecoveryRequired) {
+                AutomationStorageRecovery(
+                    onReset = onResetRecovery,
+                    onRestore = onRestoreRecovery,
+                )
+            } else {
+                CategoryFilters(
+                    categories = state.automations.map(AutomationItem::category).distinct(),
+                    selected = selectedCategory,
+                    onSelect = { selectedCategory = it },
+                )
+                if (visibleItems.isEmpty()) {
+                    EmptyAutomations(hasFilter = query.isNotBlank() || selectedCategory != null)
+                } else if (wide) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     contentPadding = PaddingValues(
@@ -148,9 +158,10 @@ fun AutomationsScreen(
                     verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.xs),
                     modifier = Modifier.fillMaxSize(),
                 ) {
-                    items(visibleItems, key = AutomationItem::id) { item ->
+                    itemsIndexed(visibleItems, key = { _, item -> item.id }) { index, item ->
                         AutomationRow(
                             item = item,
+                            traversalOrder = index.toFloat(),
                             running = state.runningActionId == item.id,
                             connectionReady = state.connectionReady,
                             connectionHealth = connectionHealth,
@@ -162,15 +173,16 @@ fun AutomationsScreen(
                         )
                     }
                 }
-            } else {
-                LazyColumn(
+                } else {
+                    LazyColumn(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxSize(),
-                ) {
-                    items(visibleItems, key = AutomationItem::id) { item ->
-                        AutomationRow(
+                    ) {
+                        itemsIndexed(visibleItems, key = { _, item -> item.id }) { index, item ->
+                            AutomationRow(
                             item = item,
+                            traversalOrder = index.toFloat(),
                             running = state.runningActionId == item.id,
                             connectionReady = state.connectionReady,
                             connectionHealth = connectionHealth,
@@ -179,7 +191,8 @@ fun AutomationsScreen(
                             onPreflight = { onPreflightAutomation(item.id) },
                             onLiveTest = { onLiveTestAutomation(item.id) },
                             onOptions = { optionsItem = item },
-                        )
+                            )
+                        }
                     }
                 }
             }
@@ -255,6 +268,38 @@ fun AutomationsScreen(
                 onCreateAutomation(input)
             },
         )
+    }
+}
+
+@Composable
+private fun AutomationStorageRecovery(
+    onReset: () -> Unit,
+    onRestore: () -> Unit,
+) {
+    CodecksPanel(
+        danger = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(CodecksDesignTokens.Spacing.xxl),
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.md),
+            modifier = Modifier.padding(CodecksDesignTokens.Spacing.lg),
+        ) {
+            Text(
+                text = "Automation storage needs recovery",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "Codecks preserved the unreadable data and did not replace it with defaults. Restore a backup, or reset only automations.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.sm)) {
+                TextButton(onClick = onRestore) { Text("Restore backup") }
+                TextButton(onClick = onReset) { Text("Reset automations") }
+            }
+        }
     }
 }
 
@@ -637,6 +682,7 @@ private fun CategoryFilters(
 @Composable
 private fun AutomationRow(
     item: AutomationItem,
+    traversalOrder: Float,
     running: Boolean,
     connectionReady: Boolean,
     connectionHealth: ConnectionHealth,
@@ -667,7 +713,7 @@ private fun AutomationRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
-            .accessibilityTraversalOrder(0f)
+            .accessibilityTraversalOrder(traversalOrder)
             .semantics {
                 stateDescription = when {
                     item.recoveryRequired -> "Recovery required"

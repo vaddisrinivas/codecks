@@ -8,6 +8,7 @@ import io.codecks.domain.update.ManualUpdateCheckRequest
 import io.codecks.domain.update.UpdateAvailability
 import io.codecks.domain.update.UpdateChecker
 import io.codecks.domain.update.UpdateIntentPolicy
+import io.codecks.domain.update.UpdateCheckNotForegroundException
 import io.codecks.domain.update.UpdateSourcePolicy
 import io.codecks.domain.privacy.DiagnosticResultCode
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +20,7 @@ enum class UpdateFailureKind {
     NetworkOrMetadata,
     BlockedReleaseUrl,
     NoBrowser,
+    NotForeground,
 }
 
 sealed interface UpdateSettingsState {
@@ -56,7 +58,8 @@ class UpdateViewModel(
             appForeground = appForeground(),
             requestedAtMillis = nowMillis(),
         ).getOrElse {
-            _state.value = UpdateSettingsState.Failure(UpdateFailureKind.NetworkOrMetadata)
+            terminalEvent(DiagnosticResultCode.CANCELLED, nowMillis())
+            _state.value = UpdateSettingsState.Failure(UpdateFailureKind.NotForeground)
             return
         }
         _state.value = UpdateSettingsState.Checking
@@ -64,22 +67,37 @@ class UpdateViewModel(
             checker.check(request, currentVersionName)
                 .onSuccess { availability ->
                     val checkedAt = nowMillis()
-                    terminalEvent(DiagnosticResultCode.SUCCEEDED, checkedAt)
+                    if (!appForeground()) {
+                        terminalEvent(DiagnosticResultCode.CANCELLED, checkedAt)
+                        _state.value = UpdateSettingsState.Failure(UpdateFailureKind.NotForeground)
+                        return@onSuccess
+                    }
                     _state.value = when (availability) {
-                        is UpdateAvailability.UpToDate -> UpdateSettingsState.UpToDate(checkedAt)
+                        is UpdateAvailability.UpToDate -> {
+                            terminalEvent(DiagnosticResultCode.SUCCEEDED, checkedAt)
+                            UpdateSettingsState.UpToDate(checkedAt)
+                        }
                         is UpdateAvailability.Available -> {
                             val allowedUrl = intentPolicy.allowedExternalUrl(availability.releasePageUrl)
                             if (allowedUrl == null) {
+                                terminalEvent(DiagnosticResultCode.BLOCKED, checkedAt)
                                 UpdateSettingsState.Failure(UpdateFailureKind.BlockedReleaseUrl)
                             } else {
+                                terminalEvent(DiagnosticResultCode.SUCCEEDED, checkedAt)
                                 UpdateSettingsState.Available(allowedUrl, checkedAt)
                             }
                         }
                     }
                 }
-                .onFailure {
-                    terminalEvent(DiagnosticResultCode.FAILED, nowMillis())
-                    _state.value = UpdateSettingsState.Failure(UpdateFailureKind.NetworkOrMetadata)
+                .onFailure { error ->
+                    val stopped = error is UpdateCheckNotForegroundException || !appForeground()
+                    terminalEvent(
+                        if (stopped) DiagnosticResultCode.CANCELLED else DiagnosticResultCode.FAILED,
+                        nowMillis(),
+                    )
+                    _state.value = UpdateSettingsState.Failure(
+                        if (stopped) UpdateFailureKind.NotForeground else UpdateFailureKind.NetworkOrMetadata,
+                    )
                 }
         }
     }

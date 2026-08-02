@@ -1,6 +1,15 @@
 package io.codecks.domain.ai
 
 object MacVisualEffectCatalog {
+    private val glyphsByBuiltInId = mapOf(
+        "confetti" to "🎉,✨,🎊,⭐,💫",
+        "sparkle" to "✨,⭐,💫,✦,✧",
+        "emoji_heart" to "💚,💖,💕,❤️,✨",
+        "emoji_fire" to "🔥,✨,⚡️,💥,⭐",
+        "emoji_focus" to "🎯,✨,✅,⚡️,⭐",
+        "emoji_coffee" to "☕️,✨,💚,⭐,🌿",
+        "magic_blank" to "✨,💫,✦,✧,⭐",
+    )
     val templateIds: Set<String> = setOf(
         "codecks.confetti",
         "codecks.sparkle",
@@ -24,25 +33,32 @@ object MacVisualEffectCatalog {
         }
 
     fun commandForBuiltIn(id: String, label: String): String? {
-        val glyphs = when (id) {
-            "confetti" -> "🎉,✨,🎊,⭐,💫"
-            "sparkle" -> "✨,⭐,💫,✦,✧"
-            "emoji_heart" -> "💚,💖,💕,❤️,✨"
-            "emoji_fire" -> "🔥,✨,⚡️,💥,⭐"
-            "emoji_focus" -> "🎯,✨,✅,⚡️,⭐"
-            "emoji_coffee" -> "☕️,✨,💚,⭐,🌿"
-            "magic_blank" -> "✨,💫,✦,✧,⭐"
-            else -> return null
-        }
-        val title = label
-            .filter { it.isLetterOrDigit() || it in " _-!?" }
-            .take(32)
-            .ifBlank { "Codecks" }
+        val glyphs = glyphsByBuiltInId[id] ?: return null
+        val title = label.toEffectTitle()
         return macOverlayCommand(glyphs = glyphs, title = title)
     }
 
-    fun isKnownCommand(command: String?): Boolean =
-        command != null && command.contains("CODECKS_VISUAL_EFFECT_V1")
+    /**
+     * Trust only byte-for-byte output that this compiler can reproduce. The heredoc marker is
+     * public syntax, not provenance, and must never be accepted on its own.
+     */
+    fun isKnownCommand(command: String?): Boolean {
+        command ?: return false
+        val titleLine = command.lineSequence()
+            .singleOrNull { it.trimStart().startsWith("const effectTitle = '") }
+            ?.trim()
+            ?: return false
+        val title = titleLine.removePrefix("const effectTitle = '").removeSuffix("'")
+        if (titleLine != "const effectTitle = '$title'" || title.toEffectTitle() != title) return false
+        return glyphsByBuiltInId.values.any { glyphs ->
+            command == macOverlayCommand(glyphs = glyphs, title = title)
+        }
+    }
+
+    private fun String.toEffectTitle(): String =
+        filter { it.isLetterOrDigit() || it in " _-!?" }
+            .take(32)
+            .ifBlank { "Codecks" }
 
     private fun macOverlayCommand(glyphs: String, title: String): String =
         """

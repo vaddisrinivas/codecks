@@ -14,6 +14,10 @@ import io.codecks.core.actions.commandRevision
 import io.codecks.data.ConnectionRepository
 import io.codecks.data.automation.AutomationRepository
 import io.codecks.data.automation.AutomationScheduler
+import io.codecks.data.automation.AutomationExecutionCoordinator
+import io.codecks.data.automation.AutomationPreparation
+import io.codecks.data.automation.AutomationClaimDisposition
+import io.codecks.data.automation.claimDisposition
 import io.codecks.domain.CommandOrigin
 import io.codecks.domain.CommandReview
 import io.codecks.domain.ai.AiArtifact
@@ -23,7 +27,6 @@ import io.codecks.domain.ai.AutomationDraft
 import io.codecks.domain.ai.GeneratedDraft
 import io.codecks.domain.automation.AutomationCatalog
 import io.codecks.domain.automation.AutomationGroup
-import io.codecks.domain.automation.AutomationExecutionEngine
 import io.codecks.domain.automation.AutomationActionProbeResult
 import io.codecks.domain.automation.AutomationLiveTestActionExecutor
 import io.codecks.domain.automation.AutomationLiveTestEngine
@@ -32,6 +35,7 @@ import io.codecks.domain.automation.AutomationLiveTestTerminalStatus
 import io.codecks.domain.automation.AutomationPreflightArea
 import io.codecks.domain.automation.AutomationPreflightCheck
 import io.codecks.domain.automation.AutomationPreflightReceipt
+import io.codecks.domain.automation.AutomationCapabilityCodes
 import io.codecks.domain.automation.AutomationRecipe
 import io.codecks.domain.automation.AutomationRunSummary
 import io.codecks.domain.automation.AutomationSafety
@@ -46,6 +50,9 @@ import io.codecks.domain.automation.hasCurrentValidLiveTest
 import io.codecks.domain.automation.requiredCapabilities
 import io.codecks.domain.automation.requiredCommandTools
 import io.codecks.domain.automation.requiredPermissions
+import io.codecks.domain.automation.automationRequirementCode
+import io.codecks.domain.automation.automationRequiredPreflightCheckCodes
+import io.codecks.domain.connection.CapabilityStatus
 import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -64,6 +71,8 @@ class AutomationsViewModel @Inject constructor(
     private val triggerEngine: AutomationTriggerEngine,
     private val aiGeneratedContentPlanner: AiGeneratedContentPlanner = AiGeneratedContentPlanner(),
     private val automationScheduler: AutomationScheduler = NoopAutomationScheduler,
+    private val executionCoordinator: AutomationExecutionCoordinator =
+        AutomationExecutionCoordinator(automationRepository, connectionRepository, actionRunner),
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AutomationsUiState())
     val uiState: StateFlow<AutomationsUiState> = _uiState.asStateFlow()
@@ -71,25 +80,55 @@ class AutomationsViewModel @Inject constructor(
     private var triggerCheckJob: Job? = null
     private var lastDeletedRecipe: AutomationRecipe? = null
     private var currentConnectionConfig = io.codecks.data.ConnectionConfig()
+    private var terminalProofReady = false
 
     init {
         viewModelScope.launch {
-            combine(automationRepository.recipes, connectionRepository.config) { nextRecipes, config ->
+            combine(
+                automationRepository.recipes,
+                connectionRepository.config,
+                automationRepository.recoveryRequired,
+            ) { nextRecipes, config, storageRecoveryRequired ->
                 currentConnectionConfig = config
-                nextRecipes to config
-            }.collect { (nextRecipes, config) ->
+                Triple(nextRecipes, config, storageRecoveryRequired)
+            }.collect { (nextRecipes, config, storageRecoveryRequired) ->
                 recipes = nextRecipes
                 _uiState.update {
                     it.copy(
-                        automations = nextRecipes.map { recipe -> recipe.toUiItem(config) },
-                        connectionReady = config.isReady,
+                        automations = nextRecipes.map {
+                            recipe -> recipe.toUiItem(config, terminalProofReady = terminalProofReady)
+                        },
+                        connectionReady = config.isReady && terminalProofReady,
+                        storageRecoveryRequired = storageRecoveryRequired,
+                        message = if (storageRecoveryRequired) {
+                            "Automation storage needs recovery"
+                        } else {
+                            it.message
+                        },
                     )
                 }
             }
         }
     }
 
+    fun setTerminalProofReady(ready: Boolean) {
+        terminalProofReady = ready
+        _uiState.update {
+            it.copy(
+                connectionReady = currentConnectionConfig.isReady && ready,
+                automations = recipes.map { recipe ->
+                    recipe.toUiItem(currentConnectionConfig, terminalProofReady = ready)
+                },
+            )
+        }
+        if (!ready) {
+            triggerCheckJob?.cancel()
+            automationScheduler.stop()
+        }
+    }
+
     fun startTriggerMonitor() {
+        if (!terminalProofReady) return
         automationScheduler.start()
     }
 
@@ -103,7 +142,7 @@ class AutomationsViewModel @Inject constructor(
 
     fun toggle(recipeId: String, enabled: Boolean) {
         val recipe = recipes.firstOrNull { it.id == recipeId } ?: return
-        if (enabled && !recipe.canEnable(currentConnectionConfig, nowMillis())) {
+        if (enabled && (!terminalProofReady || !recipe.canEnable(currentConnectionConfig, nowMillis()))) {
             _uiState.update {
                 it.copy(message = "Validation + preflight + live test required before enabling this rule")
             }
@@ -164,7 +203,10 @@ class AutomationsViewModel @Inject constructor(
     }
 
     fun resetDefaults() {
-        viewModelScope.launch { automationRepository.resetDefaults() }
+        viewModelScope.launch {
+            automationRepository.resetDefaults()
+            _uiState.update { it.copy(message = "Automation defaults restored") }
+        }
     }
 
     fun create(input: AutomationDraftInput) {
@@ -226,6 +268,7 @@ class AutomationsViewModel @Inject constructor(
                             recipe.toUiItem(
                                 config = currentConnectionConfig,
                                 triggerSimulationReason = evaluation.reasonByRecipeId[recipe.id],
+                                terminalProofReady = terminalProofReady,
                             )
                         },
                         triggerMonitorLabel = evaluation.message,
@@ -237,7 +280,7 @@ class AutomationsViewModel @Inject constructor(
                     )
                 }
                 evaluation.dueRecipes.forEach { recipe ->
-                    executeTriggered(recipe)
+                    evaluation.claimsByRecipeId[recipe.id]?.let { claim -> executeTriggered(recipe, claim) }
                 }
             } finally {
                 triggerCheckJob = null
@@ -382,8 +425,8 @@ class AutomationsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(runningActionId = recipeId, message = "Live test running") }
             val receipt = runLiveTestExecution(recipe)
-            automationRepository.recordLiveTest(recipe.id, receipt)
-            val passed = receipt.terminalStatus == AutomationLiveTestTerminalStatus.PASSED
+                val persisted = automationRepository.recordLiveTest(recipe.id, receipt)
+                val passed = persisted && receipt.terminalStatus == AutomationLiveTestTerminalStatus.PASSED
             _uiState.update {
                 it.copy(
                     runningActionId = null,
@@ -412,26 +455,68 @@ class AutomationsViewModel @Inject constructor(
         }
     }
 
-    private suspend fun executeTriggered(recipe: AutomationRecipe) {
+    private suspend fun executeTriggered(
+        recipe: AutomationRecipe,
+        claim: io.codecks.domain.automation.AutomationTriggerClaim,
+    ) {
+        if (claim.recipeRevision != recipe.revisionFingerprint()) {
+            triggerEngine.complete(claim)
+            return
+        }
         _uiState.update { it.copy(runningActionId = recipe.id, message = "Trigger matched: ${recipe.title}") }
-        if (recipe.safety.requiresConfirmation || recipe.steps.any { it.dangerous }) {
-            val result = ActionResult(
-                actionId = recipe.id,
-                title = recipe.title,
-                status = ActionResultStatus.RequiresConfirmation,
-                message = "Trigger matched, but ${recipe.title} needs manual confirmation",
-            )
-            automationRepository.recordRun(recipe.id, result)
+        val preparation = executionCoordinator.prepareAutomatic(
+            recipeId = recipe.id,
+            scheduledRevision = recipe.revisionFingerprint(),
+        )
+        if (preparation.claimDisposition() == AutomationClaimDisposition.RELEASE_FOR_RETRY) {
+            val reason = (preparation as AutomationPreparation.Blocked).reason
+            triggerEngine.release(claim)
             _uiState.update {
                 it.copy(
                     runningActionId = null,
-                    message = "Trigger needs confirmation: ${recipe.title}",
+                    message = "Trigger retry pending: $reason",
                 )
             }
             return
         }
-        val result = runRecipe(recipe, allowDangerous = false)
+        val result = when (preparation) {
+            is AutomationPreparation.Ready -> {
+                if (recipe.safety.requiresConfirmation || recipe.steps.any { it.dangerous }) {
+                    ActionResult(
+                        actionId = recipe.id,
+                        title = recipe.title,
+                        status = ActionResultStatus.RequiresConfirmation,
+                        message = "Trigger matched, but ${recipe.title} needs manual confirmation",
+                    )
+                } else {
+                    automationRepository.recordWorkerOutcome(
+                        recipe.id,
+                        preparation.outcome.copy(
+                            code = io.codecks.domain.automation.AutomationWorkerOutcomeCode.EXECUTION_STARTED,
+                            checkedAtMillis = System.currentTimeMillis(),
+                        ),
+                    )
+                    executionCoordinator.run(preparation.executable)
+                }
+            }
+            is AutomationPreparation.Blocked -> ActionResult(
+                actionId = recipe.id,
+                title = recipe.title,
+                status = ActionResultStatus.RequiresReview,
+                message = preparation.reason,
+            )
+        }
         automationRepository.recordRun(recipe.id, result)
+        if (preparation is AutomationPreparation.Ready) {
+            automationRepository.recordWorkerOutcome(
+                recipe.id,
+                preparation.outcome.copy(
+                    code = io.codecks.domain.automation.automaticOutcomeCode(result.status),
+                    checkedAtMillis = System.currentTimeMillis(),
+                ),
+            )
+        }
+        triggerEngine.complete(claim)
         _uiState.update {
             it.copy(
                 runningActionId = null,
@@ -441,7 +526,7 @@ class AutomationsViewModel @Inject constructor(
     }
 
     private suspend fun runRecipe(recipe: AutomationRecipe, allowDangerous: Boolean): ActionResult {
-        return AutomationExecutionEngine(actionRunner).run(recipe, allowDangerous)
+        return executionCoordinator.runManual(recipe, allowDangerous)
     }
 
     private suspend fun validateRecipe(recipe: AutomationRecipe): ActionResult {
@@ -479,6 +564,8 @@ class AutomationsViewModel @Inject constructor(
         config: io.codecks.data.ConnectionConfig,
         nowMillis: Long,
     ): AutomationPreflightReceipt {
+        val pinnedTargetId = executionCoordinator.currentTargetId(config)
+            ?: error("Current Mac target unavailable")
         val checks = mutableListOf<AutomationPreflightCheck>()
         val requiredTools = recipe.requiredCommandTools()
         val requiredPaths = recipe.requiredCommandPaths()
@@ -490,81 +577,86 @@ class AutomationsViewModel @Inject constructor(
             requestedPermissions.isNotEmpty() ||
             recipe.steps.isNotEmpty()
 
-        checks += if (config.isReady) {
-            AutomationPreflightCheck(
-                area = AutomationPreflightArea.Identity,
-                passed = true,
-                message = "Configured identity is present",
-            )
-        } else {
-            AutomationPreflightCheck(
-                area = AutomationPreflightArea.Identity,
-                passed = false,
-                message = "Mac identity not configured",
-            )
-        }
-        checks += if (connectionRepository.config.first().isReady) {
-            AutomationPreflightCheck(
-                area = AutomationPreflightArea.Connection,
-                passed = true,
-                message = "Connection profile loaded",
-            )
-        } else {
-            AutomationPreflightCheck(
-                area = AutomationPreflightArea.Connection,
-                passed = false,
-                message = "Cannot use current Mac connection profile",
-            )
-        }
-        checks += automationCapabilityPreflightCheck()
+        checks += typedPreflightCheck(
+            AutomationPreflightArea.Identity,
+            AutomationCapabilityCodes.Identity,
+            config.isReady,
+            if (config.isReady) "Configured identity is present" else "Mac identity not configured",
+            nowMillis,
+        )
+        val connectionReady = executionCoordinator.isPinnedTarget(config, pinnedTargetId)
+        checks += typedPreflightCheck(
+            AutomationPreflightArea.Connection,
+            AutomationCapabilityCodes.Connection,
+            connectionReady,
+            if (connectionReady) "Connection profile loaded" else "Cannot use current Mac connection profile",
+            nowMillis,
+        )
+        checks += automationCapabilityPreflightCheck(nowMillis)
 
         requiredTools.forEach { tool ->
-            val passed = connectionRepository.runCommand("command -v $tool").isSuccess
-            checks += AutomationPreflightCheck(
-                area = AutomationPreflightArea.Tool,
-                passed = passed,
-                message = if (passed) "Tool present: $tool" else "Tool missing: $tool",
+            val passed = executionCoordinator.runProbe(pinnedTargetId, "command -v ${tool.shellQuotedForProbe()}").isSuccess
+            checks += typedPreflightCheck(
+                AutomationPreflightArea.Tool,
+                automationRequirementCode(AutomationCapabilityCodes.Tool, tool),
+                passed,
+                if (passed) "Tool present: $tool" else "Tool missing: $tool",
+                nowMillis,
             )
         }
         requiredPaths.forEach { path ->
-            val passed = connectionRepository.runCommand("[ -e \"$path\" ]").isSuccess
-            checks += AutomationPreflightCheck(
-                area = AutomationPreflightArea.Path,
-                passed = passed,
-                message = if (passed) "Path exists: $path" else "Path missing: $path",
+            val passed = executionCoordinator.runProbe(pinnedTargetId, "[ -e ${path.shellPathForProbe()} ]").isSuccess
+            checks += typedPreflightCheck(
+                AutomationPreflightArea.Path,
+                automationRequirementCode(AutomationCapabilityCodes.Path, path),
+                passed,
+                if (passed) "Path exists: $path" else "Path missing: $path",
+                nowMillis,
             )
         }
         requiredApps.forEach { app ->
-            val passed = connectionRepository.runCommand("[ -d \"/Applications/$app.app\" ]").isSuccess
-            checks += AutomationPreflightCheck(
-                area = AutomationPreflightArea.App,
-                passed = passed,
-                message = if (passed) "Application available: $app" else "Application missing: $app",
+            val passed = executionCoordinator.runProbe(
+                pinnedTargetId,
+                "[ -d ${"/Applications/$app.app".shellQuotedForProbe()} ]",
+            ).isSuccess
+            checks += typedPreflightCheck(
+                AutomationPreflightArea.App,
+                automationRequirementCode(AutomationCapabilityCodes.App, app),
+                passed,
+                if (passed) "Application available: $app" else "Application missing: $app",
+                nowMillis,
             )
         }
 
         val permissionChecks = mutableMapOf<String, Boolean>()
         requestedPermissions.forEach { permission ->
             val command = automationPermissionProbeCommand(permission)
-            val passed = command != null && connectionRepository.runCommand(command).isSuccess
+            val passed = command != null && executionCoordinator.runProbe(pinnedTargetId, command).isSuccess
             permissionChecks[permission] = passed
-            checks += AutomationPreflightCheck(
-                area = AutomationPreflightArea.Permission,
-                passed = passed,
-                message = if (passed) "Permission check passed: $permission" else "Permission check failed: $permission",
+            checks += typedPreflightCheck(
+                AutomationPreflightArea.Permission,
+                automationRequirementCode(AutomationCapabilityCodes.Permission, permission),
+                passed,
+                if (passed) "Permission check passed: $permission" else "Permission check failed: $permission",
+                nowMillis,
             )
         }
 
-        checks += AutomationPreflightCheck(
-            area = AutomationPreflightArea.Target,
-            passed = hasExecutableTarget,
-            message = if (hasExecutableTarget) {
+        checks += typedPreflightCheck(
+            AutomationPreflightArea.Target,
+            AutomationCapabilityCodes.Target,
+            hasExecutableTarget,
+            if (hasExecutableTarget) {
                 "Target selected: ${connectionTargetId(config)}"
             } else {
                 "No action targets to check"
             },
+            nowMillis,
         )
 
+        check(executionCoordinator.isPinnedTarget(config, pinnedTargetId)) {
+            "Mac target changed during preflight"
+        }
         return AutomationPreflightReceipt(
             recipeRevision = recipe.revisionFingerprint(),
             checkedAtMillis = nowMillis,
@@ -574,16 +666,38 @@ class AutomationsViewModel @Inject constructor(
             checks = checks,
             commandTools = requiredTools,
             commandPaths = requiredPaths,
+            commandApps = requiredApps,
             permissionSnapshot = permissionChecks.filterValues { it }.keys,
+            requiredPermissions = requestedPermissions,
+            requiredCheckCodes = automationRequiredPreflightCheckCodes(
+                requiredTools,
+                requiredPaths,
+                requiredApps,
+                requestedPermissions,
+            ),
         )
     }
 
     private suspend fun runLiveTestExecution(recipe: AutomationRecipe): AutomationLiveTestReceipt {
         val preflight = requireNotNull(recipe.lastPreflight)
+        val executable = executionCoordinator.pinLiveTest(recipe).getOrElse {
+            return AutomationLiveTestEngine(
+                executor = AutomationLiveTestActionExecutor {
+                    AutomationActionProbeResult(exitCode = null, interrupted = true)
+                },
+            ).run(
+                recipe = recipe,
+                preflight = preflight,
+                currentRevision = { "target-changed" },
+            )
+        }
         return AutomationLiveTestEngine(
             executor = AutomationLiveTestActionExecutor { action ->
-                val step = recipe.steps.getOrNull(action.ordinal)
-                    ?: recipe.cleanupDefinition.action
+                if (!executionCoordinator.validatePinned(executable)) {
+                    return@AutomationLiveTestActionExecutor AutomationActionProbeResult(exitCode = null)
+                }
+                val step = executable.recipe.steps.getOrNull(action.ordinal)
+                    ?: executable.recipe.cleanupDefinition.action
                     ?: return@AutomationLiveTestActionExecutor AutomationActionProbeResult(exitCode = null)
                 val result = actionRunner.run(step, allowDangerous = false)
                 AutomationActionProbeResult(exitCode = if (result.succeeded) 0 else 1)
@@ -598,13 +712,15 @@ class AutomationsViewModel @Inject constructor(
         )
     }
 
-    private suspend fun automationCapabilityPreflightCheck(): AutomationPreflightCheck {
+    private suspend fun automationCapabilityPreflightCheck(checkedAtMillis: Long): AutomationPreflightCheck {
         val connected = connectionRepository.config.first().isReady
         val passed = connected && currentConnectionConfig.hostKey.isNotBlank()
-        return AutomationPreflightCheck(
-            area = AutomationPreflightArea.Provider,
-            passed = passed,
-            message = if (passed) "Provider ready" else "Provider not ready",
+        return typedPreflightCheck(
+            AutomationPreflightArea.Provider,
+            AutomationCapabilityCodes.Provider,
+            passed,
+            if (passed) "Provider ready" else "Provider not ready",
+            checkedAtMillis,
         )
     }
 
@@ -612,7 +728,7 @@ class AutomationsViewModel @Inject constructor(
         automationConnectionIdentity(config)
 
     private fun connectionTargetId(config: io.codecks.data.ConnectionConfig): String =
-        if (config.isReady) "${config.host}:${config.port}:${config.user}" else "current"
+        if (config.isReady) connectionIdentity(config) else "current"
 
     private fun nowMillis(): Long = System.currentTimeMillis()
 
@@ -622,8 +738,25 @@ class AutomationsViewModel @Inject constructor(
     }
 }
 
+private fun typedPreflightCheck(
+    area: AutomationPreflightArea,
+    capabilityCode: String,
+    passed: Boolean,
+    message: String,
+    checkedAtMillis: Long,
+): AutomationPreflightCheck = AutomationPreflightCheck.typed(
+    area = area,
+    capabilityCode = capabilityCode,
+    status = if (passed) CapabilityStatus.SATISFIED else CapabilityStatus.BLOCKED,
+    issueCode = null,
+    remediation = null,
+    checkedAtEpochMs = checkedAtMillis,
+    message = message,
+)
+
 private object NoopAutomationScheduler : AutomationScheduler {
     override fun start() = Unit
+    override fun stop() = Unit
 }
 
 private fun ActionSpec.validationError(): String? = when (this) {
@@ -678,31 +811,62 @@ private fun AutomationRecipe.requiredCommandPaths(): Set<String> =
         }
     }
     .flatMap { command ->
-        command.split(Regex("\\s+"))
+        command.shellTokens()
             .filter { token -> token.startsWith("/") || token.startsWith("~/") }
     }
-    .map { it.trim('"', '\'', ';', '&') }
+    .map { it.trimEnd(';', '&') }
     .toSet()
 
 private fun AutomationRecipe.requiredApplications(): Set<String> =
     (steps + listOfNotNull(cleanupDefinition.action))
-    .mapNotNull { spec ->
+    .flatMap { spec ->
         val command = when (spec) {
             is ActionSpec.ShellCommand -> spec.command
             is ActionSpec.DeckActionSpec -> spec.action.command
             is ActionSpec.CatalogAction -> null
             is ActionSpec.LocalRoute -> null
-        } ?: return@mapNotNull null
-        val match = Regex("open\\s+-a\\s+(?:\"([^\"]+)\"|([^\\s]+))").find(command)
-        match?.let {
+        } ?: return@flatMap emptyList()
+        Regex("open\\s+-a\\s+(?:\"([^\"]+)\"|'([^']+)'|([^\\s]+))").findAll(command).map {
             (it.groupValues[1].ifBlank { it.groupValues[2] }).trim()
-        }
+                .ifBlank { it.groupValues[3].trim() }
+        }.toList()
     }
     .toSet()
+
+internal fun String.shellQuotedForProbe(): String = "'${replace("'", "'\"'\"'")}'"
+internal fun String.shellPathForProbe(): String = when {
+    this == "~" -> "\"\$HOME\""
+    startsWith("~/") -> "\"\$HOME\"/${drop(2).shellQuotedForProbe()}"
+    else -> shellQuotedForProbe()
+}
+
+internal fun String.shellTokens(): List<String> {
+    val result = mutableListOf<String>()
+    val token = StringBuilder()
+    var quote: Char? = null
+    var escaped = false
+    fun flush() {
+        if (token.isNotEmpty()) result += token.toString().also { token.clear() }
+    }
+    forEach { char ->
+        when {
+            escaped -> { token.append(char); escaped = false }
+            char == '\\' && quote != '\'' -> escaped = true
+            quote != null && char == quote -> quote = null
+            quote == null && (char == '\'' || char == '"') -> quote = char
+            quote == null && char.isWhitespace() -> flush()
+            else -> token.append(char)
+        }
+    }
+    if (escaped) token.append('\\')
+    flush()
+    return result
+}
 
 private fun AutomationRecipe.toUiItem(
     config: io.codecks.data.ConnectionConfig,
     triggerSimulationReason: String? = null,
+    terminalProofReady: Boolean = true,
 ): AutomationItem {
     val lastValidation = lastTest?.let { currentTest ->
         if (lastTestRevision == revisionFingerprint()) {
@@ -718,7 +882,7 @@ private fun AutomationRecipe.toUiItem(
         lastLiveTest.assertions.all { it.passed } && lastLiveTest.cleanup.passed
     val preflightLabel = lastPreflight?.toLabel()
     val liveTestLabel = lastLiveTest?.toLabel()
-    val canEnableNow = config.isReady && hasCurrentValidLiveTest(
+    val canEnableNow = terminalProofReady && config.isReady && hasCurrentValidLiveTest(
         nowMillis = System.currentTimeMillis(),
         requiredMacIdentity = automationConnectionIdentity(config),
         requiredPermissions = requiredPermissions(),

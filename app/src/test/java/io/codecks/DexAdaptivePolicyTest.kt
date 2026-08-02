@@ -1,14 +1,21 @@
 package io.codecks
 
 import java.io.File
+import io.codecks.ui.app.ShellNavigationMode
+import io.codecks.ui.app.shellAccessibilityLayout
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/**
+ * Static manifest and large-window policy coverage only.
+ * This is not physical Samsung DeX or secondary-display execution evidence.
+ */
 class DexAdaptivePolicyTest {
     @Test
-    fun mainActivityIsResizableForDexAndFreeform() {
+    fun manifestAllowsResizableAndFreeformWindows() {
         val manifest = File("src/main/AndroidManifest.xml").readText()
 
         assertTrue(manifest.contains("""android:name=".MainActivity""""))
@@ -53,10 +60,21 @@ class DexAdaptivePolicyTest {
     }
 
     @Test
-    fun secondaryDisplayShellUsesDedicatedRailThreshold() {
+    fun largeWindowShellUsesDedicatedRailThreshold() {
         val shell = File("src/main/java/io/codecks/ui/app/CodecksAppShell.kt").readText()
-        assertTrue(shell.contains("SECONDARY_NAV_RAIL_WIDTH = 840.dp"))
-        assertTrue(shell.contains("val useRail = maxWidth >= SECONDARY_NAV_RAIL_WIDTH"))
+        assertEquals(
+            ShellNavigationMode.BottomBar,
+            shellAccessibilityLayout(839, 720, 1f, fullscreen = false).navigationMode,
+        )
+        assertEquals(
+            ShellNavigationMode.Rail,
+            shellAccessibilityLayout(840, 720, 1f, fullscreen = false).navigationMode,
+        )
+        assertEquals(
+            ShellNavigationMode.BottomBar,
+            shellAccessibilityLayout(1280, 720, 2f, fullscreen = false).navigationMode,
+        )
+        assertTrue(shell.contains("val accessibilityLayout = shellAccessibilityLayout("))
         assertTrue(shell.contains(".verticalScroll(rememberScrollState())"))
         assertTrue(shell.contains("ModalBottomSheet(onDismissRequest"))
         assertTrue(shell.contains(""") "AI Builder" else currentRoute.title()"""))

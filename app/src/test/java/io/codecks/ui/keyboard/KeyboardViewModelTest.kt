@@ -6,6 +6,7 @@ import io.codecks.HidLifecycle
 import io.codecks.HidInputAccess
 import io.codecks.HidRepository
 import io.codecks.HidState
+import io.codecks.HidDeliveryReceipt
 import io.codecks.data.ConnectionConfig
 import io.codecks.data.ConnectionRepository
 import io.codecks.data.ConnectionTarget
@@ -70,8 +71,10 @@ class KeyboardViewModelTest {
     }
 
     @Test
-    fun pasteboardWorksWithoutHidButNeverCrossesLockedInputBoundary() = runTest(dispatcher) {
-        val hid = FakeHidRepository(HidState(inputAccess = HidInputAccess.Full))
+    fun pasteboardNeverCrossesLockedInputBoundary() = runTest(dispatcher) {
+        val hid = FakeHidRepository(
+            HidState(inputAccess = HidInputAccess.Full, isConnected = true),
+        )
         val connection = ReadyConnectionRepository(
             onClipboardWrite = { hid.state.value = hid.state.value.copy(inputAccess = HidInputAccess.PointerOnly) },
         )
@@ -89,7 +92,7 @@ class KeyboardViewModelTest {
     }
 
     @Test
-    fun offlinePasteboardUsesExplicitSshFallback() = runTest(dispatcher) {
+    fun offlinePasteboardRefusesRemoteKeystrokeFallback() = runTest(dispatcher) {
         val hid = FakeHidRepository(HidState(inputAccess = HidInputAccess.Full))
         val connection = ReadyConnectionRepository()
         val viewModel = KeyboardViewModel(hid, MacTextDelivery(connection))
@@ -99,15 +102,39 @@ class KeyboardViewModelTest {
         viewModel.typeText()
         runCurrent()
 
-        assertEquals("", viewModel.uiState.value.text)
-        assertEquals(1, connection.clipboardWrites)
-        assertEquals(2, connection.commands.size)
+        assertEquals("emoji ❤️", viewModel.uiState.value.text)
+        assertEquals("Connect Mac first", viewModel.uiState.value.status)
+        assertEquals(0, connection.clipboardWrites)
+        assertTrue(connection.commands.isEmpty())
+    }
+
+    @Test
+    fun rejectedBluetoothTextReceiptKeepsDraftAndSkipsEnter() = runTest(dispatcher) {
+        val hid = FakeHidRepository(
+            initialState = HidState(
+                lifecycle = HidLifecycle.Connected,
+                isReady = true,
+                isConnected = true,
+                inputAccess = HidInputAccess.Full,
+            ),
+            textDeliveryFailure = IllegalStateException("Mac rejected text report"),
+        )
+        val viewModel = KeyboardViewModel(hid, MacTextDelivery(ReadyConnectionRepository()))
+        viewModel.setText("keep me")
+
+        viewModel.typeText()
+        runCurrent()
+
+        assertEquals("keep me", viewModel.uiState.value.text)
+        assertEquals("Mac rejected text report", viewModel.uiState.value.status)
+        assertTrue(hid.sentCommands.isEmpty())
     }
 }
 
 private class FakeHidRepository(
     initialState: HidState = HidState(),
     private val sendFailure: Throwable? = null,
+    private val textDeliveryFailure: Throwable? = null,
 ) : HidRepository {
     override val state = MutableStateFlow(initialState)
     val typedTexts = mutableListOf<String>()
@@ -130,6 +157,17 @@ private class FakeHidRepository(
     override fun send(command: HidCommand) {
         sentCommands += command
         if (command == HidCommand.Enter && sendFailure != null) throw sendFailure
+    }
+
+    override suspend fun deliverText(text: String): Result<HidDeliveryReceipt> {
+        textDeliveryFailure?.let { return Result.failure(it) }
+        typeText(text)
+        return Result.success(HidDeliveryReceipt("text", text.length))
+    }
+
+    override suspend fun deliver(command: HidCommand): Result<HidDeliveryReceipt> = runCatching {
+        send(command)
+        HidDeliveryReceipt(command.name, 1)
     }
 }
 

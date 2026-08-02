@@ -62,6 +62,7 @@ class HomeViewModelTest {
         val connectionRepository = ReadyConnectionRepository()
         val runner = DeferredActionRunner()
         val viewModel = HomeViewModel(repository, connectionRepository, runner)
+        viewModel.setTerminalProofReady(true)
 
         runCurrent()
 
@@ -84,6 +85,7 @@ class HomeViewModelTest {
         val repository = GatedActionRepository()
         val runner = DeferredActionRunner()
         val viewModel = HomeViewModel(repository, ReadyConnectionRepository(), runner)
+        viewModel.setTerminalProofReady(true)
         runCurrent()
 
         val first = viewModel.run(repository.action)
@@ -291,6 +293,7 @@ class HomeViewModelTest {
         val repository = GatedActionRepository()
         val connectionRepository = ReadyConnectionRepository()
         val viewModel = HomeViewModel(repository, connectionRepository, ImmediateActionRunner())
+        viewModel.setTerminalProofReady(true)
 
         runCurrent()
 

@@ -36,7 +36,7 @@ class AutomationLiveTestEngineTest {
         assertEquals(AutomationLiveTestTimeoutPolicy.BOUNDED_V1.persistedCode, receipt.timeoutPolicyCode)
         assertEquals(plan.assertions.map { it.assertionId }, receipt.assertions.map { it.assertionId })
         assertTrue(receipt.assertions.all { it.outcomeCode == AutomationLiveTestOutcomeCode.EXIT_CODE_ZERO })
-        assertTrue(receipt.macIdentity.isEmpty())
+        assertEquals(preflight.macIdentity, receipt.macIdentity)
         assertTrue(receipt.cleanup.command.isEmpty())
         assertFalse(receipt.toString().contains(privateHomePrefix))
         assertFalse(receipt.toString().contains("raw stdout"))
@@ -113,7 +113,7 @@ class AutomationLiveTestEngineTest {
     }
 
     @Test
-    fun repositoryGateStripsRawOutputCommandPathAndHostBeforePromotion() = runBlocking {
+    fun repositoryGateStripsRawOutputAndRejectsMismatchedHostIdentity() = runBlocking {
         val validated = validatedRecipe()
         val preflight = preflight(validated)
         val preflightPassed = validated.withPreflightReceipt(preflight)
@@ -135,7 +135,7 @@ class AutomationLiveTestEngineTest {
         val recorded = preflightPassed.withLiveTestReceipt(raw)
         val terminal = requireNotNull(recorded.lastLiveTest)
 
-        assertEquals(AutomationStage.LIVE_TEST_PASSED, recorded.stage)
+        assertEquals(AutomationStage.PREFLIGHT_PASSED, recorded.stage)
         assertTrue(terminal.macIdentity.isEmpty())
         assertTrue(terminal.cleanup.command.isEmpty())
         assertFalse(terminal.toString().contains("host.example"))
@@ -220,5 +220,6 @@ class AutomationLiveTestEngineTest {
             commandTools = setOf("open"),
             commandPaths = emptySet(),
             permissionSnapshot = emptySet(),
+            requiredCheckCodes = setOf(AutomationCapabilityCodes.Connection),
         )
 }

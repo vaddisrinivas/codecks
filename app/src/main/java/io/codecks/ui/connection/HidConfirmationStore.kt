@@ -9,15 +9,18 @@ class HidConfirmationStore(context: Context) {
     )
 
     fun load(): HidTerminalReceipt? {
+        if (preferences.contains("hid_address")) {
+            preferences.edit().remove("hid_address").apply()
+        }
         val revision = preferences.getString("revision", null) ?: return null
         val targetId = preferences.getString("target_id", null) ?: return null
-        val address = preferences.getString("hid_address", null) ?: return null
+        val hostToken = preferences.getString("hid_host_token", null) ?: return null
         val confirmedAt = preferences.getLong("confirmed_at", -1L).takeIf { it >= 0L } ?: return null
         return runCatching {
             HidTerminalReceipt(
                 setupRevision = revision,
                 macTargetId = targetId,
-                hidHostAddress = address,
+                hidHostToken = hostToken,
                 result = HidTerminalResult.USER_CONFIRMED,
                 completedAtEpochMs = confirmedAt,
             )
@@ -29,8 +32,13 @@ class HidConfirmationStore(context: Context) {
         preferences.edit()
             .putString("revision", receipt.setupRevision)
             .putString("target_id", receipt.macTargetId)
-            .putString("hid_address", receipt.hidHostAddress)
+            .putString("hid_host_token", receipt.hidHostToken)
+            .remove("hid_address")
             .putLong("confirmed_at", receipt.completedAtEpochMs)
             .apply()
+    }
+
+    fun clear() {
+        preferences.edit().clear().apply()
     }
 }

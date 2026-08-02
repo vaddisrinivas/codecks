@@ -9,6 +9,7 @@ enum class ClipboardDirection(val persistedCode: String) {
 enum class ClipboardTerminalResult(val persistedCode: String) {
     VerifiedSuccess("verified_success"),
     AppliedUnverified("applied_unverified"),
+    Blocked("blocked"),
     Failure("failure"),
     Cancellation("cancellation"),
     Conflict("conflict"),

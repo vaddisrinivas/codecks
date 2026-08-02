@@ -19,7 +19,7 @@ data class AccessibilityReflowPolicy(
 )
 
 fun accessibilityReflowPolicy(fontScale: Float): AccessibilityReflowPolicy {
-    require(fontScale in 0.5f..3f)
+    require(fontScale.isFinite() && fontScale > 0f)
     val enlargedText = fontScale >= 2f
     return AccessibilityReflowPolicy(
         stackControls = enlargedText,

@@ -27,9 +27,27 @@ class ActionRunnerTest {
     fun dangerousAction_requiresConfirmationByDefault() = runTest {
         val runner = testRunner()
 
-        val result = runner.run(ActionSpec.CatalogAction("lock", "Lock", dangerous = true))
+        val result = runner.run(ActionSpec.CatalogAction("finder", "Finder", dangerous = true))
 
         assertEquals(ActionResultStatus.RequiresConfirmation, result.status)
+    }
+
+    @Test
+    fun resolvedDangerousCatalogActionCannotHideBehindSafeReference() = runTest {
+        val runner = testRunner(actions = FakeActionRepository(dangerous = true))
+
+        val result = runner.run(ActionSpec.CatalogAction("finder", "Finder", dangerous = false))
+
+        assertEquals(ActionResultStatus.RequiresConfirmation, result.status)
+    }
+
+    @Test
+    fun resolvedDangerousCatalogActionRunsAfterExplicitApproval() = runTest {
+        val runner = testRunner(actions = FakeActionRepository(dangerous = true))
+
+        val result = runner.run(ActionSpec.CatalogAction("finder", "Finder"), allowDangerous = true)
+
+        assertEquals(ActionResultStatus.Succeeded, result.status)
     }
 
     @Test
@@ -109,19 +127,19 @@ class ActionRunnerTest {
     }
 
     @Test
-    fun generatedShellCommand_runsFreeCommandAfterReview() = runTest {
+    fun generatedShellCommand_runsAllowlistedCommandAfterReview() = runTest {
         val connection = FakeConnectionRepository()
         val runner = testRunner(connection = connection)
 
         val spec = ActionSpec.ShellCommand(
             id = "generated",
             title = "Generated",
-            command = "echo hello",
+            command = "open https://example.com",
             trustLevel = ShellTrustLevel.Generated,
             commandOrigin = CommandOrigin.AiGenerated,
             review = CommandReview(
                 reviewedRevision = commandRevision(
-                    command = "echo hello",
+                    command = "open https://example.com",
                     targetSelector = TargetSelector.CurrentDevice,
                     origin = CommandOrigin.AiGenerated,
                     dangerous = false,
@@ -131,7 +149,35 @@ class ActionRunnerTest {
         val result = runner.run(spec)
 
         assertEquals(ActionResultStatus.Succeeded, result.status)
-        assertEquals("echo hello", connection.lastCommand)
+        assertEquals("open https://example.com", connection.lastCommand)
+    }
+
+    @Test
+    fun generatedDeckCommand_requiresSuccessfulTestEvenAfterReview() = runTest {
+        val connection = FakeConnectionRepository()
+        val runner = testRunner(connection = connection)
+        val command = "open -a Notes"
+        val revision = commandRevision(
+            command,
+            TargetSelector.CurrentDevice,
+            CommandOrigin.AiGenerated,
+            dangerous = false,
+        )
+        val action = DeckAction(
+            id = "generated-deck",
+            label = "Generated",
+            kind = ActionKind.Ssh,
+            icon = ActionIcon.Apps,
+            command = command,
+            commandOrigin = CommandOrigin.AiGenerated,
+            requiresTest = true,
+            commandReview = CommandReview(reviewedRevision = revision),
+        )
+
+        val result = runner.run(ActionSpec.DeckActionSpec(action))
+
+        assertEquals(ActionResultStatus.RequiresReview, result.status)
+        assertEquals(null, connection.lastCommand)
     }
 
     @Test
@@ -228,16 +274,17 @@ class ActionRunnerTest {
     private fun testRunner(
         connection: FakeConnectionRepository = FakeConnectionRepository(),
         devices: DeviceRepository = FakeDeviceRepository(),
+        actions: ActionRepository = FakeActionRepository(),
     ) = DefaultActionRunner(
-        FakeActionRepository(),
+        actions,
         connection,
         devices,
         FakeTransportRegistry(),
     )
 }
 
-private class FakeActionRepository : ActionRepository {
-    private val action = DeckAction("finder", "Finder", ActionKind.Ssh, ActionIcon.Finder, command = "open -a Finder")
+private class FakeActionRepository(dangerous: Boolean = false) : ActionRepository {
+    private val action = DeckAction("finder", "Finder", ActionKind.Ssh, ActionIcon.Finder, command = "open -a Finder", dangerous = dangerous)
     override fun favorites(): List<DeckAction> = listOf(action)
     override fun observeFavorites(): Flow<List<DeckAction>> = MutableStateFlow(listOf(action))
     override fun allActions(): List<DeckAction> = listOf(action)

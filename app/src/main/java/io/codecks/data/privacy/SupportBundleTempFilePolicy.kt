@@ -8,25 +8,36 @@ class SupportBundleTempFilePolicy(
 ) {
     private val directory = File(cacheDirectory, DIRECTORY_NAME)
 
-    fun write(bytes: ByteArray, nowEpochMs: Long): Result<File> = runCatching {
-        require(bytes.isNotEmpty()) { "Support bundle is empty" }
-        check(directory.exists() || directory.mkdirs()) { "Cannot create support cache" }
-        val finalFile = File(directory, "$FILE_PREFIX$nowEpochMs.zip")
-        val staging = File(directory, ".$FILE_PREFIX$nowEpochMs.tmp")
-        FileOutputStream(staging).use { output ->
-            output.write(bytes)
-            output.fd.sync()
+    fun write(bytes: ByteArray, nowEpochMs: Long): Result<File> = try {
+        Result.success(
+            run {
+                require(bytes.isNotEmpty()) { "Support bundle is empty" }
+                check(directory.exists() || directory.mkdirs()) { "Cannot create support cache" }
+                val finalFile = File(directory, "$FILE_PREFIX$nowEpochMs.zip")
+                val staging = File(directory, ".$FILE_PREFIX$nowEpochMs.tmp")
+                FileOutputStream(staging).use { output ->
+                    output.write(bytes)
+                    output.fd.sync()
+                }
+                check(staging.renameTo(finalFile)) {
+                    staging.delete()
+                    "Cannot finalize support bundle"
+                }
+                finalFile
+            },
+        )
+    } catch (error: Throwable) {
+        when (error) {
+            is VirtualMachineError,
+            is ThreadDeath,
+            is LinkageError,
+            -> throw error
         }
-        check(staging.renameTo(finalFile)) {
-            staging.delete()
-            "Cannot finalize support bundle"
-        }
-        finalFile
+        Result.failure(error)
     }
 
-    fun cancel(file: File?) {
-        file?.takeIf(::isOwnedFile)?.delete()
-    }
+    fun cancel(file: File?): Boolean =
+        file == null || (isOwnedFile(file) && (!file.exists() || file.delete()) && !file.exists())
 
     fun cleanupExpired(
         nowEpochMs: Long,
@@ -40,6 +51,16 @@ class SupportBundleTempFilePolicy(
             .forEach { if (it.delete()) deleted += 1 }
         return deleted
     }
+
+    fun pendingFiles(): List<File> = directory.listFiles()
+        .orEmpty()
+        .asSequence()
+        .filter(::isOwnedFile)
+        .filter { it.isFile && it.name.endsWith(".zip") }
+        .sortedByDescending(File::lastModified)
+        .toList()
+
+    fun latestPending(): File? = pendingFiles().firstOrNull()
 
     internal fun isOwnedFile(file: File): Boolean =
         file.parentFile == directory &&

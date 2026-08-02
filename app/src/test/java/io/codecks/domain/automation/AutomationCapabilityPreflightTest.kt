@@ -67,6 +67,28 @@ class AutomationCapabilityPreflightTest {
         assertFalse(receipt(emptyList()).mandatoryChecksSatisfied())
     }
 
+    @Test
+    fun receiptHashBindsTargetAndExactCheckSet() {
+        val original = receipt(listOf(automationConnectionPreflightCheck(null, 20L)))
+        val otherTarget = AutomationPreflightReceipt(
+            recipeRevision = original.recipeRevision,
+            checkedAtMillis = original.checkedAtMillis,
+            macIdentity = original.macIdentity,
+            targetId = "other-target",
+            requiredCapabilities = original.requiredCapabilities,
+            checks = original.checks,
+            commandTools = original.commandTools,
+            commandPaths = original.commandPaths,
+            permissionSnapshot = original.permissionSnapshot,
+            requiredCheckCodes = original.requiredCheckCodes,
+        )
+
+        assertTrue(original.mandatoryChecksSatisfied())
+        assertTrue(otherTarget.mandatoryChecksSatisfied())
+        assertFalse(original.receiptId == otherTarget.receiptId)
+        assertFalse(original.copy(targetId = "forged-target").mandatoryChecksSatisfied())
+    }
+
     private fun receipt(checks: List<AutomationPreflightCheck>) =
         AutomationPreflightReceipt(
             recipeRevision = "revision",
@@ -78,5 +100,8 @@ class AutomationCapabilityPreflightTest {
             commandTools = emptySet(),
             commandPaths = emptySet(),
             permissionSnapshot = emptySet(),
+            requiredCheckCodes = checks.filter(AutomationPreflightCheck::mandatory)
+                .map { it.capability.capabilityCode }
+                .toSet(),
         )
 }

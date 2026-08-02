@@ -2,7 +2,7 @@
 
 Offline report schema: 1
 Corpus SHA-256: `f33316f29094edd00619e5771dfc9607fcd035ab942700c36117003df2130477`
-Generated-output bypass SHA-256: `1d0d6e5b943bae5b89ca17a7c6214fed7c92efa8343de7506187874a19f5df91`
+Generated-output bypass SHA-256: `833f4e13b91e5174e0c43ae7f756a72e3b7638b533fa599fb191124789659d2d`
 
 ## Corpus
 
@@ -10,17 +10,14 @@ Generated-output bypass SHA-256: `1d0d6e5b943bae5b89ca17a7c6214fed7c92efa8343de7
 - Action prompts: 40
 - Deck prompts: 40
 - Automation prompts: 40
-- Generated-output bypass cases: 12
+- Generated-output bypass cases: 19
 
-## Proven Local Gates
+## Verified Static Facts
 
 - Corpus has required 40/40/40 prompt split.
-- Unit tests verify strict V2 schema shape.
-- Unit tests verify parser success, refusal/needs-input handling, bounded repair, oversized deck rejection, missing-template rejection, dangerous-confirmation metadata, and adversarial command/URL rejection.
-- Unit tests verify generated artifacts cannot be saved before dry run evidence.
-- Unit tests require one deterministic assertion per normalized executable automation action.
-- Unit tests reject the checked-in generated-output bypass corpus.
-- Secret surface scan is required separately by release verification.
+- Corpus files have the recorded hashes and required case counts.
+- Unit gates listed below are requirements, not proven executions, unless `unitGateReceipt` is non-null in the JSON report.
+- SHA-bound unit-gate receipt supplied: no.
 - Live-provider scoring is available through the opt-in AiCreatorV2LiveEvalTest and writes docs/ai/AI_CREATOR_V2_LIVE_EVAL_REPORT.md.
 
 ## Pending Live Gates

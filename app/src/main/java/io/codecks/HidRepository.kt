@@ -22,6 +22,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.selects.select
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 data class HidHost(
     val address: String,
@@ -175,10 +182,14 @@ sealed interface HidSystemEvent {
     data object ManualRetry : HidSystemEvent
 }
 
+internal fun HidSystemEvent.requiresImmediateInputInvalidation(): Boolean =
+    this == HidSystemEvent.UserLocked || this == HidSystemEvent.BluetoothOff
+
 data class HidSystemEventDecision(
     val state: HidState,
     val cancelConnectionAttempt: Boolean = false,
     val maintainConnection: Boolean = false,
+    val invalidatePendingInputs: Boolean = false,
 )
 
 internal fun reduceHidSystemEvent(
@@ -205,6 +216,7 @@ internal fun reduceHidSystemEvent(
             userLockState = HidUserLockState.Locked,
             inputAccess = HidInputAccess.PointerOnly,
         ),
+        invalidatePendingInputs = true,
     )
     HidSystemEvent.UserUnlocked -> HidSystemEventDecision(
         current.copy(
@@ -463,11 +475,26 @@ interface HidRepository {
     fun releaseButtons()
     fun typeText(text: String)
     fun send(command: HidCommand)
+    suspend fun deliverText(text: String): Result<HidDeliveryReceipt> =
+        Result.failure(UnsupportedOperationException("Confirmed HID text delivery unavailable"))
+    suspend fun deliver(command: HidCommand): Result<HidDeliveryReceipt> =
+        Result.failure(UnsupportedOperationException("Confirmed HID command delivery unavailable"))
+}
+
+data class HidDeliveryReceipt(
+    val operation: String,
+    val acceptedUnits: Int,
+) {
+    init {
+        require(operation.isNotBlank())
+        require(acceptedUnits > 0)
+    }
 }
 
 private const val RECONNECT_TICK_MS = 8_000L
 private val RECONNECT_BACKOFF_MS = longArrayOf(2_000L, 5_000L, 10_000L, 20_000L, 30_000L)
 private const val HID_REHYDRATION_SCHEMA_VERSION = 1
+private const val HID_CONTROL_QUEUE_CAPACITY = 64
 
 internal fun interface HidClock {
     fun nowMillis(): Long
@@ -510,7 +537,9 @@ class DefaultHidRepository @Inject constructor(
     override val state: StateFlow<HidState> = _state.asStateFlow()
     private var devices: List<BluetoothDevice> = emptyList()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val controlEvents = Channel<HidControlEvent>(Channel.UNLIMITED)
+    private val priorityEvents = Channel<HidControlEvent>(capacity = HID_CONTROL_QUEUE_CAPACITY)
+    private val persistenceWrites = Channel<HidPersistenceWrite>(capacity = Channel.UNLIMITED)
+    private val controllerStatuses = Channel<String>(capacity = Channel.CONFLATED)
     private var reconnectJob: Job? = null
     private var userDisconnected = false
     private val reconnectPolicy = HidReconnectPolicy(HidClock { System.currentTimeMillis() })
@@ -529,12 +558,44 @@ class DefaultHidRepository @Inject constructor(
             desiredConnectionState = rehydration.desiredConnectionState,
         )
         scope.launch {
-            for (event in controlEvents) {
-                when (event) {
-                    is HidControlEvent.ControllerStatus -> refreshState(event.status)
-                    is HidControlEvent.System -> applySystemEvent(event.event)
-                    HidControlEvent.Maintain -> maintainNow()
-                    HidControlEvent.ProfileRepair -> maintainNow(allowSingleRepairAttempt = true)
+            while (isActive) {
+                val event = priorityEvents.tryReceive().getOrNull() ?: select {
+                    priorityEvents.onReceiveCatching { it.getOrNull() }
+                    controllerStatuses.onReceiveCatching {
+                        it.getOrNull()?.let(HidControlEvent::ControllerStatus)
+                    }
+                } ?: break
+                try {
+                    when (event) {
+                        is HidControlEvent.ControllerStatus -> refreshState(event.status)
+                        is HidControlEvent.System -> applySystemEvent(event.event)
+                        HidControlEvent.Maintain -> maintainNow()
+                        HidControlEvent.ProfileRepair -> maintainNow(allowSingleRepairAttempt = true)
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Throwable) {
+                    _state.update {
+                        it.copy(
+                            status = "Bluetooth event failed: ${error.message ?: "unknown error"}",
+                            lifecycle = HidLifecycle.Failed,
+                            lastTransitionReason = "Bluetooth event failed",
+                            lastTransitionAtMillis = reconnectPolicy.nowMillis(),
+                        )
+                    }
+                }
+            }
+        }
+        scope.launch(Dispatchers.IO) {
+            for (write in persistenceWrites) {
+                if (!runCatching(write.write).getOrDefault(false)) {
+                    _state.update {
+                        it.copy(
+                            status = write.failureMessage,
+                            lastTransitionReason = write.failureMessage,
+                            lastTransitionAtMillis = reconnectPolicy.nowMillis(),
+                        )
+                    }
                 }
             }
         }
@@ -549,6 +610,11 @@ class DefaultHidRepository @Inject constructor(
     }
 
     override fun onSystemEvent(event: HidSystemEvent) {
+        if (event.requiresImmediateInputInvalidation()) {
+            // Safety transitions update access and invalidate input before queued maintenance.
+            applySystemEvent(event)
+            return
+        }
         enqueueControlEvent(HidControlEvent.System(event))
     }
 
@@ -559,7 +625,7 @@ class DefaultHidRepository @Inject constructor(
         ) {
             return
         }
-        controller.openProfile()
+        if (!controller.isReady) controller.openProfile()
         refreshHosts()
         ensureReconnectLoop()
     }
@@ -574,7 +640,9 @@ class DefaultHidRepository @Inject constructor(
         val selected = _state.value.selectedHostAddress
         val selectedStillBonded = selected == null || hosts.any { it.address == selected }
         if (!selectedStillBonded) {
-            prefs.edit().remove(PREF_SELECTED_HOST).apply()
+            persistOnIo("Could not clear unavailable HID host") {
+                prefs.edit().remove(PREF_SELECTED_HOST).commit()
+            }
         }
         _state.update { state ->
             val nextSelected = state.selectedHostAddress?.takeIf { address -> hosts.any { it.address == address } }
@@ -619,7 +687,6 @@ class DefaultHidRepository @Inject constructor(
 
     override fun disconnect() {
         userDisconnected = true
-        persistDesiredConnectionState(HidDesiredConnectionState.Disconnected)
         _state.update {
             it.copy(
                 desiredConnectionState = HidDesiredConnectionState.Disconnected,
@@ -628,7 +695,9 @@ class DefaultHidRepository @Inject constructor(
                 retry = HidRetryMetadata(),
             )
         }
+        controller.releaseAllInputs()
         controller.disconnect()
+        persistDesiredConnectionState(HidDesiredConnectionState.Disconnected)
     }
     override fun move(dx: Int, dy: Int) = controller.sendMouse(dx, dy, 0, 0)
     override fun scroll(vertical: Int, horizontal: Int) = controller.sendMouse(0, 0, vertical, horizontal)
@@ -637,6 +706,31 @@ class DefaultHidRepository @Inject constructor(
     override fun releaseButtons() = controller.releaseAllInputs()
     override fun typeText(text: String) {
         if (_state.value.inputAccess == HidInputAccess.Full) controller.typeText(text)
+    }
+    override suspend fun deliverText(text: String): Result<HidDeliveryReceipt> = runCatching {
+        require(_state.value.inputAccess == HidInputAccess.Full) { "Keyboard input is locked" }
+        require(_state.value.isConnected) { "Bluetooth keyboard is not connected" }
+        require(text.isNotEmpty()) { "Text is empty" }
+        controller.typeTextConfirmed(text).awaitConfirmedDelivery(
+            failureMessage = "Mac did not accept the Bluetooth text report",
+            releaseAllInputs = controller::releaseAllInputs,
+        )
+        HidDeliveryReceipt("text", text.length)
+    }
+
+    override suspend fun deliver(command: HidCommand): Result<HidDeliveryReceipt> = runCatching {
+        require(_state.value.inputAccess == HidInputAccess.Full) { "Keyboard input is locked" }
+        require(_state.value.isConnected) { "Bluetooth keyboard is not connected" }
+        val stroke = when (command) {
+            HidCommand.Paste -> HidReports.MOD_GUI to HidReports.KEY_V
+            HidCommand.Enter -> 0.toByte() to HidReports.KEY_ENTER
+            else -> error("Confirmed HID delivery is unavailable for ${command.name}")
+        }
+        controller.keyTapConfirmed(stroke.first, stroke.second).awaitConfirmedDelivery(
+            failureMessage = "Mac did not accept the Bluetooth ${command.name.lowercase()} report",
+            releaseAllInputs = controller::releaseAllInputs,
+        )
+        HidDeliveryReceipt(command.name, 1)
     }
     override fun send(command: HidCommand) {
         if (_state.value.inputAccess != HidInputAccess.Full) return
@@ -842,9 +936,10 @@ class DefaultHidRepository @Inject constructor(
                 if (!userDisconnected &&
                     state.desiredConnectionState == HidDesiredConnectionState.Connected &&
                     state.bluetoothPower != HidBluetoothPower.Off &&
-                    state.failureClass != HidFailureClass.RepairRequired
+                    state.failureClass != HidFailureClass.RepairRequired &&
+                    !controller.isConnected
                 ) {
-                    controller.openProfile()
+                    if (!controller.isReady) controller.openProfile()
                     refreshHosts()
                 }
                 delay(RECONNECT_TICK_MS)
@@ -872,8 +967,10 @@ class DefaultHidRepository @Inject constructor(
     }
 
     private fun saveSelectedHost(address: String) {
-        prefs.edit().putString(PREF_SELECTED_HOST, address).apply()
         _state.update { it.copy(selectedHostAddress = address) }
+        persistOnIo("Could not persist selected HID host") {
+            prefs.edit().putString(PREF_SELECTED_HOST, address).commit()
+        }
     }
 
     private companion object {
@@ -882,12 +979,21 @@ class DefaultHidRepository @Inject constructor(
     }
 
     private fun enqueueControlEvent(event: HidControlEvent) {
-        check(controlEvents.trySend(event).isSuccess) { "HID control path is unavailable." }
+        if (event is HidControlEvent.ControllerStatus) {
+            controllerStatuses.trySend(event.status)
+            return
+        }
+        if (priorityEvents.trySend(event).isFailure) {
+            scope.launch { priorityEvents.send(event) }
+        }
     }
 
     private fun applySystemEvent(event: HidSystemEvent) {
         val decision = reduceHidSystemEvent(_state.value, event)
         _state.value = decision.state
+        if (decision.invalidatePendingInputs) {
+            controller.releaseAllInputs()
+        }
         if (decision.cancelConnectionAttempt) {
             controller.releaseAllInputs()
             controller.disconnect()
@@ -901,9 +1007,67 @@ class DefaultHidRepository @Inject constructor(
         val encoded = HidRehydrationCodec.encode(
             HidRehydrationRecord(desiredConnectionState = desired),
         )
-        rehydrationPrefs.edit().putString(PREF_REHYDRATION_RECORD, encoded).apply()
+        persistOnIo("Could not persist HID connection intent") {
+            rehydrationPrefs.edit().putString(PREF_REHYDRATION_RECORD, encoded).commit()
+        }
+    }
+
+    private fun persistOnIo(failureMessage: String, write: () -> Boolean) {
+        check(persistenceWrites.trySend(HidPersistenceWrite(failureMessage, write)).isSuccess) {
+            "HID persistence queue is unavailable"
+        }
     }
 }
+
+private suspend fun <T> CompletableFuture<T>.awaitResult(): T =
+    suspendCancellableCoroutine { continuation ->
+        whenComplete { value, error ->
+            if (!continuation.isActive) return@whenComplete
+            if (error != null) continuation.resumeWithException(error) else continuation.resume(value)
+        }
+        continuation.invokeOnCancellation {
+            cancel(true)
+        }
+    }
+
+internal suspend fun CompletableFuture<Boolean>.awaitConfirmedDelivery(
+    failureMessage: String,
+    releaseAllInputs: () -> Unit,
+) {
+    val accepted = try {
+        awaitResult()
+    } catch (failure: Throwable) {
+        val primaryFailure = failure.unwrapCompletionFailure()
+        releaseAfterConfirmedFailure(primaryFailure, releaseAllInputs)
+        throw primaryFailure
+    }
+    if (!accepted) {
+        val failure = IllegalStateException(failureMessage)
+        releaseAfterConfirmedFailure(failure, releaseAllInputs)
+        throw failure
+    }
+}
+
+private fun Throwable.unwrapCompletionFailure(): Throwable =
+    if (this is CompletionException && cause != null) cause!! else this
+
+private fun releaseAfterConfirmedFailure(
+    primaryFailure: Throwable,
+    releaseAllInputs: () -> Unit,
+) {
+    try {
+        releaseAllInputs()
+    } catch (cleanupFailure: Throwable) {
+        if (cleanupFailure !== primaryFailure) {
+            primaryFailure.addSuppressed(cleanupFailure)
+        }
+    }
+}
+
+private data class HidPersistenceWrite(
+    val failureMessage: String,
+    val write: () -> Boolean,
+)
 
 private sealed interface HidControlEvent {
     data class ControllerStatus(val status: String) : HidControlEvent

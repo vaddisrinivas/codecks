@@ -6,6 +6,20 @@ import org.junit.Test
 
 class ClipboardReceiptTest {
     @Test
+    fun blockedTransferIsTerminalWithoutPretendingRuntimeFailure() {
+        val receipt = ClipboardOperation(
+            ClipboardDirection.PhoneToMac,
+            startedAtMillis = 10L,
+        ).finish(
+            terminalResult = ClipboardTerminalResult.Blocked,
+            completedAtMillis = 11L,
+        )
+
+        assertEquals(ClipboardTerminalResult.Blocked, receipt.terminalResult)
+        assertEquals(ClipboardFailureCode.None, receipt.failureCode)
+    }
+
+    @Test
     fun operationPublishesExactlyOneTerminalReceipt() {
         val published = mutableListOf<ClipboardReceipt>()
         val operation = ClipboardOperation(

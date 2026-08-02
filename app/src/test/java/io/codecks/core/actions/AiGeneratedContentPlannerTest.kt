@@ -113,4 +113,21 @@ class AiGeneratedContentPlannerTest {
         assertTrue(actions.single().requiresTest)
         assertFalse(actions.single().liveSafe)
     }
+
+    @Test
+    fun deckArtifactRejectsShellExpansionBeforeCatalogSave() {
+        val result = planner.deckActionsFromArtifact(
+            AiArtifact(
+                id = "deck-bypass",
+                kind = AiArtifactKind.Deck,
+                title = "Deck",
+                prompt = "copy identity",
+                actions = listOf(
+                    AiArtifactAction("copy", "Copy", "printf %s \"$(whoami)\" | pbcopy"),
+                ),
+            ),
+        )
+
+        assertTrue(result.isFailure)
+    }
 }

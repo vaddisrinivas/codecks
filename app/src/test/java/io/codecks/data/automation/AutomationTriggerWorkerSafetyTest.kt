@@ -17,6 +17,9 @@ import io.codecks.domain.automation.AutomationPreflightCheck
 import io.codecks.domain.automation.AutomationPreflightReceipt
 import io.codecks.domain.automation.AutomationRecipe
 import io.codecks.domain.automation.AutomationTrigger
+import io.codecks.domain.automation.AutomationCapabilityCodes
+import io.codecks.domain.automation.hasCurrentValidLiveTest
+import io.codecks.domain.automation.requiredPermissions
 import io.codecks.domain.smart.SmartCapability
 import io.codecks.domain.automation.revisionFingerprint
 import org.junit.Assert.assertEquals
@@ -28,7 +31,7 @@ import org.junit.Test
 class AutomationTriggerWorkerSafetyTest {
     @Test
     fun persistedEnabledRuleWithoutReceipts_isBlockedFromBackgroundExecution() {
-        val result = automaticRunBlocker(
+        val result = backgroundGate(
             recipe().copy(lastPreflight = null, lastLiveTest = null),
             "mac|host|22|key",
             1_000L,
@@ -47,7 +50,7 @@ class AutomationTriggerWorkerSafetyTest {
     @Test
     fun successfulReceiptsForSameIdentityAllowsBackgroundExecution() {
         assertNull(
-            automaticRunBlocker(
+            backgroundGate(
                 recipe(),
                 "mac|user|22|hostKey",
                 1_000L,
@@ -60,7 +63,7 @@ class AutomationTriggerWorkerSafetyTest {
         val mutated = recipe().copy(
             steps = listOf(ActionSpec.ShellCommand("focus", "Focus Mode", "open -a Safari")),
         )
-        val result = automaticRunBlocker(mutated, "mac|user|22|hostKey", 1_000L)
+        val result = backgroundGate(mutated, "mac|user|22|hostKey", 1_000L)
         assertNotNull(result)
         assertEquals(
             "Trigger matched, but Focus Mode needs a recent approved live test for this revision",
@@ -75,7 +78,7 @@ class AutomationTriggerWorkerSafetyTest {
             lastLiveTest = recipe().lastLiveTest!!.copy(macIdentity = "other|user|22|key"),
         )
         assertFalse(
-            automaticRunBlocker(stale, "mac|user|22|hostKey", 1_000L) == null,
+            backgroundGate(stale, "mac|user|22|hostKey", 1_000L) == null,
         )
     }
 
@@ -87,12 +90,29 @@ class AutomationTriggerWorkerSafetyTest {
             ),
         )
         assertNotNull(
-            automaticRunBlocker(
+            backgroundGate(
                 stale,
                 "mac|user|22|hostKey",
                 48 * 60 * 60 * 1000L,
             ),
         )
+    }
+
+    @Test
+    fun futureDatedProofIsRejectedAfterClockRollback() {
+        val future = recipe().let { current ->
+            val preflight = current.lastPreflight!!.copy(checkedAtMillis = 10_000_000L)
+            current.copy(
+                lastPreflight = preflight,
+                lastLiveTest = recipeLiveTestReceipt(current.copy(lastPreflight = preflight)).copy(
+                    checkedAtMillis = 10_000_000L,
+                    completedAtMillis = 10_000_001L,
+                    preflightCheckedAtMillis = 10_000_000L,
+                ),
+            )
+        }
+
+        assertNotNull(backgroundGate(future, "mac|user|22|hostKey", 1_000L))
     }
 
     @Test
@@ -109,7 +129,7 @@ class AutomationTriggerWorkerSafetyTest {
             ),
         )
         assertNotNull(
-            automaticRunBlocker(
+            backgroundGate(
                 stale,
                 "mac|user|22|hostKey",
                 2_000_000L,
@@ -149,7 +169,7 @@ class AutomationTriggerWorkerSafetyTest {
             ),
         )
         assertNotNull(
-            automaticRunBlocker(
+            backgroundGate(
                 stale,
                 "mac|user|22|hostKey",
                 1_000L,
@@ -200,6 +220,7 @@ class AutomationTriggerWorkerSafetyTest {
         commandTools = setOf("open"),
         commandPaths = emptySet(),
         permissionSnapshot = permissionSnapshot,
+        requiredCheckCodes = setOf(AutomationCapabilityCodes.Identity),
     )
 
     private fun recipeLiveTestReceipt(recipe: AutomationRecipe): AutomationLiveTestReceipt {
@@ -228,11 +249,27 @@ class AutomationTriggerWorkerSafetyTest {
                 message = AutomationLiveTestCleanupCode.NOT_REQUIRED.persistedCode,
                 outcomeCode = AutomationLiveTestCleanupCode.NOT_REQUIRED,
             ),
+            macIdentity = preflight.macIdentity,
             normalizedPlanHash = plan.planHash,
             preflightReceiptId = preflight.receiptId,
             timeoutPolicyCode = AutomationLiveTestTimeoutPolicy.BOUNDED_V1.persistedCode,
             terminalStatus = AutomationLiveTestTerminalStatus.PASSED,
             completedAtMillis = 1_001L,
+        )
+    }
+
+    private fun backgroundGate(
+        recipe: AutomationRecipe,
+        macIdentity: String,
+        nowMillis: Long,
+    ) = if (recipe.hasCurrentValidLiveTest(nowMillis, macIdentity, recipe.requiredPermissions())) {
+        null
+    } else {
+        io.codecks.core.actions.ActionResult(
+            recipe.id,
+            recipe.title,
+            ActionResultStatus.RequiresReview,
+            "Trigger matched, but ${recipe.title} needs a recent approved live test for this revision",
         )
     }
 }

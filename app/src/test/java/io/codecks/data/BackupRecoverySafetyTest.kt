@@ -3,6 +3,7 @@ package io.codecks.data
 import io.codecks.domain.backup.RestorePlan
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
+import java.io.ByteArrayInputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -40,6 +41,35 @@ class BackupRecoverySafetyTest {
     }
 
     @Test
+    fun restorePreviewPropagatesCancellation() = runTest {
+        val fakes = BackupFakes()
+        val cancellation = CancellationException("preview cancelled")
+        fakes.deck.throwOnExport = cancellation
+
+        val observed = runCatching {
+            fakes.repository().createRestorePlan(legacyBackup("{}", "{}"))
+        }.exceptionOrNull()
+
+        assertTrue(observed === cancellation)
+    }
+
+    @Test
+    fun restorePreviewPropagatesFatalError() = runTest {
+        val fakes = BackupFakes()
+        val fatal = LinkageError("preview fatal")
+        fakes.deck.throwOnExport = fatal
+
+        val observed = try {
+            fakes.repository().createRestorePlan(legacyBackup("{}", "{}"))
+            null
+        } catch (error: Throwable) {
+            error
+        }
+
+        assertTrue(observed === fatal)
+    }
+
+    @Test
     fun secretShapedAutomationCommandBlocksArchiveExport() = runTest {
         val fakes = BackupFakes()
         fakes.automations.exported =
@@ -49,6 +79,66 @@ class BackupRecoverySafetyTest {
 
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("secret-shaped"))
+    }
+
+    @Test
+    fun boundedInputRejectsBeforeReadingAnUnboundedDocument() {
+        val oversized = ByteArray(MAX_BACKUP_INPUT_BYTES + 1)
+
+        val failure = runCatching {
+            ByteArrayInputStream(oversized).readCodecksBackupBounded()
+        }.exceptionOrNull()
+
+        assertTrue(failure is BackupInputTooLargeException)
+    }
+
+    @Test
+    fun recoveryWriteAndReadShareOneExactBound() {
+        assertEquals(
+            MAX_BACKUP_RECOVERY_BYTES,
+            requireBoundedRecoveryPayload(ByteArray(MAX_BACKUP_RECOVERY_BYTES)).size,
+        )
+        assertTrue(
+            runCatching {
+                requireBoundedRecoveryPayload(ByteArray(MAX_BACKUP_RECOVERY_BYTES + 1))
+            }.isFailure,
+        )
+    }
+
+    @Test
+    fun failedRecoveryRestoresThePreRecoveryStateAndKeepsSnapshot() = runTest {
+        val fakes = BackupFakes()
+        val currentDeck = fakes.deck.exported
+        val currentAutomations = fakes.automations.exported
+        val store = InMemoryBackupRecoveryStore()
+        val recoveryId = store.save(
+            mapOf("deck" to "{\"prior\":1}", "automations" to "{\"prior\":2}"),
+        )
+        fakes.automations.failNextImport = true
+        val repository = fakes.repository(recoveryStore = store)
+
+        assertTrue(repository.recoverPending(recoveryId).isFailure)
+        assertEquals(currentDeck, fakes.deck.exported)
+        assertEquals(currentAutomations, fakes.automations.exported)
+        assertTrue(store.contains(recoveryId))
+    }
+
+    @Test
+    fun corruptPendingRecoveryIsTypedAndCanBeQuarantined() {
+        val store = object : BackupRecoveryStore {
+            var pending = true
+            override fun save(sections: Map<String, String>) = "unused"
+            override fun clear(recoveryId: String) { pending = false }
+            override fun contains(recoveryId: String) = pending
+            override fun load(recoveryId: String): Map<String, String>? = null
+            override fun pendingIds() = if (pending) listOf(RECOVERY_ID) else emptyList()
+            override fun quarantine(recoveryId: String) { pending = false }
+        }
+        val repository = BackupFakes().repository(recoveryStore = store)
+
+        assertEquals(PendingBackupRecovery.Corrupt(RECOVERY_ID), repository.pendingRecovery())
+        repository.quarantineCorruptRecovery(RECOVERY_ID).getOrThrow()
+        assertNull(repository.pendingRecovery())
     }
 
     @Test
@@ -73,10 +163,15 @@ class BackupRecoverySafetyTest {
     @Test
     fun recoveryRequiredOutcomeIsImmediatelyPublishedAndClosesStalePreview() {
         val source = java.io.File("src/main/java/io/codecks/MainActivity.kt").readText()
+        val recoveryBranch = source
+            .substringAfter(
+                "else if (outcome is io.codecks.domain.backup.BackupRestoreResult.RecoveryRequired)",
+            )
+            .substringBefore("}")
 
-        assertTrue(source.contains("pendingBackupRecoveryId = outcome.recoveryId"))
-        assertTrue(source.contains("pendingRestorePayload = null"))
-        assertTrue(source.contains("pendingRestorePlan = null"))
+        assertTrue(recoveryBranch.contains("pendingBackupRecovery = backupRepository.pendingRecovery()"))
+        assertTrue(recoveryBranch.contains("pendingRestorePayload = null"))
+        assertTrue(recoveryBranch.contains("pendingRestorePlan = null"))
     }
 
     private suspend fun assertPropagatesAfterRollback(thrown: Throwable) {
@@ -101,5 +196,9 @@ class BackupRecoverySafetyTest {
         assertTrue(observed === thrown)
         assertEquals(priorDeck, fakes.deck.exported)
         assertEquals(priorAutomations, fakes.automations.exported)
+    }
+
+    private companion object {
+        const val RECOVERY_ID = "00000000-0000-0000-0000-000000000001"
     }
 }

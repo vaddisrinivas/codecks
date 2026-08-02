@@ -31,7 +31,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -50,6 +53,7 @@ import io.codecks.ui.designsystem.DeckActionButton
 import io.codecks.ui.designsystem.DeckFilterPill
 import io.codecks.ui.designsystem.DeckPage
 import io.codecks.ui.designsystem.DeckSectionLabel
+import io.codecks.ui.app.shouldRequestBlockingFailureFocus
 
 @Composable
 fun ConnectionScreen(
@@ -89,8 +93,12 @@ fun ConnectionScreen(
     val blockingDiagnostic = state.error?.let { state.connectionDiagnostic() }
     val failureFocusRequester = remember { FocusRequester() }
     val failureKey = blockingDiagnostic?.let { it.issueCode?.name ?: it.state.name }
+    var previousFailureKey by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(failureKey) {
-        if (failureKey != null) failureFocusRequester.requestFocus()
+        if (shouldRequestBlockingFailureFocus(previousFailureKey, failureKey)) {
+            failureFocusRequester.requestFocus()
+        }
+        previousFailureKey = failureKey
     }
     DeckPage(
         contentPadding = contentPadding,

@@ -15,6 +15,9 @@ class ManualUpdateCheckRequest private constructor(
     }
 }
 
+class UpdateCheckNotForegroundException :
+    IllegalStateException("Update check stopped after the app left the foreground")
+
 sealed interface UpdateAvailability {
     val currentVersion: SemanticVersion
 

@@ -130,3 +130,5 @@ fun requiredMacCapabilityProbes(
             },
         )
     }
+
+fun requiredCoreMacCapabilityProbeCommand(): String = "printf codecks-core-ready"

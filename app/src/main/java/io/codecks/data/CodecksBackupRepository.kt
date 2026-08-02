@@ -20,6 +20,7 @@ import io.codecks.domain.privacy.DiagnosticComponent
 import io.codecks.domain.privacy.DiagnosticResultCode
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.security.MessageDigest
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -32,7 +33,35 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
-/** Local, user-directed backup. Credentials and connection secrets are never included. */
+const val MAX_BACKUP_INPUT_BYTES = 2 * 1024 * 1024
+
+class BackupInputTooLargeException(maxBytes: Int) :
+    IllegalArgumentException("Backup exceeds the ${maxBytes / 1024} KiB limit")
+
+class PendingBackupRecoveryException :
+    IllegalStateException("Complete pending backup recovery before another restore")
+
+fun InputStream.readCodecksBackupBounded(maxBytes: Int = MAX_BACKUP_INPUT_BYTES): ByteArray {
+    require(maxBytes > 0)
+    val output = ByteArrayOutputStream()
+    val buffer = ByteArray(8 * 1024)
+    while (output.size() <= maxBytes) {
+        val read = read(buffer)
+        if (read < 0) return output.toByteArray()
+        if (output.size() + read > maxBytes) throw BackupInputTooLargeException(maxBytes)
+        output.write(buffer, 0, read)
+    }
+    throw BackupInputTooLargeException(maxBytes)
+}
+
+sealed interface PendingBackupRecovery {
+    val recoveryId: String
+
+    data class Recoverable(override val recoveryId: String) : PendingBackupRecovery
+    data class Corrupt(override val recoveryId: String) : PendingBackupRecovery
+}
+
+/** Local, user-directed backup. Credential stores are excluded; command text is secret-scanned. */
 @Singleton
 class CodecksBackupRepository internal constructor(
     private val actionRepository: ActionRepository,
@@ -68,7 +97,7 @@ class CodecksBackupRepository internal constructor(
         automationRepository: AutomationRepository,
     ) : this(actionRepository, automationRepository, { BuildConfig.VERSION_NAME })
 
-    suspend fun exportArchive(): Result<ByteArray> = runCatching {
+    suspend fun exportArchive(): Result<ByteArray> = try {
         val entries = linkedMapOf(
             DECK_PATH to actionRepository.exportLayout().getOrThrow().toByteArray(),
             AUTOMATIONS_PATH to automationRepository.exportRecipes().getOrThrow().toByteArray(),
@@ -84,26 +113,29 @@ class CodecksBackupRepository internal constructor(
                 entries.section("automations", AUTOMATIONS_PATH),
             ),
         )
-        BackupArchiveCodec.encode(manifest, entries)
+        Result.success(BackupArchiveCodec.encode(manifest, entries))
+    } catch (error: Throwable) {
+        error.rethrowIfCancellationOrFatal()
+        Result.failure(error)
     }
 
     /** Parses and validates without calling either mutable repository. */
     fun compatibilityVerdict(bytes: ByteArray): CompatibilityVerdict =
         BackupArchiveCodec.inspect(bytes)
 
-    suspend fun createRestorePlan(bytes: ByteArray): Result<RestorePlan> = runCatching {
-        require(pendingRecoveryId() == null) { "Complete pending backup recovery before another restore" }
+    suspend fun createRestorePlan(bytes: ByteArray): Result<RestorePlan> = try {
+        if (pendingRecoveryId() != null) throw PendingBackupRecoveryException()
         val snapshot = bytes.copyOf()
         val verdict = compatibilityVerdict(snapshot)
         if (verdict is CompatibilityVerdict.Rejected) {
-            return@runCatching RestorePlan.Blocked(
+            Result.success(RestorePlan.Blocked(
                 reason = verdict.reason,
                 warnings = listOf("This backup cannot be restored safely."),
-            )
-        }
-        val backupSections = BackupArchiveCodec.sectionPayloads(snapshot, verdict)
-        val currentSections = currentSections()
-        val sectionChanges = (backupSections.keys + currentSections.keys)
+            ))
+        } else {
+            val backupSections = BackupArchiveCodec.sectionPayloads(snapshot, verdict)
+            val currentSections = currentSections()
+            val sectionChanges = (backupSections.keys + currentSections.keys)
             .sorted()
             .map { section ->
                 RestoreSectionChange(
@@ -118,36 +150,42 @@ class CodecksBackupRepository internal constructor(
                     },
                 )
             }
-        val backupSha256 = snapshot.sha256()
-        val currentStateSha256 = currentSections.stateSha256()
-        val sourceSchema = when (verdict) {
-            is CompatibilityVerdict.Compatible -> verdict.manifest.schemaVersion
-            is CompatibilityVerdict.MigrationRequired -> verdict.sourceSchemaVersion
-            is CompatibilityVerdict.Rejected -> error("Rejected verdict returned above")
-        }
-        val migrations = if (verdict is CompatibilityVerdict.MigrationRequired) {
-            listOf("Backup schema ${verdict.sourceSchemaVersion} will migrate to archive schema $ARCHIVE_SCHEMA_VERSION.")
-        } else {
-            emptyList()
-        }
-        val warnings = buildList {
-            if (sectionChanges.any { it.kind == RestoreSectionChangeKind.Removed }) {
-                add("Sections absent from the backup will be removed.")
+            val backupSha256 = snapshot.sha256()
+            val currentStateSha256 = currentSections.stateSha256()
+            val sourceSchema = when (verdict) {
+                is CompatibilityVerdict.Compatible -> verdict.manifest.schemaVersion
+                is CompatibilityVerdict.MigrationRequired -> verdict.sourceSchemaVersion
+                is CompatibilityVerdict.Rejected -> error("Rejected verdict returned above")
             }
-            if (sectionChanges.any { it.kind == RestoreSectionChangeKind.Replaced }) {
-                add("Existing sections will be replaced.")
+            val migrations = if (verdict is CompatibilityVerdict.MigrationRequired) {
+                listOf("Backup schema ${verdict.sourceSchemaVersion} will migrate to archive schema $ARCHIVE_SCHEMA_VERSION.")
+            } else {
+                emptyList()
             }
+            val warnings = buildList {
+                if (sectionChanges.any { it.kind == RestoreSectionChangeKind.Removed }) {
+                    add("Sections absent from the backup will be removed.")
+                }
+                if (sectionChanges.any { it.kind == RestoreSectionChangeKind.Replaced }) {
+                    add("Existing sections will be replaced.")
+                }
+            }
+            val canonicalChanges = sectionChanges.joinToString("|") { "${it.section}:${it.kind.name}" }
+            Result.success(
+                RestorePlan.Ready(
+                    planId = "$backupSha256:$currentStateSha256:$sourceSchema:$canonicalChanges".toByteArray().sha256(),
+                    backupSha256 = backupSha256,
+                    currentStateSha256 = currentStateSha256,
+                    sourceSchemaVersion = sourceSchema,
+                    sections = sectionChanges,
+                    migrations = migrations,
+                    warnings = warnings,
+                ),
+            )
         }
-        val canonicalChanges = sectionChanges.joinToString("|") { "${it.section}:${it.kind.name}" }
-        RestorePlan.Ready(
-            planId = "$backupSha256:$currentStateSha256:$sourceSchema:$canonicalChanges".toByteArray().sha256(),
-            backupSha256 = backupSha256,
-            currentStateSha256 = currentStateSha256,
-            sourceSchemaVersion = sourceSchema,
-            sections = sectionChanges,
-            migrations = migrations,
-            warnings = warnings,
-        )
+    } catch (error: Throwable) {
+        error.rethrowIfCancellationOrFatal()
+        Result.failure(error)
     }
 
     suspend fun restoreConfirmed(
@@ -173,17 +211,72 @@ class CodecksBackupRepository internal constructor(
         }
     }
 
-    fun pendingRecoveryId(): String? = recoveryStore.pendingIds().firstOrNull()
-
-    suspend fun recoverPending(recoveryId: String): Result<Unit> = runCatching {
-        require(recoveryId == pendingRecoveryId()) { "Recovery request is stale" }
-        val previous = recoveryStore.load(recoveryId) ?: error("Recovery material is unreadable")
-        withContext(NonCancellable) {
-            actionRepository.importLayout(previous.getValue("deck")).getOrThrow()
-            automationRepository.importRecipes(previous.getValue("automations")).getOrThrow()
-            require(currentSections() == previous) { "Recovery verification failed" }
-            recoveryStore.clear(recoveryId)
+    fun pendingRecovery(): PendingBackupRecovery? {
+        recoveryStore.cleanupResidue()
+        val recoveryId = recoveryStore.pendingIds().firstOrNull() ?: return null
+        return if (recoveryStore.load(recoveryId) == null) {
+            PendingBackupRecovery.Corrupt(recoveryId)
+        } else {
+            PendingBackupRecovery.Recoverable(recoveryId)
         }
+    }
+
+    fun pendingRecoveryId(): String? = pendingRecovery()?.recoveryId
+
+    fun recoveryResidueFiles(): List<String> {
+        recoveryStore.cleanupResidue()
+        return recoveryStore.residueFiles()
+    }
+
+    fun deleteRecoveryResidue(fileName: String): Result<Unit> = try {
+        require(recoveryStore.deleteResidue(fileName)) { "Cannot delete recovery residue" }
+        require(fileName !in recoveryStore.residueFiles()) { "Recovery residue remains on disk" }
+        Result.success(Unit)
+    } catch (error: Throwable) {
+        error.rethrowIfCancellationOrFatal()
+        Result.failure(error)
+    }
+
+    fun quarantineCorruptRecovery(recoveryId: String): Result<Unit> = try {
+        require(pendingRecovery() == PendingBackupRecovery.Corrupt(recoveryId)) {
+            "Only unreadable recovery material can be quarantined"
+        }
+        recoveryStore.quarantine(recoveryId)
+        require(pendingRecovery() != PendingBackupRecovery.Corrupt(recoveryId)) {
+            "Corrupt recovery material remains pending"
+        }
+        Result.success(Unit)
+    } catch (error: Throwable) {
+        error.rethrowIfCancellationOrFatal()
+        Result.failure(error)
+    }
+
+    suspend fun recoverPending(recoveryId: String): Result<Unit> = try {
+        require(pendingRecovery() == PendingBackupRecovery.Recoverable(recoveryId)) {
+            "Recovery request is stale or unreadable"
+        }
+        val previous = recoveryStore.load(recoveryId) ?: error("Recovery material is unreadable")
+        val current = currentSections()
+        actionRepository.validateLayout(previous.getValue("deck")).getOrThrow()
+        automationRepository.validateRecipes(previous.getValue("automations")).getOrThrow()
+        withContext(NonCancellable) {
+            try {
+                actionRepository.importLayout(previous.getValue("deck")).getOrThrow()
+                automationRepository.importRecipes(previous.getValue("automations")).getOrThrow()
+                require(currentSections() == previous) { "Recovery verification failed" }
+                recoveryStore.clear(recoveryId)
+            } catch (error: Throwable) {
+                val restoredCurrent = rollback(current)
+                check(restoredCurrent) {
+                    "Recovery failed and the pre-recovery state could not be restored; retry recovery"
+                }
+                throw error
+            }
+        }
+        Result.success(Unit)
+    } catch (error: Throwable) {
+        error.rethrowIfCancellationOrFatal()
+        Result.failure(error)
     }
 
     private suspend fun currentSections(): Map<String, String> = linkedMapOf(
@@ -257,7 +350,18 @@ class CodecksBackupRepository internal constructor(
             val recoveryCleared = withContext(NonCancellable) {
                 val rollbackSucceeded = rollback(previous)
                 completed += RestoreStage.Rollback
-                rollbackSucceeded && runCatching { recoveryStore.clear(recoveryId) }.isSuccess
+                val cleared = if (rollbackSucceeded) {
+                    try {
+                        recoveryStore.clear(recoveryId)
+                        true
+                    } catch (clearError: Throwable) {
+                        clearError.rethrowIfCancellationOrFatal()
+                        false
+                    }
+                } else {
+                    false
+                }
+                rollbackSucceeded && cleared
             }
             val receipt = RestoreReceipt(
                 terminalResult = if (recoveryCleared) {
@@ -286,12 +390,14 @@ class CodecksBackupRepository internal constructor(
             is BackupRestoreResult.RolledBack -> DiagnosticResultCode.FAILED
             is BackupRestoreResult.RecoveryRequired -> DiagnosticResultCode.BLOCKED
         }
-        runCatching {
+        try {
             terminalEvent(
                 code,
                 receipt.completedAtMillis - receipt.startedAtMillis,
                 receipt.completedAtMillis,
             )
+        } catch (error: Throwable) {
+            error.rethrowIfCancellationOrFatal()
         }
     }
 
@@ -305,18 +411,27 @@ class CodecksBackupRepository internal constructor(
 
     private suspend fun rollback(previous: Map<String, String>): Boolean {
         var succeeded = true
-        runCatching {
+        try {
             failureInjector.failAt(BackupFailurePoint.RollbackDeck)
             actionRepository.importLayout(previous.getValue("deck")).getOrThrow()
-        }.onFailure { succeeded = false }
-        runCatching {
+        } catch (error: Throwable) {
+            error.rethrowIfCancellationOrFatal()
+            succeeded = false
+        }
+        try {
             failureInjector.failAt(BackupFailurePoint.RollbackAutomations)
             automationRepository.importRecipes(previous.getValue("automations")).getOrThrow()
-        }.onFailure { succeeded = false }
-        val exact = runCatching {
+        } catch (error: Throwable) {
+            error.rethrowIfCancellationOrFatal()
+            succeeded = false
+        }
+        val exact = try {
             actionRepository.exportLayout().getOrThrow() == previous.getValue("deck") &&
                 automationRepository.exportRecipes().getOrThrow() == previous.getValue("automations")
-        }.getOrDefault(false)
+        } catch (error: Throwable) {
+            error.rethrowIfCancellationOrFatal()
+            false
+        }
         return succeeded && exact
     }
 
@@ -342,7 +457,7 @@ internal object BackupArchiveCodec {
     private const val CURRENT_SCHEMA = 2
     private const val LEGACY_SCHEMA = 1
     internal const val MAX_ENTRIES = 16
-    internal const val MAX_UNCOMPRESSED_BYTES = 2 * 1024 * 1024
+    internal const val MAX_UNCOMPRESSED_BYTES = MAX_BACKUP_INPUT_BYTES
 
     fun encode(manifest: BackupManifest, entries: Map<String, ByteArray>): ByteArray {
         val output = ByteArrayOutputStream()
@@ -381,7 +496,8 @@ internal object BackupArchiveCodec {
                     zip.closeEntry()
                 }
             }
-        } catch (_: Throwable) {
+        } catch (error: Throwable) {
+            error.rethrowIfCancellationOrFatal()
             return CompatibilityVerdict.Rejected(BackupRejectionReason.CorruptManifest)
         }
         val manifestBytes = entries[MANIFEST_PATH]
@@ -446,8 +562,12 @@ internal object BackupArchiveCodec {
     }
 
     private fun inspectLegacy(bytes: ByteArray): CompatibilityVerdict {
-        val root = runCatching { JSONObject(bytes.toString(Charsets.UTF_8)) }.getOrNull()
-            ?: return CompatibilityVerdict.Rejected(BackupRejectionReason.CorruptManifest)
+        val root = try {
+            JSONObject(bytes.toString(Charsets.UTF_8))
+        } catch (error: Throwable) {
+            error.rethrowIfCancellationOrFatal()
+            return CompatibilityVerdict.Rejected(BackupRejectionReason.CorruptManifest)
+        }
         val schema = root.optInt("schemaVersion", -1)
         return when {
             schema > LEGACY_SCHEMA -> CompatibilityVerdict.Rejected(BackupRejectionReason.FutureSchema)
@@ -480,7 +600,7 @@ internal object BackupArchiveCodec {
         )
         .toString()
 
-    private fun decodeManifest(value: String): BackupManifest? = runCatching {
+    private fun decodeManifest(value: String): BackupManifest? = try {
         val root = JSONObject(value)
         require(!root.optBoolean("credentialStoresIncluded", true))
         val sections = root.getJSONArray("sections")
@@ -497,7 +617,10 @@ internal object BackupArchiveCodec {
                 )
             },
         )
-    }.getOrNull()
+    } catch (error: Throwable) {
+        error.rethrowIfCancellationOrFatal()
+        null
+    }
 
     private fun writeEntry(zip: ZipOutputStream, name: String, content: ByteArray) {
         zip.putNextEntry(ZipEntry(name).apply { time = 0L })

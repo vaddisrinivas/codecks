@@ -97,6 +97,8 @@ class HomeViewModel @Inject constructor(
     private var aiLibraryActions: List<DeckAction> = emptyList()
     private var aiArtifactIds: Set<String> = emptySet()
     private var aiArtifactsById: Map<String, AiArtifact> = emptyMap()
+    private var terminalProofReady = false
+    private var connectionConfigured = false
 
     init {
         viewModelScope.launch {
@@ -130,7 +132,8 @@ class HomeViewModel @Inject constructor(
         }
         viewModelScope.launch {
             connectionRepository.config.collect { config ->
-                _uiState.update { it.copy(connectionReady = config.isReady) }
+                connectionConfigured = config.isReady
+                _uiState.update { it.copy(connectionReady = config.isReady && terminalProofReady) }
             }
         }
         viewModelScope.launch {
@@ -140,6 +143,11 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun setTerminalProofReady(ready: Boolean) {
+        terminalProofReady = ready
+        _uiState.update { it.copy(connectionReady = connectionConfigured && ready) }
     }
 
     fun setDynamicDeckEnabled(enabled: Boolean) {

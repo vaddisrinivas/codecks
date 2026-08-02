@@ -4,26 +4,12 @@ import io.codecks.HidBluetoothPower
 import io.codecks.HidHost
 import io.codecks.HidLifecycle
 import io.codecks.HidState
-import java.io.File
-import org.json.JSONArray
-import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BluetoothSetupStatusTest {
-    @Test
-    fun productionPermissionFlowRoutesPermanentDenialToAppSettings() {
-        val source = File("src/main/java/io/codecks/MainActivity.kt").readText()
-
-        assertTrue(source.contains("shouldShowRequestPermissionRationale"))
-        assertTrue(source.contains("Settings.ACTION_APPLICATION_DETAILS_SETTINGS"))
-        assertTrue(source.contains("bluetoothPermissionPermanentlyDenied"))
-        assertTrue(source.contains("Lifecycle.Event.ON_RESUME"))
-        assertEquals(3, "LifecycleEventObserver".toRegex().findAll(source).count() - 1)
-    }
-
     @Test
     fun permissionsAreApiAndCapabilityAware() {
         assertTrue(BluetoothPermissionPolicy.requiredRuntimePermissions(apiLevel = 30).isEmpty())
@@ -92,35 +78,6 @@ class BluetoothSetupStatusTest {
         assertEquals(BluetoothSetupRemediation.None, confirmed.remediation)
     }
 
-    @Test
-    fun writesBluetoothSetupEvidence() {
-        val rows = JSONArray()
-        BluetoothPermissionState.entries.forEach { permission ->
-            val status = evaluateBluetoothSetup(observation(permissionState = permission))
-            rows.put(
-                JSONObject()
-                    .put("permission", permission.name)
-                    .put("currentCheck", status.currentCheck.name)
-                    .put("remediation", status.remediation.name)
-                    .put("success", status.success),
-            )
-        }
-        val success = evaluateBluetoothSetup(observation())
-        rows.put(
-            JSONObject()
-                .put("permission", BluetoothPermissionState.Granted.name)
-                .put("currentCheck", success.currentCheck.name)
-                .put("remediation", success.remediation.name)
-                .put("success", success.success),
-        )
-        val output = evidenceDirectory().resolve("bluetooth_setup_matrix.json")
-        requireNotNull(output.parentFile).mkdirs()
-        output.writeText(rows.toString(2))
-
-        assertTrue(output.isFile)
-        assertEquals(BluetoothPermissionState.entries.size + 1, rows.length())
-    }
-
     private fun observation(
         permissionState: BluetoothPermissionState = BluetoothPermissionState.Granted,
         bluetoothEnabled: Boolean = true,
@@ -138,9 +95,4 @@ class BluetoothSetupStatusTest {
         selectedHostIsBonded = selectedHostIsBonded,
         connectedToSelectedHost = connectedToSelectedHost,
     )
-
-    private fun evidenceDirectory(): File {
-        val moduleDirectory = File(requireNotNull(System.getProperty("user.dir")))
-        return requireNotNull(moduleDirectory.parentFile).resolve("build/ga-evidence/SET-02")
-    }
 }

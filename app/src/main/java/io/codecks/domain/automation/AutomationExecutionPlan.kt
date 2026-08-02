@@ -211,9 +211,9 @@ private fun String.normalizeCommand(): String {
  * every pipeline/sequence/substitution command is checked, rather than only the first token.
  */
 private fun String.executableToolRequirements(): Set<String> {
-    val commandBoundary = Regex("""(?:^|[|;&]|\$\()\s*([A-Za-z0-9_.+-]+)""")
+    val commandBoundary = Regex("""(?:^|[|;&]|\$\()\s*((?:/[^\s|;&]+/)*[A-Za-z0-9_.+-]+)""")
     return commandBoundary.findAll(this)
-        .map { it.groupValues[1] }
+        .map { it.groupValues[1].substringAfterLast('/') }
         .filterNot { it in SHELL_BUILTINS }
         .toSet()
 }

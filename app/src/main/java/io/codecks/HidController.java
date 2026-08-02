@@ -18,6 +18,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 
 final class HidController {
     interface Listener {
@@ -299,6 +301,19 @@ final class HidController {
         });
     }
 
+    CompletableFuture<Boolean> keyTapConfirmed(final byte modifier, final byte key) {
+        return enqueueConfirmed(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return executeConfirmedStroke(
+                        () -> sendKeyboard(modifier, key),
+                        () -> nap(16),
+                        () -> releaseKeyboard()
+                );
+            }
+        });
+    }
+
     void keyChord(final byte modifier, final byte first, final byte second) {
         enqueue(new Runnable() {
             @Override
@@ -342,12 +357,71 @@ final class HidController {
         });
     }
 
-    private void sendKeyboard(byte modifier, byte key) {
-        sendReport(HidReports.REPORT_KEYBOARD, new byte[]{modifier, 0, key, 0, 0, 0, 0, 0});
+    CompletableFuture<Boolean> typeTextConfirmed(final String text) {
+        return enqueueConfirmed(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                for (int i = 0; i < text.length(); i++) {
+                    KeyStroke stroke = mapChar(text.charAt(i));
+                    if (stroke == null) {
+                        return false;
+                    }
+                    if (!executeConfirmedStroke(
+                            () -> sendKeyboard(stroke.modifier, stroke.key),
+                            () -> nap(10),
+                            () -> releaseKeyboard()
+                    )) {
+                        return false;
+                    }
+                    nap(6);
+                }
+                return true;
+            }
+        });
     }
 
-    private void releaseKeyboard() {
-        sendReport(HidReports.REPORT_KEYBOARD, new byte[]{0, 0, 0, 0, 0, 0, 0, 0});
+    static boolean executeConfirmedStroke(
+            Callable<Boolean> press,
+            Runnable pause,
+            Callable<Boolean> release
+    ) throws Exception {
+        boolean pressed = false;
+        boolean released = false;
+        Throwable primaryFailure = null;
+        try {
+            pressed = press.call();
+            pause.run();
+        } catch (Throwable failure) {
+            primaryFailure = failure;
+        } finally {
+            try {
+                released = release.call();
+            } catch (Throwable releaseFailure) {
+                if (primaryFailure == null) {
+                    primaryFailure = releaseFailure;
+                } else {
+                    primaryFailure.addSuppressed(releaseFailure);
+                }
+            }
+        }
+        if (primaryFailure instanceof Exception) {
+            throw (Exception) primaryFailure;
+        }
+        if (primaryFailure instanceof Error) {
+            throw (Error) primaryFailure;
+        }
+        if (primaryFailure != null) {
+            throw new IllegalStateException(primaryFailure);
+        }
+        return pressed && released;
+    }
+
+    private boolean sendKeyboard(byte modifier, byte key) {
+        return sendReport(HidReports.REPORT_KEYBOARD, new byte[]{modifier, 0, key, 0, 0, 0, 0, 0});
+    }
+
+    private boolean releaseKeyboard() {
+        return sendReport(HidReports.REPORT_KEYBOARD, new byte[]{0, 0, 0, 0, 0, 0, 0, 0});
     }
 
     private void releaseAllInputsNow() {
@@ -403,18 +477,49 @@ final class HidController {
         }
     }
 
-    private void sendReport(int reportId, byte[] payload) {
+    private CompletableFuture<Boolean> enqueueConfirmed(final Callable<Boolean> callable) {
+        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+        final long generation = inputGeneration;
+        if (closed) {
+            future.complete(false);
+            return future;
+        }
+        try {
+            tx.execute(new Runnable() {
+                @Override
+                public void run() {
+                    if (generation != inputGeneration) {
+                        future.complete(false);
+                        return;
+                    }
+                    executingInputGeneration.set(generation);
+                    try {
+                        future.complete(callable.call());
+                    } catch (Throwable error) {
+                        future.completeExceptionally(error);
+                    } finally {
+                        executingInputGeneration.remove();
+                    }
+                }
+            });
+        } catch (RejectedExecutionException ignored) {
+            future.complete(false);
+        }
+        return future;
+    }
+
+    private boolean sendReport(int reportId, byte[] payload) {
         Long generation = executingInputGeneration.get();
         if (generation != null && generation != inputGeneration) {
-            return;
+            return false;
         }
         BluetoothHidDevice device = hidDevice;
         BluetoothDevice target = connectedDevice;
         if (device == null || target == null) {
-            return;
+            return false;
         }
         try {
-            device.sendReport(target, reportId, payload);
+            return device.sendReport(target, reportId, payload);
         } catch (SecurityException e) {
             main.post(new Runnable() {
                 @Override
@@ -422,6 +527,7 @@ final class HidController {
                     setStatus("Bluetooth permission missing");
                 }
             });
+            return false;
         }
     }
 

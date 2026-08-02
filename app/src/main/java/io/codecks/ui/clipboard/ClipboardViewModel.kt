@@ -11,6 +11,7 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.PersistableBundle
 import android.os.PowerManager
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -49,6 +50,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.util.concurrent.atomic.AtomicLong
 
 private const val MAX_SYNC_INTERVAL_MINUTES = 240
 private const val MIN_SYNC_INTERVAL_MINUTES = 1
@@ -61,6 +65,7 @@ data class ClipboardUiState(
     val status: String = "Clipboard idle",
     val isRunning: Boolean = false,
     val connectionReady: Boolean = false,
+    val connectionConfigured: Boolean = false,
     val latestRevision: Long = 0L,
     val phoneHash: String = "",
     val macHash: String = "",
@@ -81,7 +86,39 @@ data class ClipboardUiState(
     val lastSyncReceipt: ClipboardReceipt? = null,
     val session: ClipboardSessionState = ClipboardSessionState(),
     val batterySaverActive: Boolean = false,
+    val pendingSharedText: Boolean = false,
 )
+
+internal data class PendingClipboardVerification(
+    val direction: ClipboardDirection,
+    val expectedHash: String,
+)
+
+internal fun PendingClipboardVerification.matches(phoneText: String?, macText: String?): Boolean =
+    when (direction) {
+        ClipboardDirection.PhoneToMac -> macText?.let(ClipboardHash::of) == expectedHash
+        ClipboardDirection.MacToPhone -> phoneText?.let(ClipboardHash::of) == expectedHash
+        ClipboardDirection.Bidirectional -> false
+    }
+
+internal fun sharedTextTerminalConsumes(result: ClipboardTerminalResult): Boolean =
+    result == ClipboardTerminalResult.VerifiedSuccess ||
+        result == ClipboardTerminalResult.AppliedUnverified
+
+internal fun clipboardSessionExpiryDelayMillis(
+    expiresAtElapsedRealtimeMillis: Long,
+    elapsedRealtimeMillis: Long,
+): Long = (expiresAtElapsedRealtimeMillis - elapsedRealtimeMillis).coerceAtLeast(0L)
+
+internal fun clipboardAutomaticPollingEligible(
+    mode: ClipboardSyncMode,
+    connectionReady: Boolean,
+    phase: ClipboardSessionPhase,
+    batterySaverActive: Boolean,
+): Boolean =
+    mode != ClipboardSyncMode.Off &&
+        connectionReady &&
+        ClipboardBatteryPolicy.automaticPollingAllowed(phase, batterySaverActive)
 
 @HiltViewModel
 class ClipboardViewModel @Inject constructor(
@@ -90,6 +127,7 @@ class ClipboardViewModel @Inject constructor(
     private val settingsRepository: ClipboardSettingsRepository,
 ) : ViewModel() {
     private val nowMillis: () -> Long = { System.currentTimeMillis() }
+    private val elapsedRealtimeMillis: () -> Long = { SystemClock.elapsedRealtime() }
     private val clipboardManager = context.getSystemService(ClipboardManager::class.java)
     private val keyguardManager = context.getSystemService(KeyguardManager::class.java)
     private val powerManager = context.getSystemService(PowerManager::class.java)
@@ -101,6 +139,13 @@ class ClipboardViewModel @Inject constructor(
     private val phoneSource = ClipboardSourceId("android-clipboard")
     private val macSource = ClipboardSourceId("mac-pbpaste")
     private var syncJob: Job? = null
+    private var sessionExpiryJob: Job? = null
+    private var pendingVerification: PendingClipboardVerification? = null
+    private var pendingSharedTextValue: String? = null
+    private val syncMutex = Mutex()
+    private val syncConfigurationGeneration = AtomicLong()
+    private var terminalProofReady = false
+    private var currentConnectionConfigured = false
     private val batterySaverReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == PowerManager.ACTION_POWER_SAVE_MODE_CHANGED) {
@@ -129,15 +174,38 @@ class ClipboardViewModel @Inject constructor(
         }
         viewModelScope.launch {
             connectionRepository.config.collect { config ->
+                currentConnectionConfigured = config.isConfigured
+                val verifiedReady = config.isReady && terminalProofReady
                 val previous = _uiState.value
+                if (
+                    previous.connectionReady != verifiedReady ||
+                    previous.connectionConfigured != config.isConfigured
+                ) {
+                    syncConfigurationGeneration.incrementAndGet()
+                }
                 _uiState.update {
                     it.copy(
-                        connectionReady = config.isReady,
-                        isRemoteOffline = !config.isReady && previous.mode != ClipboardSyncMode.Off,
+                        connectionReady = verifiedReady,
+                        connectionConfigured = config.isConfigured,
+                        isRemoteOffline = !verifiedReady && previous.mode != ClipboardSyncMode.Off,
                     )
                 }
             }
         }
+    }
+
+    fun setTerminalProofReady(ready: Boolean) {
+        if (terminalProofReady == ready) return
+        terminalProofReady = ready
+        syncConfigurationGeneration.incrementAndGet()
+        _uiState.update {
+            it.copy(
+                connectionReady = currentConnectionConfigured && ready,
+                connectionConfigured = currentConnectionConfigured,
+                isRemoteOffline = !ready && it.mode != ClipboardSyncMode.Off,
+            )
+        }
+        restartSyncLoop()
     }
 
     fun setPhoneText(value: String) {
@@ -169,10 +237,12 @@ class ClipboardViewModel @Inject constructor(
     }
 
     fun setLiveSyncSessionActive(active: Boolean) {
+        syncConfigurationGeneration.incrementAndGet()
         updateSessionEnvironment(surfaceVisible = active)
     }
 
     fun setAppForegroundVisible(visible: Boolean) {
+        syncConfigurationGeneration.incrementAndGet()
         updateSessionEnvironment(appForeground = visible)
     }
 
@@ -180,19 +250,28 @@ class ClipboardViewModel @Inject constructor(
         val now = nowMillis()
         _uiState.update {
             val session = it.session
-                .withEnvironment(deviceUnlocked = isDeviceUnlocked(), nowMillis = now)
-                .start(now)
+                .withEnvironment(
+                    deviceUnlocked = isDeviceUnlocked(),
+                    nowMillis = now,
+                    elapsedRealtimeMillis = elapsedRealtimeMillis(),
+                )
+                .start(now, elapsedRealtimeMillis = elapsedRealtimeMillis())
             it.copy(
                 session = session,
                 liveSyncVisible = session.canReadPhoneClipboard,
                 status = sessionStatus(session.phase),
             )
         }
+        syncConfigurationGeneration.incrementAndGet()
+        scheduleSessionExpiry()
         restartSyncLoop()
         refreshPhone()
     }
 
     fun stopClipboardSession() {
+        sessionExpiryJob?.cancel()
+        sessionExpiryJob = null
+        syncConfigurationGeneration.incrementAndGet()
         _uiState.update {
             it.copy(
                 session = it.session.stop(),
@@ -214,6 +293,7 @@ class ClipboardViewModel @Inject constructor(
                 surfaceVisible = surfaceVisible ?: it.session.surfaceVisible,
                 deviceUnlocked = isDeviceUnlocked(),
                 nowMillis = now,
+                elapsedRealtimeMillis = elapsedRealtimeMillis(),
             )
             it.copy(
                 session = session,
@@ -233,6 +313,7 @@ class ClipboardViewModel @Inject constructor(
 
     private fun applySyncSettings(mode: ClipboardSyncMode, intervalMinutes: Int, status: String? = null) {
         val interval = intervalMinutes.coerceIn(MIN_SYNC_INTERVAL_MINUTES, MAX_SYNC_INTERVAL_MINUTES)
+        syncConfigurationGeneration.incrementAndGet()
         _uiState.update {
             it.copy(
                 mode = mode,
@@ -256,11 +337,11 @@ class ClipboardViewModel @Inject constructor(
     private fun restartSyncLoop() {
         syncJob?.cancel()
         updateBatterySaverState()
-        if (
-            _uiState.value.mode != ClipboardSyncMode.Off &&
-            ClipboardBatteryPolicy.automaticPollingAllowed(
-                _uiState.value.session.phase,
-                _uiState.value.batterySaverActive,
+        if (clipboardAutomaticPollingEligible(
+                mode = _uiState.value.mode,
+                connectionReady = _uiState.value.connectionReady,
+                phase = _uiState.value.session.phase,
+                batterySaverActive = _uiState.value.batterySaverActive,
             )
         ) {
             syncJob = viewModelScope.launch {
@@ -311,16 +392,51 @@ class ClipboardViewModel @Inject constructor(
         sendPhoneTextToMac(_uiState.value.phoneText)
     }
 
-    fun sendSharedTextToMac(text: String) {
-        sendPhoneTextToMac(text, operation = "Share to Mac")
+    fun acceptSharedText(text: String, onConsumed: () -> Unit) {
+        pendingSharedTextValue = text
+        observePhoneText(text)
+        _uiState.update { it.copy(pendingSharedText = true) }
+        sendSharedTextToMac(text, onConsumed)
     }
 
-    private fun sendPhoneTextToMac(text: String, operation: String = "Send to Mac") {
+    fun retrySharedText(onConsumed: () -> Unit) {
+        pendingSharedTextValue?.let { sendSharedTextToMac(it, onConsumed) }
+    }
+
+    fun discardSharedText(onConsumed: () -> Unit) {
+        pendingSharedTextValue = null
+        _uiState.update { it.copy(pendingSharedText = false) }
+        onConsumed()
+    }
+
+    private fun sendSharedTextToMac(text: String, onConsumed: () -> Unit) {
+        sendPhoneTextToMac(
+            text,
+            operation = "Share to Mac",
+            requiresClipboardSession = false,
+            onTerminal = { result ->
+                if (sharedTextTerminalConsumes(result)) {
+                    pendingSharedTextValue = null
+                    _uiState.update { it.copy(pendingSharedText = false) }
+                    onConsumed()
+                }
+            },
+        )
+    }
+
+    private fun sendPhoneTextToMac(
+        text: String,
+        operation: String = "Send to Mac",
+        requiresClipboardSession: Boolean = true,
+        onTerminal: (ClipboardTerminalResult) -> Unit = {},
+    ) {
         runManual(
             direction = ClipboardDirection.PhoneToMac,
             operation = operation,
             text = text,
             verify = { connectionRepository.runCommand("pbpaste").getOrNull() == text },
+            requiresClipboardSession = requiresClipboardSession,
+            onTerminal = onTerminal,
         ) {
             syncEngine.markApplied(ClipboardSyncAction.WriteToMac(ClipboardHash.of(text)), nowMillis())
             connectionRepository.writeMacClipboard(text)
@@ -340,26 +456,31 @@ class ClipboardViewModel @Inject constructor(
         }
     }
 
-    private suspend fun syncOnce() {
-        val state = _uiState.value
-        if (state.mode == ClipboardSyncMode.Off || state.isRunning || !automaticPollingAllowed()) return
-        if (!refreshSessionAccess()) return
+    private suspend fun syncOnce() = syncMutex.withLock {
+        if (_uiState.value.mode == ClipboardSyncMode.Off || _uiState.value.isRunning || !automaticPollingAllowed()) {
+            return@withLock
+        }
+        if (!refreshSessionAccess()) return@withLock
         refreshPhone()
-        if (!_uiState.value.session.canReadPhoneClipboard) return
+        val state = _uiState.value
+        val generation = syncConfigurationGeneration.get()
+        if (!state.session.canReadPhoneClipboard || state.mode == ClipboardSyncMode.Off) return@withLock
         if (!state.connectionReady) {
             noteAutoFailure(RuntimeException("Connect your Mac first"), operation = "Auto sync")
-            return
+            return@withLock
         }
 
         if (state.mode == ClipboardSyncMode.MacToPhone || state.mode == ClipboardSyncMode.Bidirectional) {
             val macResult = observeMacClipboard()
             if (macResult.isFailure) {
                 noteAutoFailure(macResult.exceptionOrNull(), operation = "Reading Mac")
-                return
+                return@withLock
             }
+            if (!syncContextStillCurrent(generation, state.mode)) return@withLock
         }
 
-        when (val action = syncEngine.decide(_uiState.value.mode, nowMillis())) {
+        if (retryPendingVerification(generation, state.mode)) return@withLock
+        when (val action = syncEngine.decide(state.mode, nowMillis())) {
             ClipboardSyncAction.None -> {
                 noteAutoSuccess()
                 updateSnapshot()
@@ -385,12 +506,12 @@ class ClipboardViewModel @Inject constructor(
                     }
                     recordTerminal(
                         receiptOperation,
-                        ClipboardTerminalResult.Failure,
-                        ClipboardFailureCode.Unknown,
+                        ClipboardTerminalResult.Blocked,
                     )
-                    noteAutoSuccess()
-                    return
+                    noteAutoBlocked()
+                    return@withLock
                 }
+                if (!syncContextStillCurrent(generation, state.mode)) return@withLock
                 syncEngine.markApplied(action, nowMillis())
                 val result = pushToMacSync(_uiState.value.phoneText)
                 if (result.isSuccess) {
@@ -403,7 +524,11 @@ class ClipboardViewModel @Inject constructor(
                             ClipboardTerminalResult.AppliedUnverified
                         },
                     )
-                    noteAutoSuccess()
+                    pendingVerification = if (verified) null else PendingClipboardVerification(
+                        ClipboardDirection.PhoneToMac,
+                        action.hash,
+                    )
+                    if (verified) noteAutoSuccess() else noteAutoUnverified()
                 } else {
                     recordTerminal(
                         receiptOperation,
@@ -426,12 +551,12 @@ class ClipboardViewModel @Inject constructor(
                     }
                     recordTerminal(
                         receiptOperation,
-                        ClipboardTerminalResult.Failure,
-                        ClipboardFailureCode.Unknown,
+                        ClipboardTerminalResult.Blocked,
                     )
-                    noteAutoSuccess()
-                    return
+                    noteAutoBlocked()
+                    return@withLock
                 }
+                if (!syncContextStillCurrent(generation, state.mode)) return@withLock
                 syncEngine.markApplied(action, nowMillis())
                 val result = writePhoneClipboard(_uiState.value.macText, status = "Synced from Mac")
                 if (result.isSuccess) {
@@ -444,7 +569,11 @@ class ClipboardViewModel @Inject constructor(
                             ClipboardTerminalResult.AppliedUnverified
                         },
                     )
-                    noteAutoSuccess()
+                    pendingVerification = if (verified) null else PendingClipboardVerification(
+                        ClipboardDirection.MacToPhone,
+                        action.hash,
+                    )
+                    if (verified) noteAutoSuccess() else noteAutoUnverified()
                 } else {
                     recordTerminal(
                         receiptOperation,
@@ -457,12 +586,19 @@ class ClipboardViewModel @Inject constructor(
         }
     }
 
-    private suspend fun pullFromMacSync(): Result<String> =
-        observeMacClipboard().mapCatching { value ->
+    private suspend fun pullFromMacSync(): Result<String> {
+        val observed = observeMacClipboard()
+        if (observed.isFailure) return observed
+        return try {
+            val value = observed.getOrThrow()
             syncEngine.markApplied(ClipboardSyncAction.WriteToPhone(ClipboardHash.of(value)), nowMillis())
             writePhoneClipboard(value, status = "Mac to phone").getOrThrow()
-            value
+            Result.success(value)
+        } catch (error: Throwable) {
+            error.rethrowIfCancellationOrFatal()
+            Result.failure(error)
         }
+    }
 
     private suspend fun pushToMacSync(text: String): Result<String> {
         return connectionRepository.writeMacClipboard(text).onSuccess {
@@ -524,17 +660,26 @@ class ClipboardViewModel @Inject constructor(
         operation: String,
         text: String?,
         verify: suspend (String) -> Boolean,
+        requiresClipboardSession: Boolean = true,
+        onTerminal: (ClipboardTerminalResult) -> Unit = {},
         block: suspend () -> Result<String>,
     ) {
         if (_uiState.value.isRunning) return
         val startedAt = nowMillis()
         val receiptOperation = ClipboardOperation(direction, startedAt)
+        if (requiresClipboardSession && !refreshSessionAccess()) {
+            recordTerminal(receiptOperation, ClipboardTerminalResult.Blocked)
+            onTerminal(ClipboardTerminalResult.Blocked)
+            _uiState.update { it.copy(isRunning = false, status = sessionStatus(it.session.phase)) }
+            return
+        }
         if (text != null && text.isBlank()) {
             recordTerminal(
                 receiptOperation,
                 ClipboardTerminalResult.Failure,
                 ClipboardFailureCode.EmptyInput,
             )
+            onTerminal(ClipboardTerminalResult.Failure)
             _uiState.update {
                 it.copy(
                     isRunning = false,
@@ -551,57 +696,86 @@ class ClipboardViewModel @Inject constructor(
             )
         }
         viewModelScope.launch {
-            val result = try {
-                block()
-            } catch (cancelled: CancellationException) {
-                recordTerminal(receiptOperation, ClipboardTerminalResult.Cancellation)
-                _uiState.update { it.copy(isRunning = false, status = "Clipboard action cancelled") }
-                throw cancelled
-            } catch (error: Throwable) {
-                Result.failure(error)
-            }
-            if (result.isSuccess) {
-                val verified = runCatching { verify(result.getOrThrow()) }.getOrDefault(false)
-                recordTerminal(
-                    receiptOperation,
-                    if (verified) {
+            syncMutex.withLock {
+                val result = try {
+                    block()
+                } catch (cancelled: CancellationException) {
+                    recordTerminal(receiptOperation, ClipboardTerminalResult.Cancellation)
+                    onTerminal(ClipboardTerminalResult.Cancellation)
+                    _uiState.update { it.copy(isRunning = false, status = "Clipboard action cancelled") }
+                    throw cancelled
+                } catch (error: Throwable) {
+                    error.rethrowIfCancellationOrFatal()
+                    Result.failure(error)
+                }
+                if (result.isSuccess) {
+                    val verified = try {
+                        verify(result.getOrThrow())
+                    } catch (error: Throwable) {
+                        error.rethrowIfCancellationOrFatal()
+                        false
+                    }
+                    val terminalResult = if (verified) {
                         ClipboardTerminalResult.VerifiedSuccess
                     } else {
                         ClipboardTerminalResult.AppliedUnverified
-                    },
-                )
-                _uiState.update {
-                    it.copy(
-                        isRunning = false,
-                        isRemoteOffline = false,
-                        syncFailureCount = 0,
-                        lastFailureClass = null,
-                        nextSyncDelaySeconds = (it.syncIntervalMinutes * 60L),
+                    }
+                    recordTerminal(
+                        receiptOperation,
+                        terminalResult,
                     )
-                }
-            } else {
-                val failureClass = classifyFailure(result.exceptionOrNull())
-                recordTerminal(
-                    receiptOperation,
-                    ClipboardTerminalResult.Failure,
-                    failureCode(result.exceptionOrNull()),
-                )
-                _uiState.update {
-                    it.copy(
-                        isRunning = false,
-                        isRemoteOffline = failureClass.startsWith("connectivity."),
-                        syncFailureCount = if (it.mode != ClipboardSyncMode.Off) it.syncFailureCount else 0,
-                        lastFailureClass = failureClass,
+                    val expected = text ?: result.getOrThrow()
+                    pendingVerification = if (verified) null else PendingClipboardVerification(
+                        direction,
+                        ClipboardHash.of(expected),
                     )
+                    onTerminal(terminalResult)
+                    _uiState.update {
+                        it.copy(
+                            isRunning = false,
+                            isRemoteOffline = false,
+                            syncFailureCount = if (verified) 0 else 1,
+                            lastFailureClass = if (verified) null else VERIFICATION_FAILURE_CLASS,
+                            lastSafetyWarning = if (verified) {
+                                null
+                            } else {
+                                "Transfer applied, but readback could not be verified."
+                            },
+                            status = if (verified) it.status else "Verification pending",
+                            nextSyncDelaySeconds = if (verified) {
+                                it.syncIntervalMinutes * 60L
+                            } else {
+                                retryDelayMillis(1) / 1_000L
+                            },
+                        )
+                    }
+                } else {
+                    val failureClass = classifyFailure(result.exceptionOrNull())
+                    recordTerminal(
+                        receiptOperation,
+                        ClipboardTerminalResult.Failure,
+                        failureCode(result.exceptionOrNull()),
+                    )
+                    pendingVerification = null
+                    onTerminal(ClipboardTerminalResult.Failure)
+                    _uiState.update {
+                        it.copy(
+                            isRunning = false,
+                            isRemoteOffline = failureClass.startsWith("connectivity."),
+                            syncFailureCount = if (it.mode != ClipboardSyncMode.Off) it.syncFailureCount else 0,
+                            lastFailureClass = failureClass,
+                        )
+                    }
                 }
+                updateSnapshot()
             }
-            updateSnapshot()
         }
     }
 
     private suspend fun runResult(block: suspend () -> Result<String>): Result<String> = try {
         block()
     } catch (error: Throwable) {
+        error.rethrowIfCancellationOrFatal()
         Result.failure(error)
     }
 
@@ -641,6 +815,97 @@ class ClipboardViewModel @Inject constructor(
                 nextSyncDelaySeconds = it.syncIntervalMinutes * 60L,
                 isRemoteOffline = false,
             )
+        }
+    }
+
+    private fun noteAutoUnverified() {
+        val failureTier = (_uiState.value.syncFailureCount + 1)
+            .coerceAtMost(ClipboardBatteryPolicy.MAX_RETRY_COUNT)
+        _uiState.update {
+            it.copy(
+                syncFailureCount = failureTier,
+                lastFailureClass = VERIFICATION_FAILURE_CLASS,
+                lastSafetyWarning = "Transfer applied, but readback could not be verified.",
+                status = "Verification pending",
+                nextSyncDelaySeconds = retryDelayMillis(failureTier) / 1_000L,
+            )
+        }
+    }
+
+    private fun noteAutoBlocked() {
+        _uiState.update {
+            it.copy(
+                syncFailureCount = 0,
+                lastFailureClass = null,
+                nextSyncDelaySeconds = it.syncIntervalMinutes * 60L,
+                isRemoteOffline = false,
+            )
+        }
+    }
+
+    private suspend fun retryPendingVerification(
+        generation: Long,
+        mode: ClipboardSyncMode,
+    ): Boolean {
+        val pending = pendingVerification ?: return false
+        if (!syncContextStillCurrent(generation, mode)) return true
+        val operation = ClipboardOperation(pending.direction, nowMillis())
+        val verified = pending.matches(
+            phoneText = if (pending.direction == ClipboardDirection.MacToPhone) {
+                readPhoneClipboardForVerification()
+            } else null,
+            macText = if (pending.direction == ClipboardDirection.PhoneToMac) {
+                connectionRepository.runCommand("pbpaste").getOrNull()
+            } else null,
+        )
+        recordTerminal(
+            operation,
+            if (verified) ClipboardTerminalResult.VerifiedSuccess else ClipboardTerminalResult.AppliedUnverified,
+        )
+        if (verified) pendingVerification = null
+        if (verified) noteAutoSuccess() else noteAutoUnverified()
+        return true
+    }
+
+    private fun syncContextStillCurrent(
+        generation: Long,
+        mode: ClipboardSyncMode,
+    ): Boolean {
+        val current = _uiState.value
+        return syncConfigurationGeneration.get() == generation &&
+            current.mode == mode &&
+            current.connectionReady &&
+            current.session.canReadPhoneClipboard &&
+            automaticPollingAllowed()
+    }
+
+    private fun scheduleSessionExpiry() {
+        sessionExpiryJob?.cancel()
+        val expiresAt = _uiState.value.session.requestedUntilElapsedRealtimeMillis ?: return
+        sessionExpiryJob = viewModelScope.launch {
+            while (
+                isActive &&
+                _uiState.value.session.requestedUntilElapsedRealtimeMillis == expiresAt
+            ) {
+                delay(clipboardSessionExpiryDelayMillis(expiresAt, elapsedRealtimeMillis()))
+                val evaluatedAt = nowMillis()
+                _uiState.update {
+                    val evaluated = it.session.withEnvironment(
+                        deviceUnlocked = isDeviceUnlocked(),
+                        nowMillis = evaluatedAt,
+                        elapsedRealtimeMillis = elapsedRealtimeMillis(),
+                    )
+                    it.copy(
+                        session = evaluated,
+                        liveSyncVisible = evaluated.canReadPhoneClipboard,
+                        status = sessionStatus(evaluated.phase),
+                    )
+                }
+                if (_uiState.value.session.phase == ClipboardSessionPhase.Expired) break
+                delay(1_000L)
+            }
+            syncConfigurationGeneration.incrementAndGet()
+            restartSyncLoop()
         }
     }
 
@@ -687,14 +952,7 @@ class ClipboardViewModel @Inject constructor(
         lastSyncStore.save(receipt)
         diagnosticEventStore.recordTerminal(
             component = DiagnosticComponent.CLIPBOARD,
-            result = when (receipt.terminalResult) {
-                ClipboardTerminalResult.VerifiedSuccess,
-                ClipboardTerminalResult.AppliedUnverified,
-                -> DiagnosticResultCode.SUCCEEDED
-                ClipboardTerminalResult.Failure -> DiagnosticResultCode.FAILED
-                ClipboardTerminalResult.Cancellation -> DiagnosticResultCode.CANCELLED
-                ClipboardTerminalResult.Conflict -> DiagnosticResultCode.BLOCKED
-            },
+            result = clipboardDiagnosticResult(receipt.terminalResult),
             durationMs = receipt.completedAtMillis - receipt.startedAtMillis,
             timestampEpochMs = receipt.completedAtMillis,
         )
@@ -752,6 +1010,7 @@ class ClipboardViewModel @Inject constructor(
             val session = it.session.withEnvironment(
                 deviceUnlocked = isDeviceUnlocked(),
                 nowMillis = now,
+                elapsedRealtimeMillis = elapsedRealtimeMillis(),
             )
             allowed = session.canReadPhoneClipboard
             it.copy(
@@ -781,6 +1040,7 @@ class ClipboardViewModel @Inject constructor(
             val session = it.session.withEnvironment(
                 deviceUnlocked = isDeviceUnlocked(),
                 nowMillis = nowMillis(),
+                elapsedRealtimeMillis = elapsedRealtimeMillis(),
             )
             allowed = ClipboardBatteryPolicy.automaticPollingAllowed(
                 session.phase,
@@ -829,6 +1089,28 @@ class ClipboardViewModel @Inject constructor(
     override fun onCleared() {
         runCatching { context.unregisterReceiver(batterySaverReceiver) }
         syncJob?.cancel()
+        sessionExpiryJob?.cancel()
         super.onCleared()
+    }
+}
+
+internal fun clipboardDiagnosticResult(result: ClipboardTerminalResult): DiagnosticResultCode = when (result) {
+    ClipboardTerminalResult.VerifiedSuccess -> DiagnosticResultCode.SUCCEEDED
+    ClipboardTerminalResult.AppliedUnverified -> DiagnosticResultCode.RETRYABLE
+    ClipboardTerminalResult.Blocked -> DiagnosticResultCode.BLOCKED
+    ClipboardTerminalResult.Failure -> DiagnosticResultCode.FAILED
+    ClipboardTerminalResult.Cancellation -> DiagnosticResultCode.CANCELLED
+    ClipboardTerminalResult.Conflict -> DiagnosticResultCode.BLOCKED
+}
+
+private const val VERIFICATION_FAILURE_CLASS = "verification.unconfirmed"
+
+private fun Throwable.rethrowIfCancellationOrFatal() {
+    when (this) {
+        is CancellationException,
+        is VirtualMachineError,
+        is ThreadDeath,
+        is LinkageError,
+        -> throw this
     }
 }

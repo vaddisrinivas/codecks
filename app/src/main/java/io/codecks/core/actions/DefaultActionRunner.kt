@@ -17,6 +17,7 @@ import io.codecks.domain.execution.ExecutionPlan
 import io.codecks.domain.execution.ExecutionPlanner
 import io.codecks.domain.execution.ExecutionResult
 import io.codecks.domain.execution.ExecutionStatus
+import io.codecks.domain.ai.MacVisualEffectCatalog
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -28,32 +29,53 @@ class DefaultActionRunner @Inject constructor(
     private val transportRegistry: TransportRegistry,
 ) : ActionRunner {
     override suspend fun run(spec: ActionSpec, authorization: ExecutionAuthorization): ActionResult {
-        val revision = spec.dangerousConfirmationRevision()
-        if (spec.dangerous && authorization.dangerousRevisionConfirmed != revision) {
+        val resolved = resolve(spec) ?: return spec.failure("Action not found")
+        return runResolved(resolved, authorization)
+    }
+
+    override suspend fun run(spec: ActionSpec, allowDangerous: Boolean): ActionResult {
+        val resolved = resolve(spec) ?: return spec.failure("Action not found")
+        val authorization = if (allowDangerous) {
+            ExecutionAuthorization(dangerousRevisionConfirmed = resolved.dangerousConfirmationRevision())
+        } else {
+            ExecutionAuthorization()
+        }
+        return runResolved(resolved, authorization)
+    }
+
+    private fun resolve(spec: ActionSpec): ActionSpec? = if (spec is ActionSpec.CatalogAction) {
+            val action = actionRepository.allActions().firstOrNull { it.id == spec.id }
+            action?.let { ActionSpec.DeckActionSpec(it.copy(dangerous = it.dangerous || spec.dangerous)) }
+        } else {
+            spec
+        }
+
+    private suspend fun runResolved(
+        resolved: ActionSpec,
+        authorization: ExecutionAuthorization,
+    ): ActionResult {
+        val revision = resolved.dangerousConfirmationRevision()
+        if (resolved.dangerous && authorization.dangerousRevisionConfirmed != revision) {
             return ActionResult(
-                actionId = spec.id,
-                title = spec.title,
+                actionId = resolved.id,
+                title = resolved.title,
                 status = ActionResultStatus.RequiresConfirmation,
                 message = "Confirmation required",
             )
         }
-        if (spec.requiresReview()) {
+        if (resolved.requiresReview()) {
             return ActionResult(
-                actionId = spec.id,
-                title = spec.title,
+                actionId = resolved.id,
+                title = resolved.title,
                 status = ActionResultStatus.RequiresReview,
                 message = "Review this command before running",
             )
         }
-        return when (spec) {
-            is ActionSpec.DeckActionSpec -> runDeckAction(spec)
-            is ActionSpec.CatalogAction -> {
-                val action = actionRepository.allActions().firstOrNull { it.id == spec.id }
-                    ?: return spec.failure("Action not found")
-                runDeckAction(ActionSpec.DeckActionSpec(action.copy(dangerous = action.dangerous || spec.dangerous)))
-            }
-            is ActionSpec.ShellCommand -> runCommandSpec(spec)
-            is ActionSpec.LocalRoute -> spec.failure(LocalActionException(spec.route).message ?: "Open ${spec.route}")
+        return when (resolved) {
+            is ActionSpec.DeckActionSpec -> runDeckAction(resolved)
+            is ActionSpec.CatalogAction -> error("Catalog action was not resolved")
+            is ActionSpec.ShellCommand -> runCommandSpec(resolved)
+            is ActionSpec.LocalRoute -> resolved.failure(LocalActionException(resolved.route).message ?: "Open ${resolved.route}")
         }
     }
 
@@ -65,7 +87,23 @@ class DefaultActionRunner @Inject constructor(
         val isBundled = actionRepository.catalogActions().any { bundled ->
             bundled.id == action.id && bundled.command == action.command
         }
-        RawCommandPolicy.firstViolation(action.command.orEmpty())?.let { reason ->
+        if (action.commandOrigin == CommandOrigin.AiGenerated &&
+            (action.requiresTest || action.commandReview.checkedRevision != action.commandRevision())
+        ) {
+            return ActionResult(
+                actionId = action.id,
+                title = action.label,
+                status = ActionResultStatus.RequiresReview,
+                message = "Test this AI-created command before running",
+            )
+        }
+        val policyViolation = if (action.commandOrigin == CommandOrigin.AiGenerated) {
+            action.command.orEmpty().takeUnless(MacVisualEffectCatalog::isKnownCommand)
+                ?.let(RawCommandPolicy::firstAllowlistViolation)
+        } else {
+            RawCommandPolicy.firstViolation(action.command.orEmpty())
+        }
+        policyViolation?.let { reason ->
             return action.failure("Command blocked: $reason")
         }
         return executeSsh(
@@ -77,7 +115,13 @@ class DefaultActionRunner @Inject constructor(
     }
 
     private suspend fun runCommandSpec(spec: ActionSpec.ShellCommand): ActionResult {
-        RawCommandPolicy.firstViolation(spec.command)?.let { reason ->
+        val policyViolation = if (spec.commandOrigin == CommandOrigin.AiGenerated) {
+            spec.command.takeUnless(MacVisualEffectCatalog::isKnownCommand)
+                ?.let(RawCommandPolicy::firstAllowlistViolation)
+        } else {
+            RawCommandPolicy.firstViolation(spec.command)
+        }
+        policyViolation?.let { reason ->
             return spec.failure("Command blocked: $reason")
         }
         return executeSsh(spec = spec, command = spec.command, catalogActionId = null, bundledCommand = false)

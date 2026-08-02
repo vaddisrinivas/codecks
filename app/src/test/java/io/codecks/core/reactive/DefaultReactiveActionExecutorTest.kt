@@ -813,6 +813,15 @@ class DefaultReactiveActionExecutorTest {
         source = StateSource.Helper,
         observedAtMillis = 9_000L,
     )
+    @Test
+    fun repositoryWithoutConfirmedTransportFailsClosed() = kotlinx.coroutines.test.runTest {
+        val hid = FakeHidRepository(isConnected = true)
+
+        val result = hid.deliver(HidCommand.Enter)
+
+        assertTrue(result.isFailure)
+        assertTrue(hid.sentCommands.isEmpty())
+    }
 }
 
 private class FakeReactiveActionRunner(
