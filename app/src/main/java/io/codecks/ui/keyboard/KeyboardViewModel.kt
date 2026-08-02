@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.codecks.HidCommand
+import io.codecks.HidInputAccess
 import io.codecks.HidRepository
-import io.codecks.data.ConnectionRepository
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,7 +30,7 @@ data class KeyboardUiState(
 @HiltViewModel
 class KeyboardViewModel @Inject constructor(
     private val hidRepository: HidRepository,
-    private val connectionRepository: ConnectionRepository,
+    private val macTextDelivery: MacTextDelivery,
 ) : ViewModel() {
     val hidState = hidRepository.state
 
@@ -60,13 +60,18 @@ class KeyboardViewModel @Inject constructor(
         val snapshot = _uiState.value
         val text = snapshot.text.takeIf(String::isNotBlank) ?: return
         if (snapshot.isSending) return
-        if (!hidRepository.state.value.isConnected) {
+        val mode = resolvedMode(snapshot.deliveryMode, text)
+        if (hidRepository.state.value.inputAccess != HidInputAccess.Full) {
+            _uiState.update { it.copy(status = LOCKED_INPUT_MESSAGE) }
+            return
+        }
+        if (mode == KeyboardDeliveryMode.BluetoothTyping && !hidRepository.state.value.isConnected) {
             _uiState.update { it.copy(status = "Connect Mac first") }
             return
         }
         viewModelScope.launch {
             _uiState.update { it.copy(isSending = true, status = "Sending…") }
-            val deliveryResult = when (resolvedMode(snapshot.deliveryMode, text)) {
+            val deliveryResult = when (mode) {
                 KeyboardDeliveryMode.BluetoothTyping -> sendViaBluetooth(text)
                 KeyboardDeliveryMode.MacClipboardPaste -> sendViaPasteboard(text)
                 KeyboardDeliveryMode.Auto -> error("Auto should resolve before sending")
@@ -100,6 +105,7 @@ class KeyboardViewModel @Inject constructor(
         }
 
     private fun sendViaBluetooth(text: String): Result<String> = runCatching {
+        requireFullInputAccess()
         require(hidRepository.state.value.isConnected) { "Bluetooth keyboard is not connected" }
         require(text.isHidTextFriendly()) { "Use Pasteboard mode for emoji, smart quotes, or non-ASCII text" }
         hidRepository.typeText(text)
@@ -107,31 +113,43 @@ class KeyboardViewModel @Inject constructor(
     }
 
     private suspend fun sendViaPasteboard(text: String): Result<String> =
-        connectionRepository.writeMacClipboard(text).mapCatching {
+        runCatching { requireFullInputAccess() }
+            .mapCatching { macTextDelivery.copy(text).getOrThrow() }
+            .mapCatching {
+            requireFullInputAccess()
             if (hidRepository.state.value.isConnected) {
                 hidRepository.send(HidCommand.Paste)
             } else {
-                connectionRepository.runCommand(
-                    "osascript -e 'tell application \"System Events\" to keystroke \"v\" using command down'",
-                ).getOrThrow()
+                macTextDelivery.pasteWithoutHid().getOrThrow()
             }
+            requireFullInputAccess()
             "Pasted ${text.length} chars into Mac"
         }
 
-    private suspend fun submitEnter(): Result<Unit> =
+    private suspend fun submitEnter(): Result<Unit> = runCatching {
+        requireFullInputAccess()
+    }.mapCatching {
         if (hidRepository.state.value.isConnected) {
             runCatching { hidRepository.send(HidCommand.Enter) }
+                .getOrThrow()
         } else {
-            connectionRepository.runCommand(
-                "osascript -e 'tell application \"System Events\" to key code 36'",
-            ).map { }
+            macTextDelivery.enterWithoutHid().getOrThrow()
         }
+        requireFullInputAccess()
+    }
+
+    private fun requireFullInputAccess() {
+        check(hidRepository.state.value.inputAccess == HidInputAccess.Full) {
+            LOCKED_INPUT_MESSAGE
+        }
+    }
 
     private fun String.isHidTextFriendly(): Boolean =
         all { char -> char == '\n' || char == '\r' || char == '\t' || char.code in 32..126 }
 
     private companion object {
         const val HID_TEXT_LIMIT = 240
+        const val LOCKED_INPUT_MESSAGE = "Unlock phone to use keyboard"
     }
 }
 

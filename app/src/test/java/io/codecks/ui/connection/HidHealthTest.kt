@@ -3,6 +3,8 @@ package io.codecks.ui.connection
 import io.codecks.HidHost
 import io.codecks.HidLifecycle
 import io.codecks.HidState
+import io.codecks.domain.connection.ConnectionIssueCode
+import io.codecks.domain.connection.RemediationAction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -53,6 +55,7 @@ class HidHealthTest {
         val connected = HidState(
             status = "Connected Test MacBook",
             lifecycle = HidLifecycle.Connected,
+            bluetoothPower = io.codecks.HidBluetoothPower.On,
             isReady = true,
             isConnected = true,
             hosts = listOf(host),
@@ -75,5 +78,42 @@ class HidHealthTest {
 
         assertEquals(HidHealthKind.ReadyNoTarget, health.kind)
         assertEquals("Setup needed", health.statusLabel())
+    }
+
+    @Test
+    fun exposesTypedIssuesAndSafeRemediation() {
+        val permissionMissing = HidState(
+            lifecycle = HidLifecycle.PermissionMissing,
+        ).hidHealth(permissionGranted = false)
+        val registrationFailed = HidState(
+            status = "HID registration failed",
+            lifecycle = HidLifecycle.Failed,
+        ).hidHealth(permissionGranted = true)
+
+        assertEquals(ConnectionIssueCode.BLUETOOTH_PERMISSION_DENIED, permissionMissing.issueCode)
+        assertEquals(
+            listOf(RemediationAction.RequestBluetoothPermission),
+            permissionMissing.remediations,
+        )
+        assertEquals(ConnectionIssueCode.HID_PROFILE_REGISTRATION_FAILED, registrationFailed.issueCode)
+        assertTrue(registrationFailed.remediations.contains(RemediationAction.RetryHidRegistration))
+    }
+
+    @Test
+    fun transientConnectionFailureIsRetryingNotRegistrationFailure() {
+        val health = HidState(
+            status = "Connect request failed",
+            lifecycle = HidLifecycle.Ready,
+            isReady = true,
+            issueCode = ConnectionIssueCode.CONNECT_BACKOFF,
+            retry = io.codecks.HidRetryMetadata(
+                disposition = io.codecks.HidRetryDisposition.Scheduled,
+                attempt = 1,
+                nextAttemptAtMillis = System.currentTimeMillis() + 2_000L,
+            ),
+        ).hidHealth(permissionGranted = true)
+
+        assertEquals(HidHealthKind.Reconnecting, health.kind)
+        assertEquals(ConnectionIssueCode.CONNECT_BACKOFF, health.issueCode)
     }
 }

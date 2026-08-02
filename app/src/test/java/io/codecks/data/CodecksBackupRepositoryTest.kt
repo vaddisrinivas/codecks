@@ -4,51 +4,68 @@ import io.codecks.core.actions.ActionResult
 import io.codecks.data.automation.AutomationRepository
 import io.codecks.domain.DeckAction
 import io.codecks.domain.automation.AutomationRecipe
+import io.codecks.domain.backup.BackupRestoreResult
+import io.codecks.domain.backup.CompatibilityVerdict
+import io.codecks.domain.backup.RestorePlan
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
-import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CodecksBackupRepositoryTest {
     @Test
-    fun exportAndImportRoundTripOnlyDeckAndAutomations() = runTest {
-        val deck = FakeBackupActionRepository("{\"schemaVersion\":3,\"items\":[]}")
-        val automations = FakeBackupAutomationRepository("{\"schemaVersion\":3,\"items\":[]}")
-        val repository = CodecksBackupRepository(deck, automations)
+    fun archiveRoundTripRequiresPreviewAndConfirmedTransactionalRestore() = runTest {
+        val deckPayload = "{\"schemaVersion\":3,\"items\":[]}"
+        val automationPayload = "{\"schemaVersion\":3,\"items\":[]}"
+        val source = CodecksBackupRepository(
+            FakeBackupActionRepository(deckPayload),
+            FakeBackupAutomationRepository(automationPayload),
+        )
+        val targetDeck = FakeBackupActionRepository("{}")
+        val targetAutomations = FakeBackupAutomationRepository("{}")
+        val target = CodecksBackupRepository(targetDeck, targetAutomations)
 
-        val payload = repository.export().getOrThrow()
-        val root = JSONObject(payload)
+        val archive = source.exportArchive().getOrThrow()
+        val plan = target.createRestorePlan(archive).getOrThrow() as RestorePlan.Ready
+        val outcome = target.restoreConfirmed(plan.planId, archive).getOrThrow()
 
-        assertFalse(root.getBoolean("credentialStoresIncluded"))
-        assertFalse(payload.contains("apiKey"))
-        assertFalse(payload.contains("privateKey"))
-        repository.import(payload).getOrThrow()
-        assertEquals(root.getString("deck"), deck.imported)
-        assertEquals(root.getString("automations"), automations.imported)
+        assertTrue(source.compatibilityVerdict(archive) is CompatibilityVerdict.Compatible)
+        assertTrue(outcome is BackupRestoreResult.Committed)
+        assertEquals(deckPayload, targetDeck.imported)
+        assertEquals(automationPayload, targetAutomations.imported)
     }
 
     @Test
-    fun importRejectsPayloadMarkedAsContainingSecrets() = runTest {
+    fun previewBlocksLegacyPayloadMarkedAsContainingCredentialStores() = runTest {
         val repository = CodecksBackupRepository(
             FakeBackupActionRepository("{}"),
             FakeBackupAutomationRepository("{}"),
         )
-        val payload = JSONObject().apply {
-            put("schemaVersion", 1)
-            put("credentialStoresIncluded", true)
-            put("deck", "{}")
-            put("automations", "{}")
-        }.toString()
+        val payload = """
+            {
+              "schemaVersion": 1,
+              "credentialStoresIncluded": true,
+              "deck": "{}",
+              "automations": "{}"
+            }
+        """.trimIndent().toByteArray()
 
-        assertTrue(repository.import(payload).isFailure)
+        assertTrue(repository.createRestorePlan(payload).getOrThrow() is RestorePlan.Blocked)
+    }
+
+    @Test
+    fun repositoryExposesNoDirectStringImportOrExportBypass() {
+        val source = java.io.File("src/main/java/io/codecks/data/CodecksBackupRepository.kt").readText()
+
+        assertTrue(!source.contains("suspend fun export():"))
+        assertTrue(!source.contains("suspend fun import(payload: String)"))
     }
 }
 
-private class FakeBackupActionRepository(private val exported: String) : ActionRepository {
+private class FakeBackupActionRepository(exported: String) : ActionRepository {
+    private var current = exported
     var imported: String? = null
     override fun favorites(): List<DeckAction> = emptyList()
     override fun observeFavorites(): Flow<List<DeckAction>> = flowOf(emptyList())
@@ -56,15 +73,17 @@ private class FakeBackupActionRepository(private val exported: String) : ActionR
     override suspend fun saveFavorites(actions: List<DeckAction>) = Unit
     override suspend fun run(action: DeckAction): Result<String> = Result.success("")
     override suspend fun test(action: DeckAction): Result<String> = Result.success("")
-    override suspend fun exportLayout(): Result<String> = Result.success(exported)
+    override suspend fun exportLayout(): Result<String> = Result.success(current)
     override suspend fun validateLayout(payload: String): Result<Unit> = Result.success(Unit)
     override suspend fun importLayout(payload: String): Result<Unit> {
         imported = payload
+        current = payload
         return Result.success(Unit)
     }
 }
 
-private class FakeBackupAutomationRepository(private val exported: String) : AutomationRepository {
+private class FakeBackupAutomationRepository(exported: String) : AutomationRepository {
+    private var current = exported
     var imported: String? = null
     override val recipes: Flow<List<AutomationRecipe>> = flowOf(emptyList())
     override suspend fun save(recipe: AutomationRecipe) = Unit
@@ -72,10 +91,11 @@ private class FakeBackupAutomationRepository(private val exported: String) : Aut
     override suspend fun duplicate(recipeId: String) = Unit
     override suspend fun recordRun(recipeId: String, result: ActionResult) = Unit
     override suspend fun resetDefaults() = Unit
-    override suspend fun exportRecipes(): Result<String> = Result.success(exported)
+    override suspend fun exportRecipes(): Result<String> = Result.success(current)
     override suspend fun validateRecipes(payload: String): Result<Unit> = Result.success(Unit)
     override suspend fun importRecipes(payload: String): Result<Unit> {
         imported = payload
+        current = payload
         return Result.success(Unit)
     }
 }

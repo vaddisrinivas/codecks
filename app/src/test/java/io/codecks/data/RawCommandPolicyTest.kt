@@ -53,6 +53,7 @@ class RawCommandPolicyTest {
         assertTrue(RawCommandPolicy.firstAllowlistViolation("echo hello") != null)
         assertTrue(RawCommandPolicy.firstAllowlistViolation("python3 ~/script.py") != null)
         assertTrue(RawCommandPolicy.firstAllowlistViolation("printenv LITELLM_API_KEY") != null)
+        assertTrue(RawCommandPolicy.firstAllowlistViolation("printf %s payload > /tmp/generated-output") != null)
         assertTrue(
             RawCommandPolicy.firstAllowlistViolation(
                 "/Users/example/.local/bin/secret-wrapper printenv LITELLM_API_KEY",

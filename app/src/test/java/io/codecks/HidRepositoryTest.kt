@@ -52,14 +52,18 @@ class HidRepositoryTest {
             isConnected = true,
             hosts = listOf(HidHost(address = "AA:BB:CC:DD:EE:FF", label = "MacBook")),
             selectedHostAddress = "AA:BB:CC:DD:EE:FF",
-            reconnectAttempt = 2,
-            nextReconnectAtMillis = 11_000L,
+            desiredConnectionState = HidDesiredConnectionState.Connected,
+            retry = HidRetryMetadata(
+                disposition = HidRetryDisposition.Scheduled,
+                attempt = 2,
+                nextAttemptAtMillis = 11_000L,
+            ),
             lastTransitionReason = "Disconnected AA:BB:CC:DD:EE:FF",
             lastTransitionAtMillis = 1_000L,
         )
 
         assertEquals(
-            "lifecycle=Connected ready=true connected=true hosts=1 selected=true reconnectAttempt=2 retryIn=1s lastReason=Disconnected [bluetooth-address] lastAge=9s",
+            "lifecycle=Connected desired=Connected failure=None issue=none app=Unknown screen=Unknown lock=Unknown bluetooth=Unknown input=Full ready=true connected=true hosts=1 selected=true reconnectAttempt=2 retryIn=1s lastReason=Disconnected [bluetooth-address] lastAge=9s",
             state.redactedDiagnosticSummary(nowMillis = 10_000L),
         )
     }

@@ -58,6 +58,30 @@ class AiGeneratedContentPlannerTest {
     }
 
     @Test
+    fun automationArtifactRejectsEveryGeneratedOutputBypassFixture() {
+        val rows = requireNotNull(
+            javaClass.classLoader?.getResourceAsStream("automation/generated_output_bypass_corpus.tsv"),
+        ).bufferedReader().useLines { lines ->
+            lines.filter(String::isNotBlank).map { line ->
+                line.substringBefore('\t') to line.substringAfter('\t')
+            }.toList()
+        }
+
+        rows.forEach { (caseId, command) ->
+            val result = planner.automationRecipeFromArtifact(
+                AiArtifact(
+                    id = caseId,
+                    kind = AiArtifactKind.Automation,
+                    title = caseId,
+                    prompt = "adversarial generated output",
+                    actions = listOf(AiArtifactAction(caseId, caseId, command)),
+                ),
+            )
+            assertTrue("$caseId bypassed generated policy", result.isFailure)
+        }
+    }
+
+    @Test
     fun nonAutomationArtifactDoesNotClaimAutomationSave() {
         val recipe = planner.automationRecipeFromArtifact(
             AiArtifact(

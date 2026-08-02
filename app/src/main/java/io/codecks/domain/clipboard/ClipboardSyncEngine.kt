@@ -49,14 +49,25 @@ data class ClipboardObservation(
 class ClipboardSyncEngine(
     private val maxHistory: Int = 24,
     private val staleAfterMillis: Long = 15_000L,
+    private val echoTtlMillis: Long = 10_000L,
+    private val maxPendingEchoes: Int = ClipboardEndpoint.entries.size,
 ) {
+    init {
+        require(echoTtlMillis > 0L)
+        require(maxPendingEchoes in 1..ClipboardEndpoint.entries.size)
+    }
+
+    private data class PendingEcho(val hash: String, val expiresAtMillis: Long)
+    private data class DismissedConflict(val phoneHash: String, val macHash: String)
+
     private var nextRevision = 0L
     private var phone: ClipboardRevision? = null
     private var mac: ClipboardRevision? = null
     private var commonHash: String? = null
-    private val pendingEchoHashes = mutableMapOf<ClipboardEndpoint, String>()
+    private val pendingEchoes = linkedMapOf<ClipboardEndpoint, PendingEcho>()
     private val history = ArrayDeque<ClipboardRevision>()
     private var conflict: ClipboardConflict? = null
+    private var dismissedConflict: DismissedConflict? = null
 
     fun observe(
         endpoint: ClipboardEndpoint,
@@ -64,11 +75,12 @@ class ClipboardSyncEngine(
         sourceId: ClipboardSourceId,
         nowMillis: Long,
     ): ClipboardObservation {
+        purgeExpiredEchoes(nowMillis)
         val hash = ClipboardHash.of(text)
         val previous = revisionFor(endpoint)
-        val loopEcho = pendingEchoHashes[endpoint] == hash
+        val loopEcho = pendingEchoes[endpoint]?.hash == hash
         if (previous?.hash == hash) {
-            if (loopEcho) pendingEchoHashes.remove(endpoint)
+            if (loopEcho) pendingEchoes.remove(endpoint)
             return ClipboardObservation(previous, changed = false, loopEcho = loopEcho, snapshot(nowMillis))
         }
 
@@ -81,9 +93,10 @@ class ClipboardSyncEngine(
         )
         setRevision(endpoint, revision)
         appendHistory(revision)
+        dismissedConflict = null
 
         if (loopEcho) {
-            pendingEchoHashes.remove(endpoint)
+            pendingEchoes.remove(endpoint)
             commonHash = hash
             conflict = null
         } else {
@@ -120,14 +133,22 @@ class ClipboardSyncEngine(
         }
     }
 
-    fun markApplied(action: ClipboardSyncAction) {
+    fun markApplied(action: ClipboardSyncAction, nowMillis: Long = System.currentTimeMillis()) {
+        purgeExpiredEchoes(nowMillis)
         when (action) {
-            is ClipboardSyncAction.WriteToMac -> pendingEchoHashes[ClipboardEndpoint.Mac] = action.hash
-            is ClipboardSyncAction.WriteToPhone -> pendingEchoHashes[ClipboardEndpoint.Phone] = action.hash
+            is ClipboardSyncAction.WriteToMac -> rememberEcho(ClipboardEndpoint.Mac, action.hash, nowMillis)
+            is ClipboardSyncAction.WriteToPhone -> rememberEcho(ClipboardEndpoint.Phone, action.hash, nowMillis)
             ClipboardSyncAction.None,
             is ClipboardSyncAction.Conflict,
             -> Unit
         }
+    }
+
+    fun cancelConflict(): Boolean {
+        val current = conflict ?: return false
+        dismissedConflict = DismissedConflict(current.phone.hash, current.mac.hash)
+        conflict = null
+        return true
     }
 
     fun snapshot(nowMillis: Long): ClipboardSyncSnapshot = ClipboardSyncSnapshot(
@@ -155,6 +176,15 @@ class ClipboardSyncEngine(
         if (common != null && phoneChanged && !macChanged) return ClipboardSyncAction.WriteToMac(phoneRevision.hash)
         if (common != null && macChanged && !phoneChanged) return ClipboardSyncAction.WriteToPhone(macRevision.hash)
 
+        if (
+            dismissedConflict == DismissedConflict(
+                phoneHash = phoneRevision.hash,
+                macHash = macRevision.hash,
+            )
+        ) {
+            conflict = null
+            return ClipboardSyncAction.None
+        }
         val currentConflict = ClipboardConflict(phoneRevision, macRevision)
         conflict = currentConflict
         return ClipboardSyncAction.Conflict(currentConflict)
@@ -184,6 +214,18 @@ class ClipboardSyncEngine(
             commonHash = phoneHash
             conflict = null
         }
+    }
+
+    private fun rememberEcho(endpoint: ClipboardEndpoint, hash: String, nowMillis: Long) {
+        pendingEchoes.remove(endpoint)
+        pendingEchoes[endpoint] = PendingEcho(hash, nowMillis + echoTtlMillis)
+        while (pendingEchoes.size > maxPendingEchoes) {
+            pendingEchoes.remove(pendingEchoes.keys.first())
+        }
+    }
+
+    private fun purgeExpiredEchoes(nowMillis: Long) {
+        pendingEchoes.entries.removeAll { (_, echo) -> nowMillis >= echo.expiresAtMillis }
     }
 
     private fun staleEndpoints(nowMillis: Long): Set<ClipboardEndpoint> = buildSet {

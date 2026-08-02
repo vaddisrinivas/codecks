@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 2,
+  "sourceAppVersion": "0.1.33",
+  "credentialStoresIncluded": false,
+  "sections": [
+    {
+      "name": "deck",
+      "path": "sections/deck.json",
+      "sha256": "5afc51e5d49bc451808cf136f3b9949a0947d52e64bebcdabecf289620b192db",
+      "uncompressedBytes": 30
+    },
+    {
+      "name": "automations",
+      "path": "sections/automations.json",
+      "sha256": "5afc51e5d49bc451808cf136f3b9949a0947d52e64bebcdabecf289620b192db",
+      "uncompressedBytes": 30
+    }
+  ]
+}

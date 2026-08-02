@@ -14,7 +14,9 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 
@@ -35,11 +37,16 @@ class ConnectionViewModelTest {
     @Test
     fun discoverySelectsSingleMacAndAuthorizationDiscardsPassword() = runTest(dispatcher) {
         val repository = FakeConnectionRepository()
+        val snapshotStore = SetupSnapshotStore.inMemory()
         var scanCount = 0
-        val viewModel = ConnectionViewModel(repository, SshDiscovery {
-            scanCount += 1
-            listOf("10.0.0.173")
-        })
+        val viewModel = ConnectionViewModel(
+            connectionRepository = repository,
+            sshDiscovery = SshDiscovery {
+                scanCount += 1
+                listOf("10.0.0.173")
+            },
+            setupSnapshotStore = snapshotStore,
+        )
 
         runCurrent()
         assertEquals("", viewModel.uiState.value.host)
@@ -67,6 +74,16 @@ class ConnectionViewModelTest {
         assertTrue(repository.installCalled)
         assertTrue(repository.testCalled)
         assertEquals("mac-user", repository.config.value.user)
+        assertEquals(3, viewModel.uiState.value.connectionAttempt)
+        assertTrue(viewModel.uiState.value.setupSnapshot.isComplete)
+
+        val recreated = ConnectionViewModel(
+            connectionRepository = repository,
+            sshDiscovery = SshDiscovery { emptyList() },
+            setupSnapshotStore = snapshotStore,
+        )
+        runCurrent()
+        assertNull(recreated.resumeSetupStep())
     }
 
     @Test
@@ -94,6 +111,36 @@ class ConnectionViewModelTest {
         assertEquals(0, scanCount)
         assertEquals(ConnectionOperation.Idle, viewModel.uiState.value.operation)
         assertEquals("10.0.0.173", viewModel.uiState.value.host)
+    }
+
+    @Test
+    fun alreadyTrustedMacSkipsImpossiblePendingConfirmation() = runTest(dispatcher) {
+        val repository = FakeConnectionRepository(
+            initialConfig = ConnectionConfig(
+                host = "mac.local",
+                user = "user",
+                hasKey = true,
+                hostKey = "mac.local ssh-ed25519 key",
+            ),
+            trustResponse = "Mac fingerprint already trusted",
+        )
+        val viewModel = ConnectionViewModel(repository, SshDiscovery { emptyList() })
+        runCurrent()
+
+        viewModel.verifyHostKey()
+        runCurrent()
+
+        assertNull(viewModel.uiState.value.pendingFingerprint)
+        assertTrue(viewModel.uiState.value.setupSnapshot.isPassed(SetupStep.TrustMac))
+        assertTrue(!repository.confirmCalled)
+    }
+
+    @Test
+    fun terminalDurationNeverClampsAnOvertimeRunIntoPassedReceipt() {
+        assertEquals(30_000L, checkedTerminalDuration(1_000L, 31_000L))
+        assertThrows(IllegalStateException::class.java) {
+            checkedTerminalDuration(1_000L, 31_001L)
+        }
     }
 
     @Test
@@ -166,6 +213,7 @@ class ConnectionViewModelTest {
 
 private class FakeConnectionRepository(
     initialConfig: ConnectionConfig = ConnectionConfig(),
+    private val trustResponse: String = "Fingerprint found: ssh-ed25519 SHA256:test",
 ) : ConnectionRepository {
     override val config = MutableStateFlow(initialConfig)
     var installCalled = false
@@ -191,7 +239,7 @@ private class FakeConnectionRepository(
 
     override suspend fun trustHostKey(): Result<String> {
         trustCalled = true
-        return Result.success("Fingerprint found: ssh-ed25519 SHA256:test")
+        return Result.success(trustResponse)
     }
 
     override suspend fun confirmPendingHostKey(): Result<String> {

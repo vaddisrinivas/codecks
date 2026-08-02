@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -29,9 +30,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import io.codecks.domain.clipboard.ClipboardSyncMode
+import io.codecks.domain.clipboard.ClipboardSessionPhase
+import io.codecks.domain.clipboard.ClipboardReceipt
 import io.codecks.ui.designsystem.DeckActionButton
 import io.codecks.ui.designsystem.DeckFilterPill
 import io.codecks.ui.designsystem.DeckPage
+import io.codecks.ui.app.AccessibleStatus
+import io.codecks.ui.app.AccessibleStatusKind
+import io.codecks.ui.app.accessibilityTraversalOrder
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -45,14 +51,30 @@ fun ClipboardScreen(
     onPushToMac: () -> Unit,
     onModeChange: (ClipboardSyncMode) -> Unit,
     onIntervalChange: (Int) -> Unit,
+    onStartSession: () -> Unit,
+    onStopSession: () -> Unit,
+    onForegroundVisibleChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    LifecycleResumeEffect(Unit) {
+        onForegroundVisibleChange(true)
+        onPauseOrDispose { onForegroundVisibleChange(false) }
+    }
     DeckPage(
         contentPadding = contentPadding,
         modifier = modifier,
     ) {
         item { ClipboardStatusSummary(state, modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) }
-        item { ClipboardPreviewPanel(state) }
+        item {
+            ClipboardSessionPanel(
+                state = state,
+                onStartSession = onStartSession,
+                onStopSession = onStopSession,
+            )
+        }
+        if (state.session.canReadPhoneClipboard) {
+            item { ClipboardPreviewPanel(state) }
+        }
         item {
             ClipboardSyncPolicyPanel(
                 state = state,
@@ -65,6 +87,7 @@ fun ClipboardScreen(
                 onRefreshPhone = onRefreshPhone,
                 onPullFromMac = onPullFromMac,
                 onPushToMac = onPushToMac,
+                onCancelConflict = { onModeChange(state.mode) },
             )
         }
         item {
@@ -74,7 +97,7 @@ fun ClipboardScreen(
                 onIntervalChange = onIntervalChange,
             )
         }
-        state.lastManualReceipt?.let { receipt ->
+        state.lastSyncReceipt?.let { receipt ->
             item { ClipboardManualReceiptPanel(receipt = receipt) }
         }
         if (state.history.isNotEmpty()) {
@@ -89,32 +112,52 @@ private fun ClipboardStatusSummary(state: ClipboardUiState, modifier: Modifier =
     val attention = state.hasConflict ||
         connectionStatus == ClipboardConnectionStatus.Offline ||
         connectionStatus == ClipboardConnectionStatus.Failed
+    AccessibleStatus(
+        stateDescription = connectionStatus.label,
+        detail = clipboardStatusDetail(state),
+        kind = if (attention) AccessibleStatusKind.Error else if (state.isRunning) {
+            AccessibleStatusKind.Busy
+        } else {
+            AccessibleStatusKind.Success
+        },
+        announceChanges = !state.isRunning,
+        announcementKey = "${connectionStatus.name}:${state.hasConflict}:${state.lastFailureClass}",
+        modifier = modifier.accessibilityTraversalOrder(0f),
+    )
+}
+
+@Composable
+private fun ClipboardSessionPanel(
+    state: ClipboardUiState,
+    onStartSession: () -> Unit,
+    onStopSession: () -> Unit,
+) {
+    val active = state.session.phase == ClipboardSessionPhase.ActiveVisible
     Surface(
-        color = if (attention) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainer,
-        contentColor = if (attention) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface,
+        color = MaterialTheme.colorScheme.surfaceContainer,
         shape = MaterialTheme.shapes.medium,
-        modifier = modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.padding(16.dp),
         ) {
-            Icon(
-                imageVector = if (attention) Icons.Outlined.ErrorOutline else Icons.Outlined.Schedule,
-                contentDescription = null,
+            Text("Phone clipboard access", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = when (state.session.phase) {
+                    ClipboardSessionPhase.Inactive -> "Off. Codecks cannot read the phone clipboard."
+                    ClipboardSessionPhase.Hidden -> "Paused until Codecks and Clipboard are visible again."
+                    ClipboardSessionPhase.Locked -> "Paused while the phone is locked."
+                    ClipboardSessionPhase.Expired -> "Expired. Start another 15-minute session to read again."
+                    ClipboardSessionPhase.ActiveVisible -> "Active for this visible, unlocked 15-minute session."
+                },
+                style = MaterialTheme.typography.bodyMedium,
             )
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    connectionStatus.label,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = clipboardStatusDetail(state),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
+            DeckActionButton(
+                label = if (active) "Stop clipboard session" else "Start 15-minute session",
+                onClick = if (active) onStopSession else onStartSession,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).accessibilityTraversalOrder(1f),
+            )
         }
     }
 }
@@ -208,6 +251,7 @@ internal fun clipboardStatusDetail(state: ClipboardUiState): String = when {
     state.isRemoteOffline -> "The Mac is offline. Manual and automatic sync cannot run."
     state.lastFailureClass != null -> "The last transfer failed. Try again or check Mac setup."
     state.mode == ClipboardSyncMode.Off -> "Manual transfer is available. Automatic sync is off."
+    state.batterySaverActive -> "Battery Saver paused automatic sync. Manual refresh remains available."
     state.liveSyncVisible -> "Automatic sync checks while Clipboard is open."
     state.staleEndpoints.isNotEmpty() -> "Clipboard information needs another check."
     else -> "Automatic sync resumes when Clipboard is open."
@@ -270,6 +314,7 @@ private fun ClipboardSyncPolicyPanel(state: ClipboardUiState, onModeVisible: Boo
                     Text(
                         text = when {
                             state.mode == ClipboardSyncMode.Off -> "Disabled"
+                            state.batterySaverActive -> "Paused by Battery Saver; manual refresh remains available"
                             onModeVisible -> "Active every ${state.syncIntervalMinutes} minutes"
                             else -> "Paused (open Clipboard to resume)"
                         },
@@ -284,6 +329,8 @@ private fun ClipboardSyncPolicyPanel(state: ClipboardUiState, onModeVisible: Boo
                     Text(
                         text = if (state.mode == ClipboardSyncMode.Off || !state.liveSyncVisible) {
                             "Unavailable until screen is open"
+                        } else if (state.batterySaverActive) {
+                            "Automatic reads paused; use manual refresh"
                         } else {
                             if (state.nextSyncDelaySeconds <= 0L) {
                                 "Next read soon"
@@ -305,36 +352,65 @@ private fun ClipboardManualPanel(
     onRefreshPhone: () -> Unit,
     onPullFromMac: () -> Unit,
     onPushToMac: () -> Unit,
+    onCancelConflict: () -> Unit,
 ) {
+    val sessionActive = state.session.canReadPhoneClipboard
     Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+        if (state.hasConflict) {
+            AccessibleStatus(
+                stateDescription = "Clipboard conflict",
+                detail = "Choose the phone copy, Mac copy, or cancel without changing either side.",
+                kind = AccessibleStatusKind.Error,
+                announceChanges = true,
+                announcementKey = "clipboard-conflict:${state.phoneHash}:${state.macHash}",
+                modifier = Modifier.accessibilityTraversalOrder(3f),
+            )
+        }
         Text(
             text = "Manual sync",
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+        val actions: @Composable (Modifier) -> Unit = { actionModifier ->
             DeckActionButton(
                 label = if (state.hasConflict) "Use phone copy" else "Send to Mac",
                 onClick = onPushToMac,
-                enabled = !state.isRunning,
+                enabled = !state.isRunning && sessionActive,
                 icon = Icons.Outlined.Upload,
-                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                modifier = actionModifier.heightIn(min = 56.dp),
             )
             DeckActionButton(
                 label = if (state.hasConflict) "Use Mac copy" else "Get from Mac",
                 onClick = onPullFromMac,
-                enabled = !state.isRunning,
+                enabled = !state.isRunning && sessionActive,
                 icon = Icons.Outlined.Download,
-                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                modifier = actionModifier.heightIn(min = 56.dp),
             )
+        }
+        if (state.hasConflict) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                actions(Modifier.fillMaxWidth())
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                actions(Modifier.weight(1f))
+            }
         }
         DeckActionButton(
             label = "Refresh phone clipboard",
             onClick = onRefreshPhone,
             icon = Icons.Outlined.Schedule,
-            enabled = !state.isRunning,
+            enabled = !state.isRunning && sessionActive,
             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
         )
+        if (state.hasConflict) {
+            DeckActionButton(
+                label = "Cancel conflict",
+                onClick = onCancelConflict,
+                enabled = !state.isRunning && sessionActive,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            )
+        }
     }
 }
 
@@ -381,7 +457,7 @@ private fun ClipboardSettingsPanel(
 }
 
 @Composable
-private fun ClipboardManualReceiptPanel(receipt: ClipboardReceiptState) {
+private fun ClipboardManualReceiptPanel(receipt: ClipboardReceipt) {
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
         .withZone(ZoneId.systemDefault())
     val startedAt = timeFormatter.format(Instant.ofEpochMilli(receipt.startedAtMillis))
@@ -396,15 +472,19 @@ private fun ClipboardManualReceiptPanel(receipt: ClipboardReceiptState) {
             verticalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.padding(14.dp),
         ) {
-            Text("Last manual/Share result", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text("Last clipboard result", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Text(
-                text = "Direction: ${receipt.direction}   Target: ${receipt.target}   Retry: ${receipt.retry}",
+                text = "Direction: ${receipt.direction.name}",
                 style = MaterialTheme.typography.bodySmall,
             )
-            Text("Started: $startedAt  |  Duration: ${receipt.durationMillis}ms", style = MaterialTheme.typography.bodySmall)
-            Text("Failure class: ${receipt.failureClass ?: "success"}", style = MaterialTheme.typography.bodySmall)
-            Text("Sensitivity: ${if (receipt.sensitive) "Sensitive" else "Safe"}", style = MaterialTheme.typography.bodySmall)
-            Text("Message: ${receipt.message}", style = MaterialTheme.typography.bodySmall)
+            Text(
+                "Started: $startedAt  |  Duration: ${receipt.completedAtMillis - receipt.startedAtMillis}ms",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text("Result: ${receipt.terminalResult.name}", style = MaterialTheme.typography.bodySmall)
+            if (receipt.failureCode != io.codecks.domain.clipboard.ClipboardFailureCode.None) {
+                Text("Failure: ${receipt.failureCode.name}", style = MaterialTheme.typography.bodySmall)
+            }
         }
     }
 }

@@ -1,7 +1,10 @@
 package io.codecks.ui.connection
 
 import io.codecks.data.ConnectionConfig
+import io.codecks.domain.connection.ConnectionIssueCode
+import io.codecks.domain.connection.RemediationAction
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class ConnectionHealthTest {
@@ -71,5 +74,52 @@ class ConnectionHealthTest {
         )
         assertEquals("Setup needed", connectionHealth(ConnectionConfig(), ConnectionOperation.Idle, error = null).statusLabel())
         assertEquals("Offline", connectionHealth(ConnectionConfig(), ConnectionOperation.Idle, "No route to host").statusLabel())
+    }
+
+    @Test
+    fun exposesTypedIssuesWithoutReplacingExistingHealth() {
+        val authFailed = connectionHealth(
+            ConnectionConfig(),
+            ConnectionOperation.Idle,
+            "Permission denied",
+        )
+        val offline = connectionHealth(
+            ConnectionConfig(),
+            ConnectionOperation.Idle,
+            "No route to host",
+        )
+
+        assertEquals(ConnectionIssueCode.SSH_AUTH_FAILED, authFailed.issueCode)
+        assertEquals(
+            listOf(RemediationAction.ReenterSshCredentials),
+            authFailed.remediations,
+        )
+        assertEquals(ConnectionIssueCode.MAC_OFFLINE_OR_ASLEEP, offline.issueCode)
+    }
+
+    @Test
+    fun classifiesOfflineAsTransientAndSecurityOrToolsAsRepairRequired() {
+        val offline = connectionHealth(ConnectionConfig(), ConnectionOperation.Idle, "Mac is asleep")
+        val auth = connectionHealth(ConnectionConfig(), ConnectionOperation.Idle, "Authentication failed")
+        val hostKey = connectionHealth(ConnectionConfig(), ConnectionOperation.Idle, "Host key verification failed")
+        val tool = connectionHealth(ConnectionConfig(), ConnectionOperation.Idle, "Required tool is missing")
+
+        assertEquals(ConnectionHealthRetryClass.Transient, offline.retryClass)
+        listOf(auth, hostKey, tool).forEach {
+            assertEquals(ConnectionHealthRetryClass.RepairRequired, it.retryClass)
+        }
+        assertEquals(ConnectionIssueCode.MAC_TOOL_MISSING, tool.issueCode)
+        assertFalse(tool.isReady)
+    }
+
+    @Test
+    fun unknownExceptionsUseTypedFallbackWithoutRawDetail() {
+        val raw = "JSchException: internal packet parse failure at secret-host.local"
+        val health = connectionHealth(ConnectionConfig(), ConnectionOperation.Idle, raw)
+
+        assertEquals(ConnectionIssueCode.UNKNOWN, health.issueCode)
+        assertEquals(ConnectionHealthRetryClass.RepairRequired, health.retryClass)
+        assertFalse(health.detail.contains("secret-host.local"))
+        assertEquals("Connection needs attention", health.title)
     }
 }

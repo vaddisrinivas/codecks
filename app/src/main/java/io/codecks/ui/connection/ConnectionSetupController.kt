@@ -17,6 +17,8 @@ class ConnectionSetupController(
     private val appContext = context.applicationContext
     private val credentialManager = CredentialManager.create(context)
 
+    fun resumeSetupStep(): SetupStep? = viewModel.resumeSetupStep()
+
     suspend fun savePassword() {
         val state = viewModel.uiState.value
         val id = viewModel.credentialId()

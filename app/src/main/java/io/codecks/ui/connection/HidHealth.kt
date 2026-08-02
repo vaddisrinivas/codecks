@@ -2,6 +2,8 @@ package io.codecks.ui.connection
 
 import io.codecks.HidLifecycle
 import io.codecks.HidState
+import io.codecks.domain.connection.ConnectionIssueCode
+import io.codecks.domain.connection.RemediationAction
 
 enum class HidHealthKind {
     PermissionMissing,
@@ -26,6 +28,25 @@ data class HidHealth(
 val HidHealth.canSendInput: Boolean
     get() = kind == HidHealthKind.Connected
 
+val HidHealth.issueCode: ConnectionIssueCode?
+    get() = when (kind) {
+        HidHealthKind.PermissionMissing -> ConnectionIssueCode.BLUETOOTH_PERMISSION_DENIED
+        HidHealthKind.Unavailable -> ConnectionIssueCode.BLUETOOTH_DISABLED
+        HidHealthKind.Stopped -> ConnectionIssueCode.HID_PROFILE_UNREGISTERED
+        HidHealthKind.Starting,
+        HidHealthKind.Connecting,
+        -> ConnectionIssueCode.CONNECTING
+        HidHealthKind.ReadyNoTarget -> ConnectionIssueCode.HOST_UNPAIRED
+        HidHealthKind.Reconnecting -> ConnectionIssueCode.CONNECT_BACKOFF
+        HidHealthKind.Failed -> ConnectionIssueCode.HID_PROFILE_REGISTRATION_FAILED
+        HidHealthKind.ReadyToConnect,
+        HidHealthKind.Connected,
+        -> null
+    }
+
+val HidHealth.remediations: List<RemediationAction>
+    get() = issueCode?.remediations.orEmpty()
+
 fun HidHealth.statusLabel(): String =
     when (kind) {
         HidHealthKind.PermissionMissing -> "Setup needed"
@@ -45,35 +66,46 @@ fun HidState.hidHealth(permissionGranted: Boolean): HidHealth {
     val target = selectedHidHostLabel()
 
     return when {
-        !permissionGranted || lifecycle == HidLifecycle.PermissionMissing -> HidHealth(
+        !permissionGranted ||
+            lifecycle == HidLifecycle.PermissionMissing ||
+            issueCode == ConnectionIssueCode.BLUETOOTH_PERMISSION_DENIED -> HidHealth(
             kind = HidHealthKind.PermissionMissing,
             title = "Bluetooth permission needed",
             detail = "Allow Bluetooth so Codecks can use Trackpad mouse and keyboard.",
             actionHint = "Allow Bluetooth permission.",
         )
-        lifecycle == HidLifecycle.Unavailable || normalized == "bluetooth unavailable" -> HidHealth(
+        lifecycle == HidLifecycle.Unavailable ||
+            issueCode == ConnectionIssueCode.BLUETOOTH_DISABLED -> HidHealth(
             kind = HidHealthKind.Unavailable,
             title = "Bluetooth unavailable",
             detail = "This phone cannot act as a Bluetooth mouse and keyboard right now.",
             actionHint = "Check Bluetooth and device support.",
         )
-        lifecycle == HidLifecycle.Failed || "failed" in normalized -> HidHealth(
+        lifecycle == HidLifecycle.Failed ||
+            issueCode == ConnectionIssueCode.HID_PROFILE_REGISTRATION_FAILED -> HidHealth(
             kind = HidHealthKind.Failed,
             title = "Bluetooth input failed",
             detail = status.ifBlank { "Bluetooth mouse and keyboard input failed to start or connect." },
             actionHint = "Restart Bluetooth input.",
         )
-        isConnected || lifecycle == HidLifecycle.Connected -> HidHealth(
+        isConnected &&
+            lifecycle == HidLifecycle.Connected &&
+            bluetoothPower == io.codecks.HidBluetoothPower.On &&
+            isReady &&
+            selectedHostAddress != null &&
+            hosts.any { it.address == selectedHostAddress } -> HidHealth(
             kind = HidHealthKind.Connected,
             title = target?.let { "Connected to $it" } ?: "Connected to Mac",
             detail = "Trackpad and keyboard input can send to this Mac.",
         )
-        normalized.startsWith("connecting ") -> HidHealth(
+        issueCode == ConnectionIssueCode.CONNECTING || normalized.startsWith("connecting ") -> HidHealth(
             kind = HidHealthKind.Connecting,
             title = target?.let { "Connecting to $it" } ?: "Connecting to Mac",
             detail = status,
         )
-        normalized.startsWith("reconnecting ") || reconnectAttempt > 0 -> HidHealth(
+        issueCode == ConnectionIssueCode.CONNECT_BACKOFF ||
+            normalized.startsWith("reconnecting ") ||
+            reconnectAttempt > 0 -> HidHealth(
             kind = HidHealthKind.Reconnecting,
             title = target?.let { "Reconnecting to $it" } ?: "Reconnecting to Mac",
             detail = nextReconnectDetail(),

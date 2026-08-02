@@ -3,6 +3,7 @@ package io.codecks.ui.keyboard
 import io.codecks.HidCommand
 import io.codecks.HidHost
 import io.codecks.HidLifecycle
+import io.codecks.HidInputAccess
 import io.codecks.HidRepository
 import io.codecks.HidState
 import io.codecks.data.ConnectionConfig
@@ -52,7 +53,7 @@ class KeyboardViewModelTest {
         )
         val viewModel = KeyboardViewModel(
             hidRepository = hidRepository,
-            connectionRepository = ReadyConnectionRepository(),
+            macTextDelivery = MacTextDelivery(ReadyConnectionRepository()),
         )
 
         viewModel.setText("ship it")
@@ -66,6 +67,41 @@ class KeyboardViewModelTest {
         assertTrue(hidRepository.sentCommands.contains(HidCommand.Enter))
         assertTrue(state.recentSends.isEmpty())
         assertFalse(state.isSending)
+    }
+
+    @Test
+    fun pasteboardWorksWithoutHidButNeverCrossesLockedInputBoundary() = runTest(dispatcher) {
+        val hid = FakeHidRepository(HidState(inputAccess = HidInputAccess.Full))
+        val connection = ReadyConnectionRepository(
+            onClipboardWrite = { hid.state.value = hid.state.value.copy(inputAccess = HidInputAccess.PointerOnly) },
+        )
+        val viewModel = KeyboardViewModel(hid, MacTextDelivery(connection))
+        viewModel.setDeliveryMode(KeyboardDeliveryMode.MacClipboardPaste)
+        viewModel.setText("emoji ❤️")
+
+        viewModel.typeText()
+        runCurrent()
+
+        assertEquals("Unlock phone to use keyboard", viewModel.uiState.value.status)
+        assertTrue(connection.clipboardWrites == 1)
+        assertTrue(connection.commands.isEmpty())
+        assertEquals("emoji ❤️", viewModel.uiState.value.text)
+    }
+
+    @Test
+    fun offlinePasteboardUsesExplicitSshFallback() = runTest(dispatcher) {
+        val hid = FakeHidRepository(HidState(inputAccess = HidInputAccess.Full))
+        val connection = ReadyConnectionRepository()
+        val viewModel = KeyboardViewModel(hid, MacTextDelivery(connection))
+        viewModel.setDeliveryMode(KeyboardDeliveryMode.MacClipboardPaste)
+        viewModel.setText("emoji ❤️")
+
+        viewModel.typeText()
+        runCurrent()
+
+        assertEquals("", viewModel.uiState.value.text)
+        assertEquals(1, connection.clipboardWrites)
+        assertEquals(2, connection.commands.size)
     }
 }
 
@@ -97,7 +133,11 @@ private class FakeHidRepository(
     }
 }
 
-private class ReadyConnectionRepository : ConnectionRepository {
+private class ReadyConnectionRepository(
+    private val onClipboardWrite: () -> Unit = {},
+) : ConnectionRepository {
+    var clipboardWrites = 0
+    val commands = mutableListOf<String>()
     override val config = MutableStateFlow(
         ConnectionConfig("mac.local", 22, "user", hasKey = true, hostKey = "mac ssh-ed25519 key"),
     )
@@ -112,8 +152,15 @@ private class ReadyConnectionRepository : ConnectionRepository {
     override suspend fun installKey(password: String): Result<String> = Result.success("installed")
     override suspend fun test(password: String?): Result<String> = Result.success("connected")
     override suspend fun runAction(actionId: String, dangerous: Boolean): Result<String> = Result.success("sent")
-    override suspend fun runCommand(command: String): Result<String> = Result.success("sent")
-    override suspend fun runCommandWithInput(command: String, stdin: String): Result<String> = Result.success("sent")
+    override suspend fun runCommand(command: String): Result<String> {
+        commands += command
+        return Result.success("sent")
+    }
+    override suspend fun runCommandWithInput(command: String, stdin: String): Result<String> {
+        clipboardWrites += 1
+        onClipboardWrite()
+        return Result.success("sent")
+    }
     override suspend fun validateCommandSyntax(command: String): Result<String> = Result.success("syntax ok")
     override suspend fun runCommandSecret(command: String): Result<String> = Result.success("sent")
     override suspend fun savedTargets(): List<ConnectionTarget> = emptyList()

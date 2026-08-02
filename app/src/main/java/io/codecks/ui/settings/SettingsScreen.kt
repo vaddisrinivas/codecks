@@ -2,6 +2,7 @@ package io.codecks.ui.settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +32,8 @@ import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.OpenInBrowser
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Mouse
@@ -56,9 +59,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -77,20 +83,28 @@ import io.codecks.domain.clipboard.ClipboardSyncMode
 import io.codecks.domain.features.DEFAULT_FEATURE_FLAGS
 import io.codecks.domain.features.FeatureFlag
 import io.codecks.domain.ActionIcon
+import io.codecks.domain.backup.RestorePlan
 import io.codecks.ui.designsystem.CodecksPanel
 import io.codecks.ui.designsystem.DeckComponentState
 import io.codecks.ui.designsystem.DeckControlTile
 import io.codecks.ui.designsystem.DeckPage
 import io.codecks.ui.designsystem.DeckFilterPill
 import io.codecks.ui.designsystem.DeckActionButton
+import io.codecks.ui.app.AccessibleStatus
+import io.codecks.ui.app.AccessibleStatusKind
 import io.codecks.ui.connection.ConnectionHealth
 import io.codecks.ui.connection.ConnectionOperation
 import io.codecks.ui.connection.ConnectionUiState
+import io.codecks.ui.connection.SetupStep
+import io.codecks.ui.connection.connectionDiagnostic
 import io.codecks.ui.connection.canSendInput
 import io.codecks.ui.connection.hidHealth
 import io.codecks.ui.connection.isReady
 import io.codecks.ui.connection.simpleConnectionHealth
 import io.codecks.ui.connection.codecksReadiness
+import io.codecks.ui.connection.BluetoothPermissionState
+import io.codecks.ui.connection.evaluateRuntimeSetupCompletion
+import io.codecks.ui.connection.HidTerminalReceipt
 import io.codecks.ui.connection.statusLabel
 import io.codecks.ui.icons.imageVector
 import io.codecks.ui.theme.CodecksDeckStyle
@@ -109,6 +123,7 @@ fun SettingsScreen(
     connectionHealth: ConnectionHealth = simpleConnectionHealth(connectionReady),
     hidState: HidState,
     bluetoothPermissionGranted: Boolean,
+    bluetoothPermissionPermanentlyDenied: Boolean = false,
     notificationAccessReady: Boolean,
     notificationPrivacySettings: NotificationPrivacySettings = NotificationPrivacySettings(),
     contextFeatureStatus: ContextFeatureStatus = ContextFeatureStatus(
@@ -124,6 +139,7 @@ fun SettingsScreen(
     automationsReady: Boolean,
     fullscreen: Boolean = false,
     connectionState: ConnectionUiState? = null,
+    hidTerminalReceipt: HidTerminalReceipt? = null,
     onConnection: () -> Unit,
     onBluetooth: () -> Unit,
     onFullscreen: () -> Unit = {},
@@ -157,12 +173,20 @@ fun SettingsScreen(
     onClipboard: () -> Unit = {},
     onExportBackup: () -> Unit = {},
     onImportBackup: () -> Unit = {},
+    pendingBackupRecovery: Boolean = false,
+    onRecoverBackup: () -> Unit = {},
+    restorePlan: RestorePlan? = null,
+    onCancelRestore: () -> Unit = {},
+    onConfirmRestore: (String) -> Unit = {},
     onClipboardModeChange: (ClipboardSyncMode) -> Unit = {},
     onClipboardIntervalChange: (Int) -> Unit = {},
     onAiBuilder: () -> Unit,
     onAppearance: () -> Unit,
     onAdvanced: () -> Unit,
     onDebugBundle: () -> Unit,
+    supportBundleState: SupportBundleUiState = SupportBundleUiState.Idle,
+    onGenerateSupportBundle: () -> Unit = {},
+    onCancelSupportBundle: () -> Unit = {},
     themeSettings: CodecksThemeSettings = CodecksThemeSettings(),
     onThemeModeChange: (CodecksThemeMode) -> Unit = {},
     onThemeAccentChange: (CodecksAccent) -> Unit = {},
@@ -178,6 +202,9 @@ fun SettingsScreen(
     debugBundleEnabled: Boolean = false,
     developerOptionsEnabled: Boolean = false,
     appVersionLabel: String = "Version",
+    updateState: UpdateSettingsState = UpdateSettingsState.Idle,
+    onCheckForUpdate: () -> Unit = {},
+    onOpenUpdateRelease: () -> Unit = {},
     featureFlags: Map<FeatureFlag, Boolean> = emptyMap(),
     onFeatureFlagChange: (FeatureFlag, Boolean) -> Unit = { _, _ -> },
     onResetFeatureFlags: () -> Unit = {},
@@ -187,7 +214,17 @@ fun SettingsScreen(
     var trackpadFineTuneOpen by rememberSaveable { mutableStateOf(false) }
     var macConnectionOpen by rememberSaveable { mutableStateOf(!connectionReady) }
     val hidHealth = hidState.hidHealth(bluetoothPermissionGranted)
-    val readiness = codecksReadiness(connectionHealth, hidHealth, aiProviderReady)
+    val setupCompletion = evaluateRuntimeSetupCompletion(
+        state = connectionState,
+        hidState = hidState,
+        permissionState = when {
+            bluetoothPermissionGranted -> BluetoothPermissionState.Granted
+            bluetoothPermissionPermanentlyDenied -> BluetoothPermissionState.PermanentlyDenied
+            else -> BluetoothPermissionState.Denied
+        },
+        hidReceipt = hidTerminalReceipt,
+    )
+    val readiness = codecksReadiness(connectionHealth, hidHealth, aiProviderReady, setupCompletion)
     LaunchedEffect(connectionReady) {
         if (!connectionReady) macConnectionOpen = true
     }
@@ -302,15 +339,26 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.Outlined.FileDownload,
                         title = "Export local backup",
-                        summary = "Save Deck and Rules as JSON; API keys, SSH keys, and connection secrets are excluded",
+                        summary = "Save a checked archive. Credential stores are excluded; export is blocked if Deck or Rules contain secret-shaped text.",
                         onClick = onExportBackup,
                     )
+                }
+                if (pendingBackupRecovery) {
+                    item {
+                        SettingsRow(
+                            icon = Icons.Outlined.ErrorOutline,
+                            title = "Finish backup recovery",
+                            summary = "Restore the preserved prior Deck and Rules before importing another backup.",
+                            value = "Required",
+                            onClick = onRecoverBackup,
+                        )
+                    }
                 }
                 item {
                     SettingsRow(
                         icon = Icons.Outlined.FileUpload,
                         title = "Restore local backup",
-                        summary = "Replace Deck and Rules from a Codecks backup file",
+                        summary = "Preview changes before replacing Deck and Rules from a Codecks backup",
                         onClick = onImportBackup,
                     )
                 }
@@ -445,12 +493,19 @@ fun SettingsScreen(
                     }
                 }
                 item { SectionLabel("Support") }
+                item {
+                    UpdateSettingsPanel(
+                        state = updateState,
+                        onCheck = onCheckForUpdate,
+                        onOpenRelease = onOpenUpdateRelease,
+                    )
+                }
                 if (debugBundleEnabled) {
                     item {
                         SettingsRow(
                             icon = Icons.Outlined.BugReport,
-                            title = "Share debug report",
-                            summary = "Export a redacted report for install and connection issues",
+                            title = "Create support bundle",
+                            summary = "Preview exactly what is included, then use Android’s share picker",
                             onClick = onDebugBundle,
                         )
                     }
@@ -488,6 +543,90 @@ fun SettingsScreen(
                 }
             },
         )
+    }
+    SupportBundleDialog(
+        state = supportBundleState,
+        onGenerate = onGenerateSupportBundle,
+        onCancel = onCancelSupportBundle,
+    )
+    restorePlan?.let { plan ->
+        BackupRestoreDialog(
+            plan = plan,
+            onCancel = onCancelRestore,
+            onConfirm = onConfirmRestore,
+        )
+    }
+}
+
+@Composable
+private fun UpdateSettingsPanel(
+    state: UpdateSettingsState,
+    onCheck: () -> Unit,
+    onOpenRelease: () -> Unit,
+) {
+    val failureFocusRequester = remember { FocusRequester() }
+    val failureKey = (state as? UpdateSettingsState.Failure)?.kind?.name
+    LaunchedEffect(failureKey) {
+        if (failureKey != null) failureFocusRequester.requestFocus()
+    }
+    val (label, detail, kind) = when (state) {
+        UpdateSettingsState.Idle -> Triple(
+            "Update check idle",
+            "Check GitHub manually for a newer Codecks release.",
+            AccessibleStatusKind.Neutral,
+        )
+        UpdateSettingsState.Checking -> Triple(
+            "Checking for updates",
+            "Reading release metadata from GitHub.",
+            AccessibleStatusKind.Busy,
+        )
+        is UpdateSettingsState.UpToDate -> Triple(
+            "Up to date",
+            "This Codecks version is current.",
+            AccessibleStatusKind.Success,
+        )
+        is UpdateSettingsState.Available -> Triple(
+            "Update available",
+            "A newer Codecks release is available on GitHub.",
+            AccessibleStatusKind.Information,
+        )
+        is UpdateSettingsState.Failure -> Triple(
+            "Update check failed",
+            when (state.kind) {
+                UpdateFailureKind.NetworkOrMetadata -> "Could not verify the latest release. Try again later."
+                UpdateFailureKind.BlockedReleaseUrl -> "GitHub returned a release link Codecks will not open."
+                UpdateFailureKind.NoBrowser -> "No browser could open the GitHub release page."
+            },
+            AccessibleStatusKind.Error,
+        )
+    }
+    CodecksPanel(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+        AccessibleStatus(
+            stateDescription = label,
+            detail = detail,
+            kind = kind,
+            announceChanges = state != UpdateSettingsState.Idle,
+            modifier = if (failureKey != null) {
+                Modifier.focusRequester(failureFocusRequester).focusable()
+            } else {
+                Modifier
+            },
+        )
+        DeckActionButton(
+            label = if (state == UpdateSettingsState.Checking) "Checking…" else "Check for updates",
+            onClick = onCheck,
+            enabled = state != UpdateSettingsState.Checking,
+            icon = Icons.Outlined.SystemUpdate,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        )
+        if (state is UpdateSettingsState.Available) {
+            DeckActionButton(
+                label = "Open GitHub release",
+                onClick = onOpenRelease,
+                icon = Icons.Outlined.OpenInBrowser,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            )
+        }
     }
 }
 
@@ -601,14 +740,22 @@ private fun MacConnectionSettingsPanel(
         parsedPort in 1..65535 &&
         trustedEndpoint &&
         idle
-    val step = when {
-        state.config.isReady -> MacPairingStep.Done
-        state.host.isBlank() || state.user.isBlank() || parsedPort !in 1..65535 -> MacPairingStep.FindMac
-        !trustedEndpoint -> MacPairingStep.TrustMac
-        else -> MacPairingStep.Authorize
+    val step = when (state.setupSnapshot.firstMandatoryNotPassed) {
+        SetupStep.FindMac -> MacPairingStep.FindMac
+        SetupStep.TrustMac -> MacPairingStep.TrustMac
+        SetupStep.Authorize -> MacPairingStep.Authorize
+        SetupStep.VerifyControls,
+        null,
+        -> MacPairingStep.Done
     }
     var advancedOpen by rememberSaveable { mutableStateOf(false) }
     var reactiveHelperPairingJson by rememberSaveable { mutableStateOf("") }
+    val blockingDiagnostic = state.error?.let { state.connectionDiagnostic() }
+    val failureFocusRequester = remember { FocusRequester() }
+    val failureKey = blockingDiagnostic?.let { it.issueCode?.name ?: it.state.name }
+    LaunchedEffect(failureKey) {
+        if (failureKey != null) failureFocusRequester.requestFocus()
+    }
     CodecksPanel(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
@@ -619,7 +766,7 @@ private fun MacConnectionSettingsPanel(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            MacPairingStepper(current = step)
+            MacPairingStepper(current = step, snapshot = state.setupSnapshot)
             HorizontalDivider()
             when (step) {
                 MacPairingStep.FindMac -> {
@@ -830,7 +977,20 @@ private fun MacConnectionSettingsPanel(
                 )
             }
             state.message?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            state.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+            blockingDiagnostic?.let { diagnostic ->
+                AccessibleStatus(
+                    stateDescription = diagnostic.title,
+                    detail = buildString {
+                        append(diagnostic.detail)
+                        diagnostic.repairActions.firstOrNull()?.let { append(" Next: ${it.label}") }
+                    },
+                    kind = AccessibleStatusKind.Error,
+                    announceChanges = true,
+                    modifier = Modifier
+                        .focusRequester(failureFocusRequester)
+                        .focusable(),
+                )
+            }
         }
     }
 }
@@ -843,11 +1003,19 @@ private enum class MacPairingStep(val label: String) {
 }
 
 @Composable
-private fun MacPairingStepper(current: MacPairingStep) {
+private fun MacPairingStepper(
+    current: MacPairingStep,
+    snapshot: io.codecks.ui.connection.SetupSnapshot,
+) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
         MacPairingStep.entries.forEach { step ->
             val selected = step == current
-            val complete = step.ordinal < current.ordinal || current == MacPairingStep.Done
+            val complete = when (step) {
+                MacPairingStep.FindMac -> snapshot.isPassed(SetupStep.FindMac)
+                MacPairingStep.TrustMac -> snapshot.isPassed(SetupStep.TrustMac)
+                MacPairingStep.Authorize -> snapshot.isPassed(SetupStep.Authorize)
+                MacPairingStep.Done -> snapshot.isPassed(SetupStep.VerifyControls)
+            }
             Surface(
                 color = when {
                     selected -> MaterialTheme.colorScheme.primaryContainer

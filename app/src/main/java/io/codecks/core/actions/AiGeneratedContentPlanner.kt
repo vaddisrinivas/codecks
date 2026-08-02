@@ -10,6 +10,7 @@ import io.codecks.domain.ai.AiArtifactKind
 import io.codecks.domain.ai.GeneratedDraft
 import io.codecks.domain.ai.MacVisualEffectCatalog
 import io.codecks.domain.automation.AutomationRecipe
+import io.codecks.domain.automation.AutomationExecutionPlanCompiler
 import io.codecks.domain.automation.AutomationSafety
 import io.codecks.domain.automation.AutomationTrigger
 import javax.inject.Inject
@@ -85,7 +86,9 @@ class AiGeneratedContentPlanner @Inject constructor() {
                 )
             },
             safety = AutomationSafety(artifact.actions.any { it.dangerous }),
-        )
+        ).also { recipe ->
+            AutomationExecutionPlanCompiler.compile(recipe).getOrThrow()
+        }
     }
 }
 

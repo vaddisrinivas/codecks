@@ -122,7 +122,18 @@ Run:
 python3 tools/ai_creator_v2_eval.py --write-report
 ```
 
-This verifies the 120-prompt 40/40/40 split and writes `docs/ai/AI_CREATOR_V2_EVAL_REPORT.md`. Live-provider scoring is intentionally separate; local tooling must not fake provider pass rates.
+This verifies the 120-prompt 40/40/40 split, validates the generated-output bypass corpus, and writes deterministic Markdown plus machine-readable JSON reports:
+
+- `docs/ai/AI_CREATOR_V2_EVAL_REPORT.md`
+- `docs/ai/AI_CREATOR_V2_OFFLINE_EVAL_REPORT.json`
+
+CI/release verification can detect stale reports without writing:
+
+```bash
+python3 tools/ai_creator_v2_eval.py --check-report
+```
+
+The JSON contract records corpus hashes, case counts, required unit gates, and `providerCalls: false`. Live-provider scoring remains separate; local tooling must not fake provider pass rates.
 
 Live-provider release-gate scoring is opt-in because it uses real provider keys and network calls:
 

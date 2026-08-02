@@ -2,6 +2,13 @@ package io.codecks.data.automation
 
 import io.codecks.core.actions.ActionResultStatus
 import io.codecks.core.actions.ActionSpec
+import io.codecks.domain.CommandOrigin
+import io.codecks.domain.automation.AutomationExecutionPlanCompiler
+import io.codecks.domain.automation.AutomationLiveTestCleanupCode
+import io.codecks.domain.automation.AutomationLiveTestOutcomeCode
+import io.codecks.domain.automation.AutomationLiveTestTerminalStatus
+import io.codecks.domain.automation.AutomationLiveTestTimeoutPolicy
+import io.codecks.domain.automation.AutomationStepTerminalStatus
 import io.codecks.domain.automation.AutomationLiveTestAssertion
 import io.codecks.domain.automation.AutomationLiveTestCleanup
 import io.codecks.domain.automation.AutomationLiveTestReceipt
@@ -118,14 +125,28 @@ class AutomationTriggerWorkerSafetyTest {
             description = "Run with accessibility command",
             enabled = true,
             trigger = AutomationTrigger.BatteryBelow(20),
-            steps = listOf(ActionSpec.ShellCommand("focus", "Accessibility", "osascript -e 'tell app \"System Events\" to key down \"a\"'")),
+            steps = listOf(
+                ActionSpec.ShellCommand(
+                    "focus",
+                    "Accessibility",
+                    "osascript -e 'tell app \"System Events\" to key down \"a\"'",
+                    commandOrigin = CommandOrigin.Bundled,
+                ),
+            ),
         )
         val stale = permissionRecipe.copy(
             lastPreflight = recipePreflightReceipt(
                 permissionRecipe.revisionFingerprint(),
                 permissionSnapshot = setOf("local.route"),
             ),
-            lastLiveTest = recipeLiveTestReceipt(permissionRecipe.revisionFingerprint()),
+            lastLiveTest = recipeLiveTestReceipt(
+                permissionRecipe.copy(
+                    lastPreflight = recipePreflightReceipt(
+                        permissionRecipe.revisionFingerprint(),
+                        permissionSnapshot = setOf("local.route"),
+                    ),
+                ),
+            ),
         )
         assertNotNull(
             automaticRunBlocker(
@@ -143,11 +164,19 @@ class AutomationTriggerWorkerSafetyTest {
             description = "Run when Chrome is active",
             enabled = true,
             trigger = AutomationTrigger.ActiveApp("Chrome"),
-            steps = listOf(ActionSpec.ShellCommand("focus", "Focus Mode", "open -a Notes")),
+            steps = listOf(
+                ActionSpec.ShellCommand(
+                    "focus",
+                    "Focus Mode",
+                    "open -a Notes",
+                    commandOrigin = CommandOrigin.Bundled,
+                ),
+            ),
         )
+        val preflight = recipePreflightReceipt(base.revisionFingerprint())
         return base.copy(
-            lastPreflight = recipePreflightReceipt(base.revisionFingerprint()),
-            lastLiveTest = recipeLiveTestReceipt(base.revisionFingerprint()),
+            lastPreflight = preflight,
+            lastLiveTest = recipeLiveTestReceipt(base.copy(lastPreflight = preflight)),
         )
     }
 
@@ -173,23 +202,37 @@ class AutomationTriggerWorkerSafetyTest {
         permissionSnapshot = permissionSnapshot,
     )
 
-    private fun recipeLiveTestReceipt(revision: String): AutomationLiveTestReceipt = AutomationLiveTestReceipt(
-        recipeRevision = revision,
-        checkedAtMillis = 1_000L,
-        preflightCheckedAtMillis = 1_000L,
-        assertions = listOf(
-            AutomationLiveTestAssertion(
-                stepId = "focus",
-                stepTitle = "Focus Mode",
+    private fun recipeLiveTestReceipt(recipe: AutomationRecipe): AutomationLiveTestReceipt {
+        val preflight = requireNotNull(recipe.lastPreflight)
+        val plan = AutomationExecutionPlanCompiler.compile(recipe).getOrThrow()
+        return AutomationLiveTestReceipt(
+            recipeRevision = recipe.revisionFingerprint(),
+            checkedAtMillis = 1_000L,
+            preflightCheckedAtMillis = preflight.checkedAtMillis,
+            assertions = plan.assertions.mapIndexed { index, assertion ->
+                AutomationLiveTestAssertion(
+                    stepId = assertion.assertionId,
+                    stepTitle = "Action ${index + 1}",
+                    passed = true,
+                    message = AutomationLiveTestOutcomeCode.EXIT_CODE_ZERO.persistedCode,
+                    assertionId = assertion.assertionId,
+                    actionRevision = assertion.actionRevision,
+                    outcomeCode = AutomationLiveTestOutcomeCode.EXIT_CODE_ZERO,
+                    terminalStatus = AutomationStepTerminalStatus.SUCCEEDED,
+                    ordinal = index,
+                )
+            },
+            cleanup = AutomationLiveTestCleanup(
+                command = "",
                 passed = true,
-                message = "ok",
+                message = AutomationLiveTestCleanupCode.NOT_REQUIRED.persistedCode,
+                outcomeCode = AutomationLiveTestCleanupCode.NOT_REQUIRED,
             ),
-        ),
-        cleanup = AutomationLiveTestCleanup(
-            command = "echo ok",
-            passed = true,
-            message = "cleanup ok",
-        ),
-        macIdentity = "mac|user|22|hostKey",
-    )
+            normalizedPlanHash = plan.planHash,
+            preflightReceiptId = preflight.receiptId,
+            timeoutPolicyCode = AutomationLiveTestTimeoutPolicy.BOUNDED_V1.persistedCode,
+            terminalStatus = AutomationLiveTestTerminalStatus.PASSED,
+            completedAtMillis = 1_001L,
+        )
+    }
 }

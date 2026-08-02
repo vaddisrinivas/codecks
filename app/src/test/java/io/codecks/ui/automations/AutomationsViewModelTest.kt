@@ -119,7 +119,14 @@ class AutomationsViewModelTest {
                     id = "focus",
                     title = "Focus",
                     description = "Start focus",
-                    steps = listOf(ActionSpec.ShellCommand("focus", "Focus", "caffeinate")),
+                    steps = listOf(
+                        ActionSpec.ShellCommand(
+                            "focus",
+                            "Focus",
+                            "caffeinate",
+                            commandOrigin = CommandOrigin.Bundled,
+                        ),
+                    ),
                     lastRun = previousRun,
                     runHistory = listOf(previousRun),
                 ),
@@ -148,7 +155,14 @@ class AutomationsViewModelTest {
                     title = "Focus",
                     description = "Start focus",
                     enabled = false,
-                    steps = listOf(ActionSpec.ShellCommand("focus", "Focus", "caffeinate")),
+                    steps = listOf(
+                        ActionSpec.ShellCommand(
+                            "focus",
+                            "Focus",
+                            "caffeinate",
+                            commandOrigin = CommandOrigin.Bundled,
+                        ),
+                    ),
                 ),
             ),
         )
@@ -181,7 +195,14 @@ class AutomationsViewModelTest {
                     title = "Focus",
                     description = "Start focus",
                     enabled = false,
-                    steps = listOf(ActionSpec.ShellCommand("focus", "Focus", "caffeinate")),
+                    steps = listOf(
+                        ActionSpec.ShellCommand(
+                            "focus",
+                            "Focus",
+                            "caffeinate",
+                            commandOrigin = CommandOrigin.Bundled,
+                        ),
+                    ),
                 ),
             ),
         )

@@ -7,6 +7,12 @@ import io.codecks.data.ConnectionConfig
 import io.codecks.data.ConnectionRepository
 import io.codecks.data.LanSshDiscovery
 import io.codecks.data.SshDiscovery
+import io.codecks.domain.connection.MacCapabilityCheckReceipt
+import io.codecks.domain.connection.MacCapabilityCheckResult
+import io.codecks.domain.connection.SshSetupFailureCode
+import io.codecks.domain.connection.classifySshSetupFailure
+import io.codecks.domain.connection.requiredMacCapabilityProbes
+import io.codecks.domain.connection.safeShellCommand
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,9 +36,14 @@ data class ConnectionUiState(
     val password: String = "",
     val discoveredHosts: List<String> = emptyList(),
     val operation: ConnectionOperation = ConnectionOperation.Idle,
+    val connectionAttempt: Int = 0,
+    val retryAtMillis: Long = 0L,
     val message: String? = null,
     val error: String? = null,
     val pendingFingerprint: String? = null,
+    val setupSnapshot: SetupSnapshot = SetupSnapshot(),
+    val sshTerminalReceipt: SshTerminalReceipt? = null,
+    val macCapabilityReceipts: List<MacCapabilityCheckReceipt> = emptyList(),
 )
 
 @HiltViewModel
@@ -40,8 +51,11 @@ class ConnectionViewModel @Inject constructor(
     private val connectionRepository: ConnectionRepository,
     private val sshDiscovery: SshDiscovery,
     private val lanSshDiscovery: LanSshDiscovery = LanSshDiscovery(),
+    private val setupSnapshotStore: SetupSnapshotStore = SetupSnapshotStore.inMemory(),
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(ConnectionUiState())
+    private val _uiState = MutableStateFlow(
+        ConnectionUiState(setupSnapshot = setupSnapshotStore.load()),
+    )
     val uiState: StateFlow<ConnectionUiState> = _uiState.asStateFlow()
 
     init {
@@ -105,17 +119,36 @@ class ConnectionViewModel @Inject constructor(
                 return@launch
             }
             _uiState.update {
-                it.copy(operation = ConnectionOperation.Verifying, message = null, error = null)
+                it.copy(
+                    operation = ConnectionOperation.Verifying,
+                    connectionAttempt = it.connectionAttempt + 1,
+                    retryAtMillis = 0L,
+                    message = null,
+                    error = null,
+                )
             }
             runCatching {
+                val endpointChanged = state.config.host != state.host.trim() ||
+                    state.config.port != port ||
+                    state.config.user != state.user.trim()
+                if (endpointChanged) {
+                    recordSetupResult(SetupStep.FindMac, SetupReceiptResult.Failed)
+                }
                 connectionRepository.save(state.host, port, state.user)
                 connectionRepository.trustHostKey().getOrThrow()
             }.onSuccess { message ->
+                recordSetupPass(SetupStep.FindMac)
+                val confirmationRequired = message.startsWith("Fingerprint found:")
+                if (!confirmationRequired) recordSetupPass(SetupStep.TrustMac)
                 _uiState.update {
                     it.copy(
                         operation = ConnectionOperation.Idle,
-                        pendingFingerprint = message,
-                        message = "$message. Confirm only if this is your Mac.",
+                        pendingFingerprint = message.takeIf { confirmationRequired },
+                        message = if (confirmationRequired) {
+                            "$message. Confirm only if this is your Mac."
+                        } else {
+                            message
+                        },
                         error = null,
                     )
                 }
@@ -134,10 +167,17 @@ class ConnectionViewModel @Inject constructor(
         if (_uiState.value.operation != ConnectionOperation.Idle) return
         viewModelScope.launch {
             _uiState.update {
-                it.copy(operation = ConnectionOperation.Verifying, message = null, error = null)
+                it.copy(
+                    operation = ConnectionOperation.Verifying,
+                    connectionAttempt = it.connectionAttempt + 1,
+                    retryAtMillis = 0L,
+                    message = null,
+                    error = null,
+                )
             }
             connectionRepository.confirmPendingHostKey()
                 .onSuccess {
+                    recordSetupPass(SetupStep.TrustMac)
                     _uiState.update {
                         it.copy(
                             operation = ConnectionOperation.Idle,
@@ -148,6 +188,7 @@ class ConnectionViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
+                    recordSetupResult(SetupStep.TrustMac, SetupReceiptResult.Failed)
                     _uiState.update {
                         it.copy(
                             operation = ConnectionOperation.Idle,
@@ -190,6 +231,9 @@ class ConnectionViewModel @Inject constructor(
                     _uiState.update { it.copy(error = error.message ?: "Could not scan this network") }
                 }
                 .getOrDefault(emptyList())
+            if (hosts.isNotEmpty()) {
+                recordSetupPass(SetupStep.FindMac)
+            }
             _uiState.update { state ->
                 state.copy(
                     discoveredHosts = hosts,
@@ -215,22 +259,55 @@ class ConnectionViewModel @Inject constructor(
                 return@launch
             }
             _uiState.update {
-                it.copy(operation = ConnectionOperation.Connecting, message = null, error = null)
+                it.copy(
+                    operation = ConnectionOperation.Connecting,
+                    connectionAttempt = it.connectionAttempt + 1,
+                    retryAtMillis = 0L,
+                    message = null,
+                    error = null,
+                )
             }
+            val startedAt = System.currentTimeMillis()
             runCatching {
                 connectionRepository.save(state.host, port, state.user)
                 connectionRepository.installKey(state.password).getOrThrow()
-                connectionRepository.test().getOrThrow()
-            }.onSuccess { message ->
+                recordSetupPass(SetupStep.Authorize)
+                val message = connectionRepository.test().getOrThrow()
+                val receipts = verifyRequiredMacCapabilities()
+                receipts.firstOrNull { it.result == MacCapabilityCheckResult.Failed }?.let {
+                    error("Required Mac capability failed: ${it.capability.persistedCode}")
+                }
+                val completedAt = System.currentTimeMillis()
+                val duration = checkedTerminalDuration(startedAt, completedAt)
+                recordSetupPass(SetupStep.VerifyControls)
+                Triple(message, receipts, completedAt to duration)
+            }.onSuccess { (message, receipts, timing) ->
+                val (completedAt, duration) = timing
+                val snapshot = _uiState.value.setupSnapshot
+                val config = _uiState.value.config
                 _uiState.update {
                     it.copy(
                         operation = ConnectionOperation.Idle,
                         password = "",
                         message = message,
+                        macCapabilityReceipts = receipts,
+                        sshTerminalReceipt = SshTerminalReceipt(
+                            setupRevision = snapshot.revisionToken(),
+                            macTargetId = config.setupTargetId(),
+                            result = SshTerminalResult.Passed,
+                            attempt = it.connectionAttempt.coerceAtLeast(1),
+                            durationMs = duration,
+                            completedAtEpochMs = completedAt,
+                            confirmedCapabilities = REQUIRED_CORE_MAC_CAPABILITIES,
+                            capabilityCheckedAtEpochMs = receipts.associate {
+                                receipt -> receipt.capability to receipt.checkedAtEpochMs
+                            },
+                        ),
                         error = null,
                     )
                 }
             }.onFailure { error ->
+                recordSetupResult(SetupStep.VerifyControls, SetupReceiptResult.Failed)
                 _uiState.update {
                     it.copy(
                         operation = ConnectionOperation.Idle,
@@ -246,15 +323,52 @@ class ConnectionViewModel @Inject constructor(
         if (_uiState.value.operation != ConnectionOperation.Idle) return
         viewModelScope.launch {
             _uiState.update {
-                it.copy(operation = ConnectionOperation.Testing, message = null, error = null)
+                it.copy(
+                    operation = ConnectionOperation.Testing,
+                    connectionAttempt = it.connectionAttempt + 1,
+                    retryAtMillis = 0L,
+                    message = null,
+                    error = null,
+                )
             }
+            val startedAt = System.currentTimeMillis()
             connectionRepository.test()
-                .onSuccess { message ->
+                .mapCatching { message ->
+                    val receipts = verifyRequiredMacCapabilities()
+                    receipts.firstOrNull { it.result == MacCapabilityCheckResult.Failed }?.let {
+                        error("Required Mac capability failed: ${it.capability.persistedCode}")
+                    }
+                    val completedAt = System.currentTimeMillis()
+                    val duration = checkedTerminalDuration(startedAt, completedAt)
+                    Triple(message, receipts, completedAt to duration)
+                }
+                .onSuccess { (message, receipts, timing) ->
+                    val (completedAt, duration) = timing
+                    recordSetupPass(SetupStep.VerifyControls)
+                    val snapshot = _uiState.value.setupSnapshot
+                    val config = _uiState.value.config
                     _uiState.update {
-                        it.copy(operation = ConnectionOperation.Idle, message = message)
+                        it.copy(
+                            operation = ConnectionOperation.Idle,
+                            message = message,
+                            macCapabilityReceipts = receipts,
+                            sshTerminalReceipt = SshTerminalReceipt(
+                                setupRevision = snapshot.revisionToken(),
+                                macTargetId = config.setupTargetId(),
+                                result = SshTerminalResult.Passed,
+                                attempt = it.connectionAttempt.coerceAtLeast(1),
+                                durationMs = duration,
+                                completedAtEpochMs = completedAt,
+                                confirmedCapabilities = REQUIRED_CORE_MAC_CAPABILITIES,
+                                capabilityCheckedAtEpochMs = receipts.associate {
+                                    receipt -> receipt.capability to receipt.checkedAtEpochMs
+                                },
+                            ),
+                        )
                     }
                 }
                 .onFailure { error ->
+                    recordSetupResult(SetupStep.VerifyControls, SetupReceiptResult.Failed)
                     _uiState.update {
                         it.copy(
                             operation = ConnectionOperation.Idle,
@@ -265,11 +379,42 @@ class ConnectionViewModel @Inject constructor(
         }
     }
 
+    private suspend fun verifyRequiredMacCapabilities(): List<MacCapabilityCheckReceipt> =
+        requiredMacCapabilityProbes(REQUIRED_CORE_MAC_CAPABILITIES).map { probe ->
+            val checkedAt = System.currentTimeMillis()
+            connectionRepository.runCommand(probe.safeShellCommand()).fold(
+                onSuccess = {
+                    MacCapabilityCheckReceipt(
+                        capability = probe.capability,
+                        result = MacCapabilityCheckResult.Passed,
+                        failureCode = null,
+                        checkedAtEpochMs = checkedAt,
+                    )
+                },
+                onFailure = { error ->
+                    MacCapabilityCheckReceipt(
+                        capability = probe.capability,
+                        result = MacCapabilityCheckResult.Failed,
+                        failureCode = classifySshSetupFailure(error.message).takeUnless {
+                            it == SshSetupFailureCode.Unknown
+                        } ?: SshSetupFailureCode.Unknown,
+                        checkedAtEpochMs = checkedAt,
+                    )
+                },
+            )
+        }
+
     fun rotateKey() {
         if (_uiState.value.operation != ConnectionOperation.Idle) return
         viewModelScope.launch {
             _uiState.update {
-                it.copy(operation = ConnectionOperation.Connecting, message = null, error = null)
+                it.copy(
+                    operation = ConnectionOperation.Connecting,
+                    connectionAttempt = it.connectionAttempt + 1,
+                    retryAtMillis = 0L,
+                    message = null,
+                    error = null,
+                )
             }
             connectionRepository.rotateKey()
                 .onSuccess { message ->
@@ -292,14 +437,25 @@ class ConnectionViewModel @Inject constructor(
         if (_uiState.value.operation != ConnectionOperation.Idle) return
         viewModelScope.launch {
             _uiState.update {
-                it.copy(operation = ConnectionOperation.Verifying, message = null, error = null)
+                it.copy(
+                    operation = ConnectionOperation.Verifying,
+                    connectionAttempt = it.connectionAttempt + 1,
+                    retryAtMillis = 0L,
+                    message = null,
+                    error = null,
+                )
             }
             connectionRepository.resetTrust()
                 .onSuccess {
+                    val snapshot = setupSnapshotStore.record(
+                        SetupStep.TrustMac,
+                        SetupReceiptResult.Failed,
+                    )
                     _uiState.update {
                         it.copy(
                             operation = ConnectionOperation.Idle,
                             pendingFingerprint = null,
+                            setupSnapshot = snapshot,
                             message = "Mac trust reset. Trust this Mac again before running controls.",
                             error = null,
                         )
@@ -338,6 +494,7 @@ class ConnectionViewModel @Inject constructor(
             }
             result
                 .onSuccess { message ->
+                    val snapshot = setupSnapshotStore.clear()
                     _uiState.update {
                         it.copy(
                             operation = ConnectionOperation.Idle,
@@ -346,6 +503,7 @@ class ConnectionViewModel @Inject constructor(
                             user = "",
                             password = "",
                             pendingFingerprint = null,
+                            setupSnapshot = snapshot,
                             message = message,
                             error = null,
                         )
@@ -361,4 +519,28 @@ class ConnectionViewModel @Inject constructor(
                 }
         }
     }
+
+    fun resumeSetupStep(): SetupStep? = _uiState.value.setupSnapshot.firstMandatoryNotPassed
+
+    private fun recordSetupPass(step: SetupStep) {
+        recordSetupResult(step, SetupReceiptResult.Passed)
+    }
+
+    private fun recordSetupResult(step: SetupStep, result: SetupReceiptResult) {
+        val snapshot = setupSnapshotStore.record(step, result)
+        _uiState.update { it.copy(setupSnapshot = snapshot) }
+    }
+}
+
+internal fun ConnectionConfig.setupTargetId(): String {
+    val canonical = "${user.trim()}@${host.trim().lowercase()}:$port|${hostKey.trim()}"
+    return java.security.MessageDigest.getInstance("SHA-256")
+        .digest(canonical.toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it) }
+}
+
+internal fun checkedTerminalDuration(startedAtMillis: Long, completedAtMillis: Long): Long {
+    val duration = (completedAtMillis - startedAtMillis).coerceAtLeast(0L)
+    check(duration <= 30_000L) { "Setup test timed out" }
+    return duration
 }

@@ -2,6 +2,8 @@ package io.codecks.ui.automations
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -65,6 +67,9 @@ import io.codecks.ui.connection.ConnectionHealth
 import io.codecks.ui.connection.isReady
 import io.codecks.ui.connection.simpleConnectionHealth
 import io.codecks.ui.connection.statusLabel
+import io.codecks.ui.app.AccessibleStatus
+import io.codecks.ui.app.AccessibleStatusKind
+import io.codecks.ui.app.accessibilityTraversalOrder
 
 @Composable
 fun AutomationsScreen(
@@ -384,6 +389,11 @@ private fun CreateAutomationDialog(
                     label = "When",
                     help = "Pick the event or schedule that makes this rule eligible.",
                 )
+                Text(
+                    "Android checks enabled rules periodically. The 15-minute request is a minimum interval, not an exact run time; battery and system limits can delay it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 androidx.compose.foundation.lazy.LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
@@ -657,7 +667,15 @@ private fun AutomationRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
-            .semantics { if (running) stateDescription = "Running" },
+            .accessibilityTraversalOrder(0f)
+            .semantics {
+                stateDescription = when {
+                    item.recoveryRequired -> "Recovery required"
+                    item.cleanupPassed == false -> "Cleanup failed"
+                    running -> "Running"
+                    else -> status.label
+                }
+            },
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -762,6 +780,8 @@ private fun automationStatus(
     running: Boolean,
     connectionHealth: ConnectionHealth,
 ): AutomationStatus = when {
+    item.recoveryRequired -> AutomationStatus("Recovery required", AutomationStatusTone.Error)
+    item.cleanupPassed == false -> AutomationStatus("Cleanup failed", AutomationStatusTone.Error)
     running -> AutomationStatus("Running", AutomationStatusTone.Warning)
     !connectionHealth.isReady -> AutomationStatus(connectionHealth.statusLabel(), AutomationStatusTone.Warning)
     !item.enabled -> AutomationStatus("Paused", AutomationStatusTone.Neutral)
@@ -821,7 +841,19 @@ private fun AutomationOptionsDialog(
         shape = MaterialTheme.shapes.extraLarge,
         title = { Text(item.label) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
+            ) {
+                if (item.recoveryRequired || item.cleanupPassed == false) {
+                    AccessibleStatus(
+                        stateDescription = if (item.recoveryRequired) "Recovery required" else "Cleanup failed",
+                        detail = "Resolve cleanup and recovery before enabling or rerunning this rule.",
+                        kind = AccessibleStatusKind.Error,
+                        announceChanges = true,
+                        announcementKey = "${item.id}:${item.recoveryRequired}:${item.cleanupPassed}",
+                    )
+                }
                 Text(item.triggerLabel, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                 Text(item.description, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(

@@ -28,6 +28,8 @@ data class AutomationItem(
     val lastPreflightSucceeded: Boolean? = null,
     val lastLiveTestLabel: String? = null,
     val lastLiveTestSucceeded: Boolean? = null,
+    val cleanupPassed: Boolean? = null,
+    val recoveryRequired: Boolean = false,
     val canEnable: Boolean = false,
     val approvalPending: Boolean = false,
     val triggerSimulationReason: String? = null,

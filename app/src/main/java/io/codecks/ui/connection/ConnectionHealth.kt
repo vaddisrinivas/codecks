@@ -1,6 +1,8 @@
 package io.codecks.ui.connection
 
 import io.codecks.data.ConnectionConfig
+import io.codecks.domain.connection.ConnectionIssueCode
+import io.codecks.domain.connection.RemediationAction
 
 enum class ConnectionHealthKind {
     NotConfigured,
@@ -16,15 +18,66 @@ enum class ConnectionHealthKind {
     Offline,
 }
 
+enum class ConnectionHealthRetryClass {
+    None,
+    Transient,
+    RepairRequired,
+}
+
 data class ConnectionHealth(
     val kind: ConnectionHealthKind,
     val title: String,
     val detail: String,
     val actionHint: String? = null,
+    val issueOverride: ConnectionIssueCode? = null,
 )
 
 val ConnectionHealth.isReady: Boolean
     get() = kind == ConnectionHealthKind.Ready
+
+val ConnectionHealth.retryClass: ConnectionHealthRetryClass
+    get() {
+        if (issueOverride == ConnectionIssueCode.MAC_TOOL_MISSING ||
+            issueOverride == ConnectionIssueCode.UNKNOWN
+        ) {
+            return ConnectionHealthRetryClass.RepairRequired
+        }
+        return when (kind) {
+            ConnectionHealthKind.Offline -> ConnectionHealthRetryClass.Transient
+            ConnectionHealthKind.AuthFailed,
+            ConnectionHealthKind.FingerprintMismatch,
+            ConnectionHealthKind.NotConfigured,
+            ConnectionHealthKind.NeedsFingerprint,
+            ConnectionHealthKind.NeedsKey,
+            -> ConnectionHealthRetryClass.RepairRequired
+            ConnectionHealthKind.Scanning,
+            ConnectionHealthKind.Verifying,
+            ConnectionHealthKind.Connecting,
+            ConnectionHealthKind.Testing,
+            ConnectionHealthKind.Ready,
+            -> ConnectionHealthRetryClass.None
+        }
+    }
+
+val ConnectionHealth.issueCode: ConnectionIssueCode?
+    get() = issueOverride ?: when (kind) {
+        ConnectionHealthKind.Scanning,
+        ConnectionHealthKind.Verifying,
+        ConnectionHealthKind.Connecting,
+        ConnectionHealthKind.Testing,
+        -> ConnectionIssueCode.CONNECTING
+        ConnectionHealthKind.AuthFailed -> ConnectionIssueCode.SSH_AUTH_FAILED
+        ConnectionHealthKind.FingerprintMismatch -> ConnectionIssueCode.SSH_HOST_KEY_MISMATCH
+        ConnectionHealthKind.Offline -> ConnectionIssueCode.MAC_OFFLINE_OR_ASLEEP
+        ConnectionHealthKind.NotConfigured,
+        ConnectionHealthKind.Ready,
+        ConnectionHealthKind.NeedsFingerprint,
+        ConnectionHealthKind.NeedsKey,
+        -> null
+    }
+
+val ConnectionHealth.remediations: List<RemediationAction>
+    get() = issueCode?.remediations.orEmpty()
 
 fun ConnectionHealth.statusLabel(): String =
     when (kind) {
@@ -123,13 +176,31 @@ private fun ConnectionOperation.toHealthOrNull(): ConnectionHealth? =
 private fun String.toConnectionHealth(): ConnectionHealth {
     val normalized = lowercase()
     return when {
+        "backoff" in normalized ||
+            "retry after" in normalized -> ConnectionHealth(
+                kind = ConnectionHealthKind.Offline,
+                title = "Waiting before retry",
+                detail = "Codecks is waiting before the next connection attempt.",
+                actionHint = "Retry now if the Mac is available.",
+                issueOverride = ConnectionIssueCode.CONNECT_BACKOFF,
+            )
+        "command not found" in normalized ||
+            "required tool" in normalized ||
+            "missing tool" in normalized -> ConnectionHealth(
+                kind = ConnectionHealthKind.NotConfigured,
+                title = "Mac tool missing",
+                detail = "Install the required Mac tool, then test again.",
+                actionHint = "Install the required Mac tool, then test again.",
+                issueOverride = ConnectionIssueCode.MAC_TOOL_MISSING,
+            )
         "fingerprint" in normalized ||
             "host key" in normalized ||
+            "mac identity changed" in normalized ||
             "man-in-the-middle" in normalized ||
             "remote host identification" in normalized -> ConnectionHealth(
                 kind = ConnectionHealthKind.FingerprintMismatch,
                 title = "Mac trust changed",
-                detail = this,
+                detail = "The saved Mac identity no longer matches.",
                 actionHint = "Reset trust only after checking the Mac.",
             )
         "permission denied" in normalized ||
@@ -137,14 +208,29 @@ private fun String.toConnectionHealth(): ConnectionHealth {
             "password" in normalized -> ConnectionHealth(
                 kind = ConnectionHealthKind.AuthFailed,
                 title = "Mac login failed",
-                detail = this,
+                detail = "The saved username or control key was rejected.",
                 actionHint = "Check username/password or rotate the key.",
             )
-        else -> ConnectionHealth(
+        "timeout" in normalized ||
+            "timed out" in normalized ||
+            "no route" in normalized ||
+            "unreachable" in normalized ||
+            "refused" in normalized ||
+            "connection closed" in normalized ||
+            "asleep" in normalized ||
+            "offline" in normalized ||
+            "network" in normalized -> ConnectionHealth(
             kind = ConnectionHealthKind.Offline,
             title = "Mac unreachable",
-            detail = this,
+            detail = "The Mac may be asleep, offline, or unavailable on this network.",
             actionHint = "Check network, Remote Login, then test again.",
+        )
+        else -> ConnectionHealth(
+            kind = ConnectionHealthKind.Offline,
+            title = "Connection needs attention",
+            detail = "Codecks could not identify a safe automatic repair.",
+            actionHint = "Review setup or contact support.",
+            issueOverride = ConnectionIssueCode.UNKNOWN,
         )
     }
 }

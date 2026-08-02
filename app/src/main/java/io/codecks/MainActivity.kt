@@ -53,6 +53,9 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
@@ -79,6 +82,9 @@ import io.codecks.data.clipboard.ClipboardSyncSettings
 import io.codecks.data.ActionRepository
 import io.codecks.data.ConnectionRepository
 import io.codecks.data.CodecksBackupRepository
+import io.codecks.data.privacy.DiagnosticEventStore
+import io.codecks.data.privacy.SupportBundleTempFilePolicy
+import io.codecks.data.privacy.recordTerminal
 import io.codecks.data.features.LocalFeatureFlagRepository
 import io.codecks.data.reactive.LiveMacStateInputs
 import io.codecks.data.reactive.LiveMacStateRepository
@@ -107,6 +113,11 @@ import io.codecks.navigation.SettingsRoute
 import io.codecks.navigation.title
 import io.codecks.ui.connection.ConnectionSetupController
 import io.codecks.ui.connection.ConnectionViewModel
+import io.codecks.ui.connection.HidConfirmationStore
+import io.codecks.ui.connection.HidTerminalReceipt
+import io.codecks.ui.connection.HidTerminalResult
+import io.codecks.ui.connection.revisionToken
+import io.codecks.ui.connection.setupTargetId
 import io.codecks.ui.connection.connectionHealth
 import io.codecks.ui.connection.hidHealth
 import io.codecks.ui.connection.isReady
@@ -139,6 +150,9 @@ import io.codecks.ui.palette.CommandPaletteScreen
 import io.codecks.ui.runlog.RunLogScreen
 import io.codecks.ui.settings.CodecksHelperConnectionKind
 import io.codecks.ui.settings.SettingsScreen
+import io.codecks.ui.settings.UpdateViewModel
+import io.codecks.ui.settings.SupportBundleUiState
+import io.codecks.ui.settings.SupportBundleViewModel
 import io.codecks.ui.settings.codecksHelperUiState
 import io.codecks.ui.theme.CodecksDeckStyle
 import io.codecks.ui.theme.CodecksIconPack
@@ -152,11 +166,10 @@ import io.codecks.ui.theme.CodecksTheme
 import io.codecks.ui.theme.ThemeSettingsRepository
 import io.codecks.ui.theme.resolveForCodecksRelease
 import kotlinx.coroutines.launch
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import java.io.File
 import java.util.UUID
 import io.codecks.domain.features.FeatureFlag
+import io.codecks.domain.backup.RestorePlan
 import io.codecks.domain.features.FeatureFlaggedEntitlementRepository
 import io.codecks.domain.features.DEFAULT_FEATURE_FLAGS
 import io.codecks.domain.features.LocalOnlyEntitlementRepository
@@ -173,7 +186,17 @@ import io.codecks.platform.helper.StoredReactiveHelperIdentity
 import io.codecks.platform.helper.TcpReactiveHelperTransportFactory
 import io.codecks.shared.protocol.ReactiveHelperRequest
 import io.codecks.ui.app.LocalActionDispatcher
-import io.codecks.domain.privacy.DiagnosticRedactor
+import io.codecks.domain.privacy.DiagnosticComponent
+import io.codecks.domain.privacy.DiagnosticResultCode
+import io.codecks.domain.privacy.SupportActionHealth
+import io.codecks.domain.privacy.SupportBundleHealth
+import io.codecks.domain.privacy.SupportBundleManifest
+import io.codecks.domain.privacy.SupportBundleSettings
+import io.codecks.domain.privacy.SupportBundleSnapshot
+import io.codecks.domain.privacy.SupportConnectionHealth
+import io.codecks.domain.privacy.SupportHidHealth
+import io.codecks.domain.privacy.SupportIntervalBucket
+import io.codecks.domain.privacy.SupportSpeedBucket
 import io.codecks.domain.device.DeviceRepository
 import io.codecks.BuildConfig
 import io.codecks.domain.LocalActionResult
@@ -414,6 +437,8 @@ private fun CodecksApp(
     val hidState by hidRepository.state.collectAsStateWithLifecycle()
     val hostContext = LocalContext.current
     val appContext = hostContext.applicationContext
+    val hidConfirmationStore = remember(appContext) { HidConfirmationStore(appContext) }
+    var hidTerminalReceipt by remember { mutableStateOf(hidConfirmationStore.load()) }
     val activity = remember(hostContext) { hostContext.findMainActivity() }
     val settingsConnectionSetupController = remember(hostContext, activity, connectionViewModel) {
         ConnectionSetupController(hostContext, activity, connectionViewModel)
@@ -474,9 +499,15 @@ private fun CodecksApp(
         )
         onReactiveHelperPairingConsumed()
     }
-    var pendingBackupPayload by remember { mutableStateOf<String?>(null) }
+    var pendingBackupPayload by remember { mutableStateOf<ByteArray?>(null) }
+    var pendingRestorePayload by remember { mutableStateOf<ByteArray?>(null) }
+    var pendingRestorePlan by remember { mutableStateOf<RestorePlan?>(null) }
+    var pendingBackupRecoveryId by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        pendingBackupRecoveryId = withContext(Dispatchers.IO) { backupRepository.pendingRecoveryId() }
+    }
     val exportBackupLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json"),
+        ActivityResultContracts.CreateDocument("application/zip"),
     ) { uri ->
         val payload = pendingBackupPayload
         pendingBackupPayload = null
@@ -484,8 +515,7 @@ private fun CodecksApp(
             scope.launch {
                 val result = withContext(Dispatchers.IO) {
                     runCatching {
-                        appContext.contentResolver.openOutputStream(uri, "wt")
-                            ?.bufferedWriter()
+                        appContext.contentResolver.openOutputStream(uri, "w")
                             ?.use { it.write(payload) }
                             ?: error("Could not open backup file")
                     }
@@ -502,14 +532,20 @@ private fun CodecksApp(
                 val result = withContext(Dispatchers.IO) {
                     runCatching {
                         appContext.contentResolver.openInputStream(uri)
-                            ?.bufferedReader()
-                            ?.use { it.readText() }
+                            ?.use { it.readBytes() }
                             ?: error("Could not open backup file")
-                    }.mapCatching { backupRepository.import(it).getOrThrow() }
+                    }.mapCatching { bytes ->
+                        bytes to backupRepository.createRestorePlan(bytes).getOrThrow()
+                    }
                 }
-                snackbarHostState.showSnackbar(
-                    result.fold(onSuccess = { "Deck and Rules restored" }, onFailure = { it.message ?: "Restore failed" }),
-                )
+                result
+                    .onSuccess { (bytes, plan) ->
+                        pendingRestorePayload = bytes
+                        pendingRestorePlan = plan
+                    }
+                    .onFailure {
+                        snackbarHostState.showSnackbar("Backup preview failed")
+                    }
             }
         }
     }
@@ -536,6 +572,7 @@ private fun CodecksApp(
     }
     var aiProviderReady by remember { mutableStateOf(false) }
     var bluetoothPermissionRefresh by remember { mutableIntStateOf(0) }
+    var bluetoothPermissionRequested by rememberSaveable { mutableStateOf(false) }
     val bluetoothPermissionGranted = remember(bluetoothPermissionRefresh) {
         Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
             ContextCompat.checkSelfPermission(
@@ -546,8 +583,35 @@ private fun CodecksApp(
     val bluetoothPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {
+        bluetoothPermissionRequested = true
         bluetoothPermissionRefresh += 1
         if (it) hidRepository.start()
+    }
+    val permissionLifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(permissionLifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) bluetoothPermissionRefresh += 1
+        }
+        permissionLifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { permissionLifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val bluetoothPermissionPermanentlyDenied =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            bluetoothPermissionRequested &&
+            !bluetoothPermissionGranted &&
+            activity?.shouldShowRequestPermissionRationale(Manifest.permission.BLUETOOTH_CONNECT) == false
+    val requestBluetoothPermission = {
+        if (bluetoothPermissionPermanentlyDenied) {
+            hostContext.startActivity(
+                Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:${hostContext.packageName}"),
+                ),
+            )
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            bluetoothPermissionRequested = true
+            bluetoothPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
+        }
     }
     val notificationAccessReady = notificationFeaturesEnabled && PhoneNotificationBackplane.isEnabled(appContext)
     val contextFeatureStatus = ContextFeatureStatus(
@@ -1092,6 +1156,7 @@ private fun CodecksApp(
             onOpenSettings = { navigate(SettingsRoute) },
             onRequestFullscreen = { fullscreenConfirmOpen = true },
             onExitFullscreen = { fullscreenOverride = false },
+            onStopInput = hidRepository::releaseButtons,
         ) { contentPadding ->
             BackHandler(enabled = fullscreen) {
                 fullscreenOverride = false
@@ -1167,13 +1232,25 @@ private fun CodecksApp(
                             hidState = hidState,
                             bluetoothPermissionGranted = bluetoothPermissionGranted,
                             onRequestBluetoothPermission = {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                    bluetoothPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
-                                }
+                                requestBluetoothPermission()
                             },
                             onStartHid = hidRepository::start,
                             onRefreshHosts = hidRepository::refreshHosts,
-                            onConnectHost = hidRepository::connect,
+                            onConnectHost = { address ->
+                                connectionState.config.takeIf { it.isReady }?.let { config ->
+                                    HidTerminalReceipt(
+                                        setupRevision = connectionState.setupSnapshot.revisionToken(),
+                                        macTargetId = config.setupTargetId(),
+                                        hidHostAddress = address,
+                                        result = HidTerminalResult.USER_CONFIRMED,
+                                        completedAtEpochMs = System.currentTimeMillis(),
+                                    ).also {
+                                        hidConfirmationStore.record(it)
+                                        hidTerminalReceipt = it
+                                    }
+                                }
+                                hidRepository.connect(address)
+                            },
                             onConnection = hidRepository::refreshHosts,
                             onFullscreen = {
                                 if (fullscreen) fullscreenOverride = false else fullscreenConfirmOpen = true
@@ -1224,8 +1301,11 @@ private fun CodecksApp(
                     entry<ClipboardRoute> {
                         val clipboardViewModel: ClipboardViewModel = viewModel()
                         val clipboardState by clipboardViewModel.uiState.collectAsStateWithLifecycle()
-                        LaunchedEffect(currentRoute) {
-                            clipboardViewModel.setLiveSyncSessionActive(currentRoute == ClipboardRoute)
+                        DisposableEffect(clipboardViewModel) {
+                            clipboardViewModel.setLiveSyncSessionActive(true)
+                            onDispose {
+                                clipboardViewModel.setLiveSyncSessionActive(false)
+                            }
                         }
                         LaunchedEffect(currentRoute, sharedText) {
                             if (currentRoute == ClipboardRoute && !sharedText.isNullOrBlank()) {
@@ -1241,6 +1321,9 @@ private fun CodecksApp(
                             onPushToMac = clipboardViewModel::pushToMac,
                             onModeChange = clipboardViewModel::setMode,
                             onIntervalChange = clipboardViewModel::setSyncIntervalMinutes,
+                            onStartSession = clipboardViewModel::startClipboardSession,
+                            onStopSession = clipboardViewModel::stopClipboardSession,
+                            onForegroundVisibleChange = clipboardViewModel::setAppForegroundVisible,
                         )
                     }
                     entry<AutomationsRoute> {
@@ -1290,12 +1373,46 @@ private fun CodecksApp(
                         )
                     }
                     entry<SettingsRoute> {
+                        val settingsLifecycleOwner = LocalLifecycleOwner.current
+                        val updateViewModel: UpdateViewModel = viewModel {
+                            UpdateViewModel(
+                                appForeground = {
+                                    settingsLifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+                                },
+                                terminalEvent = { result, timestamp ->
+                                    DiagnosticEventStore(appContext).recordTerminal(
+                                        component = DiagnosticComponent.UPDATE,
+                                        result = result,
+                                        timestampEpochMs = timestamp,
+                                    )
+                                },
+                            )
+                        }
+                        val updateState by updateViewModel.state.collectAsStateWithLifecycle()
+                        val supportBundleViewModel: SupportBundleViewModel = viewModel {
+                            SupportBundleViewModel(SupportBundleTempFilePolicy(appContext.cacheDir))
+                        }
+                        val supportBundleState by supportBundleViewModel.state.collectAsStateWithLifecycle()
+                        LaunchedEffect(supportBundleState) {
+                            val ready = supportBundleState as? SupportBundleUiState.Ready
+                                ?: return@LaunchedEffect
+                            if (shareSupportBundle(appContext, ready.file)) {
+                                DiagnosticEventStore(appContext).recordTerminal(
+                                    DiagnosticComponent.SUPPORT,
+                                    DiagnosticResultCode.SUCCEEDED,
+                                )
+                                supportBundleViewModel.shared()
+                            } else {
+                                supportBundleViewModel.shareFailed()
+                            }
+                        }
                         SettingsScreen(
                             contentPadding = contentPadding,
                             connectionReady = homeState.connectionReady,
                             connectionHealth = connectionHealth,
                             hidState = hidState,
                             bluetoothPermissionGranted = bluetoothPermissionGranted,
+                            bluetoothPermissionPermanentlyDenied = bluetoothPermissionPermanentlyDenied,
                             notificationAccessReady = notificationAccessReady,
                             notificationPrivacySettings = notificationPrivacySettings,
                             contextFeatureStatus = contextFeatureStatus,
@@ -1304,6 +1421,7 @@ private fun CodecksApp(
                             automationsReady = featureFlags.focusedEnabled(FeatureFlag.Automations) && connectionHealth.isReady,
                             fullscreen = fullscreen,
                             connectionState = connectionState,
+                            hidTerminalReceipt = hidTerminalReceipt,
                             onConnection = { navigate(SettingsRoute) },
                             onBluetooth = { openTrackpad() },
                             onFullscreen = {
@@ -1372,10 +1490,10 @@ private fun CodecksApp(
                             onClipboard = { navigate(ClipboardRoute) },
                             onExportBackup = {
                                 scope.launch {
-                                    backupRepository.export()
+                                    backupRepository.exportArchive()
                                         .onSuccess { payload ->
                                             pendingBackupPayload = payload
-                                            exportBackupLauncher.launch("codecks-backup-${System.currentTimeMillis()}.json")
+                                            exportBackupLauncher.launch("codecks-backup-${System.currentTimeMillis()}.codecks.zip")
                                         }
                                         .onFailure { error ->
                                             snackbarHostState.showSnackbar(error.message ?: "Backup failed")
@@ -1383,7 +1501,59 @@ private fun CodecksApp(
                                 }
                             },
                             onImportBackup = {
-                                importBackupLauncher.launch(arrayOf("application/json", "text/plain"))
+                                importBackupLauncher.launch(
+                                    arrayOf("application/zip", "application/octet-stream", "application/json", "text/plain"),
+                                )
+                            },
+                            pendingBackupRecovery = pendingBackupRecoveryId != null,
+                            onRecoverBackup = {
+                                pendingBackupRecoveryId?.let { recoveryId ->
+                                    scope.launch {
+                                        val result = withContext(Dispatchers.IO) {
+                                            backupRepository.recoverPending(recoveryId)
+                                        }
+                                        if (result.isSuccess) pendingBackupRecoveryId = null
+                                        snackbarHostState.showSnackbar(
+                                            if (result.isSuccess) "Previous Deck and Rules recovered"
+                                            else "Recovery failed; preserved data remains available",
+                                        )
+                                    }
+                                }
+                            },
+                            restorePlan = pendingRestorePlan,
+                            onCancelRestore = {
+                                pendingRestorePayload = null
+                                pendingRestorePlan = null
+                            },
+                            onConfirmRestore = { planId ->
+                                val bytes = pendingRestorePayload
+                                if (bytes != null) {
+                                    scope.launch {
+                                        val result = withContext(Dispatchers.IO) {
+                                            backupRepository.restoreConfirmed(planId, bytes)
+                                        }
+                                        val outcome = result.getOrNull()
+                                        if (outcome is io.codecks.domain.backup.BackupRestoreResult.Committed) {
+                                            pendingRestorePayload = null
+                                            pendingRestorePlan = null
+                                        } else if (outcome is io.codecks.domain.backup.BackupRestoreResult.RecoveryRequired) {
+                                            pendingBackupRecoveryId = outcome.recoveryId
+                                            pendingRestorePayload = null
+                                            pendingRestorePlan = null
+                                        }
+                                        snackbarHostState.showSnackbar(
+                                            when (outcome) {
+                                                is io.codecks.domain.backup.BackupRestoreResult.Committed ->
+                                                    "Deck and Rules restored"
+                                                is io.codecks.domain.backup.BackupRestoreResult.RolledBack ->
+                                                    "Restore failed; previous data restored"
+                                                is io.codecks.domain.backup.BackupRestoreResult.RecoveryRequired ->
+                                                    "Restore incomplete; recovery data preserved"
+                                                null -> "Restore preview expired; review again"
+                                            },
+                                        )
+                                    }
+                                }
                             },
                             onClipboardModeChange = { mode ->
                                 scope.launch { clipboardSettingsRepository.saveMode(mode) }
@@ -1397,18 +1567,22 @@ private fun CodecksApp(
                             },
                             onAppearance = {},
                             onAdvanced = {},
-                            onDebugBundle = {
-                                shareDebugBundle(
-                                    context = appContext,
-                                    route = currentRoute.title(),
-                                    homeState = homeState,
-                                    connectionState = connectionState,
-                                    hidState = hidState,
-                                    featureFlags = featureFlags,
-                                    trackpadSettings = trackpadSettings,
-                                    clipboardSettings = clipboardSettings,
+                            onDebugBundle = supportBundleViewModel::preview,
+                            supportBundleState = supportBundleState,
+                            onGenerateSupportBundle = {
+                                supportBundleViewModel.generate(
+                                    createSupportBundleSnapshot(
+                                        context = appContext,
+                                        homeState = homeState,
+                                        connectionState = connectionState,
+                                        hidState = hidState,
+                                        featureFlags = featureFlags,
+                                        trackpadSettings = trackpadSettings,
+                                        clipboardSettings = clipboardSettings,
+                                    ),
                                 )
                             },
+                            onCancelSupportBundle = supportBundleViewModel::cancel,
                             themeSettings = themeSettings,
                             onThemeModeChange = onThemeModeChange,
                             onThemeAccentChange = onThemeAccentChange,
@@ -1424,6 +1598,18 @@ private fun CodecksApp(
                             localOnlyV1 = localOnlyV1,
                             debugBundleEnabled = BuildConfig.DEBUG,
                             appVersionLabel = "Version ${BuildConfig.VERSION_NAME}",
+                            updateState = updateState,
+                            onCheckForUpdate = updateViewModel::checkForUpdate,
+                            onOpenUpdateRelease = {
+                                updateViewModel.openRelease { url ->
+                                    runCatching {
+                                        appContext.startActivity(
+                                            Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                                        )
+                                    }.isSuccess
+                                }
+                            },
                             featureFlags = featureFlags,
                             onFeatureFlagChange = featureFlagRepository::set,
                             onResetFeatureFlags = { scope.launch { featureFlagRepository.resetDefaults() } },
@@ -1583,9 +1769,33 @@ private fun KeyboardDestination(
                 ) == PackageManager.PERMISSION_GRANTED,
         )
     }
+    var permissionRequested by rememberSaveable { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { granted -> permissionGranted = granted }
+    ) { granted ->
+        permissionRequested = true
+        permissionGranted = granted
+    }
+    val permissionLifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(permissionLifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                permissionGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.BLUETOOTH_CONNECT,
+                    ) == PackageManager.PERMISSION_GRANTED
+            }
+        }
+        permissionLifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { permissionLifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val permissionPermanentlyDenied =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            permissionRequested &&
+            !permissionGranted &&
+            context.findMainActivity()
+                ?.shouldShowRequestPermissionRationale(Manifest.permission.BLUETOOTH_CONNECT) == false
 
     LaunchedEffect(permissionGranted) {
         if (permissionGranted) viewModel.start()
@@ -1602,7 +1812,10 @@ private fun KeyboardDestination(
         recentSends = keyboardState.recentSends,
         snippets = keyboardState.snippets,
         onRequestPermission = {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (permissionPermanentlyDenied) {
+                openCodecksAppSettings(context)
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                permissionRequested = true
                 permissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
             }
         },
@@ -1622,109 +1835,98 @@ private fun KeyboardDestination(
     )
 }
 
+private fun openCodecksAppSettings(context: Context) {
+    context.startActivity(
+        Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.parse("package:${context.packageName}"),
+        ),
+    )
+}
+
 private fun shellQuote(value: String): String = "'${value.replace("'", "'\"'\"'")}'"
 
-private fun shareDebugBundle(
+private fun createSupportBundleSnapshot(
     context: Context,
-    route: String,
     homeState: io.codecks.ui.home.HomeUiState,
     connectionState: io.codecks.ui.connection.ConnectionUiState,
     hidState: HidState,
     featureFlags: Map<FeatureFlag, Boolean>,
     trackpadSettings: TrackpadSettings,
     clipboardSettings: ClipboardSyncSettings,
-) {
-    if (!BuildConfig.DEBUG) return
-    val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
-    val directory = File(context.cacheDir, "debug-bundles").apply { mkdirs() }
-    val file = File(directory, "codecks-debug-$timestamp.txt")
+): SupportBundleSnapshot {
+    val createdAt = System.currentTimeMillis()
     val config = connectionState.config
-    file.writeText(
-        buildString {
-            appendLine("Codecks debug bundle")
-            appendLine("created=$timestamp")
-            appendLine("package=${context.packageName}")
-            appendLine("version=${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
-            appendLine("debug=${BuildConfig.DEBUG}")
-            appendLine("routeSet=${route.isNotBlank()}")
-            appendLine()
-            appendLine("[connection]")
-            appendLine("ready=${config.isReady}")
-            appendLine("configured=${config.isConfigured}")
-            appendLine("hostSet=${config.host.isNotBlank()}")
-            appendLine("portSet=${config.port > 0}")
-            appendLine("userSet=${config.user.isNotBlank()}")
-            appendLine("hasKey=${config.hasKey}")
-            appendLine("hostKeyPinned=${config.hostKey.isNotBlank()}")
-            appendLine("passwordFieldSet=${connectionState.password.isNotEmpty()}")
-            appendLine("operation=${connectionState.operation}")
-            appendLine("message=${connectionState.message.orEmpty().redactedLog()}")
-            appendLine("error=${connectionState.error.orEmpty().redactedLog()}")
-            appendLine()
-            appendLine("[bluetooth]")
-            appendLine("ready=${hidState.isReady}")
-            appendLine("connected=${hidState.isConnected}")
-            appendLine("knownHosts=${hidState.hosts.size}")
-            appendLine("diagnostic=${hidState.redactedDiagnosticSummary()}")
-            appendLine()
-            appendLine("[trackpad]")
-            appendLine("pointerSpeedBucket=${trackpadSettings.pointerSpeed.bucketedSpeed()}")
-            appendLine("scrollRail=${trackpadSettings.scrollRailEnabled}")
-            appendLine("haptics=${trackpadSettings.hapticsEnabled}")
-            appendLine("trace=${trackpadSettings.pointerTraceEnabled}")
-            appendLine()
-            appendLine("[clipboard]")
-            appendLine("enabled=${clipboardSettings.mode != ClipboardSyncMode.Off}")
-            appendLine("intervalBucket=${clipboardSettings.intervalMinutes.bucketedInterval()}")
-            appendLine()
-            appendLine("[deck]")
-            appendLine("dynamic=${homeState.dynamicDeckEnabled}")
-            appendLine("visibleActions=${homeState.actions.size}")
-            appendLine("catalogActions=${homeState.allActions.size}")
-            appendLine("status=${homeState.actionStatus.safeDebugName()}")
-            appendLine()
-            appendLine("[feature-flags]")
-            appendLine("overrideCount=${featureFlags.count { (flag, value) -> DEFAULT_FEATURE_FLAGS[flag] != value }}")
-            appendLine("labsEnabled=${featureFlags[FeatureFlag.Labs] == true}")
-            appendLine()
-            appendLine("[activity]")
-            appendLine("events=${homeState.activity.size}")
-            appendLine("failures=${homeState.activity.count { !it.succeeded }}")
-            appendLine("hasLatest=${homeState.activity.isNotEmpty()}")
-        },
+    val eventStore = DiagnosticEventStore(context)
+    return SupportBundleSnapshot(
+        manifest = SupportBundleManifest(
+            appVersionCode = BuildConfig.VERSION_CODE,
+            debugBuild = BuildConfig.DEBUG,
+            createdAtEpochMs = createdAt,
+        ),
+        health = SupportBundleHealth(
+            connection = when {
+                config.isReady -> SupportConnectionHealth.READY
+                config.isConfigured -> SupportConnectionHealth.CONFIGURED
+                else -> SupportConnectionHealth.UNCONFIGURED
+            },
+            sshKeyPresent = config.hasKey,
+            pinnedIdentityPresent = config.hostKey.isNotBlank(),
+            hid = when {
+                hidState.isConnected -> SupportHidHealth.CONNECTED
+                hidState.isReady -> SupportHidHealth.READY
+                else -> SupportHidHealth.UNAVAILABLE
+            },
+            knownHostCount = hidState.hosts.size,
+            visibleActionCount = homeState.actions.size,
+            catalogActionCount = homeState.allActions.size,
+            action = when (homeState.actionStatus) {
+                ActionStatus.Idle -> SupportActionHealth.IDLE
+                is ActionStatus.Running -> SupportActionHealth.RUNNING
+                is ActionStatus.Succeeded -> SupportActionHealth.SUCCEEDED
+                is ActionStatus.Failed -> SupportActionHealth.FAILED
+            },
+            activityCount = homeState.activity.size,
+            activityFailureCount = homeState.activity.count { !it.succeeded },
+        ),
+        events = eventStore.events(),
+        settings = SupportBundleSettings(
+            pointerSpeed = when {
+                trackpadSettings.pointerSpeed < 0.75f -> SupportSpeedBucket.LOW
+                trackpadSettings.pointerSpeed > 1.15f -> SupportSpeedBucket.HIGH
+                else -> SupportSpeedBucket.MEDIUM
+            },
+            scrollRailEnabled = trackpadSettings.scrollRailEnabled,
+            hapticsEnabled = trackpadSettings.hapticsEnabled,
+            pointerTraceEnabled = trackpadSettings.pointerTraceEnabled,
+            clipboardEnabled = clipboardSettings.mode != ClipboardSyncMode.Off,
+            clipboardInterval = when {
+                clipboardSettings.intervalMinutes <= 5 -> SupportIntervalBucket.SHORT
+                clipboardSettings.intervalMinutes <= 20 -> SupportIntervalBucket.MEDIUM
+                else -> SupportIntervalBucket.LONG
+            },
+            dynamicDeckEnabled = homeState.dynamicDeckEnabled,
+            featureOverrideCount = featureFlags.count { (flag, value) -> DEFAULT_FEATURE_FLAGS[flag] != value },
+            labsEnabled = featureFlags[FeatureFlag.Labs] == true,
+        ),
     )
-    val uri = FileProvider.getUriForFile(context, "${context.packageName}.debugfiles", file)
-    val send = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_STREAM, uri)
-        putExtra(Intent.EXTRA_SUBJECT, "Codecks debug bundle $timestamp")
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    }
-    context.startActivity(Intent.createChooser(send, "Share Codecks debug bundle").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 }
 
-private fun String.redactedLog(): String =
-    DiagnosticRedactor.redact(this)
-
-private fun Float.bucketedSpeed(): String = when {
-    this < 0.75f -> "low"
-    this > 1.15f -> "high"
-    else -> "medium"
-}
-
-private fun Int.bucketedInterval(): String = when {
-    this <= 5 -> "short"
-    this <= 20 -> "medium"
-    else -> "long"
-}
-
-private fun ActionStatus.safeDebugName(): String = when (this) {
-    ActionStatus.Idle -> "Idle"
-    is ActionStatus.Running -> "Running"
-    is ActionStatus.Succeeded -> "Succeeded"
-    is ActionStatus.Failed -> "Failed"
-}
+private fun shareSupportBundle(context: Context, file: File): Boolean =
+    runCatching {
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.supportfiles", file)
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "application/zip"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, "Codecks support bundle")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(
+            Intent.createChooser(send, "Share Codecks support bundle")
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }.isSuccess
 
 private tailrec fun Context.findMainActivity(): MainActivity? = when (this) {
     is MainActivity -> this
@@ -1771,9 +1973,32 @@ private fun MouseDestination(
                 ) == PackageManager.PERMISSION_GRANTED,
         )
     }
+    var permissionRequested by rememberSaveable { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { granted -> permissionGranted = granted }
+    ) { granted ->
+        permissionRequested = true
+        permissionGranted = granted
+    }
+    val permissionLifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(permissionLifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                permissionGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.BLUETOOTH_CONNECT,
+                    ) == PackageManager.PERMISSION_GRANTED
+            }
+        }
+        permissionLifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { permissionLifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val permissionPermanentlyDenied =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            permissionRequested &&
+            !permissionGranted &&
+            activity?.shouldShowRequestPermissionRationale(Manifest.permission.BLUETOOTH_CONNECT) == false
 
     LaunchedEffect(permissionGranted) {
         if (permissionGranted) viewModel.start()
@@ -1865,7 +2090,10 @@ private fun MouseDestination(
         contentPadding = contentPadding,
         permissionGranted = permissionGranted,
         onRequestPermission = {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (permissionPermanentlyDenied) {
+                openCodecksAppSettings(context)
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                permissionRequested = true
                 permissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
             }
         },

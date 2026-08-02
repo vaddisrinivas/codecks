@@ -7,11 +7,12 @@ import org.junit.Test
 
 class HidSessionServicePolicyTest {
     @Test
-    fun keepaliveUsesConfiguredFifteenSecondInterval() {
+    fun serviceDoesNotDuplicateRepositoryReconnectLoop() {
         val source = File("src/main/java/io/codecks/HidSessionService.kt").readText()
 
-        assertTrue(source.contains("private const val HID_KEEP_ALIVE_MS = 15_000L"))
-        assertTrue(source.contains("delay(HID_KEEP_ALIVE_MS)"))
+        assertFalse(source.contains("HID_KEEP_ALIVE_MS"))
+        assertFalse(source.contains("keepAliveJob"))
+        assertTrue(source.contains("hidRepository.maintain()"))
         assertFalse(source.contains("""setContentText("Stopping Codecks Bluetooth input")"""))
     }
 

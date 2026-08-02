@@ -102,8 +102,17 @@ val validateReleaseSurface by tasks.registering {
             if ("debugfiles" in mainManifest || "debug_file_paths" in mainManifest || "GestureTestActivity" in mainManifest) {
                 add("Debug FileProvider/test activity must stay out of src/main manifest")
             }
-            if ("debugfiles" !in debugManifest) {
-                add("Debug bundle FileProvider should remain scoped to src/debug manifest")
+            if ("supportfiles" !in mainManifest || "support_file_paths" !in mainManifest) {
+                add("Release support bundle FileProvider must be declared in src/main manifest")
+            }
+            if ("androidx.core.content.FileProvider" !in mainManifest ||
+                "android:exported=\"false\"" !in mainManifest ||
+                "android:grantUriPermissions=\"true\"" !in mainManifest
+            ) {
+                add("Release support bundle FileProvider must be non-exported with URI grants")
+            }
+            if ("GestureTestActivity" !in debugManifest) {
+                add("Debug gesture test activity must remain scoped to src/debug manifest")
             }
             if ("android:resizeableActivity=\"true\"" !in mainManifest) {
                 add("MainActivity must stay resizeable for Samsung DeX/freeform")
@@ -193,6 +202,13 @@ android {
         buildConfigField("Boolean", "LOCAL_ONLY_V1", "true")
         buildConfigField("Boolean", "OPTIONAL_CONTEXT_SURFACES_ENABLED", optionalContextSurfacesEnabled.get())
         buildConfigField("String", "LITELLM_BASE_URL", "\"${liteLlmBaseUrl.get()}\"")
+        buildConfigField(
+            "String",
+            "GITHUB_RELEASES_API_URL",
+            "\"https://api.github.com/repos/vaddisrinivas/codecks/releases\"",
+        )
+        buildConfigField("String", "GITHUB_API_HOST", "\"api.github.com\"")
+        buildConfigField("String", "GITHUB_RELEASE_HOST", "\"github.com\"")
     }
 
     signingConfigs {

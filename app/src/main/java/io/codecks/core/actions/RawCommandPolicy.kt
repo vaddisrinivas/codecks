@@ -36,7 +36,7 @@ object RawCommandPolicy {
         Regex("""(?is)^\s*pbpaste\s*$"""),
         Regex("""(?is)^\s*pbpaste\s+2>/dev/null\s*\|\s*head\s+-c\s+[0-9]{1,5}\s*$"""),
         Regex("""(?is)^\s*printf(\s+%s)?\s+.+\|\s*pbcopy\s*$"""),
-        Regex("""(?is)^\s*printf\s+[^|;&]+$"""),
+        Regex("""(?is)^\s*printf\s+[^|;&<>]+$"""),
         Regex("""(?is)^\s*open\s+-a\s+("[^"]+"|'[^']+'|[A-Za-z0-9_.:/~%+-]+)(\s+("[^"]+"|'[^']+'|https?://[^\s;&|]+|[A-Za-z0-9_.:/~%+-]+))?\s*$"""),
         Regex("""(?is)^\s*open(\s+-[a-zA-Z]+\s+("[^"]+"|'[^']+'|[^\s;&|]+))*\s+("[^"]+"|'[^']+'|https?://[^\s;&|]+|[A-Za-z0-9_.:/~%+-]+)\s*$"""),
         Regex("""(?is)^\s*osascript\s+(-e\s+("[^"]*"|'[^']*')\s*)+$"""),

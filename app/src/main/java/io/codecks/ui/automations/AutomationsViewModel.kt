@@ -23,9 +23,12 @@ import io.codecks.domain.ai.AutomationDraft
 import io.codecks.domain.ai.GeneratedDraft
 import io.codecks.domain.automation.AutomationCatalog
 import io.codecks.domain.automation.AutomationGroup
-import io.codecks.domain.automation.AutomationLiveTestAssertion
-import io.codecks.domain.automation.AutomationLiveTestCleanup
+import io.codecks.domain.automation.AutomationExecutionEngine
+import io.codecks.domain.automation.AutomationActionProbeResult
+import io.codecks.domain.automation.AutomationLiveTestActionExecutor
+import io.codecks.domain.automation.AutomationLiveTestEngine
 import io.codecks.domain.automation.AutomationLiveTestReceipt
+import io.codecks.domain.automation.AutomationLiveTestTerminalStatus
 import io.codecks.domain.automation.AutomationPreflightArea
 import io.codecks.domain.automation.AutomationPreflightCheck
 import io.codecks.domain.automation.AutomationPreflightReceipt
@@ -34,14 +37,16 @@ import io.codecks.domain.automation.AutomationRunSummary
 import io.codecks.domain.automation.AutomationSafety
 import io.codecks.domain.automation.AutomationTrigger
 import io.codecks.domain.automation.AutomationTriggerEngine
+import io.codecks.domain.automation.automationPermissionProbeCommand
+import io.codecks.domain.automation.automationConnectionIdentity as opaqueAutomationConnectionIdentity
 import io.codecks.domain.automation.hasCurrentValidPreflight
 import io.codecks.domain.automation.label
 import io.codecks.domain.automation.revisionFingerprint
 import io.codecks.domain.automation.hasCurrentValidLiveTest
 import io.codecks.domain.automation.requiredCapabilities
+import io.codecks.domain.automation.requiredCommandTools
 import io.codecks.domain.automation.requiredPermissions
 import javax.inject.Inject
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,9 +55,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
-
-private const val LIVE_TEST_TIMEOUT_MILLIS = 90_000L
 
 @HiltViewModel
 class AutomationsViewModel @Inject constructor(
@@ -377,20 +379,11 @@ class AutomationsViewModel @Inject constructor(
             }
             return
         }
-        val snapshotTime = nowMillis()
         viewModelScope.launch {
             _uiState.update { it.copy(runningActionId = recipeId, message = "Live test running") }
-            val receipt = try {
-                withTimeout(LIVE_TEST_TIMEOUT_MILLIS) {
-                    runLiveTestExecution(recipe)
-                }
-            } catch (error: TimeoutCancellationException) {
-                createFailedLiveTestReceipt(recipe, snapshotTime, message = "Live test timed out")
-            } catch (error: Exception) {
-                createFailedLiveTestReceipt(recipe, snapshotTime, message = error.message ?: "Live test failed")
-            }
+            val receipt = runLiveTestExecution(recipe)
             automationRepository.recordLiveTest(recipe.id, receipt)
-            val passed = receipt.assertions.all { it.passed } && receipt.cleanup.passed
+            val passed = receipt.terminalStatus == AutomationLiveTestTerminalStatus.PASSED
             _uiState.update {
                 it.copy(
                     runningActionId = null,
@@ -448,26 +441,7 @@ class AutomationsViewModel @Inject constructor(
     }
 
     private suspend fun runRecipe(recipe: AutomationRecipe, allowDangerous: Boolean): ActionResult {
-        if (recipe.steps.isEmpty()) {
-            return ActionResult(
-                actionId = recipe.id,
-                title = recipe.title,
-                status = ActionResultStatus.Failed,
-                message = "Recipe has no actions",
-            )
-        }
-        var last = ActionResult(
-            actionId = recipe.id,
-            title = recipe.title,
-            status = ActionResultStatus.Succeeded,
-            message = "Rule completed",
-        )
-        recipe.steps.forEach { step ->
-            val result = actionRunner.run(step, allowDangerous = allowDangerous)
-            last = result
-            if (!result.succeeded) return result.copy(actionId = recipe.id, title = recipe.title)
-        }
-        return last.copy(actionId = recipe.id, title = recipe.title)
+        return AutomationExecutionEngine(actionRunner).run(recipe, allowDangerous)
     }
 
     private suspend fun validateRecipe(recipe: AutomationRecipe): ActionResult {
@@ -571,13 +545,8 @@ class AutomationsViewModel @Inject constructor(
 
         val permissionChecks = mutableMapOf<String, Boolean>()
         requestedPermissions.forEach { permission ->
-            val command = when (permission) {
-                "permission.accessibility" -> "osascript -e 'tell application \"System Events\" to get name of first process'"
-                "permission.screenrecording" -> "command -v screencapture"
-                "permission.tcc" -> "command -v tccutil"
-                else -> "command -v $permission"
-            }
-            val passed = connectionRepository.runCommand(command).isSuccess
+            val command = automationPermissionProbeCommand(permission)
+            val passed = command != null && connectionRepository.runCommand(command).isSuccess
             permissionChecks[permission] = passed
             checks += AutomationPreflightCheck(
                 area = AutomationPreflightArea.Permission,
@@ -610,81 +579,24 @@ class AutomationsViewModel @Inject constructor(
     }
 
     private suspend fun runLiveTestExecution(recipe: AutomationRecipe): AutomationLiveTestReceipt {
-        val assertions = mutableListOf<AutomationLiveTestAssertion>()
-        val preflight = recipe.lastPreflight
-        var lastResult: ActionResult? = null
-
-        recipe.steps.forEachIndexed { index, step ->
-            val result = actionRunner.run(step, allowDangerous = false)
-            val passed = result.succeeded
-            assertions += AutomationLiveTestAssertion(
-                stepId = step.id,
-                stepTitle = step.title.ifBlank { "Step ${index + 1}" },
-                passed = passed,
-                message = if (passed) {
-                    result.message
-                } else {
-                    "${result.message}"
-                },
-            )
-            lastResult = result
-            if (!passed) return@forEachIndexed
-        }
-
-        val cleanupCommand = "echo live_test_cleanup_${recipe.id}"
-        val cleanupResult = connectionRepository.runCommand(cleanupCommand)
-        val allSucceeded = assertions.all { it.passed }
-        val cleanup = AutomationLiveTestCleanup(
-            command = cleanupCommand,
-            passed = cleanupResult.isSuccess,
-            message = if (cleanupResult.isSuccess) {
-                cleanupResult.getOrNull().orEmpty().ifBlank { "Live test cleanup completed" }
-            } else {
-                "Live test cleanup failed: ${cleanupResult.exceptionOrNull()?.message.orEmpty()}"
+        val preflight = requireNotNull(recipe.lastPreflight)
+        return AutomationLiveTestEngine(
+            executor = AutomationLiveTestActionExecutor { action ->
+                val step = recipe.steps.getOrNull(action.ordinal)
+                    ?: recipe.cleanupDefinition.action
+                    ?: return@AutomationLiveTestActionExecutor AutomationActionProbeResult(exitCode = null)
+                val result = actionRunner.run(step, allowDangerous = false)
+                AutomationActionProbeResult(exitCode = if (result.succeeded) 0 else 1)
             },
-        )
-        return AutomationLiveTestReceipt(
-            recipeRevision = recipe.revisionFingerprint(),
-            checkedAtMillis = nowMillis(),
-            preflightCheckedAtMillis = preflight?.checkedAtMillis ?: nowMillis(),
-            assertions = assertions.ifEmpty {
-                listOf(
-                    AutomationLiveTestAssertion(
-                        stepId = "noop",
-                        stepTitle = "No steps",
-                        passed = false,
-                        message = if (allSucceeded) "No test steps defined" else lastResult?.message.orEmpty(),
-                    ),
-                )
+        ).run(
+            recipe = recipe,
+            preflight = preflight,
+            currentRevision = {
+                recipes.firstOrNull { it.id == recipe.id }?.revisionFingerprint()
+                    ?: "missing-recipe"
             },
-            cleanup = cleanup,
-            macIdentity = preflight?.macIdentity ?: connectionIdentity(currentConnectionConfig),
         )
     }
-
-    private fun createFailedLiveTestReceipt(
-        recipe: AutomationRecipe,
-        now: Long,
-        message: String,
-    ): AutomationLiveTestReceipt = AutomationLiveTestReceipt(
-        recipeRevision = recipe.revisionFingerprint(),
-        checkedAtMillis = now,
-        preflightCheckedAtMillis = recipe.lastPreflight?.checkedAtMillis ?: now,
-        assertions = listOf(
-            AutomationLiveTestAssertion(
-                stepId = "timeout",
-                stepTitle = "Live test bounds",
-                passed = false,
-                message = message,
-            ),
-        ),
-        cleanup = AutomationLiveTestCleanup(
-            command = "echo live_test_cleanup_${recipe.id}",
-            passed = false,
-            message = "Cleanup skipped",
-        ),
-        macIdentity = recipe.lastPreflight?.macIdentity ?: connectionIdentity(currentConnectionConfig),
-    )
 
     private suspend fun automationCapabilityPreflightCheck(): AutomationPreflightCheck {
         val connected = connectionRepository.config.first().isReady
@@ -755,27 +667,8 @@ private fun reviewedUserShellCommand(
     )
 }
 
-private fun AutomationRecipe.requiredCommandTools(): Set<String> = steps
-    .mapNotNull { spec ->
-        when (spec) {
-            is ActionSpec.ShellCommand -> spec.command
-                .trim()
-                .split(Regex("\\s+"))
-                .firstOrNull()
-                ?.trim('"', '\'')
-                ?.takeIf { it.isNotBlank() }
-            is ActionSpec.DeckActionSpec -> spec.action.command
-                ?.split(Regex("\\s+"))
-                ?.firstOrNull()
-                ?.trim('"', '\'')
-                ?.takeIf { it.isNotBlank() }
-            is ActionSpec.CatalogAction -> null
-            is ActionSpec.LocalRoute -> null
-        }
-    }
-    .toSet()
-
-private fun AutomationRecipe.requiredCommandPaths(): Set<String> = steps
+private fun AutomationRecipe.requiredCommandPaths(): Set<String> =
+    (steps + listOfNotNull(cleanupDefinition.action))
     .mapNotNull { spec ->
         when (spec) {
             is ActionSpec.ShellCommand -> spec.command
@@ -791,7 +684,8 @@ private fun AutomationRecipe.requiredCommandPaths(): Set<String> = steps
     .map { it.trim('"', '\'', ';', '&') }
     .toSet()
 
-private fun AutomationRecipe.requiredApplications(): Set<String> = steps
+private fun AutomationRecipe.requiredApplications(): Set<String> =
+    (steps + listOfNotNull(cleanupDefinition.action))
     .mapNotNull { spec ->
         val command = when (spec) {
             is ActionSpec.ShellCommand -> spec.command
@@ -849,6 +743,8 @@ private fun AutomationRecipe.toUiItem(
         lastPreflightSucceeded = preflightPassed,
         lastLiveTestLabel = liveTestLabel,
         lastLiveTestSucceeded = liveTestPassed,
+        cleanupPassed = lastLiveTest?.cleanup?.passed,
+        recoveryRequired = recoveryRequired,
         canEnable = canEnableNow,
         triggerSimulationReason = triggerSimulationReason,
         approvalPending = pendingApproval != null,
@@ -857,7 +753,12 @@ private fun AutomationRecipe.toUiItem(
 }
 
 private fun automationConnectionIdentity(config: io.codecks.data.ConnectionConfig): String =
-    listOf(config.host, config.port.toString(), config.user, config.hostKey).joinToString("|")
+    opaqueAutomationConnectionIdentity(
+        host = config.host,
+        port = config.port,
+        user = config.user,
+        hostKey = config.hostKey,
+    )
 
 private fun AutomationPreflightReceipt.toLabel(): String =
     when {

@@ -18,6 +18,7 @@ import io.codecks.domain.ai.GeneratedDraft
 import io.codecks.domain.ai.MacVisualEffectCatalog
 import io.codecks.domain.ai.SafetyLevel
 import io.codecks.domain.automation.AutomationRecipe
+import io.codecks.domain.automation.AutomationExecutionPlanCompiler
 import io.codecks.domain.automation.AutomationSafety
 import io.codecks.domain.automation.AutomationTrigger
 import io.codecks.domain.device.DeviceGroupId
@@ -130,7 +131,9 @@ fun ActionDefinition.toAutomationRecipe(prompt: String): Result<AutomationRecipe
         trigger = AutomationTrigger.Manual,
         steps = convertedSteps,
         safety = AutomationSafety(safety.requiresConfirmation),
-    )
+    ).also { recipe ->
+        AutomationExecutionPlanCompiler.compile(recipe).getOrThrow()
+    }
 }
 
 private fun io.codecks.domain.ai.TargetSelector.toDeviceTargetSelector(): TargetSelector =

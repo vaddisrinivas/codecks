@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.StopCircle
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,6 +46,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -69,13 +79,28 @@ fun CodecksAppShell(
     onOpenSettings: () -> Unit,
     onRequestFullscreen: () -> Unit,
     onExitFullscreen: () -> Unit,
+    onStopInput: () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
     val shellDestinations = rememberShellDestinations(tabs)
     val currentDestination = shellDestinations.firstOrNull { it.route == currentRoute }
     val showNavigation = !fullscreen && currentDestination != null
+    val focusManager = LocalFocusManager.current
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onPreviewKeyEvent { event ->
+                handleShellKeyEvent(
+                    event = event,
+                    fullscreen = fullscreen,
+                    canNavigateBack = backStackSize > 1,
+                    focusManager = focusManager,
+                    onBack = onBack,
+                    onExitFullscreen = onExitFullscreen,
+                )
+            },
+    ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val useRail = maxWidth >= SECONDARY_NAV_RAIL_WIDTH
             Scaffold(
@@ -127,15 +152,21 @@ fun CodecksAppShell(
             }
         }
         if (fullscreen) {
-            IconButton(
-                onClick = onExitFullscreen,
+            Row(
                 modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
             ) {
-                Icon(Icons.Outlined.FullscreenExit, contentDescription = "Exit fullscreen")
+                IconButton(onClick = onStopInput) {
+                    Icon(Icons.Outlined.StopCircle, contentDescription = "Stop input")
+                }
+                IconButton(onClick = onExitFullscreen) {
+                    Icon(Icons.Outlined.FullscreenExit, contentDescription = "Exit fullscreen")
+                }
             }
         }
     }
 }
+
+private val SECONDARY_NAV_RAIL_WIDTH = 840.dp
 
 private data class ShellDestination(
     val route: NavKey,
@@ -174,8 +205,6 @@ private fun rememberShellDestinations(tabs: List<PrimaryTab>): List<ShellDestina
         group = ShellGroup.Manage,
     )
 }
-
-private val SECONDARY_NAV_RAIL_WIDTH = 840.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -245,6 +274,42 @@ private fun CodecksBottomBar(
                     )
                 }
             }
+        }
+    }
+}
+
+private fun handleShellKeyEvent(
+    event: androidx.compose.ui.input.key.KeyEvent,
+    fullscreen: Boolean,
+    canNavigateBack: Boolean,
+    focusManager: FocusManager,
+    onBack: () -> Unit,
+    onExitFullscreen: () -> Unit,
+): Boolean {
+    if (event.type != KeyEventType.KeyDown) return false
+    val key = when (event.key) {
+        Key.Tab -> ShellKey.Tab
+        Key.Enter,
+        Key.NumPadEnter,
+        -> ShellKey.Enter
+        Key.Spacebar -> ShellKey.Space
+        Key.Back -> ShellKey.Back
+        Key.Escape -> ShellKey.Escape
+        else -> ShellKey.Other
+    }
+    return when (shellKeyAction(key, event.isShiftPressed, fullscreen, canNavigateBack)) {
+        ShellKeyAction.FocusNext -> focusManager.moveFocus(FocusDirection.Next)
+        ShellKeyAction.FocusPrevious -> focusManager.moveFocus(FocusDirection.Previous)
+        ShellKeyAction.ActivateFocused,
+        ShellKeyAction.PassThrough,
+        -> false
+        ShellKeyAction.NavigateBack -> {
+            onBack()
+            true
+        }
+        ShellKeyAction.ExitFullscreen -> {
+            onExitFullscreen()
+            true
         }
     }
 }

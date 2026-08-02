@@ -17,6 +17,10 @@ import io.codecks.core.actions.RawCommandPolicy
 import io.codecks.data.ai.EncryptedApiKeyCodec
 import io.codecks.domain.reactive.SafeSftpTransferRequest
 import io.codecks.domain.reactive.TransferDirection
+import io.codecks.domain.connection.ConnectionIssueCode
+import io.codecks.domain.connection.ChangedHostKeyException
+import io.codecks.domain.connection.HostTrustState
+import io.codecks.domain.connection.evaluateHostTrust
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -68,6 +72,89 @@ data class ConnectionTarget(
         user = user,
         hasKey = hasKey,
         hostKey = hostKey,
+    )
+}
+
+enum class MacAvailabilitySignal {
+    BluetoothTransportLost,
+    HostTemporarilyUnavailable,
+    MacSleepingOrOffline,
+    BluetoothReavailable,
+    HostReavailable,
+    MacAwake,
+    PermissionDenied,
+    HostUnpaired,
+    AuthenticationFailed,
+    HostKeyMismatch,
+    RequiredToolMissing,
+}
+
+enum class ConnectionRetryClass {
+    Transient,
+    RepairRequired,
+    Reavailable,
+}
+
+data class MacAvailabilityDecision(
+    val retryClass: ConnectionRetryClass,
+    val issueCode: ConnectionIssueCode?,
+    val automaticRetryAllowed: Boolean,
+    val scheduleHealthCheck: Boolean,
+)
+
+fun classifyMacAvailability(signal: MacAvailabilitySignal): MacAvailabilityDecision = when (signal) {
+    MacAvailabilitySignal.BluetoothTransportLost -> MacAvailabilityDecision(
+        retryClass = ConnectionRetryClass.Transient,
+        issueCode = ConnectionIssueCode.BLUETOOTH_DISABLED,
+        automaticRetryAllowed = true,
+        scheduleHealthCheck = false,
+    )
+    MacAvailabilitySignal.HostTemporarilyUnavailable,
+    MacAvailabilitySignal.MacSleepingOrOffline,
+    -> MacAvailabilityDecision(
+        retryClass = ConnectionRetryClass.Transient,
+        issueCode = ConnectionIssueCode.MAC_OFFLINE_OR_ASLEEP,
+        automaticRetryAllowed = true,
+        scheduleHealthCheck = false,
+    )
+    MacAvailabilitySignal.BluetoothReavailable,
+    MacAvailabilitySignal.HostReavailable,
+    MacAvailabilitySignal.MacAwake,
+    -> MacAvailabilityDecision(
+        retryClass = ConnectionRetryClass.Reavailable,
+        issueCode = null,
+        automaticRetryAllowed = false,
+        scheduleHealthCheck = true,
+    )
+    MacAvailabilitySignal.PermissionDenied -> MacAvailabilityDecision(
+        retryClass = ConnectionRetryClass.RepairRequired,
+        issueCode = ConnectionIssueCode.BLUETOOTH_PERMISSION_DENIED,
+        automaticRetryAllowed = false,
+        scheduleHealthCheck = false,
+    )
+    MacAvailabilitySignal.HostUnpaired -> MacAvailabilityDecision(
+        retryClass = ConnectionRetryClass.RepairRequired,
+        issueCode = ConnectionIssueCode.HOST_UNPAIRED,
+        automaticRetryAllowed = false,
+        scheduleHealthCheck = false,
+    )
+    MacAvailabilitySignal.AuthenticationFailed -> MacAvailabilityDecision(
+        retryClass = ConnectionRetryClass.RepairRequired,
+        issueCode = ConnectionIssueCode.SSH_AUTH_FAILED,
+        automaticRetryAllowed = false,
+        scheduleHealthCheck = false,
+    )
+    MacAvailabilitySignal.HostKeyMismatch -> MacAvailabilityDecision(
+        retryClass = ConnectionRetryClass.RepairRequired,
+        issueCode = ConnectionIssueCode.SSH_HOST_KEY_MISMATCH,
+        automaticRetryAllowed = false,
+        scheduleHealthCheck = false,
+    )
+    MacAvailabilitySignal.RequiredToolMissing -> MacAvailabilityDecision(
+        retryClass = ConnectionRetryClass.RepairRequired,
+        issueCode = ConnectionIssueCode.MAC_TOOL_MISSING,
+        automaticRetryAllowed = false,
+        scheduleHealthCheck = false,
     )
 }
 
@@ -208,8 +295,14 @@ class DefaultConnectionRepository @Inject constructor(
             val current = currentConfig()
             require(current.isConfigured) { "Save the Mac address and username first" }
             val hostKey = fetchHostKey(current)
-            rememberPendingHostKey(hostKey)
-            "Fingerprint found: ${hostKey.fingerprint}"
+            when (evaluateHostTrust(current.hostKey, hostKey.line)) {
+                HostTrustState.FirstSeenConfirmationRequired -> {
+                    rememberPendingHostKey(hostKey)
+                    "Fingerprint found: ${hostKey.fingerprint}"
+                }
+                HostTrustState.Trusted -> "Mac fingerprint already trusted"
+                HostTrustState.ChangedHostKeyBlocked -> throw ChangedHostKeyException()
+            }
         }
     }
 
@@ -219,6 +312,11 @@ class DefaultConnectionRepository @Inject constructor(
             val pendingLine = preferences[PENDING_HOST_KEY].orEmpty()
             val pendingFingerprint = preferences[PENDING_HOST_FINGERPRINT].orEmpty()
             require(pendingLine.isNotBlank()) { "Verify the Mac fingerprint first" }
+            val current = currentConfig()
+            val observed = fetchHostKey(current)
+            if (evaluateHostTrust(pendingLine, observed.line) != HostTrustState.Trusted) {
+                throw ChangedHostKeyException()
+            }
             rememberHostKey(pendingLine)
             context.connectionDataStore.edit {
                 it.remove(PENDING_HOST_KEY)

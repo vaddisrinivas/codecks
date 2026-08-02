@@ -1,0 +1,28 @@
+{
+  "claims": {
+    "corpusManifestValid": true,
+    "generatedOutputPolicyEvaluatedByUnitGate": true,
+    "providerQualityEvaluated": false
+  },
+  "corpus": {
+    "counts": {
+      "Action": 40,
+      "Automation": 40,
+      "Deck": 40
+    },
+    "sha256": "f33316f29094edd00619e5771dfc9607fcd035ab942700c36117003df2130477",
+    "total": 120
+  },
+  "generatedOutputBypassCorpus": {
+    "sha256": "1d0d6e5b943bae5b89ca17a7c6214fed7c92efa8343de7506187874a19f5df91",
+    "total": 12
+  },
+  "mode": "offline_static",
+  "providerCalls": false,
+  "requiredUnitGates": [
+    "io.codecks.domain.ai.AiCreatorV2EvalCorpusTest",
+    "io.codecks.core.actions.AiGeneratedContentPlannerTest",
+    "io.codecks.domain.automation.AutomationExecutionPlanTest"
+  ],
+  "schemaVersion": 1
+}

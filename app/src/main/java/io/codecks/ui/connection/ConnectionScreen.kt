@@ -1,5 +1,6 @@
 package io.codecks.ui.connection
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -29,9 +30,18 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -76,6 +86,12 @@ fun ConnectionScreen(
         parsedPort in 1..65535 &&
         trustedEndpoint &&
         state.operation == ConnectionOperation.Idle
+    val blockingDiagnostic = state.error?.let { state.connectionDiagnostic() }
+    val failureFocusRequester = remember { FocusRequester() }
+    val failureKey = blockingDiagnostic?.let { it.issueCode?.name ?: it.state.name }
+    LaunchedEffect(failureKey) {
+        if (failureKey != null) failureFocusRequester.requestFocus()
+    }
     DeckPage(
         contentPadding = contentPadding,
         modifier = modifier,
@@ -89,6 +105,20 @@ fun ConnectionScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
             )
         }
+            blockingDiagnostic?.let { diagnostic ->
+                item {
+                    ConnectionErrorCard(
+                        diagnostic = diagnostic,
+                        onRetry = onTest,
+                        onFindMac = onScan,
+                        onTrustMac = onVerifyHostKey,
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .focusRequester(failureFocusRequester)
+                            .focusable(),
+                    )
+                }
+            }
             if (!state.config.isReady) {
                 item {
                     MacPairingStepper(
@@ -316,15 +346,6 @@ fun ConnectionScreen(
                     )
                 }
             }
-            state.error?.let { error ->
-                item {
-                    ConnectionErrorCard(
-                        error = error,
-                        health = state.connectionHealth(),
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
-                }
-            }
             state.message?.takeIf { state.config.isReady }?.let { message ->
                 item {
                     Text(
@@ -346,14 +367,15 @@ private fun MacPairingStepper(
     modifier: Modifier = Modifier,
 ) {
     val hasMac = state.host.isNotBlank()
-    val done = state.config.isReady
+    val snapshot = state.setupSnapshot
+    val activeStep = snapshot.firstMandatoryNotPassed
     val steps = listOf(
         PairingStep(
             number = 1,
             title = "Find",
             detail = if (hasMac) state.host else "Scan or enter your Mac.",
-            complete = hasMac,
-            active = !hasMac,
+            complete = snapshot.isPassed(SetupStep.FindMac),
+            active = activeStep == SetupStep.FindMac,
         ),
         PairingStep(
             number = 2,
@@ -363,8 +385,8 @@ private fun MacPairingStepper(
                 hasMac -> "Confirm this is your Mac."
                 else -> "Choose a Mac first."
             },
-            complete = trustedEndpoint,
-            active = hasMac && !trustedEndpoint,
+            complete = snapshot.isPassed(SetupStep.TrustMac),
+            active = activeStep == SetupStep.TrustMac,
         ),
         PairingStep(
             number = 3,
@@ -375,15 +397,19 @@ private fun MacPairingStepper(
                 trustedEndpoint -> "Enter your Mac password once."
                 else -> "Trust the Mac first."
             },
-            complete = state.config.hasKey,
-            active = trustedEndpoint && !state.config.hasKey,
+            complete = snapshot.isPassed(SetupStep.Authorize),
+            active = activeStep == SetupStep.Authorize,
         ),
         PairingStep(
             number = 4,
             title = "Done",
-            detail = if (done) "Deck, Clipboard, and Rules can use this Mac." else "Test connection after authorizing.",
-            complete = done,
-            active = state.config.hasKey && !done,
+            detail = if (snapshot.isComplete) {
+                "Deck, Clipboard, and Rules can use this Mac."
+            } else {
+                "Test connection after authorizing."
+            },
+            complete = snapshot.isPassed(SetupStep.VerifyControls),
+            active = activeStep == SetupStep.VerifyControls,
         ),
     )
     Surface(
@@ -672,24 +698,54 @@ private fun ReadinessLine(
 
 @Composable
 private fun ConnectionErrorCard(
-    error: String,
-    health: ConnectionHealth,
+    diagnostic: ConnectionDiagnostic,
+    onRetry: () -> Unit,
+    onFindMac: () -> Unit,
+    onTrustMac: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.42f),
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
         shape = MaterialTheme.shapes.large,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics {
+                stateDescription = diagnostic.title
+                error(diagnostic.detail)
+                liveRegion = LiveRegionMode.Polite
+            },
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.padding(14.dp),
         ) {
-            Text("What went wrong", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Text(error, style = MaterialTheme.typography.bodyMedium)
-            health.actionHint?.let { hint ->
-                Text(hint, style = MaterialTheme.typography.labelMedium)
+            Text(diagnostic.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(diagnostic.detail, style = MaterialTheme.typography.bodyMedium)
+            diagnostic.repairActions.firstOrNull()?.let { action ->
+                when (action) {
+                    ConnectionRepairAction.RetryNow -> DeckActionButton(
+                        label = action.label,
+                        onClick = onRetry,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    )
+                    ConnectionRepairAction.FindMac -> DeckActionButton(
+                        label = action.label,
+                        onClick = onFindMac,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    )
+                    ConnectionRepairAction.TrustMac -> DeckActionButton(
+                        label = action.label,
+                        onClick = onTrustMac,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    )
+                    ConnectionRepairAction.InstallControlKey,
+                    ConnectionRepairAction.ReenterCredentials,
+                    ConnectionRepairAction.ReviewHostKey,
+                    ConnectionRepairAction.InstallRequiredTool,
+                    ConnectionRepairAction.OpenSupport,
+                    -> Text("Next: ${action.label}", style = MaterialTheme.typography.labelMedium)
+                }
             }
         }
     }
