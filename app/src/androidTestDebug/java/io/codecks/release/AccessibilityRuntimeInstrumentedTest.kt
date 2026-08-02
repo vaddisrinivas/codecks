@@ -12,12 +12,13 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
-import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.hasStateDescription
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import io.codecks.navigation.HomeRoute
+import io.codecks.GestureTestActivity
 import io.codecks.ui.app.AccessibleStatus
 import io.codecks.ui.app.AccessibleStatusKind
 import io.codecks.ui.app.CodecksAppShell
@@ -26,7 +27,7 @@ import org.junit.Test
 
 class AccessibilityRuntimeInstrumentedTest {
     @get:Rule
-    val compose = createComposeRule()
+    val compose = createAndroidComposeRule<GestureTestActivity>()
 
     @Test
     fun committedStatusKeepsPoliteLiveRegionAcrossStateChange() {

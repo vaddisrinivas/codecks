@@ -1,12 +1,12 @@
-# Codecks v0.1.34 release notes
+# Codecks v0.1.35 release notes
 
 Date: August 2, 2026
 
-Release URL: https://github.com/vaddisrinivas/codecks/releases/tag/v0.1.34
+Release URL: https://github.com/vaddisrinivas/codecks/releases/tag/v0.1.35
 
 ## Summary
 
-Codecks v0.1.34 is a production-hardening release focused on predictable setup,
+Codecks v0.1.35 is a production-hardening release focused on predictable setup,
 reconnection, input delivery, clipboard behavior, automation safety, recovery,
 diagnostics, accessibility, and adaptive layouts. It does not add another
 experimental surface. It makes the existing product substantially safer and
@@ -140,6 +140,12 @@ more self-explanatory.
 - Android release unit suite: 816 tests, 0 failures, 3 skipped.
 - Android debug lint, debug APK assembly, release compilation, release
   Android-test compilation, and architecture boundary checks passed.
+- Gradle-managed Pixel 6 API 35 signed-release suite: 5 tests, 0 failures,
+  1 intentional live-SSH skip.
+- Gradle-managed Pixel 6 API 35 debug suite: 19 tests, 0 failures,
+  1 intentional live-SSH skip.
+- Compose accessibility component tests run against the debug-only test host;
+  the signed release APK does not ship a test activity.
 - Production code minification and resource shrinking remain disabled.
 - Secret-surface scan passed.
 - All 46 bundled Mac actions passed JSON, shell, AppleScript, and tool checks.
@@ -165,4 +171,4 @@ more self-explanatory.
 - `codecks-release.apk`: production-signed, unshrunk Codecks APK.
 - `SHA256SUMS.txt`: checksum for the signed APK.
 
-**Full diff:** https://github.com/vaddisrinivas/codecks/compare/v0.1.33...v0.1.34
+**Full diff:** https://github.com/vaddisrinivas/codecks/compare/v0.1.33...v0.1.35

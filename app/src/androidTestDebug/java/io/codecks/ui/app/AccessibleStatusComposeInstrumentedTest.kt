@@ -6,8 +6,9 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasStateDescription
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.SemanticsMatcher
-import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.codecks.GestureTestActivity
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -15,7 +16,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AccessibleStatusComposeInstrumentedTest {
     @get:Rule
-    val compose = createComposeRule()
+    val compose = createAndroidComposeRule<GestureTestActivity>()
 
     @Test
     fun renderedStatusHasOneExplicitStateDescription() {
