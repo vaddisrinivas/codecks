@@ -83,7 +83,7 @@ Release signing instructions live in [docs/release/RELEASING.md](docs/release/RE
 
 ## Project Status
 
-`v0.1.33` is the current public beta. Core deck, trackpad, keyboard, explicit clipboard transfer, staged automation proof, in-place Deck customization, settings, optional AI-assisted drafting, default-off Smart/Reactive foundations, and experimental Reactive Mac-helper infrastructure are implemented in the single signed APK. Broader physical-device coverage, TalkBack validation, live helper pairing validation, real Samsung DeX acceptance, and longer crash-free field testing remain GA gates. See the [production launch plan](docs/release/PRODUCTION_LAUNCH_PLAN.md).
+`v0.1.34` is the current public beta. Core deck, trackpad, keyboard, verified clipboard transfer, guarded automation execution, guided connection recovery, in-place Deck customization, support diagnostics, settings, optional AI-assisted drafting, default-off Smart/Reactive foundations, and experimental Reactive Mac-helper infrastructure are implemented in the single signed APK. Broader physical-device coverage, TalkBack validation, live helper pairing validation, real Samsung DeX acceptance, and longer crash-free field testing remain GA gates. See the [production launch plan](docs/release/PRODUCTION_LAUNCH_PLAN.md).
 
 ## FOSS Distribution
 
