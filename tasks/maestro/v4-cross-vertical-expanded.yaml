@@ -6,6 +6,11 @@ name: Expanded cross-vertical navigation
     clearState: true
 
 - assertVisible: "Deck"
+- tapOn: "Deck options"
+- tapOn: "Customize on Deck"
+- assertVisible: "Customize · tap a button to move"
+- tapOn: "Deck options"
+- tapOn: "Done customizing"
 - tapOn: "Trackpad"
 - assertVisible: "Trackpad"
 - tapOn: "Keyboard"
@@ -19,7 +24,7 @@ name: Expanded cross-vertical navigation
 - assertVisible: "Settings"
 - tapOn: "Rules"
 - assertVisible: "Rules"
-- tapOn: "AI"
-- assertVisible: "AI"
+- tapOn: "AI Builder"
+- assertVisible: "AI Builder"
 
 - takeScreenshot: "v4-cross-vertical-expanded-endpoint"

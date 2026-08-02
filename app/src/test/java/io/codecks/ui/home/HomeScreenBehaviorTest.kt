@@ -48,6 +48,34 @@ class HomeScreenBehaviorTest {
         assertFalse(source.contains("deck-action-result"))
     }
 
+    @Test
+    fun liveDeckOwnsNormalCustomizationAndEmptySlotChoices() {
+        val source = File("src/main/java/io/codecks/ui/home/HomeScreen.kt").readText()
+
+        assertTrue(source.contains("\"Customize on Deck\""))
+        assertTrue(source.contains("\"Done customizing\""))
+        assertTrue(source.contains("\"Choose from catalog\""))
+        assertTrue(source.contains("\"Create with AI\""))
+        assertFalse(source.contains("text = { Text(\"Deck customization\") }"))
+    }
+
+    @Test
+    fun longPressActionsAndGeneratedPlacementSlotsRemainScrollable() {
+        val source = File("src/main/java/io/codecks/ui/home/HomeScreen.kt").readText()
+        val placementDialog = source
+            .substringAfter("title = { Text(\"Place generated buttons\") }")
+            .substringBefore("confirmButton =")
+        val actionOptionsDialog = source
+            .substringAfter("private fun ActionOptionsDialog(")
+            .substringBefore("private fun DialogActionButton(")
+
+        assertTrue(placementDialog.contains("LazyColumn("))
+        assertTrue(placementDialog.contains("count = state.actions.size"))
+        assertTrue(actionOptionsDialog.contains("LazyColumn("))
+        assertTrue(actionOptionsDialog.contains("DialogActionButton(\"Remove from deck\""))
+        assertTrue(actionOptionsDialog.contains("DialogActionButton(\"Forget from catalog\""))
+    }
+
     private fun deckAction(
         id: String,
         icon: ActionIcon = ActionIcon.Apps,

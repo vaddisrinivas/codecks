@@ -97,6 +97,7 @@ fun AiProviderSettingsRoute(
     onOpenAction: (String) -> Unit = { onOpenDeck() },
     onSaveDraft: (GeneratedDraft) -> Unit = {},
     onSaveArtifact: (AiArtifact) -> Unit = {},
+    preferredDeckSlot: Int? = null,
     contextAppsEnabled: Boolean = false,
     modifier: Modifier = Modifier,
     keyStore: SecureApiKeyStore? = null,
@@ -200,8 +201,23 @@ fun AiProviderSettingsRoute(
             controller.markDraftSaved()
         },
         onSaveArtifact = { artifact ->
-            onSaveArtifact(artifact)
-            controller.markDraftSaved()
+            scope.launch {
+                val deckCompatible = artifact.kind == io.codecks.domain.ai.AiArtifactKind.Button ||
+                    artifact.kind == io.codecks.domain.ai.AiArtifactKind.Deck
+                if (deckCompatible) {
+                    val choice = if (preferredDeckSlot != null && artifact.actions.size == 1) {
+                        io.codecks.domain.ai.AiArtifactPlacementChoice.PlaceHere
+                    } else {
+                        io.codecks.domain.ai.AiArtifactPlacementChoice.ChooseSlot
+                    }
+                    controller.requestPlacement(artifact.id, choice)
+                }
+                onSaveArtifact(artifact)
+                controller.markDraftSaved()
+            }
+        },
+        onSaveOnlyArtifact = { artifact ->
+            controller.markSavedOnly(artifact.id)
         },
         onTestArtifact = controller::testArtifact,
         onDeleteArtifact = controller::deleteArtifact,
@@ -209,6 +225,7 @@ fun AiProviderSettingsRoute(
         onOpenAiSettings = onOpenAiSettings,
         onNewArtifact = controller::newArtifact,
         contextAppsEnabled = contextAppsEnabled,
+        preferredDeckSlot = preferredDeckSlot,
         modifier = modifier,
     )
 }
@@ -233,12 +250,14 @@ fun AiProviderSettingsScreen(
     onCancelRefinement: () -> Unit,
     onSaveDraft: (GeneratedDraft) -> Unit,
     onSaveArtifact: (AiArtifact) -> Unit,
+    onSaveOnlyArtifact: (AiArtifact) -> Unit = {},
     onTestArtifact: (String) -> Unit,
     onDeleteArtifact: (String) -> Unit,
     onActionLink: (String) -> Unit,
     onOpenAiSettings: () -> Unit = {},
     onNewArtifact: () -> Unit = {},
     contextAppsEnabled: Boolean = false,
+    preferredDeckSlot: Int? = null,
     modifier: Modifier = Modifier,
 ) {
     val providerSettingsOpen = mode == AiWorkspaceMode.ProviderSettings
@@ -261,10 +280,12 @@ fun AiProviderSettingsScreen(
             onTestArtifact = onTestArtifact,
             onSaveDraft = onSaveDraft,
             onSaveArtifact = onSaveArtifact,
+            onSaveOnlyArtifact = onSaveOnlyArtifact,
             onRefineArtifact = onRefineArtifact,
             onDeleteArtifact = onDeleteArtifact,
             onOpenAiSettings = onOpenAiSettings,
             onNewArtifact = onNewArtifact,
+            preferredDeckSlot = preferredDeckSlot,
             modifier = modifier,
         )
         return

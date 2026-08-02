@@ -16,6 +16,7 @@ import io.codecks.domain.features.FakeEntitlementRepository
 import io.codecks.domain.ai.AiArtifact
 import io.codecks.domain.ai.AiArtifactAction
 import io.codecks.domain.ai.AiArtifactKind
+import io.codecks.domain.ai.AiArtifactPlacementChoice
 import io.codecks.domain.ai.AiArtifactTest
 import io.codecks.domain.ai.AiArtifactTestStatus
 import io.codecks.domain.ai.ActionCapability
@@ -164,6 +165,88 @@ class AiProviderSettingsControllerTest {
         val recreated = controllerIn(scope = this, artifactRepository = artifacts)
         runCurrent()
         assertEquals(generatedId, recreated.uiState.value.artifacts.single().id)
+    }
+
+    @Test
+    fun saveOnlyKeepsCatalogArtifactWithoutRequestingDeckPlacement() = runTest {
+        val artifacts = InMemoryAiArtifactRepository()
+        val controller = controllerIn(
+            scope = this,
+            artifactRepository = artifacts,
+            responses = mutableListOf(openAiReadyActionResponse("draft.open", "Open Docs", "https://docs.example.com")),
+        )
+
+        controller.setApiKey("sk-test-secret")
+        controller.saveApiKey()
+        runCurrent()
+        controller.setPrompt("open docs")
+        controller.generateDraft()
+        runCurrent()
+        val artifactId = controller.uiState.value.generatedArtifactId!!
+
+        controller.markSavedOnly(artifactId)
+
+        assertEquals(null, controller.uiState.value.generatedArtifactId)
+        assertEquals(null, artifacts.snapshot().single().lastPlacementRequest)
+        assertTrue(controller.uiState.value.message.orEmpty().contains("No Deck slot changed"))
+    }
+
+    @Test
+    fun placementChoicePersistsAcrossControllerRecreation() = runTest {
+        val artifacts = InMemoryAiArtifactRepository()
+        val artifact = AiArtifact(
+            id = "love",
+            kind = AiArtifactKind.Button,
+            title = "Love",
+            prompt = "love confetti",
+            actions = listOf(AiArtifactAction("love", "Love", "open https://example.com")),
+        )
+        artifacts.save(artifact)
+        val controller = controllerIn(scope = this, artifactRepository = artifacts)
+        runCurrent()
+
+        controller.requestPlacement(artifact.id, AiArtifactPlacementChoice.ChooseSlot)
+        runCurrent()
+
+        assertEquals(AiArtifactPlacementChoice.ChooseSlot, artifacts.snapshot().single().lastPlacementRequest?.choice)
+        val recreated = controllerIn(scope = this, artifactRepository = artifacts)
+        runCurrent()
+        assertEquals(
+            AiArtifactPlacementChoice.ChooseSlot,
+            recreated.uiState.value.artifacts.single().lastPlacementRequest?.choice,
+        )
+    }
+
+    @Test
+    fun savingHistoricalArtifactDoesNotClearCurrentGeneratedDraft() = runTest {
+        val artifacts = InMemoryAiArtifactRepository()
+        val historical = AiArtifact(
+            id = "historical",
+            kind = AiArtifactKind.Button,
+            title = "Historical",
+            prompt = "old",
+            actions = listOf(AiArtifactAction("old", "Old", "open https://old.example.com")),
+        )
+        artifacts.save(historical)
+        val controller = controllerIn(
+            scope = this,
+            artifactRepository = artifacts,
+            responses = mutableListOf(openAiReadyActionResponse("current", "Current", "https://current.example.com")),
+        )
+        runCurrent()
+        controller.setApiKey("sk-test-secret")
+        controller.saveApiKey()
+        runCurrent()
+        controller.setPrompt("current")
+        controller.generateDraft()
+        runCurrent()
+        val currentId = controller.uiState.value.generatedArtifactId
+
+        controller.markSavedOnly(historical.id)
+
+        assertEquals(currentId, controller.uiState.value.generatedArtifactId)
+        assertEquals("current", controller.uiState.value.prompt)
+        assertTrue(controller.uiState.value.message.orEmpty().contains("already saved"))
     }
 
     @Test

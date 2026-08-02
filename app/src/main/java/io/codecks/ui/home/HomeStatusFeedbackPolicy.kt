@@ -27,7 +27,9 @@ internal fun homeStatusFeedback(status: ActionStatus): HomeStatusFeedback =
 
         is ActionStatus.Succeeded -> when (status.actionId) {
             "deck_remove",
-            "deck_forget" -> HomeStatusFeedback.Snackbar(
+            "deck_forget",
+            "deck_move",
+            "deck_resize" -> HomeStatusFeedback.Snackbar(
                 message = status.message,
                 actionLabel = "Undo",
             )

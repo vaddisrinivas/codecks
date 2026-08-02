@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import io.codecks.core.design.CodecksDesignTokens
 import io.codecks.domain.ai.AiArtifact
 import io.codecks.domain.ai.AiArtifactKind
+import io.codecks.domain.ai.AiArtifactPlacementChoice
 import io.codecks.domain.ai.AiArtifactTest
 import io.codecks.domain.ai.AiArtifactTestStatus
 import io.codecks.domain.ai.AiGenerationRecord
@@ -66,10 +67,12 @@ internal fun AiArtifactWorkspaceScreen(
     onTestArtifact: (String) -> Unit,
     onSaveDraft: (GeneratedDraft) -> Unit,
     onSaveArtifact: (AiArtifact) -> Unit,
+    onSaveOnlyArtifact: (AiArtifact) -> Unit,
     onRefineArtifact: (String) -> Unit,
     onDeleteArtifact: (String) -> Unit,
     onOpenAiSettings: () -> Unit,
     onNewArtifact: () -> Unit,
+    preferredDeckSlot: Int?,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -133,8 +136,17 @@ internal fun AiArtifactWorkspaceScreen(
                         refinementSource = state.lastRefinedFromArtifact.takeIf { state.lastRefinedArtifactId == artifact.id },
                         isTesting = state.testingArtifactId == artifact.id,
                         onTest = { onTestArtifact(artifact.id) },
-                        onSave = { onSaveArtifact(artifact) },
-                        saveLabel = artifact.saveLabel(),
+                        onSaveOnly = { onSaveOnlyArtifact(artifact) },
+                        onPlace = { onSaveArtifact(artifact) },
+                        placementLabel = if (
+                            artifact.kind in setOf(AiArtifactKind.Button, AiArtifactKind.Deck) &&
+                            artifact.actions.size == 1 &&
+                            preferredDeckSlot != null
+                        ) {
+                            "Place in slot ${preferredDeckSlot + 1}"
+                        } else {
+                            "Choose Deck slot"
+                        },
                         onRefine = { onRefineArtifact(artifact.id) },
                         onDelete = { onDeleteArtifact(artifact.id) },
                         modifier = Modifier.padding(horizontal = 24.dp),
@@ -172,7 +184,17 @@ internal fun AiArtifactWorkspaceScreen(
                         artifact = artifact,
                         isTesting = state.testingArtifactId == artifact.id,
                         onTest = { onTestArtifact(artifact.id) },
-                        onSave = { onSaveArtifact(artifact) },
+                        onSaveOnly = { onSaveOnlyArtifact(artifact) },
+                        onPlace = { onSaveArtifact(artifact) },
+                        placementLabel = if (
+                            artifact.kind in setOf(AiArtifactKind.Button, AiArtifactKind.Deck) &&
+                            artifact.actions.size == 1 &&
+                            preferredDeckSlot != null
+                        ) {
+                            "Place in slot ${preferredDeckSlot + 1}"
+                        } else {
+                            "Choose Deck slot"
+                        },
                         onRefine = { onRefineArtifact(artifact.id) },
                         onDelete = { onDeleteArtifact(artifact.id) },
                         modifier = Modifier.padding(horizontal = 24.dp),
@@ -429,8 +451,9 @@ private fun AiArtifactCard(
     refinementSource: AiArtifact?,
     isTesting: Boolean,
     onTest: () -> Unit,
-    onSave: (() -> Unit)?,
-    saveLabel: String? = null,
+    onSaveOnly: () -> Unit,
+    onPlace: () -> Unit,
+    placementLabel: String,
     onRefine: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
@@ -466,6 +489,7 @@ private fun AiArtifactCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            AiArtifactLifecycleStatus(artifact)
             refinementSource?.let { source ->
                 AiRefinementDiffCard(before = source, after = artifact)
             }
@@ -505,7 +529,8 @@ private fun AiArtifactCard(
                     },
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val deckArtifact = artifact.kind == AiArtifactKind.Button || artifact.kind == AiArtifactKind.Deck
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 DeckActionButton(
                     label = if (isTesting) "Checking" else "Safety Check",
                     onClick = onTest,
@@ -513,10 +538,27 @@ private fun AiArtifactCard(
                     icon = Icons.Outlined.PlayArrow,
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                 )
-                if (onSave != null) {
+                if (deckArtifact) {
                     DeckActionButton(
-                        label = saveLabel ?: if (artifact.kind == io.codecks.domain.ai.AiArtifactKind.Deck) "Save deck" else "Save",
-                        onClick = onSave,
+                        label = "Save only",
+                        onClick = onSaveOnly,
+                        icon = Icons.Outlined.CheckCircle,
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    )
+                } else {
+                    DeckActionButton(
+                        label = artifact.saveLabel(),
+                        onClick = onPlace,
+                        icon = Icons.Outlined.CheckCircle,
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                if (deckArtifact) {
+                    DeckActionButton(
+                        label = placementLabel,
+                        onClick = onPlace,
                         icon = Icons.Outlined.CheckCircle,
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                     )
@@ -543,7 +585,9 @@ private fun AiArtifactHistoryCard(
     artifact: AiArtifact,
     isTesting: Boolean,
     onTest: () -> Unit,
-    onSave: () -> Unit,
+    onSaveOnly: () -> Unit,
+    onPlace: () -> Unit,
+    placementLabel: String,
     onRefine: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
@@ -579,6 +623,7 @@ private fun AiArtifactHistoryCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            AiArtifactLifecycleStatus(artifact)
             artifact.lastTest?.let { test ->
                 Text(
                     text = test.message,
@@ -590,7 +635,8 @@ private fun AiArtifactHistoryCard(
                     },
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val deckArtifact = artifact.kind == AiArtifactKind.Button || artifact.kind == AiArtifactKind.Deck
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 DeckActionButton(
                     label = if (isTesting) "Checking" else "Check",
                     onClick = onTest,
@@ -599,11 +645,21 @@ private fun AiArtifactHistoryCard(
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                 )
                 DeckActionButton(
-                    label = artifact.saveLabel(),
-                    onClick = onSave,
+                    label = if (deckArtifact) "Save only" else artifact.saveLabel(),
+                    onClick = if (deckArtifact) onSaveOnly else onPlace,
                     icon = Icons.Outlined.CheckCircle,
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                 )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                if (deckArtifact) {
+                    DeckActionButton(
+                        label = placementLabel,
+                        onClick = onPlace,
+                        icon = Icons.Outlined.CheckCircle,
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    )
+                }
                 DeckActionButton(
                     label = "Refine",
                     onClick = onRefine,
@@ -617,6 +673,27 @@ private fun AiArtifactHistoryCard(
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun AiArtifactLifecycleStatus(artifact: AiArtifact) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = "Saved to catalog",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        artifact.lastPlacementRequest?.let { request ->
+            Text(
+                text = when (request.choice) {
+                    AiArtifactPlacementChoice.PlaceHere -> "Last request: place in chosen slot"
+                    AiArtifactPlacementChoice.ChooseSlot -> "Last request: choose Deck slot"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

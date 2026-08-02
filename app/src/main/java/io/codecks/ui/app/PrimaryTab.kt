@@ -28,6 +28,6 @@ enum class PrimaryTab(
     Keyboard(KeyboardRoute, "Keyboard", Icons.Outlined.Keyboard),
     Clipboard(ClipboardRoute, "Clipboard", Icons.Outlined.ContentPaste),
     Automations(AutomationsRoute, "Rules", Icons.Outlined.Bolt),
-    Ai(AiBuilderRoute, "AI", Icons.Outlined.AutoAwesome),
+    Ai(AiBuilderRoute, "AI Builder", Icons.Outlined.AutoAwesome),
     Settings(SettingsRoute, "Settings", Icons.Outlined.Settings),
 }

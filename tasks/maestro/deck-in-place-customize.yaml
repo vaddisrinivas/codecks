@@ -1,0 +1,26 @@
+appId: app.codecks.debug
+name: Deck in-place customization
+---
+
+- launchApp:
+    clearState: true
+
+- assertVisible: "Deck"
+- longPressOn: "Finder"
+- assertVisible: "Move this button"
+- assertVisible: "Resize this button"
+- assertVisible: "Reassign this slot"
+- scrollUntilVisible:
+    element:
+      text: "Remove from deck"
+    direction: DOWN
+- assertVisible: "Remove from deck"
+- back
+- tapOn: "Deck options"
+- tapOn: "Customize on Deck"
+- assertVisible: "Customize · tap a button to move"
+- tapOn: "Deck options"
+- assertVisible: "Done customizing"
+- tapOn: "Done customizing"
+- assertVisible: "Deck"
+- takeScreenshot: "deck-in-place-customize"

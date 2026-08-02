@@ -102,6 +102,7 @@ fun HomeScreen(
     onRemoveAction: (DeckAction) -> Unit = {},
     onAssignSlot: (Int, DeckAction) -> Unit = { _, _ -> },
     onMoveSlot: (Int, Int) -> Unit = { _, _ -> },
+    onResizeSlot: (Int, Int) -> Unit = { _, _ -> },
     onForgetAction: (DeckAction) -> Unit = {},
     onOpenRunLog: (String?) -> Unit = {},
     smartSuggestions: List<SmartDeckSuggestionUi> = emptyList(),
@@ -131,8 +132,11 @@ fun HomeScreen(
     val runningActionId = (state.actionStatus as? ActionStatus.Running)?.actionId
     val currentResult = state.actionStatus.takeIf { it !is ActionStatus.Idle }
     var optionsSlot by remember { mutableStateOf<HomeDeckSlot?>(null) }
+    var addToSlot by rememberSaveable { mutableIntStateOf(-1) }
     var reassignSlot by rememberSaveable { mutableIntStateOf(-1) }
+    var resizingSlot by rememberSaveable { mutableIntStateOf(-1) }
     var movingFromSlot by rememberSaveable { mutableIntStateOf(-1) }
+    var customizationMode by rememberSaveable { mutableStateOf(false) }
     var pendingForgetAction by remember { mutableStateOf<DeckAction?>(null) }
     var selectedPlacementSlots by remember { mutableStateOf<List<Int>>(emptyList()) }
     val availableActions = remember(state.allActions) {
@@ -148,18 +152,25 @@ fun HomeScreen(
                 selectedPlacementSlots = emptyList()
                 onCancelPendingDeckPlacement()
             },
-            title = { Text("Place generated controls") },
+            title = { Text("Place generated buttons") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Deck is full. Choose ${pending.actions.size} slot(s) to place ${pending.actions.size} generated control(s).")
+                    Text("Choose ${pending.actions.size} slot(s) for ${pending.actions.size} generated button(s).")
                     val selectedActionLabels = if (selectedPlacementSlots.isEmpty()) {
                         "No slots selected"
                     } else {
                         selectedPlacementSlots.joinToString { (it + 1).toString() }
                     }
                     Text("Selected slots: $selectedActionLabels")
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.heightIn(max = 320.dp)) {
-                        state.actions.forEachIndexed { slot, action ->
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.heightIn(max = 320.dp),
+                    ) {
+                        items(
+                            count = state.actions.size,
+                            key = { slot -> "placement-slot-$slot" },
+                        ) { slot ->
+                            val action = state.actions[slot]
                             val selected = selectedPlacementSlots.contains(slot)
                             val canSelectMore = selectedPlacementSlots.size < pending.actions.size || selected
                             Surface(
@@ -231,11 +242,15 @@ fun HomeScreen(
     }
 
     CodecksKeybedDeck(
-        activeDeckLabel = deckActionSlots
-            .firstOrNull { it.slot == movingFromSlot }
-            ?.action
-            ?.let { "Move ${it.label} · tap destination" }
-            ?: activeTemplateTitle(state.activeTemplateId, state.deckTemplates),
+        activeDeckLabel = when {
+            movingFromSlot >= 0 -> deckActionSlots
+                .firstOrNull { it.slot == movingFromSlot }
+                ?.action
+                ?.let { "Move ${it.label} · tap destination" }
+                ?: "Choose destination"
+            customizationMode -> "Customize · tap a button to move"
+            else -> activeTemplateTitle(state.activeTemplateId, state.deckTemplates)
+        },
         activeApp = state.activeMacApp,
         connectionHealth = connectionHealth,
         slots = deckActionSlots,
@@ -243,11 +258,14 @@ fun HomeScreen(
         currentResult = currentResult,
         focusedActionId = focusedActionId,
         onAction = onAction,
-        onEditSlot = { slot -> reassignSlot = slot },
-        onCreateWithAiForSlot = onCreateWithAiForSlot,
+        onOpenEmptySlot = { slot -> addToSlot = slot },
         onOpenSettings = onOpenSettings,
         onOpenConnection = onOpenConnection,
-        onEditDeck = onEditDeck,
+        customizationMode = customizationMode,
+        onCustomizationModeChange = { enabled ->
+            customizationMode = enabled
+            if (!enabled) movingFromSlot = -1
+        },
         onOpenPalette = onOpenPalette,
         smartSuggestions = smartSuggestions,
         smartRunPending = smartRunPending,
@@ -263,14 +281,33 @@ fun HomeScreen(
         movingFromSlot = movingFromSlot.takeIf { it >= 0 },
         onMoveTarget = { target ->
             val from = movingFromSlot
-            movingFromSlot = -1
-            if (from >= 0 && from != target.slot) onMoveSlot(from, target.slot)
+            if (from < 0) {
+                movingFromSlot = target.slot
+            } else {
+                movingFromSlot = -1
+                if (from != target.slot) onMoveSlot(from, target.slot)
+            }
         },
         deckStyle = deckStyle,
         modifier = modifier
             .fillMaxSize()
             .padding(contentPadding),
     )
+    if (addToSlot >= 0) {
+        val slot = addToSlot
+        AddToSlotDialog(
+            slot = slot,
+            onDismiss = { addToSlot = -1 },
+            onChooseFromCatalog = {
+                addToSlot = -1
+                reassignSlot = slot
+            },
+            onCreateWithAi = {
+                addToSlot = -1
+                onCreateWithAiForSlot(slot)
+            },
+        )
+    }
     optionsSlot?.let { slot ->
         val action = slot.action
         ActionOptionsDialog(
@@ -293,6 +330,10 @@ fun HomeScreen(
                 optionsSlot = null
                 movingFromSlot = slot.slot
             },
+            onResize = {
+                optionsSlot = null
+                resizingSlot = slot.slot
+            },
             onDuplicate = {
                 optionsSlot = null
                 onDuplicateAction(action)
@@ -308,6 +349,19 @@ fun HomeScreen(
             onViewLog = {
                 optionsSlot = null
                 onOpenRunLog(action.id)
+            },
+        )
+    }
+    if (resizingSlot >= 0) {
+        val slot = resizingSlot
+        ResizeActionDialog(
+            slot = slot,
+            currentSpan = renderLayout.slots.getOrNull(slot)?.columnSpan ?: 1,
+            maxSpan = renderLayout.columns,
+            onDismiss = { resizingSlot = -1 },
+            onResize = { columnSpan ->
+                resizingSlot = -1
+                onResizeSlot(slot, columnSpan)
             },
         )
     }
@@ -364,11 +418,11 @@ private fun CodecksKeybedDeck(
     currentResult: ActionStatus?,
     focusedActionId: String?,
     onAction: (DeckAction) -> Unit,
-    onEditSlot: (Int) -> Unit,
-    onCreateWithAiForSlot: (Int) -> Unit,
+    onOpenEmptySlot: (Int) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenConnection: () -> Unit,
-    onEditDeck: () -> Unit,
+    customizationMode: Boolean,
+    onCustomizationModeChange: (Boolean) -> Unit,
     onOpenPalette: () -> Unit,
     smartSuggestions: List<SmartDeckSuggestionUi>,
     smartRunPending: Boolean,
@@ -476,10 +530,10 @@ private fun CodecksKeybedDeck(
                         onDismissRequest = { deckMenuExpanded = false },
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Deck customization") },
+                            text = { Text(if (customizationMode) "Done customizing" else "Customize on Deck") },
                             onClick = {
                                 deckMenuExpanded = false
-                                onEditDeck()
+                                onCustomizationModeChange(!customizationMode)
                             },
                         )
                     }
@@ -552,7 +606,8 @@ private fun CodecksKeybedDeck(
                                 onClick = {
                                     when {
                                         moving -> onMoveTarget(slot)
-                                        openSlot -> onCreateWithAiForSlot(slot.slot)
+                                        openSlot -> onOpenEmptySlot(slot.slot)
+                                        customizationMode -> onMoveTarget(slot)
                                         else -> onAction(action)
                                     }
                                 },
@@ -1149,6 +1204,7 @@ private fun ActionOptionsDialog(
     onTest: () -> Unit,
     onReassign: () -> Unit,
     onMove: () -> Unit,
+    onResize: () -> Unit,
     onDuplicate: () -> Unit,
     onRemoveFromDeck: () -> Unit,
     onForget: () -> Unit,
@@ -1158,20 +1214,28 @@ private fun ActionOptionsDialog(
         onDismissRequest = onDismiss,
         title = { Text(action.label) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    action.description.ifBlank { "Deck control" },
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                DialogActionButton("Run", onRun)
-                DialogActionButton("Reassign this slot", onReassign)
-                DialogActionButton("Move this button", onMove)
-                DialogActionButton("Duplicate into empty slot", onDuplicate)
-                DialogActionButton("Test", onTest)
-                DialogActionButton("Run log", onViewLog)
-                HorizontalDivider()
-                DialogActionButton("Remove from deck", onRemoveFromDeck)
-                if (canForget) DialogActionButton("Forget from catalog", onForget)
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.heightIn(max = 440.dp),
+            ) {
+                item {
+                    Text(
+                        action.description.ifBlank { "Deck button" },
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                item { DialogActionButton("Run", onRun) }
+                item { DialogActionButton("Reassign this slot", onReassign) }
+                item { DialogActionButton("Move this button", onMove) }
+                item { DialogActionButton("Resize this button", onResize) }
+                item { DialogActionButton("Duplicate into empty slot", onDuplicate) }
+                item { DialogActionButton("Test", onTest) }
+                item { DialogActionButton("Run log", onViewLog) }
+                item { HorizontalDivider() }
+                item { DialogActionButton("Remove from deck", onRemoveFromDeck) }
+                if (canForget) {
+                    item { DialogActionButton("Forget from catalog", onForget) }
+                }
             }
         },
         confirmButton = {},
@@ -1197,6 +1261,64 @@ private fun DialogActionButton(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
         )
     }
+}
+
+@Composable
+private fun ResizeActionDialog(
+    slot: Int,
+    currentSpan: Int,
+    maxSpan: Int,
+    onDismiss: () -> Unit,
+    onResize: (Int) -> Unit,
+) {
+    val choices = remember(maxSpan) {
+        listOf(1, 2, 4).filter { it <= maxSpan.coerceAtLeast(1) }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Resize slot ${slot + 1}") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                choices.forEach { span ->
+                    DialogActionButton(
+                        label = when (span) {
+                            1 -> "Single"
+                            maxSpan -> "Full row"
+                            else -> "$span columns"
+                        } + if (span == currentSpan) " · Current" else "",
+                        onClick = { onResize(span) },
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun AddToSlotDialog(
+    slot: Int,
+    onDismiss: () -> Unit,
+    onChooseFromCatalog: () -> Unit,
+    onCreateWithAi: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add to slot ${slot + 1}") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Choose an existing button or build a new one with AI.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                DialogActionButton("Choose from catalog", onChooseFromCatalog)
+                DialogActionButton("Create with AI", onCreateWithAi)
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable

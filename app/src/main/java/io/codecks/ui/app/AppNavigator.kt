@@ -30,7 +30,7 @@ fun mainDestinations(flags: Map<FeatureFlag, Boolean>): List<AppDestination> = b
         }
     }
 }.ifEmpty {
-    listOf(AppDestination(SettingsRoute, "Settings", "Controls, theme, setup", PrimaryTab.Deck.icon))
+    listOf(AppDestination(SettingsRoute, "Settings", "Configure Macs and controls", PrimaryTab.Deck.icon))
 }
 
 fun routeEnabled(
@@ -89,13 +89,13 @@ fun destinationRequestToRoute(
 
 private val PrimaryTab.summary: String
     get() = when (this) {
-        PrimaryTab.Deck -> "Run your command keys"
-        PrimaryTab.Trackpad -> "Control the Mac pointer"
-        PrimaryTab.Keyboard -> "Type to your Mac"
-        PrimaryTab.Clipboard -> "Move clipboard text"
-        PrimaryTab.Automations -> "Safe local workflows"
-        PrimaryTab.Ai -> "Create safe actions"
-        PrimaryTab.Settings -> "Controls, theme, setup"
+        PrimaryTab.Deck -> "Run buttons on your Mac"
+        PrimaryTab.Trackpad -> "Control your Mac pointer"
+        PrimaryTab.Keyboard -> "Type on your Mac"
+        PrimaryTab.Clipboard -> "Move text between phone and Mac"
+        PrimaryTab.Automations -> "Run local rules"
+        PrimaryTab.Ai -> "Create buttons, Decks, and Rules"
+        PrimaryTab.Settings -> "Configure Macs and controls"
     }
 
 fun Map<FeatureFlag, Boolean>.enabled(flag: FeatureFlag): Boolean =

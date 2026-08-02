@@ -25,7 +25,7 @@ class AppNavigatorTest {
     fun defaultMainDestinations_focusOnCoreCodecksPillars() {
         val labels = mainDestinations(DEFAULT_FEATURE_FLAGS).map { it.label }
 
-        assertEquals(listOf("Deck", "Trackpad", "Keyboard", "Clipboard", "Rules", "AI", "Settings"), labels)
+        assertEquals(listOf("Deck", "Trackpad", "Keyboard", "Clipboard", "Rules", "AI Builder", "Settings"), labels)
         assertFalse(labels.contains("Context"))
     }
 
@@ -63,7 +63,7 @@ class AppNavigatorTest {
 
         val labels = mainDestinations(flags).map { it.label }
 
-        assertTrue(labels.contains("AI"))
+        assertTrue(labels.contains("AI Builder"))
         assertEquals(AiBuilderRoute, guardRoute(AiBuilderRoute, flags))
     }
 

@@ -4,6 +4,8 @@ import io.codecks.domain.ai.AiArtifact
 import io.codecks.domain.ai.AiArtifactAction
 import io.codecks.domain.ai.AiArtifactKind
 import io.codecks.domain.ai.AiArtifactParameter
+import io.codecks.domain.ai.AiArtifactPlacementChoice
+import io.codecks.domain.ai.AiArtifactPlacementRequest
 import io.codecks.domain.ai.AiArtifactReview
 import io.codecks.domain.ai.AiArtifactRiskLevel
 import io.codecks.domain.ai.AiArtifactStepReview
@@ -61,6 +63,11 @@ class AiArtifactJsonCodecTest {
                     status = AiArtifactTestStatus.Succeeded,
                     message = "Looks safe",
                     timestampMillis = 5678L,
+                ),
+                catalogSavedAtMillis = 3456L,
+                lastPlacementRequest = AiArtifactPlacementRequest(
+                    choice = AiArtifactPlacementChoice.ChooseSlot,
+                    timestampMillis = 6789L,
                 ),
             )
 

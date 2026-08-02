@@ -351,6 +351,10 @@ fun MouseScreen(
                         }
                     },
                     onOpenDeckGesture = onExitTrackpad,
+                    onOpenControlsGesture = {
+                        controlsOpen = true
+                        quickTray = TrackpadQuickTray.Settings
+                    },
                     sensitivity = sensitivity,
                     acceleration = acceleration,
                     enabled = state.isConnected,
@@ -1355,6 +1359,7 @@ private fun Trackpad(
     sessionPinned: Boolean,
     onDoubleTap: () -> Unit,
     onOpenDeckGesture: () -> Unit,
+    onOpenControlsGesture: () -> Unit = {},
     onTapCorrection: () -> Unit = {},
     onGestureDiagnostic: (TrackpadGestureSample) -> Unit = {},
     sensitivity: Float,
@@ -1449,6 +1454,7 @@ private fun Trackpad(
                 },
                 onTelemetry = {},
                 onOpenDeckGesture = onOpenDeckGesture,
+                onOpenControlsGesture = onOpenControlsGesture,
                 stylusEnabled = stylusEnabled,
                 onTrace = { point ->
                     if (traceEnabled) {
@@ -2103,6 +2109,7 @@ internal fun RawTrackpadTouchLayer(
     onGestureSample: (TrackpadGestureSample) -> Unit,
     onTelemetry: (TrackpadTelemetrySample) -> Unit,
     onOpenDeckGesture: () -> Unit,
+    onOpenControlsGesture: () -> Unit = {},
     onActivity: () -> Unit,
     stylusEnabled: Boolean,
     onTrace: (PointerTracePoint) -> Unit,
@@ -2146,6 +2153,7 @@ internal fun RawTrackpadTouchLayer(
             view.onGestureSample = onGestureSample
             view.onTelemetry = onTelemetry
             view.onOpenDeckGesture = onOpenDeckGesture
+            view.onOpenControlsGesture = onOpenControlsGesture
             view.onActivity = onActivity
             view.stylusEnabled = stylusEnabled
             view.onTrace = onTrace
@@ -2190,6 +2198,7 @@ private class RawTrackpadView(context: Context) : View(context) {
     var onGestureSample: (TrackpadGestureSample) -> Unit = {}
     var onTelemetry: (TrackpadTelemetrySample) -> Unit = {}
     var onOpenDeckGesture: () -> Unit = {}
+    var onOpenControlsGesture: () -> Unit = {}
     var onActivity: () -> Unit = {}
     var stylusEnabled: Boolean = true
     var onTrace: (PointerTracePoint) -> Unit = {}
@@ -2238,6 +2247,7 @@ private class RawTrackpadView(context: Context) : View(context) {
         val command = when (pointerCount) {
             3 -> threeFingerHoldCommand
             4 -> HidCommand.AppSwitcher
+            5 -> HidCommand.AppSwitcher
             else -> null
         }
         if (!multiFingerHoldTriggered && enabledForInput && shouldTriggerTrackpadHold(
@@ -2254,6 +2264,8 @@ private class RawTrackpadView(context: Context) : View(context) {
             if (hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
             if (pointerCount == 4) {
                 onOpenDeckGesture()
+            } else if (pointerCount == 5) {
+                onOpenControlsGesture()
             } else {
                 onCommand(command)
             }
@@ -2262,7 +2274,11 @@ private class RawTrackpadView(context: Context) : View(context) {
                     maxPointers = pointerCount,
                     panDistancePx = totalPan.getDistance(),
                     durationMillis = SystemClock.uptimeMillis() - gestureStartedAtMs,
-                    classification = if (pointerCount == 4) "hold:Deck" else "hold:${command.name}",
+                    classification = when (pointerCount) {
+                        4 -> "hold:Deck"
+                        5 -> "hold:Controls"
+                        else -> "hold:${command.name}"
+                    },
                 ),
             )
         }
@@ -2575,6 +2591,7 @@ private class RawTrackpadView(context: Context) : View(context) {
         val holdCommand = when (pointerCount) {
             3 -> threeFingerHoldCommand
             4 -> HidCommand.AppSwitcher
+            5 -> HidCommand.AppSwitcher
             else -> null
         }
         if (tapLike && holdCommand != null && durationMillis >= multiFingerHoldMillis.coerceIn(350, 1_000)) {
@@ -2583,6 +2600,9 @@ private class RawTrackpadView(context: Context) : View(context) {
             if (pointerCount == 4) {
                 onOpenDeckGesture()
                 onGestureSample(decision.sample.copy(classification = "hold:Deck"))
+            } else if (pointerCount == 5) {
+                onOpenControlsGesture()
+                onGestureSample(decision.sample.copy(classification = "hold:Controls"))
             } else {
                 onCommand(holdCommand)
                 onGestureSample(decision.sample.copy(classification = "hold:${holdCommand.name}"))
@@ -2750,6 +2770,7 @@ private class RawTrackpadView(context: Context) : View(context) {
         pendingHoldPointerCount = when (pointerCount) {
             3 -> if (threeFingerHoldCommand != null) 3 else 0
             4 -> 4
+            5 -> 5
             else -> 0
         }
         if (pendingHoldPointerCount != 0) {

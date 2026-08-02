@@ -13,6 +13,8 @@ import io.codecks.domain.ai.ActionCapability
 import io.codecks.domain.ai.ActionDraftValidator
 import io.codecks.domain.ai.AutomationDraftValidator
 import io.codecks.domain.ai.AiArtifact
+import io.codecks.domain.ai.AiArtifactPlacementChoice
+import io.codecks.domain.ai.AiArtifactPlacementRequest
 import io.codecks.domain.ai.AiArtifactTest
 import io.codecks.domain.ai.AiArtifactTestStatus
 import io.codecks.domain.ai.AiBuilder
@@ -398,6 +400,46 @@ class AiProviderSettingsController(
                 message = "Added. Test it from Deck or Rules before trusting live use.",
             )
         }
+    }
+
+    fun markSavedOnly(artifactId: String) {
+        val artifact = _uiState.value.artifacts.firstOrNull { it.id == artifactId } ?: return
+        _uiState.update {
+            if (it.generatedArtifactId == artifactId) {
+                it.copy(
+                    prompt = "",
+                    generatedDraft = null,
+                    generatedArtifactId = null,
+                    refiningArtifact = null,
+                    lastRefinedFromArtifact = null,
+                    lastRefinedArtifactId = null,
+                    message = "${artifact.title} saved to catalog. No Deck slot changed.",
+                )
+            } else {
+                it.copy(message = "${artifact.title} is already saved to catalog. No Deck slot changed.")
+            }
+        }
+    }
+
+    suspend fun requestPlacement(
+        artifactId: String,
+        choice: AiArtifactPlacementChoice,
+    ): Boolean {
+        val artifact = _uiState.value.artifacts.firstOrNull { it.id == artifactId } ?: return false
+        val updated = artifact.copy(
+            lastPlacementRequest = AiArtifactPlacementRequest(choice = choice),
+        )
+        artifactRepository?.save(updated)
+        _uiState.update { state ->
+            state.copy(
+                artifacts = state.artifacts.map { item -> if (item.id == artifactId) updated else item },
+                message = when (choice) {
+                    AiArtifactPlacementChoice.PlaceHere -> "${artifact.title} sent for Deck placement."
+                    AiArtifactPlacementChoice.ChooseSlot -> "${artifact.title} ready. Choose its Deck slot."
+                },
+            )
+        }
+        return true
     }
 
     fun newArtifact() {

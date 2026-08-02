@@ -805,6 +805,7 @@ private fun CodecksApp(
     var pendingDangerousAction by remember { mutableStateOf<DeckAction?>(null) }
     var acceptedSmartHomeRunId by remember { mutableStateOf<SmartRunId?>(null) }
     var selectedDeckSlot by remember { mutableStateOf(0) }
+    var aiPlacementSlot by remember { mutableStateOf<Int?>(null) }
     var focusedDeckActionId by remember { mutableStateOf<String?>(null) }
     var celebrationLabel by remember { mutableStateOf<String?>(null) }
     var fullscreenOverride by remember { mutableStateOf<Boolean?>(null) }
@@ -896,7 +897,7 @@ private fun CodecksApp(
             onAutomations = { currentNavigate(AutomationsRoute, false) },
             onClipboard = { currentNavigate(ClipboardRoute, false) },
             onSettings = { currentNavigate(SettingsRoute, false) },
-            onEditor = { currentNavigate(EditorRoute, false) },
+            onEditor = { currentNavigate(HomeRoute, true) },
             onCelebration = { celebrationLabel = it },
             onMissingMacInput = {
                 scope.launch { snackbarHostState.showSnackbar("Connect Mac input first") }
@@ -1082,6 +1083,7 @@ private fun CodecksApp(
             tabs = PrimaryTab.entries.filter { tab -> routeEnabled(tab.route, featureFlags) },
             onBack = { backStack.removeLastOrNull() },
             onDestinationSelected = { route ->
+                if (route == AiBuilderRoute) aiPlacementSlot = null
                 navigate(
                     route,
                     topLevel = route in setOf(HomeRoute, MouseRoute, KeyboardRoute, ClipboardRoute),
@@ -1107,14 +1109,15 @@ private fun CodecksApp(
                             onAction = ::executeAction,
                             onOpenSettings = { navigate(SettingsRoute) },
                             onOpenConnection = { navigate(SettingsRoute) },
-                            onEditDeck = { navigate(EditorRoute) },
+                            onEditDeck = { navigate(HomeRoute, topLevel = true) },
                             onOpenPalette = { navigate(CommandPaletteRoute) },
                             onEditSlot = { slot ->
                                 selectedDeckSlot = slot.coerceIn(0, homeState.actions.lastIndex.coerceAtLeast(0))
-                                navigate(EditorRoute)
+                                navigate(HomeRoute, topLevel = true)
                             },
                             onCreateWithAiForSlot = { slot ->
                                 selectedDeckSlot = slot.coerceIn(0, homeState.actions.lastIndex.coerceAtLeast(0))
+                                aiPlacementSlot = selectedDeckSlot
                                 navigate(AiBuilderRoute)
                             },
                             visibleSlotIndices = visibleDeckSlots.map { it.index },
@@ -1123,6 +1126,7 @@ private fun CodecksApp(
                             onRemoveAction = { action -> homeViewModel.removeAction(action.id) },
                             onAssignSlot = homeViewModel::assign,
                             onMoveSlot = homeViewModel::move,
+                            onResizeSlot = homeViewModel::resize,
                             onPlacePendingDeckPlacement = homeViewModel::placePendingDeckPlacement,
                             onCancelPendingDeckPlacement = homeViewModel::clearPendingDeckPlacement,
                             onForgetAction = homeViewModel::forgetAction,
@@ -1255,7 +1259,10 @@ private fun CodecksApp(
                             onCheckTriggers = { automationsViewModel.checkTriggersNow() },
                             onCreateAutomation = automationsViewModel::create,
                             onEditAutomation = automationsViewModel::edit,
-                            onCreateWithAi = { navigate(AiBuilderRoute) },
+                            onCreateWithAi = {
+                                aiPlacementSlot = null
+                                navigate(AiBuilderRoute)
+                            },
                         )
                     }
                     entry<RunLogRoute> {
@@ -1360,7 +1367,7 @@ private fun CodecksApp(
                             },
                             onAutomations = { navigate(AutomationsRoute) },
                             onDevices = {},
-                            onDeck = { navigate(EditorRoute) },
+                            onDeck = { navigate(HomeRoute, topLevel = true) },
                             onKeyboard = { navigate(KeyboardRoute) },
                             onClipboard = { navigate(ClipboardRoute) },
                             onExportBackup = {
@@ -1384,7 +1391,10 @@ private fun CodecksApp(
                             onClipboardIntervalChange = { minutes ->
                                 scope.launch { clipboardSettingsRepository.saveIntervalMinutes(minutes) }
                             },
-                            onAiBuilder = { navigate(AiBuilderRoute) },
+                            onAiBuilder = {
+                                aiPlacementSlot = null
+                                navigate(AiBuilderRoute)
+                            },
                             onAppearance = {},
                             onAdvanced = {},
                             onDebugBundle = {
@@ -1445,7 +1455,10 @@ private fun CodecksApp(
                                 homeViewModel.resize(slot, span)
                             },
                             onTestAction = homeViewModel::test,
-                            onCreateWithAi = { navigate(AiBuilderRoute) },
+                            onCreateWithAi = {
+                                aiPlacementSlot = selectedDeckSlot
+                                navigate(AiBuilderRoute)
+                            },
                             deckStyle = themeSettings.deckStyle,
                         )
                     }
@@ -1475,14 +1488,19 @@ private fun CodecksApp(
                                 navigate(HomeRoute)
                             },
                             contextAppsEnabled = smartDeckEnabled,
+                            preferredDeckSlot = aiPlacementSlot,
                             onSaveDraft = { draft ->
                                 if (!automationsViewModel.saveGeneratedDraft(draft)) {
                                     homeViewModel.saveGeneratedDraft(draft)
                                 }
                             },
                             onSaveArtifact = { artifact ->
-                                if (!automationsViewModel.saveArtifact(artifact)) {
-                                    homeViewModel.saveArtifact(artifact)
+                                if (automationsViewModel.saveArtifact(artifact)) {
+                                    aiPlacementSlot = null
+                                } else {
+                                    homeViewModel.requestArtifactPlacement(artifact, aiPlacementSlot)
+                                    aiPlacementSlot = null
+                                    navigate(HomeRoute, topLevel = true)
                                 }
                             },
                         )

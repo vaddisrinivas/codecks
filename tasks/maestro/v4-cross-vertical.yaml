@@ -6,6 +6,12 @@ name: Compact cross-vertical navigation
     clearState: true
 
 - assertVisible: "Deck"
+- tapOn: "Deck options"
+- tapOn: "Customize on Deck"
+- assertVisible: "Customize · tap a button to move"
+- tapOn: "Deck options"
+- assertVisible: "Done customizing"
+- tapOn: "Done customizing"
 - tapOn: "Trackpad"
 - assertVisible: "Trackpad"
 - tapOn: "Keyboard"
@@ -18,10 +24,14 @@ name: Compact cross-vertical navigation
 - tapOn: "Settings"
 - assertVisible: "Settings"
 - tapOn: "More"
+- scrollUntilVisible:
+    element:
+      text: "Rules"
+    direction: DOWN
 - tapOn: "Rules"
 - assertVisible: "Rules"
 - tapOn: "More"
-- tapOn: "AI"
-- assertVisible: "AI"
+- tapOn: "AI Builder"
+- assertVisible: "AI Builder"
 
 - takeScreenshot: "v4-cross-vertical-endpoint"

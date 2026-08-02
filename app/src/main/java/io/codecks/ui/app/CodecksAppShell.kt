@@ -49,6 +49,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
+import io.codecks.navigation.AiBuilderRoute
+import io.codecks.navigation.AutomationsRoute
 import io.codecks.navigation.HomeRoute
 import io.codecks.navigation.RunLogRoute
 import io.codecks.navigation.SettingsRoute
@@ -186,7 +188,9 @@ private fun CodecksBottomBar(
     val pinnedRoutes = listOf(HomeRoute, PrimaryTab.Trackpad.route, PrimaryTab.Keyboard.route, PrimaryTab.Clipboard.route)
     val pinned = pinnedRoutes.mapNotNull { route -> destinations.firstOrNull { it.route == route } }
         .ifEmpty { destinations.take(4) }
-    val moreDestinations = destinations.filterNot { destination -> pinned.any { it.route == destination.route } }
+    val moreDestinations = destinations
+        .filterNot { destination -> pinned.any { it.route == destination.route } }
+        .sortedBy { destination -> destination.moreOrder }
     val moreSelected = moreDestinations.any { it.route == currentRoute }
 
     NavigationBar(
@@ -223,6 +227,12 @@ private fun CodecksBottomBar(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
                 )
+                Text(
+                    "Create and manage Codecks",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                )
                 moreDestinations.forEach { destination ->
                     ListItem(
                         headlineContent = { Text(destination.label) },
@@ -238,6 +248,15 @@ private fun CodecksBottomBar(
         }
     }
 }
+
+private val ShellDestination.moreOrder: Int
+    get() = when (route) {
+        AiBuilderRoute -> 0
+        AutomationsRoute -> 1
+        RunLogRoute -> 2
+        SettingsRoute -> 3
+        else -> 4
+    }
 
 @Composable
 private fun CodecksNavigationRail(
@@ -297,7 +316,7 @@ private fun CodecksTopBar(
     onRequestFullscreen: () -> Unit,
 ) {
     TopAppBar(
-        title = { Text(currentRoute.title()) },
+        title = { Text(if (currentRoute == AiBuilderRoute) "AI Builder" else currentRoute.title()) },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.background,
             titleContentColor = MaterialTheme.colorScheme.onSurface,

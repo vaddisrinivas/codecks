@@ -1,6 +1,7 @@
 package io.codecks.ui.clipboard
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -84,7 +85,10 @@ fun ClipboardScreen(
 
 @Composable
 private fun ClipboardStatusSummary(state: ClipboardUiState, modifier: Modifier = Modifier) {
-    val attention = state.hasConflict || state.isRemoteOffline || state.lastFailureClass != null
+    val connectionStatus = clipboardConnectionStatus(state)
+    val attention = state.hasConflict ||
+        connectionStatus == ClipboardConnectionStatus.Offline ||
+        connectionStatus == ClipboardConnectionStatus.Failed
     Surface(
         color = if (attention) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainer,
         contentColor = if (attention) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface,
@@ -101,16 +105,13 @@ private fun ClipboardStatusSummary(state: ClipboardUiState, modifier: Modifier =
                 contentDescription = null,
             )
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(state.status, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 Text(
-                    text = when {
-                        state.hasConflict -> "Both sides changed. Use manual controls."
-                        state.isRemoteOffline -> "Mac is offline. Sync resumes when connected."
-                        state.mode == ClipboardSyncMode.Off -> "Automatic sync is off."
-                        state.liveSyncVisible -> "Visible sync is running."
-                        state.staleEndpoints.isNotEmpty() -> "Mac/phone snapshots are stale."
-                        else -> "Visible sync is paused while Clipboard is hidden."
-                    },
+                    connectionStatus.label,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = clipboardStatusDetail(state),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -144,23 +145,72 @@ private fun ClipboardPreviewPanel(state: ClipboardUiState) {
                 }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            ClipboardPreviewCard(
-                title = "Phone",
-                preview = state.phonePreview,
-                hash = state.phoneHash,
-                riskLabel = state.phoneRisk,
-                modifier = Modifier.weight(1f),
-            )
-            ClipboardPreviewCard(
-                title = "Mac",
-                preview = state.macPreview,
-                hash = state.macHash,
-                riskLabel = state.macRisk,
-                modifier = Modifier.weight(1f),
-            )
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            if (maxWidth < 480.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ClipboardPreviewCard(
+                        title = "Phone",
+                        preview = state.phonePreview,
+                        hash = state.phoneHash,
+                        riskLabel = state.phoneRisk,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    ClipboardPreviewCard(
+                        title = "Mac",
+                        preview = state.macPreview,
+                        hash = state.macHash,
+                        riskLabel = state.macRisk,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    ClipboardPreviewCard(
+                        title = "Phone",
+                        preview = state.phonePreview,
+                        hash = state.phoneHash,
+                        riskLabel = state.phoneRisk,
+                        modifier = Modifier.weight(1f),
+                    )
+                    ClipboardPreviewCard(
+                        title = "Mac",
+                        preview = state.macPreview,
+                        hash = state.macHash,
+                        riskLabel = state.macRisk,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
         }
     }
+}
+
+internal enum class ClipboardConnectionStatus(val label: String) {
+    Ready("Ready"),
+    Offline("Offline"),
+    SetupNeeded("Setup needed"),
+    Checking("Checking…"),
+    Failed("Failed"),
+}
+
+internal fun clipboardConnectionStatus(state: ClipboardUiState): ClipboardConnectionStatus = when {
+    state.isRunning -> ClipboardConnectionStatus.Checking
+    !state.connectionReady -> ClipboardConnectionStatus.SetupNeeded
+    state.isRemoteOffline -> ClipboardConnectionStatus.Offline
+    state.hasConflict || state.lastFailureClass != null -> ClipboardConnectionStatus.Failed
+    else -> ClipboardConnectionStatus.Ready
+}
+
+internal fun clipboardStatusDetail(state: ClipboardUiState): String = when {
+    state.isRunning -> "Checking the phone and Mac clipboards."
+    state.hasConflict -> "Both sides changed. Choose the copy to keep."
+    !state.connectionReady -> "Connect a Mac in Settings before transferring text."
+    state.isRemoteOffline -> "The Mac is offline. Manual and automatic sync cannot run."
+    state.lastFailureClass != null -> "The last transfer failed. Try again or check Mac setup."
+    state.mode == ClipboardSyncMode.Off -> "Manual transfer is available. Automatic sync is off."
+    state.liveSyncVisible -> "Automatic sync checks while Clipboard is open."
+    state.staleEndpoints.isNotEmpty() -> "Clipboard information needs another check."
+    else -> "Automatic sync resumes when Clipboard is open."
 }
 
 @Composable

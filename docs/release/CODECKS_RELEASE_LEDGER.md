@@ -1,16 +1,16 @@
 # Codecks local-only release ledger
 
-Updated: July 30, 2026
+Updated: August 1, 2026
 
 | Contract | Public-release value |
 | --- | --- |
 | Product | Codecks |
 | Application ID | `app.codecks` |
-| Version | `0.1.32` (`versionCode` 32) |
+| Version | `0.1.33` (`versionCode` 33) |
 | Minimum Android | 9 / API 28 |
 | Target Android | API 37 |
 | Default mode | Local-only; no account, billing, hosted backend, database, analytics, or cloud sync |
-| Core surfaces | Deck, Trackpad, Keyboard, Clipboard bridge, Rules, Settings, Deck editor |
+| Core surfaces | Deck with in-place customization, Trackpad, Keyboard, Clipboard bridge, Rules, Settings |
 | Optional core tool | AI-assisted drafting through a user-selected provider |
 | Disabled incubators | Smart suggestions, Smart Deck, Smart Keyboard, Smart Clipboard, Smart Rules, Smart Settings, Smart Trackpad, Smart OCR, Devices, Premium, Paywall, Advanced, Appearance, Labs |
 

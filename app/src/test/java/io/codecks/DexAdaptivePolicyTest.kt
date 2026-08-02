@@ -59,5 +59,7 @@ class DexAdaptivePolicyTest {
         assertTrue(shell.contains("val useRail = maxWidth >= SECONDARY_NAV_RAIL_WIDTH"))
         assertTrue(shell.contains(".verticalScroll(rememberScrollState())"))
         assertTrue(shell.contains("ModalBottomSheet(onDismissRequest"))
+        assertTrue(shell.contains(""") "AI Builder" else currentRoute.title()"""))
+        assertTrue(shell.contains("AiBuilderRoute -> 0"))
     }
 }

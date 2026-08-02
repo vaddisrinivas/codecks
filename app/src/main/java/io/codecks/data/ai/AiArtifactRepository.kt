@@ -9,6 +9,8 @@ import io.codecks.domain.ai.AiArtifact
 import io.codecks.domain.ai.AiArtifactAction
 import io.codecks.domain.ai.AiArtifactKind
 import io.codecks.domain.ai.AiArtifactParameter
+import io.codecks.domain.ai.AiArtifactPlacementChoice
+import io.codecks.domain.ai.AiArtifactPlacementRequest
 import io.codecks.domain.ai.AiArtifactReview
 import io.codecks.domain.ai.AiArtifactRiskLevel
 import io.codecks.domain.ai.AiArtifactStepReview
@@ -118,6 +120,16 @@ internal object AiArtifactJsonCodec {
             put("description", artifact.description)
             put("prompt", artifact.prompt)
             put("createdAtMillis", artifact.createdAtMillis)
+            put("catalogSavedAtMillis", artifact.catalogSavedAtMillis)
+            artifact.lastPlacementRequest?.let { request ->
+                put(
+                    "lastPlacementRequest",
+                    mapOf(
+                        "choice" to request.choice.name,
+                        "timestampMillis" to request.timestampMillis,
+                    ),
+                )
+            }
             put(
                 "review",
                 mapOf(
@@ -190,9 +202,14 @@ internal object AiArtifactJsonCodec {
                 description = item.optString("description").orEmpty(),
                 prompt = item.optString("prompt").orEmpty(),
                 createdAtMillis = item.long("createdAtMillis", System.currentTimeMillis()),
+                catalogSavedAtMillis = item.long(
+                    "catalogSavedAtMillis",
+                    item.long("createdAtMillis", System.currentTimeMillis()),
+                ),
                 actions = item.array("actions").mapIndexedNotNull(::parseAction),
                 review = item.optObj("review")?.let(::parseReview) ?: AiArtifactReview(),
                 lastTest = item.optObj("lastTest")?.let(::parseTest),
+                lastPlacementRequest = item.optObj("lastPlacementRequest")?.let(::parsePlacementRequest),
             )
         }.getOrNull()
 
@@ -250,6 +267,14 @@ internal object AiArtifactJsonCodec {
             status = test.optString("status").orEmpty().toTestStatus(),
             message = test.optString("message").orEmpty(),
             timestampMillis = test.long("timestampMillis", System.currentTimeMillis()),
+        )
+
+    private fun parsePlacementRequest(request: JsonObject): AiArtifactPlacementRequest =
+        AiArtifactPlacementRequest(
+            choice = AiArtifactPlacementChoice.entries.firstOrNull {
+                it.name == request.optString("choice")
+            } ?: AiArtifactPlacementChoice.ChooseSlot,
+            timestampMillis = request.long("timestampMillis", System.currentTimeMillis()),
         )
 }
 

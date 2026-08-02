@@ -10,6 +10,8 @@ data class AiArtifact(
     val review: AiArtifactReview = AiArtifactReview(),
     val createdAtMillis: Long = System.currentTimeMillis(),
     val lastTest: AiArtifactTest? = null,
+    val catalogSavedAtMillis: Long = createdAtMillis,
+    val lastPlacementRequest: AiArtifactPlacementRequest? = null,
 )
 
 enum class AiArtifactKind {
@@ -68,4 +70,14 @@ enum class AiArtifactTestStatus {
     Succeeded,
     Failed,
     RequiresConfirmation,
+}
+
+data class AiArtifactPlacementRequest(
+    val choice: AiArtifactPlacementChoice,
+    val timestampMillis: Long = System.currentTimeMillis(),
+)
+
+enum class AiArtifactPlacementChoice {
+    PlaceHere,
+    ChooseSlot,
 }

@@ -167,7 +167,7 @@ class HomeViewModelTest {
             assertTrue("${action.id} should persist requiring test", action.requiresTest)
             assertFalse("${action.id} should persist not live-safe", action.liveSafe)
         }
-        assertEquals("2 deck controls saved", (state.actionStatus as ActionStatus.Succeeded).message)
+        assertEquals("2 Deck buttons saved", (state.actionStatus as ActionStatus.Succeeded).message)
     }
 
     @Test
@@ -198,6 +198,58 @@ class HomeViewModelTest {
         assertTrue("accepted artifact action should require test", saved.requiresTest)
         assertFalse("accepted artifact action should not be live-safe", saved.liveSafe)
         assertEquals(saved, viewModel.uiState.value.actions.single { it.id == saved.id })
+    }
+
+    @Test
+    fun requestArtifactPlacement_placesSingleButtonInRequestedSlot() = runTest(dispatcher) {
+        val addButton = DeckAction("add_button", "Add", ActionKind.Local, ActionIcon.Add)
+        val repository = GatedActionRepository(
+            favorites = listOf(addButton, addButton),
+            allActions = listOf(addButton),
+        )
+        val viewModel = HomeViewModel(repository, ReadyConnectionRepository(), ImmediateActionRunner())
+        runCurrent()
+
+        viewModel.requestArtifactPlacement(
+            artifact = AiArtifact(
+                id = "artifact_docs",
+                kind = AiArtifactKind.Button,
+                title = "Open Docs",
+                prompt = "open docs",
+                actions = listOf(AiArtifactAction("open_docs", "Open Docs", "open 'https://docs.example.com'")),
+            ),
+            preferredSlot = 1,
+        )
+        runCurrent()
+
+        assertEquals("add_button", viewModel.uiState.value.actions[0].id)
+        assertTrue(viewModel.uiState.value.actions[1].id.startsWith("artifact_docs_open_docs"))
+        assertEquals(null, viewModel.uiState.value.pendingDeckPlacement)
+    }
+
+    @Test
+    fun requestArtifactPlacement_withoutPreferredSlotOpensSlotChooserWithoutChangingDeck() = runTest(dispatcher) {
+        val addButton = DeckAction("add_button", "Add", ActionKind.Local, ActionIcon.Add)
+        val repository = GatedActionRepository(
+            favorites = listOf(addButton, addButton),
+            allActions = listOf(addButton),
+        )
+        val viewModel = HomeViewModel(repository, ReadyConnectionRepository(), ImmediateActionRunner())
+        runCurrent()
+
+        viewModel.requestArtifactPlacement(
+            AiArtifact(
+                id = "artifact_docs",
+                kind = AiArtifactKind.Button,
+                title = "Open Docs",
+                prompt = "open docs",
+                actions = listOf(AiArtifactAction("open_docs", "Open Docs", "open 'https://docs.example.com'")),
+            ),
+        )
+        runCurrent()
+
+        assertEquals(listOf("add_button", "add_button"), viewModel.uiState.value.actions.map(DeckAction::id))
+        assertEquals(1, viewModel.uiState.value.pendingDeckPlacement?.actions?.size)
     }
 
     @Test
@@ -373,6 +425,30 @@ class HomeViewModelTest {
 
         assertEquals(listOf("browser", "focus"), viewModel.uiState.value.actions.map(DeckAction::id))
         assertEquals(listOf("browser", "focus"), repository.savedFavorites.map(DeckAction::id))
+        assertEquals(
+            ActionStatus.Succeeded("deck_move", "Moved Focus to slot 2"),
+            viewModel.uiState.value.actionStatus,
+        )
+
+        viewModel.undoLastDeckEdit()
+        runCurrent()
+
+        assertEquals(listOf("focus", "browser"), viewModel.uiState.value.actions.map(DeckAction::id))
+        assertEquals(listOf("focus", "browser"), repository.savedFavorites.map(DeckAction::id))
+
+        viewModel.resize(0, 2)
+        runCurrent()
+
+        assertEquals(2, viewModel.uiState.value.deckLayout.slots[0].columnSpan)
+        assertEquals(
+            ActionStatus.Succeeded("deck_resize", "Resized Focus"),
+            viewModel.uiState.value.actionStatus,
+        )
+
+        viewModel.undoLastDeckEdit()
+        runCurrent()
+
+        assertEquals(1, viewModel.uiState.value.deckLayout.slots[0].columnSpan)
     }
 
     @Test
@@ -535,7 +611,7 @@ class HomeViewModelTest {
         assertEquals(1, viewModel.uiState.value.pendingDeckPlacement?.actions?.size)
         assertNotNull(viewModel.uiState.value.allActions.find { it.label == "New Action" })
         assertEquals(
-            ActionStatus.Failed("deck_full", "Deck is full. Select 1 slot(s) to place 1 generated control(s)."),
+            ActionStatus.Failed("deck_full", "Choose 1 slot(s) for 1 generated button(s)."),
             viewModel.uiState.value.actionStatus,
         )
     }
@@ -576,7 +652,7 @@ class HomeViewModelTest {
             viewModel.uiState.value.actions.map(DeckAction::id),
         )
         assertEquals(
-            ActionStatus.Succeeded("ai_deck", "1 generated control(s) placed"),
+            ActionStatus.Succeeded("ai_deck", "1 generated button(s) placed"),
             viewModel.uiState.value.actionStatus,
         )
         assertEquals(null, viewModel.uiState.value.pendingDeckPlacement)
@@ -613,7 +689,7 @@ class HomeViewModelTest {
         runCurrent()
 
         assertEquals(
-            ActionStatus.Failed("deck_full", "Choose 1 slot(s) to place generated deck control(s)."),
+            ActionStatus.Failed("deck_full", "Choose 1 slot(s) for the generated button(s)."),
             viewModel.uiState.value.actionStatus,
         )
         assertEquals(1, viewModel.uiState.value.pendingDeckPlacement?.actions?.size)

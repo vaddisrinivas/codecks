@@ -324,17 +324,67 @@ class HomeViewModel @Inject constructor(
     fun move(from: Int, to: Int) {
         val current = editableLayout()
         if (from !in current.slots.indices || to !in current.slots.indices) return
+        if (from == to) return
+        val movedAction = current.slots[from].action
         val next = current.swapping(from, to)
-        updateCustomDeck(next, pendingUndo = null)
+        updateCustomDeck(
+            next,
+            pendingUndo = PendingDeckUndo(
+                slot = -1,
+                action = movedAction,
+                layoutBefore = current,
+            ),
+        )
         persistDeck(next)
+        _uiState.update {
+            it.copy(
+                actionStatus = ActionStatus.Succeeded(
+                    "deck_move",
+                    "Moved ${movedAction.label} to slot ${to + 1}",
+                ),
+                activity = listOf(
+                    ActionEvent(
+                        "deck_move",
+                        "Deck",
+                        "Moved ${movedAction.label} to slot ${to + 1}",
+                        true,
+                    ),
+                ) + it.activity.take(49),
+            )
+        }
     }
 
     fun resize(slot: Int, columnSpan: Int) {
         val current = editableLayout()
         if (slot !in current.slots.indices) return
+        val currentSlot = current.slots[slot]
+        if (currentSlot.columnSpan == columnSpan.coerceIn(1, current.columns)) return
         val next = current.resizing(slot, columnSpan)
-        updateCustomDeck(next, pendingUndo = null)
+        updateCustomDeck(
+            next,
+            pendingUndo = PendingDeckUndo(
+                slot = -1,
+                action = currentSlot.action,
+                layoutBefore = current,
+            ),
+        )
         persistDeck(next)
+        _uiState.update {
+            it.copy(
+                actionStatus = ActionStatus.Succeeded(
+                    "deck_resize",
+                    "Resized ${currentSlot.action.label}",
+                ),
+                activity = listOf(
+                    ActionEvent(
+                        "deck_resize",
+                        "Deck",
+                        "Resized ${currentSlot.action.label}",
+                        true,
+                    ),
+                ) + it.activity.take(49),
+            )
+        }
     }
 
     fun remove(slot: Int) {
@@ -478,7 +528,7 @@ class HomeViewModel @Inject constructor(
             return
         }
         if (generatedActions.isEmpty()) {
-            val message = "Draft did not include deck controls"
+            val message = "Draft did not include Deck buttons"
             _uiState.update {
                 it.copy(
                     actionStatus = ActionStatus.Failed("ai", message),
@@ -519,13 +569,13 @@ class HomeViewModel @Inject constructor(
                     it.copy(
                         actionStatus = ActionStatus.Failed(
                             "deck_full",
-                            "Deck is full. Select ${remainingActions.size} slot(s) to place ${remainingActions.size} generated control(s).",
+                            "Choose ${remainingActions.size} slot(s) for ${remainingActions.size} generated button(s).",
                         ),
                         activity = listOf(
                             ActionEvent(
                                 "deck_full",
                                 "AI Builder",
-                                "Deck is full. Select ${remainingActions.size} slot(s) to place ${remainingActions.size} generated control(s).",
+                                "Choose ${remainingActions.size} slot(s) for ${remainingActions.size} generated button(s).",
                                 false,
                             ),
                         ) + it.activity.take(49),
@@ -545,14 +595,14 @@ class HomeViewModel @Inject constructor(
                             if (normalizedActions.size == 1) {
                                 "${normalizedActions.single().label} saved"
                             } else {
-                                "${normalizedActions.size} deck controls saved"
+                                "${normalizedActions.size} Deck buttons saved"
                             },
                         )
                     )
                 }
                 return
             }
-            val message = "Deck is full. Select ${normalizedActions.size} slot(s) to place ${normalizedActions.size} generated control(s)."
+            val message = "Choose ${normalizedActions.size} slot(s) for ${normalizedActions.size} generated button(s)."
             updateCustomDeck(
                 nextLayout,
                 newActions = normalizedActions,
@@ -580,7 +630,7 @@ class HomeViewModel @Inject constructor(
         val message = if (nextActions.size == 1) {
             "${nextActions.single().label} saved"
         } else {
-            "${nextActions.size} deck controls saved"
+            "${nextActions.size} Deck buttons saved"
         }
         updateCustomDeck(nextLayout, nextActions)
         viewModelScope.launch {
@@ -647,13 +697,13 @@ class HomeViewModel @Inject constructor(
                     it.copy(
                         actionStatus = ActionStatus.Failed(
                             "deck_full",
-                            "Deck is full. Select ${remainingActions.size} slot(s) to place ${remainingActions.size} generated control(s).",
+                            "Choose ${remainingActions.size} slot(s) for ${remainingActions.size} generated button(s).",
                         ),
                         activity = listOf(
                             ActionEvent(
                                 "deck_full",
                                 "AI draft",
-                                "Deck is full. Select ${remainingActions.size} slot(s) to place ${remainingActions.size} generated control(s).",
+                                "Choose ${remainingActions.size} slot(s) for ${remainingActions.size} generated button(s).",
                                 false,
                             ),
                         ) + it.activity.take(49),
@@ -673,14 +723,14 @@ class HomeViewModel @Inject constructor(
                             if (normalizedActions.size == 1) {
                                 "${normalizedActions.single().label} saved"
                             } else {
-                                "${normalizedActions.size} deck controls saved"
+                                "${normalizedActions.size} Deck buttons saved"
                             },
                         )
                     )
                 }
                 return
             }
-            val message = "Deck is full. Select ${normalizedActions.size} slot(s) to place ${normalizedActions.size} generated control(s)."
+            val message = "Choose ${normalizedActions.size} slot(s) for ${normalizedActions.size} generated button(s)."
             updateCustomDeck(
                 nextLayout,
                 newActions = normalizedActions,
@@ -707,7 +757,7 @@ class HomeViewModel @Inject constructor(
         val message = if (nextActions.size == 1) {
             "${nextActions.single().label} saved"
         } else {
-            "${nextActions.size} deck controls saved"
+            "${nextActions.size} Deck buttons saved"
         }
         updateCustomDeck(nextLayout, nextActions)
         viewModelScope.launch {
@@ -718,6 +768,85 @@ class HomeViewModel @Inject constructor(
                     activity = listOf(ActionEvent("ai_draft", "AI draft", message, true)) + it.activity.take(49),
                 )
             }
+        }
+    }
+
+    fun requestArtifactPlacement(
+        artifact: AiArtifact,
+        preferredSlot: Int? = null,
+    ) {
+        val generatedActions = aiGeneratedContentPlanner.deckActionsFromArtifact(artifact).getOrElse { error ->
+            val message = error.message ?: "Draft cannot be placed"
+            _uiState.update {
+                it.copy(
+                    actionStatus = ActionStatus.Failed("ai_draft", message),
+                    activity = listOf(ActionEvent("ai_draft", "AI Builder", message, false)) + it.activity.take(49),
+                )
+            }
+            return
+        }
+        if (generatedActions.isEmpty()) {
+            val message = "Draft did not include Deck buttons"
+            _uiState.update {
+                it.copy(
+                    actionStatus = ActionStatus.Failed("ai_draft", message),
+                    activity = listOf(ActionEvent("ai_draft", "AI Builder", message, false)) + it.activity.take(49),
+                )
+            }
+            return
+        }
+        val current = favoriteLayout
+        val normalizedActions = generatedActions.withUniqueIds(
+            existingIds = current.actions.map(DeckAction::id).toSet(),
+        ) { "artifact" }
+        if (normalizedActions.size == 1 && preferredSlot != null && preferredSlot in current.slots.indices) {
+            val action = normalizedActions.single()
+            val next = current.replacingAction(preferredSlot, action).resizing(preferredSlot, 1)
+            updateCustomDeck(
+                next,
+                newActions = normalizedActions,
+                pendingUndo = PendingDeckUndo(
+                    slot = -1,
+                    action = action,
+                    layoutBefore = current,
+                ),
+            )
+            persistDeck(next)
+            _uiState.update {
+                it.copy(
+                    actionStatus = ActionStatus.Succeeded(
+                        "ai_draft",
+                        "${action.label} placed in slot ${preferredSlot + 1}",
+                    ),
+                    activity = listOf(
+                        ActionEvent(
+                            "ai_draft",
+                            "AI Builder",
+                            "${action.label} placed in slot ${preferredSlot + 1}",
+                            true,
+                        ),
+                    ) + it.activity.take(49),
+                )
+            }
+            return
+        }
+        updateCustomDeck(
+            current,
+            newActions = normalizedActions,
+            pendingDeckPlacement = PendingDeckPlacement(
+                actions = normalizedActions,
+                statusId = "ai_draft",
+                statusLabel = "AI Builder",
+            ),
+            pendingUndo = null,
+        )
+        _uiState.update {
+            val count = normalizedActions.size
+            val message = "Choose $count Deck slot${if (count == 1) "" else "s"}"
+            it.copy(
+                actionStatus = ActionStatus.Succeeded("ai_draft", message),
+                activity = listOf(ActionEvent("ai_draft", "AI Builder", message, true)) + it.activity.take(49),
+            )
         }
     }
 
@@ -747,7 +876,7 @@ class HomeViewModel @Inject constructor(
                 it.copy(
                     actionStatus = ActionStatus.Failed(
                         "deck_full",
-                        "Choose ${pending.actions.size} slot(s) to place generated deck control(s).",
+                        "Choose ${pending.actions.size} slot(s) for the generated button(s).",
                     ),
                 )
             }
@@ -759,7 +888,7 @@ class HomeViewModel @Inject constructor(
                 it.copy(
                     actionStatus = ActionStatus.Failed(
                         "deck_full",
-                        "Select ${pending.actions.size} different slots to place generated deck control(s).",
+                        "Choose ${pending.actions.size} different slots for the generated button(s).",
                     ),
                 )
             }
@@ -791,13 +920,13 @@ class HomeViewModel @Inject constructor(
                 it.copy(
                     actionStatus = ActionStatus.Succeeded(
                         pending.statusId,
-                        "${pending.actions.size} generated control(s) placed",
+                        "${pending.actions.size} generated button(s) placed",
                     ),
                     activity = listOf(
                         ActionEvent(
                             pending.statusId,
                             pending.statusLabel,
-                            "${pending.actions.size} generated control(s) placed",
+                            "${pending.actions.size} generated button(s) placed",
                             true,
                         ),
                     ) + it.activity.take(49),

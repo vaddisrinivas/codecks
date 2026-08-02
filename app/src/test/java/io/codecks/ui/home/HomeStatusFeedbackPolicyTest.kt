@@ -40,6 +40,32 @@ class HomeStatusFeedbackPolicyTest {
     }
 
     @Test
+    fun deckMoveSuccessKeepsUndoSnackbar() {
+        val feedback = homeStatusFeedback(ActionStatus.Succeeded("deck_move", "Moved Focus to slot 2"))
+
+        assertEquals(
+            HomeStatusFeedback.Snackbar(
+                message = "Moved Focus to slot 2",
+                actionLabel = "Undo",
+            ),
+            feedback,
+        )
+    }
+
+    @Test
+    fun deckResizeSuccessKeepsUndoSnackbar() {
+        val feedback = homeStatusFeedback(ActionStatus.Succeeded("deck_resize", "Resized Focus"))
+
+        assertEquals(
+            HomeStatusFeedback.Snackbar(
+                message = "Resized Focus",
+                actionLabel = "Undo",
+            ),
+            feedback,
+        )
+    }
+
+    @Test
     fun connectMacFailureKeepsSetupShortcut() {
         val feedback = homeStatusFeedback(ActionStatus.Failed("finder", CONNECT_MAC_FIRST_MESSAGE))
 
