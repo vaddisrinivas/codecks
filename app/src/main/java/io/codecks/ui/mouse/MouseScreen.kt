@@ -126,6 +126,7 @@ import io.codecks.core.trackpad.TrackpadGestureEvent
 import io.codecks.core.trackpad.TrackpadGestureSample
 import io.codecks.core.trackpad.TrackpadMotionMode
 import io.codecks.core.trackpad.isTrackpadScrollZone
+import io.codecks.core.trackpad.shouldArmTapDrag
 import io.codecks.core.trackpad.trackpadPointerGain
 import io.codecks.core.trackpad.shouldTriggerTrackpadHold
 import java.time.format.DateTimeFormatter
@@ -2167,8 +2168,18 @@ internal data class PointerTracePoint(
     val isStylus: Boolean,
 )
 
-private class RawTrackpadView(context: Context) : View(context) {
+internal class RawTrackpadView(context: Context) : View(context) {
     var enabledForInput: Boolean = true
+        set(value) {
+            if (field == value) return
+            field = value
+            if (!value) {
+                cancelTapDragSequence()
+                cancelPendingMultiTap(invokeSingle = false)
+                if (leftButtonHeld) onReleaseButtons()
+                resetGesture()
+            }
+        }
     var sensitivity: Float = 1f
     var acceleration: Float = 1f
     var dragLockEnabled: Boolean = false
@@ -2217,6 +2228,8 @@ private class RawTrackpadView(context: Context) : View(context) {
     private var lastTapUpTimeMs = 0L
     private var pendingTapUpTimeMs = 0L
     private var tapDragArmedUntil = 0L
+    private var tapDragCandidate = false
+    private var tapDragFirstClickDispatched = false
     private var scrollZonePointerId: Int? = null
     private var scrollZoneMode: TrackpadScrollZone? = null
     private var lastScrollZoneY = 0f
@@ -2304,7 +2317,9 @@ private class RawTrackpadView(context: Context) : View(context) {
         isClickable = true
         isLongClickable = true
         isFocusable = true
-        contentDescription = "Trackpad. Swipe to move the Mac pointer. Activate for left click. Long press for right click."
+        contentDescription =
+            "Trackpad. One finger moves the Mac pointer. Tap for left click. " +
+                "Tap again and drag, or hold and drag, to draw or move. Two-finger tap for right click."
     }
 
     override fun performClick(): Boolean {
@@ -2321,8 +2336,9 @@ private class RawTrackpadView(context: Context) : View(context) {
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!enabledForInput) {
-            cancelPendingTap()
+            cancelTapDragSequence()
             cancelPendingMultiTap(invokeSingle = false)
+            if (leftButtonHeld) onReleaseButtons()
             resetGesture()
             return false
         }
@@ -2343,13 +2359,19 @@ private class RawTrackpadView(context: Context) : View(context) {
                     lastScrollZoneY = event.y
                     lastScrollZoneHapticY = event.y
                     if (hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                } else if (pendingTapUpTimeMs == 0L &&
-                    !dragLockEnabled &&
-                    tapDragArmedUntil > 0L &&
-                    event.eventTime <= tapDragArmedUntil
+                } else if (shouldArmTapDrag(
+                        tapDragArmedUntilMs = tapDragArmedUntil,
+                        eventTimeMs = event.eventTime,
+                        dragLockEnabled = dragLockEnabled,
+                    )
                 ) {
-                    tapDragArmedUntil = 0L
-                    startLeftDrag("TapDragStart")
+                    // A second touch chooses a drag-or-double-click gesture.
+                    // Do not let the delayed first click escape while it is held.
+                    val firstClickStillPending = pendingTapUpTimeMs != 0L
+                    cancelPendingTap()
+                    tapDragCandidate = true
+                    tapDragFirstClickDispatched = !firstClickStillPending
+                    postDelayed(longPressRunnable, DRAG_HOLD_TIMEOUT_MS)
                 } else {
                     postDelayed(longPressRunnable, DRAG_HOLD_TIMEOUT_MS)
                 }
@@ -2360,6 +2382,7 @@ private class RawTrackpadView(context: Context) : View(context) {
                 cancelPendingTap()
                 removeCallbacks(longPressRunnable)
                 tapDragArmedUntil = 0L
+                tapDragCandidate = false
                 scrollZonePointerId = null
                 scrollZoneMode = null
                 addOrUpdatePointer(event, event.actionIndex)
@@ -2430,6 +2453,14 @@ private class RawTrackpadView(context: Context) : View(context) {
                     val stylus = stylusEnabled && event.isStylusEvent()
                     onTrace(PointerTracePoint(nextCentroid, event.eventTime, stylus))
                     totalPan += delta
+                    if (tapDragCandidate &&
+                        maxPointers == 1 &&
+                        totalPan.getDistanceSquared() > touchSlop * touchSlop
+                    ) {
+                        tapDragCandidate = false
+                        tapDragArmedUntil = 0L
+                        startLeftDrag("TapDragMoveStart")
+                    }
                     if (totalPan.getDistanceSquared() > tapMovementThresholdPx * tapMovementThresholdPx) {
                         removeCallbacks(multiFingerHoldRunnable)
                         pendingHoldPointerCount = 0
@@ -2507,7 +2538,7 @@ private class RawTrackpadView(context: Context) : View(context) {
             }
 
             MotionEvent.ACTION_CANCEL -> {
-                cancelPendingTap()
+                cancelTapDragSequence()
                 removeCallbacks(multiFingerHoldRunnable)
                 if (leftButtonHeld) onReleaseButtons()
                 resetGesture()
@@ -2635,6 +2666,19 @@ private class RawTrackpadView(context: Context) : View(context) {
         onGestureSample(decision.sample)
         when (val gesture = decision.event) {
             TrackpadGestureEvent.LeftClick -> {
+                if (tapDragCandidate) {
+                    val firstClickWasAlreadyDispatched = tapDragFirstClickDispatched
+                    cancelPendingTap()
+                    lastTapUpTimeMs = 0L
+                    tapDragArmedUntil = 0L
+                    if (firstClickWasAlreadyDispatched) {
+                        performClick()
+                    } else {
+                        onDoubleTap()
+                    }
+                    resetGesture()
+                    return
+                }
                 if (hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                 val now = SystemClock.uptimeMillis()
                 if (pendingTapUpTimeMs != 0L && now - pendingTapUpTimeMs <= doubleTapTimeoutMillis.coerceIn(350, 900)) {
@@ -2690,6 +2734,8 @@ private class RawTrackpadView(context: Context) : View(context) {
         lastPointerMoveTimeMs = 0L
         lastHoverPosition = null
         leftButtonHeld = false
+        tapDragCandidate = false
+        tapDragFirstClickDispatched = false
         pendingHoldPointerCount = 0
         multiFingerHoldTriggered = false
         scrollZonePointerId = null
@@ -2704,6 +2750,9 @@ private class RawTrackpadView(context: Context) : View(context) {
     private fun startLeftDrag(@Suppress("UNUSED_PARAMETER") label: String) {
         if (leftButtonHeld) return
         cancelPendingTap()
+        tapDragCandidate = false
+        tapDragFirstClickDispatched = false
+        tapDragArmedUntil = 0L
         leftButtonHeld = true
         if (hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
         onPress(1)
@@ -2846,6 +2895,14 @@ private class RawTrackpadView(context: Context) : View(context) {
     private fun cancelPendingTap() {
         removeCallbacks(pendingSingleTapRunnable)
         pendingTapUpTimeMs = 0L
+    }
+
+    private fun cancelTapDragSequence() {
+        cancelPendingTap()
+        lastTapUpTimeMs = 0L
+        tapDragCandidate = false
+        tapDragFirstClickDispatched = false
+        tapDragArmedUntil = 0L
     }
 }
 

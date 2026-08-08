@@ -33,8 +33,8 @@ class TrackpadGestureEngineTest {
 
     @Test
     fun twoFingerHorizontalSwipe_emitsBrowserNavigationCommands() {
-        assertCommand(HidCommand.BrowserBack, engine.gestureFor(2, Offset(-68f, 12f), false))
-        assertCommand(HidCommand.BrowserForward, engine.gestureFor(2, Offset(70f, -10f), false))
+        assertCommand(HidCommand.BrowserBack, engine.gestureFor(2, Offset(68f, 12f), false))
+        assertCommand(HidCommand.BrowserForward, engine.gestureFor(2, Offset(-70f, -10f), false))
     }
 
     @Test
@@ -61,6 +61,42 @@ class TrackpadGestureEngineTest {
         assertEquals(TrackpadGestureEvent.LeftClick, engine.gestureFor(1, Offset.Zero, false))
         assertEquals(TrackpadGestureEvent.RightClick, engine.gestureFor(2, Offset.Zero, false))
         assertEquals(TrackpadGestureEvent.None, engine.gestureFor(1, Offset.Zero, true))
+    }
+
+    @Test
+    fun secondTouchWithinArmedWindow_becomesTapDragCandidate() {
+        assertEquals(
+            true,
+            shouldArmTapDrag(
+                tapDragArmedUntilMs = 1_700L,
+                eventTimeMs = 1_120L,
+                dragLockEnabled = false,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldArmTapDrag(
+                tapDragArmedUntilMs = 1_700L,
+                eventTimeMs = 1_700L,
+                dragLockEnabled = false,
+            ),
+        )
+        assertEquals(
+            false,
+            shouldArmTapDrag(
+                tapDragArmedUntilMs = 1_700L,
+                eventTimeMs = 1_701L,
+                dragLockEnabled = false,
+            ),
+        )
+        assertEquals(
+            false,
+            shouldArmTapDrag(
+                tapDragArmedUntilMs = 1_700L,
+                eventTimeMs = 1_120L,
+                dragLockEnabled = true,
+            ),
+        )
     }
 
     @Test

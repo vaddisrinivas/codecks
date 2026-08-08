@@ -49,7 +49,9 @@ class TrackpadGestureEngine {
         )
         val tapDistanceSquared = tapThreshold * tapThreshold
         return when {
-            maxPointers == 2 && totalPan.isBrowserSwipe() && totalPan.x < 0f -> TrackpadGestureEvent.Command(HidCommand.BrowserBack)
+            // Match the Mac trackpad page-navigation direction: reveal the
+            // previous page by swiping toward the right edge.
+            maxPointers == 2 && totalPan.isBrowserSwipe() && totalPan.x > 0f -> TrackpadGestureEvent.Command(HidCommand.BrowserBack)
             maxPointers == 2 && totalPan.isBrowserSwipe() -> TrackpadGestureEvent.Command(HidCommand.BrowserForward)
             maxPointers >= 5 && totalPan.getDistanceSquared() < 400f -> TrackpadGestureEvent.Command(HidCommand.Launchpad)
             maxPointers >= 5 && pan == DominantPan.Left -> TrackpadGestureEvent.Command(HidCommand.AppSwitcher)
@@ -81,6 +83,15 @@ class TrackpadGestureEngine {
         const val MAX_TAP_MOVEMENT_THRESHOLD_PX = 28f
     }
 }
+
+internal fun shouldArmTapDrag(
+    tapDragArmedUntilMs: Long,
+    eventTimeMs: Long,
+    dragLockEnabled: Boolean,
+): Boolean =
+    !dragLockEnabled &&
+        tapDragArmedUntilMs > 0L &&
+        eventTimeMs <= tapDragArmedUntilMs
 
 data class TrackpadGestureDecision(
     val event: TrackpadGestureEvent,
