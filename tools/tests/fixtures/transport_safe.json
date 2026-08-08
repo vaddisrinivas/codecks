@@ -1,0 +1,9 @@
+{
+  "operation_id": "operation-00000001",
+  "account_id": "account-00000001",
+  "snapshot": {
+    "handle": "snapshot-00000001",
+    "checksum_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "byte_count": 2048
+  }
+}

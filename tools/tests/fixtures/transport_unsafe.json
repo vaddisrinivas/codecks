@@ -1,0 +1,5 @@
+{
+  "operation_id": "operation-00000002",
+  "email": "person@example.com",
+  "identity_token": "SECRET_CANARY_RAW_IDENTITY_TOKEN"
+}

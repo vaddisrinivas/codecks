@@ -1,0 +1,16 @@
+{
+  "lab_preferences": {
+    "release.ads_sdk": true,
+    "release.play_billing": true,
+    "commercial.override": "enabled"
+  },
+  "cached_entitlement": {
+    "account_id": "account-lab-0001",
+    "allowed": true,
+    "source": "stale_lab"
+  },
+  "stale_navigation": ["account", "purchase", "ads"],
+  "stale_workers": ["commercial-config-refresh", "entitlement-refresh"],
+  "production_routes": [],
+  "production_workers": []
+}

@@ -26,6 +26,8 @@ jobs:
         run: python3 tools/secret_surface_check.py
       - name: Enforce unshrunk production release
         run: ./scripts/verify_release_no_shrink.sh
+      - name: Commercial production-dark static proof
+        run: ./scripts/run_commercial_static_proof.sh
       - name: Validate distribution and commercial boundaries
         run: ./gradlew --no-daemon :app:validateCommercialBuildBoundaries
       - name: Enable Android emulator acceleration
