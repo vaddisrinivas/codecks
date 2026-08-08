@@ -1,1092 +1,1209 @@
-# Active Implementation Plan: Product trust and daily-use closure
+# Implementation Plan: Codecks Play GA, Accounts, Flags, Commerce, and Ads
 
-Status: scheduled for parallel implementation on 2026-07-30
+Updated: August 8, 2026
+
+Status: governing implementation plan. This supersedes the pre-commercial
+local-product plan captured at Codecks `v0.1.36` / commit `b6fc0ce`; it does not
+erase that baseline or convert its deferred Reactive Platform work into a GA
+dependency.
+
+## Baseline preservation and supersession
+
+- `v0.1.36` / `b6fc0ce` is the protected local-only reference behavior.
+- Existing Deck, Trackpad, Keyboard, Clipboard, SSH, HID, automation, backup,
+  AI-drafting, and settings behavior must survive every migration.
+- The following Reactive work remains deferred and independently scoped:
+  native Mac-helper completion; authenticated pairing/pinned helper identity;
+  full helper transport; unified helper/SSH live Mac state; complete provider,
+  receipt, and undo execution; full iOS app; DeskDock native detection; Apple
+  Shortcuts; Spotlight/SFTP; monitor brightness; Accessibility discovery; and
+  full cross-platform Reactive validation/release.
+- A commercial task may reuse an already-proven local contract, but may not
+  silently claim or activate any deferred Reactive capability.
 
 ## Outcome
 
-Make Deck creation/editing coherent, make AI artifacts durable and reusable,
-replace misleading clipboard and automation claims with verified behavior, and
-make Codecks reliable in secondary-display/DeX use without risking the installed
-`app.codecks` release.
+Ship Codecks on Google Play without weakening its local-first control surfaces:
 
-## Shared contracts frozen before parallel work
+- core Deck, Trackpad, Keyboard, Clipboard, and local automation remain useful
+  without an account or payment;
+- optional sign-in can restore portable, non-secret configuration when approved;
+- verified Play purchases can grant official-service entitlements when approved;
+- typed flags support dark launch, staged rollout, and immediate kill switches;
+- all account, sync, Play commerce, entitlement, and ad surfaces ship disabled
+  until the owner explicitly approves a separate activation;
+- the existing `app.codecks` install, data, signing lineage, SSH behavior, and
+  unshrunk release configuration remain protected.
 
-- Artifact lifecycle: `Draft -> Validated -> Tested -> Catalogued -> Placed/Enabled`.
-- Saving to the catalog never requires an empty Deck slot.
-- Placing an artifact always uses an explicit slot picker with replace/new-Deck
+## Product decision
+
+### Tiers
+
+| Tier | Price model | Includes | Ads |
+| --- | --- | --- | --- |
+| Free | Free | Core local control, local backup/export, starter themes/routines | Discovery ads may be enabled later |
+| Pro Lifetime | One-time Play product | Premium themes, premium routine packs, advanced typed Mac actions, permanent ad removal | None |
+| Codecks Sync | Subscription | Everything in Pro plus cloud snapshots, cross-device restore/sync, continuously maintained content | None |
+
+Active Sync includes Pro. Pro Lifetime does not include ongoing cloud storage.
+Exact prices and trial/intro offers remain Play Console decisions, not constants
+inside the app.
+
+### Account policy
+
+- Account, sync, Billing, premium gating, and ads are implementation-ready but
+  production-disabled. No decision to activate them has been made.
+- Sign-in is optional for local core use.
+- Sign-in is required for cloud sync and stable cross-device entitlement
+  association.
+- First sign-in never silently replaces local state.
+- SSH keys, AI keys, passwords, clipboard contents, host secrets, and sensitive
+  run output never enter cloud backup.
+- Existing users keep their local data and core behavior.
+- Account deletion exists both in-app and on a public web page.
+
+### Activation policy
+
+The first production-capable build is a **dark commercial release**:
+
+- `release.account = false`
+- `release.cloud_sync = false`
+- `release.play_billing = false`
+- `release.premium_enforcement = false`
+- `release.explore = false` for commercial catalog/network behavior
+- `release.ads_sdk = false`
+- every commercial backend mutation and ad placement kill switch is closed;
+- no account, upgrade, subscription, premium lock, restore-from-cloud, consent,
+  or ad UI is reachable;
+- no auth, sync, Billing, Integrity, UMP, Mobile Ads, or commercial Remote
+  Config client initializes merely because the app launches;
+- existing local users see the same free/local product.
+
+Only `playInternal` testers may use compile-time test capability plus
+test-account/backend controls. Closed-track `playRelease` testers use the same
+immutable production-dark path intended for production. Activating any
+commercial surface requires a new written owner decision, policy/data review,
+activation checklist, and staged rollout. Completing this implementation plan
+does not authorize activation.
+
+`CommercialExecutionPolicy.PRODUCTION_DARK` is a compile-time, non-remotely
+overridable root deny below navigation, UI, preferences, cached state, Remote
+Config, entitlements, deep links, and backend responses. Public `playRelease`
+contains no internal-override parser, verifier, preference, route, or receiver.
+
+### Ad policy
+
+Do not enable ads in the first public production rollout. Ship the consent,
+placement, entitlement, test, and kill-switch infrastructure dark. Ads require
+their own later decision even if account, sync, or Billing is activated first.
+
+Allowed placements:
+
+1. A clearly labeled native card in the dedicated Routine Bank/Explore feed,
+   after at least six organic items.
+2. A clearly labeled native card in the Theme Gallery feed, after at least six
+   organic items.
+3. An explicitly requested rewarded ad for one temporary premium theme or
+   routine preview. The user must choose `Watch to preview`; no core capability
+   may depend on it.
+
+Forbidden placements:
+
+- Trackpad, overlay trackpad, lock-screen trackpad, Keyboard, Deck, button
+  catalog, button placement, Clipboard, SSH setup, connection repair,
+  automation validation/execution, AI generation, purchase, sign-in, restore,
+  diagnostics, notifications, widgets, app open, app exit, and DeX control
+  surfaces.
+- No interstitial ads.
+- No ads over other apps.
+- No ad may appear where a control was previously located or cause content to
+  shift after loading.
+
+Pro Lifetime and Sync suppress ad requests, not merely ad rendering.
+
+## Non-negotiable safety contracts
+
+1. Never uninstall, clear, downgrade, or differently sign `app.codecks`.
+2. Play App Signing must import the current production signing key. Create a
+   separate upload key. Stop if the Play certificate differs from the installed
+   and GitHub release certificate.
+3. Release minification and resource shrinking stay disabled.
+4. GitHub/local-only and Play variants use explicit source-set boundaries.
+   Commercial SDKs must not silently enter the FOSS artifact.
+5. Client booleans never prove payment. The backend is authoritative for
+   official cloud/content entitlements.
+6. Remote Config is rollout input, not authorization and not secret storage.
+7. Play Integrity is risk evidence for sensitive server calls, not a reason to
+   break offline core functionality.
+8. Ads and analytics are separate consent decisions. Do not add general-purpose
+   analytics merely because the ads SDK can emit data.
+9. Purchase, sync, and deletion failures must be visible and recoverable.
+10. Every release claim distinguishes unit, emulator, Play-track, physical
+    phone, real-Mac, and human acceptance evidence.
+
+## Architecture
+
+```text
+Build capability AND compiled owner activation AND compatibility
+       AND NOT emergency deny AND rollout eligibility
+       AND required entitlement AND required consent AND user opt-in
+                                |
+                                v
+                  typed CommercialDecision
+                     (allowed + reason)
+
+Credential Manager -> backend token verification -> Account
+                                             |          |
+Play Billing -> backend verification -> entitlement -> snapshots
+                    ^          |
+          request-bound Integrity + RTDN/reconciliation
+```
+
+### Root execution invariant and flag algebra
+
+Commercial decisions are monotonic conjunctions, never "highest priority wins."
+A less-trusted allow cannot defeat a deny from build capability, compiled owner
+policy, compatibility/security policy, emergency control, entitlement, consent,
+or explicit user opt-in.
+
+```text
+allowed = buildCapability
+       && compiledOwnerActivation
+       && compatible
+       && !emergencyDeny
+       && rolloutEligible
+       && entitlementSatisfiedWhenRequired
+       && consentSatisfiedWhenRequired
+       && userOptedInWhenRequired
+```
+
+Every result is a typed `CommercialDecision` containing the surface, allowed
+value, first denying reason, contributing evidence revisions, and safe support
+detail. It never contains secrets, purchase tokens, account identifiers, ad
+identifiers, snapshot contents, or rollout-assignment identifiers.
+
+Keep local product/Labs flags separate from commercial policy. Commercial
+concepts are distinct types: `BuildCapability`, `OwnerActivation`,
+`Compatibility`, `EmergencyDeny`, `RolloutAssignment`,
+`EntitlementProjection`, `ConsentState`, and `UserOptIn`. They are not stored in the existing
+user-editable `Map<FeatureFlag, Boolean>`.
+
+Unknown, malformed, expired, stale, corrupt, clock-invalid, or unavailable
+inputs deny commercial execution. A last-known-good emergency deny may continue
+to subtract access within a bounded TTL; no cache or remote value may add access
+when the compiled owner policy denies it.
+
+### Initial flag namespaces
+
+```text
+release.account
+release.cloud_sync
+release.play_billing
+release.premium_enforcement
+release.explore
+release.ads_sdk
+
+kill.account_sign_in
+kill.cloud_upload
+kill.cloud_download
+kill.purchase_launch
+kill.purchase_grant
+kill.ads_all
+kill.ads_routine_bank
+kill.ads_theme_gallery
+kill.ads_rewarded_preview
+
+rollout.first_run_v2
+rollout.connection_repair_v2
+rollout.account_entry
+rollout.cloud_restore
+rollout.routine_bank
+rollout.theme_gallery
+rollout.advanced_ssh_actions
+
+entitlement.pro
+entitlement.sync
+entitlement.ad_free
+entitlement.premium_themes
+entitlement.premium_routines
+entitlement.advanced_ssh
+
+preference.clipboard_live_sync
+preference.deskdock
+preference.theme_motion
+preference.ads_personalization
+```
+
+`release.*` entries are compiled capability/owner-policy metadata, not remotely
+writable flags. `kill.*` has one unambiguous meaning: `true` means denied.
+`entitlement.*` is a backend projection, never Remote Config or local
+SharedPreferences. Remote rollout and emergency controls are subtractive only.
+The local-product entries `rollout.first_run_v2`,
+`rollout.connection_repair_v2`, `preference.clipboard_live_sync`,
+`preference.deskdock`, and `preference.theme_motion` stay in the local flag and
+preference system; they are never inputs to a commercial allow decision.
+
+Never remotely disable SSH host-key verification, credential encryption,
+dangerous-command policy, confirmation requirements, diagnostic redaction,
+account deletion, or subscription management.
+
+### Commercial build boundary
+
+Use one source tree and three explicit artifacts:
+
+| Artifact | Package/signer | Commercial behavior |
+| --- | --- | --- |
+| `ossRelease` | `app.codecks`; current app-signing lineage | GitHub APK. Commercial SDK dependencies, components, initializers, and transports absent. Generic `androidx.credentials` may remain because Codecks already uses it for local SSH credential handling. |
+| `playRelease` | `app.codecks`; Play app-signing certificate matching the existing lineage | Play AAB. Commercial implementations may be compiled, but `PRODUCTION_DARK` denies every commercial surface. No test override parser/verifier exists. No commercial SDK or network client starts at launch. |
+| `playInternal` | `app.codecks.internal`; separate internal signer and test backend/project | Commercial E2E artifact. Compile-time test policy may allow signed/test-account overrides. It can never update, read, or clear `app.codecks`. |
+
+Play-only SDKs live under `playImplementation`/Play source sets. Internal-only
+override code lives under an internal source set unavailable to
+`playRelease`. Both public artifacts remain unshrunk. Variant migration tests
+prove eligible `app.codecks` in-place updates preserve local configuration.
+
+The initializer audit targets only commercial startup paths: AndroidX Startup
+entries, manifest providers and metadata, Firebase initializers, commercial
+WorkManager jobs, eager DI construction, Billing, Integrity, UMP, Mobile Ads,
+auth, sync, and operational-config clients. It does not prohibit Codecks' local
+WorkManager jobs or other proven local-only startup behavior.
+
+The upload certificate and Play app-signing certificate are different roles.
+Update compatibility is decided by the Play app-signing certificate/lineage,
+not by the upload certificate. T02 records all roles without exposing keys.
+
+### Backend boundary
+
+Use managed Google services behind typed interfaces for the first release:
+
+- Credential Manager + Sign in with Google;
+- a token-verifying auth service that keys accounts by verified Google `sub`,
+  never email; avoid an eager Firebase Android client when direct Credential
+  Manager token exchange can meet the contract;
+- Cloud Run/Functions for account, sync, purchase, and deletion APIs;
+- Firestore for versioned configuration snapshots and entitlement projections;
+- Pub/Sub for Real-time Developer Notifications;
+- Cloud KMS/Secret Manager for service credentials;
+- request-bound Play Integrity for sensitive mutations. Integrity is requested
+  immediately for a transaction and binds a canonical request hash; it never
+  runs during app launch or gates offline/local core behavior.
+
+No service credential or Play Developer API credential ships in the APK.
+The backend is authoritative for entitlements. A purchase token is bound to one
+account; pending purchases grant nothing; verification is persisted before
+acknowledgement. RTDN is an untrusted change signal: handlers deduplicate it,
+re-read Google Play state, apply an idempotent lifecycle transition, and support
+scheduled reconciliation for missed or out-of-order events.
+
+Account deletion is available before any internal or closed test can create an
+account. Deletion reauthenticates, revokes all sessions first, blocks new cloud
+mutations, deletes snapshots, minimizes or pseudonymizes strictly required
+purchase/fraud records, and provides separate Play subscription-management
+guidance. The in-app and public-web operations are idempotent and observable.
+
+### Synced snapshot
+
+The cloud codec uses explicit versioned DTOs and exhaustive domain adapters. No
+reflection-based/general serializer, persistence-model upload, blacklist, or
+"serialize then redact" path is allowed. Secret scanning is defense in depth,
+not proof that a field is eligible.
+
+Include in snapshot v1:
+
+- schema/app version;
+- deck slot identity/span and allowlisted catalog-action or safe local-route
+  references, labels, icons, and colors;
+- theme and layout preferences;
+- disabled automations composed only of allowlisted typed/catalog steps;
+- routine favorites and catalog references;
+- non-secret Mac profile labels.
+
+Exclude:
+
+- SSH private keys, passwords, AI provider keys, clipboard content/history;
+- host names/IPs/users, pinned host identity or secrets, connection settings;
+- arbitrary command/test/cleanup strings, shell steps, execution authorization,
+  command review, run/test/preflight receipts, histories, and output;
+- notification contents, raw diagnostics, device identifiers;
+- automation execution receipts and sensitive command output.
+
+If one object contains an ineligible action, the encoder omits or rejects the
+whole object with a visible reason; it never emits a redacted object that could
+later become runnable. DTOs enforce byte, object-count, list-count, string,
+depth, enum, and identifier bounds and deterministic canonical encoding.
+
+Restore is `preview -> compatibility check -> local safety backup -> explicit
+merge/replace -> validation -> commit`. Imported automations remain disabled and
+must repeat local validation, Mac preflight, and live test.
+
+### Commercial diagnostics contract
+
+Support output may contain typed status/reason codes, bounded timestamps,
+artifact/version metadata, operation phase, safe counts, and opaque correlation
+IDs. It never contains email, Google subject, ID/refresh/access token, purchase
+token or order ID, Integrity token, snapshot content, command text, clipboard,
+ad ID, consent string, rollout-assignment ID, backend credential, or raw server
+response. Snapshot diagnostics expose counts, schema, and checksum only.
+
+## Dependency graph
+
+```text
+T01 product/privacy freeze
+  |
+  +--> T02 signing and Play ownership proof
+  +--> T03 build-variant boundary
+  +--> T04 typed flag contract
+         |
+         +--> T05 resolver + local migration
+         +--> T06 remote flag adapter
+         |
+         +--> T07 account vertical
+         |      +--> T08 deletion/session recovery
+         |
+         +--> T09 snapshot codec
+                +--> T10 cloud backup
+                +--> T11 restore/conflict
+
+T01 + T07 --> T13a entitlement/RTDN contract + backend state machine
+T02 + T03 + T07 + T13a --> T12 Play catalog + Billing client
+T12 --> T13b sandbox verification + RTDN integration
+                  +--> T14 entitlement UI/restore
+
+T03 + T04 --> T15 consent/privacy
+                  +--> T16 dark ad runtime
+                  +--> T17 eligible placements
+
+T04 --> T18 Explore/Routine Bank
+     --> T19 Theme Gallery
+     --> T20 Advanced typed SSH pack
+
+T07-T20 --> T21 accessibility/reliability
+        --> T22 privacy/store artifacts
+        --> T23 internal Play test
+        --> T24 closed test
+        --> T25 production rollout
+```
+
+## Tasks
+
+### T01 — Freeze product, data, and commercial contracts
+
+**Description:** Record the tier matrix, account-optional rule, snapshot
+allowlist, ad policy, grandfathering, deletion behavior, refund behavior, and
+support boundary as versioned contracts.
+
+**Acceptance criteria:**
+
+- One source defines Free, Pro Lifetime, and Sync capabilities.
+- Every stored/transmitted field is classified local, synced, excluded, or
+  retained for a stated legal/security reason.
+- Existing local users and canceled/expired/refunded users have explicit
+  behavior.
+
+**Verification:** Contract tests parse the matrices; privacy/security review
+finds no unspecified data path.
+
+**Dependencies:** None.
+
+**Likely files:** `docs/product/`, `docs/security/`, `shared/src/commonMain/`.
+
+**Estimated scope:** M.
+
+### T02 — Prove signing continuity and configure Play ownership
+
+**Description:** Create the Play app for `app.codecks`, enroll with the current
+production app-signing key, create a separate upload key, and record
+certificate-only evidence.
+
+**Acceptance criteria:**
+
+- Installed APK, current GitHub APK, and proposed Play app-signing certificate
+  are identical or form an explicitly supported app-signing lineage.
+- The built AAB is signed by the separately registered upload certificate. Its
+  signer authenticates the upload and is never treated as update-compatibility
+  or app-signing-lineage evidence.
+- Signing keys are backed up outside the developer account; no secrets enter
+  Git or logs.
+- Any mismatch stops the program before an AAB is uploaded.
+
+**Verification:** Certificate fingerprints and Play App Signing page are
+reviewed; a locally signed `ossRelease` update preserves app data. T23 separately
+verifies the Play-delivered `playRelease` signer and data-preserving update.
+
+**Dependencies:** T01.
+
+**Likely files:** `docs/release/`, private release environment only.
+
+**Estimated scope:** S.
+
+### T03 — Split FOSS and Play commercial variants
+
+**Description:** Add explicit `ossRelease`, `playRelease`, and `playInternal`
+source/dependency boundaries while preserving public package, core architecture,
+migrations, and unshrunk releases.
+
+**Acceptance criteria:**
+
+- `ossRelease` has no account, billing, Integrity, UMP, ads, Firebase, or data
+  transport component.
+- `playRelease` is compile-time production-dark, contains no test-override path,
+  and initializes no commercial service or transport at launch.
+- `playInternal` uses `app.codecks.internal`, a separate signer, and a test
+  backend; it cannot update or access protected `app.codecks` data.
+- Variant switching by valid in-place upgrade preserves local configuration.
+
+**Verification:** Dependency/manifest diffs, both builds, certificate check,
+offline launch, migration test, and release-surface policy tests pass.
+
+**Dependencies:** T01, T02.
+
+**Likely files:** `app/build.gradle.kts`, source-set manifests,
+`CodecksApplication.kt`, release validators.
+
+**Estimated scope:** M.
+
+### T04 — Replace flat booleans with a typed flag registry
+
+**Description:** Keep local feature flags separate; create typed commercial
+capability, compiled owner policy, rollout, emergency-deny, entitlement,
+consent, and preference concepts.
+
+**Acceptance criteria:**
+
+- Every flag is declared once with owner, type, defaults, expiry, and safety
+  behavior.
+- Settings UI derives labels/groups from metadata; it does not duplicate a
+  second catalog.
+- A lint/test gate rejects duplicate keys, missing owners, invalid defaults,
+  and expired temporary flags.
+
+**Verification:** Registry unit tests and source-policy tests pass.
+
+**Dependencies:** T01.
+
+**Likely files:** `domain/commercial/`, `domain/features/`, `data/features/`,
+Settings flag UI/tests.
+
+**Estimated scope:** M.
+
+### T05 — Implement deterministic flag resolution and migration
+
+**Description:** Resolve every commercial surface through the monotonic AND
+algebra, returning an explainable typed deny without allowing any lower-trust
+source to override a higher-authority deny.
+
+**Acceptance criteria:**
+
+- Every decision returns value, winning layer, and reason without exposing
+  secrets.
+- Existing SharedPreferences schema v5 values migrate without changing user
   choices.
-- Automation `Validate`, `Preflight`, `Live test`, and `Enable` are distinct.
-- Clipboard phone-to-Mac background reads are never promised; manual/share and
-  visible-session sync are the supported contracts.
-- No vertical may edit release versioning, signing, shrinking, GitHub release
-  workflows, or production-package device state.
+- Stale/missing/invalid sources fail safely and never brick navigation.
 
-## Dependency graph
+**Verification:** Table-driven precedence, migration, corruption, offline, and
+clock-skew tests pass.
 
-```text
-Contract freeze
-  |-- V1 Deck + AI artifact lifecycle
-  |-- V2 Clipboard reliability + honest background behavior
-  |-- V3 Automation validation + Mac preflight/test receipts
-  `-- V4 DeX/adaptive + battery + cross-vertical regression harness
-          |
-          v
-     Integration checkpoint
-          |
-          v
-     Emulator + real-Mac acceptance
-          |
-          v
-     Separate release decision
-```
+**Dependencies:** T04.
 
-## V1: Deck and AI artifact lifecycle
+**Likely files:** `domain/commercial/`, `data/features/`, navigation guards.
 
-**Ownership:** Deck/Home, Deck editor, AI workspace, artifact repository/view
-model, and focused tests. Avoid clipboard, automation execution, HID service,
-release, and CI files.
+**Estimated scope:** M.
 
-### V1.1: Replace redundant editing navigation
+### T06 — Add remote rollout and emergency controls
 
-Acceptance:
+**Description:** Add a Play-only operational-config adapter with validated,
+bounded local cache, bounded fetch, minimum-version handling, and redacted audit
+export. It may use Remote Config later; it is not treated as signed or trusted
+unless a custom signature contract is actually implemented.
 
-- Populated button long-press owns per-button management.
-- Empty-slot tap opens the catalog with search and `Create with AI`.
-- Deck overflow owns rename, layout, reset, and bulk customization.
-- The unexplained Deck-header pencil is removed.
+**Acceptance criteria:**
 
-Verification:
+- Cold offline launch uses last-known-good or compiled defaults.
+- Remote values cannot grant paid entitlement or weaken mandatory security.
+- Backend can stop sync upload, purchase launch/grant, and each ad placement
+  independently without an app update.
+- Public production defaults every commercial release flag off. Remote absence,
+  failure, or ambiguity cannot activate a feature.
+- Production-dark startup binds a no-op source and performs no commercial
+  operational-config fetch.
 
-- Compose/unit tests cover long-press, empty-slot, overflow, Back, and rotation.
-- Maestro covers create, reassign, move, remove, undo, and catalog forget.
+**Verification:** Fake remote source tests cover malformed values, expiry,
+rollback, fetch timeout, no network, and emergency disable.
 
-### V1.2: Separate catalog persistence from placement
+**Dependencies:** T03, T04, T05.
 
-Acceptance:
+**Likely files:** Play source set under `data/features/`, DI, support diagnostics.
 
-- Successful generation creates a durable Draft without consuming a Deck slot.
-- UI says `Saved to catalog` or `Place on Deck`; never uses ambiguous `Add`.
-- Full Decks allow replace, pick another Deck, or create a new Deck.
-- Delete/forget and regeneration never lose the last valid artifact revision.
+**Estimated scope:** M.
 
-Verification:
+### T07 — Ship optional sign-in end to end
 
-- Repository/view-model tests cover empty/full Decks, process recreation,
-  replacement, duplicates, deletion, and failed regeneration.
+**Description:** Add Credential Manager Google sign-in, server nonce/token
+verification, session refresh, sign-out, and an Account screen.
 
-### V1.3: Rebuild the AI workspace around artifact states
+**Acceptance criteria:**
 
-Acceptance:
+- Local core works before sign-in, after sign-out, and during auth outage.
+- Server validates ID token audience, issuer, signature, expiry, and nonce.
+- Account UI explains what sync includes/excludes before consent.
 
-- Phone flow is `Describe -> Review/Test -> Place/Enable`.
-- Contextual AI entry exists from Deck, button management, and automation.
-- Result preview renders the actual artifact; destructive/secondary actions use
-  overflow.
-- Refine preserves revision history and shows provider/model/error/cost state.
+**Verification:** Unit/UI tests, backend auth tests, Play-services unavailable
+test, cancellation/retry, process death, and physical-device sign-in pass.
 
-Verification:
+**Dependencies:** T03, T04, T05.
 
-- Screenshot/Compose tests at phone and expanded widths.
-- AI corpus/evaluation gate remains green.
+**Likely files:** Play auth/data/UI source sets, backend auth module, navigation.
 
-## V2: Clipboard reliability and system behavior
+**Estimated scope:** M.
 
-**Ownership:** Clipboard domain/data/UI, explicit Android share/quick-action
-surfaces if required, and focused tests. Avoid Deck/AI, automation, HID, release,
-and CI files.
+### T08 — Add account lifecycle, deletion, and session recovery
 
-### V2.1: Fix correctness and observability
+**Description:** Implement revoke-all-sessions, reauthentication, in-app
+deletion, public deletion endpoint/page, tombstone/retention policy, and
+subscription guidance.
 
-Acceptance:
+**Acceptance criteria:**
 
-- Local clipboard refresh never requires a Mac connection.
-- Manual Send/Get gives a terminal receipt with direction, time, target, retry,
-  and exact failure class.
-- Loop suppression/conflict resolution remains deterministic.
-- No redundant app toast duplicates the Android/Samsung clipboard overlay.
+- User can delete account and associated cloud config without contacting a
+  human.
+- Deletion does not silently claim to cancel a Play subscription; management
+  and cancellation paths are explicit.
+- Deleted sessions cannot upload/download; retained fraud/legal fields are
+  minimal and documented.
+- In-app and public-web deletion are operational before any test track permits
+  account creation.
 
-Verification:
+**Verification:** Auth revocation, deletion idempotency, retry, active
+subscription, and recreated-account tests pass; public URL works anonymously.
 
-- View-model tests cover disconnected, reconnect, stale revision, empty content,
-  conflict, duplicate, SSH failure, and process recreation.
+**Dependencies:** T07.
 
-### V2.2: Implement honest supported sync modes
+**Likely files:** Account UI, backend account APIs, public deletion page,
+`PRIVACY.md`.
 
-Acceptance:
+**Estimated scope:** M.
 
-- UI distinguishes Manual, Visible live sync, and unavailable background read.
-- Phone-to-Mac user-driven Share/quick action works without opening Clipboard UI.
-- Reads happen only on explicit action or while the visible live-sync session is
-  active.
-- Sensitive clips use supported sensitive-preview metadata.
+### T09 — Build the portable snapshot codec
 
-Verification:
+**Description:** Create versioned, deterministic, size-bounded snapshot models
+with an explicit field allowlist and secret scanning.
 
-- Emulator tests exercise share target, focus loss/resume, notification denial,
-  Android clipboard overlay coexistence, and background restriction messaging.
+**Acceptance criteria:**
 
-### V2.3: Measure and cap resource use
+- Current config round-trips without secrets or execution proof.
+- Arbitrary command/test/cleanup strings and shell actions are rejected; safe
+  typed/catalog actions alone can enter snapshot v1.
+- Unknown future fields are quarantined or ignored according to schema rules.
+- Restore preview lists additions, replacements, conflicts, and unsupported
+  items.
 
-Acceptance:
+**Verification:** Golden fixtures, property/fuzz tests, legacy migration,
+oversize, malformed, secret-canary, and downgrade tests pass.
 
-- No polling job survives after its advertised visible-sync lifecycle.
-- Sync intervals/backoff are bounded and observable.
-- A repeatable battery/CPU measurement protocol is documented.
+**Dependencies:** T01, T04.
 
-Verification:
+**Likely files:** `shared/`, backup repository, fixtures and tests.
 
-- Coroutine lifecycle tests and an emulator battery/process-state evidence file.
+**Estimated scope:** M.
 
-## V3: Automation proof and Mac capability testing
+### T10 — Add explicit cloud backup
 
-**Ownership:** Automation models/repository/engine/UI/worker, typed Mac
-preflight/receipt contracts, Mac-helper capability checks, and focused tests.
-Avoid Deck/AI workspace implementation, clipboard, HID, release, and CI files.
+**Description:** Upload immutable, checksummed snapshots on explicit save first;
+add optional debounced auto-backup only after correctness is proven.
 
-### V3.1: Split validation from execution proof
+**Acceptance criteria:**
 
-Acceptance:
+- UI shows last successful backup, pending changes, target account, failure, and
+  retry.
+- Upload is authenticated, idempotent, encrypted in transit/at rest, bounded,
+  and never contains excluded fields.
+- Local work is never blocked by cloud outage.
 
-- `Validate` performs local deterministic schema/policy checks only.
-- `Preflight Mac` checks trusted identity, connection, provider/tool/app/target,
-  permissions, and required paths without performing the final action.
-- `Live test` is explicit, bounded, produces assertions and cleanup/undo.
-- Labels never call a no-execution dry run a successful Mac test.
+**Verification:** Backend authorization rules, duplicate/retry, offline,
+conflicting device, quota, timeout, and account-switch tests pass.
 
-Verification:
+**Dependencies:** T07, T09.
 
-- Tests cover offline Mac, identity mismatch, missing binary/app/Shortcut,
-  permission denial, timeout, partial execution, cleanup failure, and success.
+**Likely files:** Sync repository/UI, worker, backend snapshot API/DB rules.
 
-### V3.2: Bind enablement to a trustworthy receipt
+**Estimated scope:** M.
 
-Acceptance:
+### T11 — Add safe restore and multi-device conflict handling
 
-- Receipt binds recipe revision, Mac identity, capability snapshot, assertions,
-  timestamp, and cleanup result.
-- Editing, Mac change, capability/permission change, or expiry invalidates it.
-- Dangerous actions remain confirmation-gated.
+**Description:** Provide latest-version restore, snapshot history, explicit
+merge/replace, local rollback, and disabled automation import.
 
-Verification:
+**Acceptance criteria:**
 
-- Unit tests prove every invalidation path and replay rejection.
+- Sign-in never auto-overwrites local data.
+- Restore creates a local safety snapshot and can undo the last apply.
+- Conflicts are shown by object; invalid actions and automations are
+  quarantined.
 
-### V3.3: Make scheduling explainable
+**Verification:** Two-device E2E, concurrent edits, partial failure, corrupted
+snapshot, downgrade, undo, and process-death tests pass.
 
-Acceptance:
+**Dependencies:** T09, T10.
 
-- UI shows next evaluation window, last evaluation, last result, retry/backoff,
-  and why a trigger was missed.
-- Trigger simulator explains whether and why a recipe would fire now.
-- Periodic WorkManager timing is described as a window, never exact time.
+**Likely files:** Sync UI/domain/data, merge engine, backend snapshot API.
 
-Verification:
+**Estimated scope:** M.
 
-- Worker tests cover battery/network constraints, process death, duplicate
-  suppression, revision changes, retries, and confirmation queues.
+### T12 — Configure Play products and Billing client
 
-## V4: DeX/adaptive, battery, and regression harness
+**Description:** Create stable product IDs/base plans/offers and implement
+Billing connection, product display, purchase launch, pending states, and
+management links.
 
-**Ownership:** adaptive app shell/navigation, secondary-display tests, HID
-keepalive profiling/fix if evidence supports it, Maestro/instrumentation, and
-evidence docs. Avoid feature-domain rewrites, release, and CI files.
+**Acceptance criteria:**
 
-### V4.1: Close secondary-display layout gaps
+- Product name, price, period, renewal, trial, and cancellation terms come from
+  current `ProductDetails`.
+- App handles unavailable Play Store, canceled, pending, already-owned, and
+  retry states.
+- No entitlement is granted from client purchase state alone.
 
-Acceptance:
+**Verification:** License tester flows on internal Play track and Billing
+response matrix tests pass.
 
-- Navigation remains reachable at 1280x720 and 1920x1080 secondary displays.
-- Phone, landscape, resizable/freeform, and expanded layouts preserve state.
-- Keyboard/mouse focus, Back, display disconnect/reconnect, and window restore
-  have explicit behavior.
+**Dependencies:** T02, T03, T07, approved T13a entitlement/RTDN contract.
 
-Verification:
+**Likely files:** Play billing source set, Upgrade screen, Play Console catalog.
 
-- Emulator secondary-display tests plus screenshots for both resolutions.
-- Real Samsung DeX remains a named acceptance gate, not an emulator claim.
+**Estimated scope:** M.
 
-### V4.2: Profile HID service and battery behavior
+### T13 — Verify purchases and process lifecycle events
 
-Acceptance:
+**Description:** First freeze and implement the backend entitlement state
+machine, token ownership, RTDN idempotency, reconciliation, and API contract
+(T13a). Then integrate purchase tokens plus transaction-bound Integrity,
+Google Play Developer API verification, persisted acknowledgement, RTDN, and
+voided purchases after the Billing client exists (T13b).
 
-- Measure connected idle, active Trackpad, disconnected idle, visible clipboard,
-  and overnight screen-off scenarios.
-- Replace the 15-second HID restart loop only if tests prove a lower-wakeup
-  lifecycle preserves reconnection and held-input release safety.
-- Battery claims include interval, screen state, CPU/wakeup data, and device.
+**Acceptance criteria:**
 
-Verification:
+- Unique purchase token can belong to only one account.
+- Pending purchase grants nothing; purchase, renewal, grace, hold, pause,
+  cancel, expire, refund, revoke, and chargeback produce correct entitlement.
+- Duplicate/out-of-order RTDN is idempotent and reconcilable.
 
-- HID lifecycle/reconnect tests and before/after device or emulator evidence.
+**Verification:** Backend contract/integration tests, replay/tamper tests,
+sandbox purchase lifecycle, RTDN redelivery, and daily reconciliation pass.
 
-### V4.3: Cross-vertical black-box coverage
+**Dependencies:** T13a depends on T01 and T07 contracts; T13b depends on T12.
 
-Acceptance:
+**Likely files:** Backend billing API, Pub/Sub handler, entitlement store,
+Android purchase repository.
 
-- Maestro covers Deck-to-AI, generated artifact catalog/placement, clipboard
-  receipts, automation stage labels, Back, rotation, and secondary display.
-- Test data is isolated to `app.codecks.debug`.
-- No instrumentation targets the physical production package.
+**Estimated scope:** M.
 
-Verification:
+### T14 — Deliver entitlement, restore-purchase, and management UX
 
-- `./gradlew :app:testDebugUnitTest`
-- `./gradlew :app:lintDebug :app:assembleDebug`
-- Maestro isolated-emulator suite
+**Description:** Resolve server entitlements into app capability gates with
+offline grace, visible source/expiry, restore, manage, and support diagnostics.
 
-## Integration checkpoint
+**Acceptance criteria:**
 
-- Rebase each vertical on the frozen base and inspect ownership violations.
-- Merge only verticals with focused tests and evidence.
-- Resolve shared navigation/composition wiring in one integration branch.
-- Run full Android unit/lint/debug gates, secret-surface check, no-shrink check,
-  AI evaluation, Mac-helper Swift tests, and isolated-emulator Maestro.
-- Perform explicit user-driven real-Mac/real-DeX acceptance later.
-- Release/version/tag/push/install are separate approval and exact-artifact steps.
+- Pro/Sync/ad-free state updates without reinstall and survives reasonable
+  offline periods.
+- Expired or revoked cloud entitlement never destroys local data.
+- User can restore purchases, manage subscription, see last verification, and
+  export a redacted billing diagnostic ID.
 
-## Stop conditions
+**Verification:** Clock, cache, offline grace, account switch, refund, stale
+token, reinstall, and variant-switch tests pass.
 
-- Never uninstall, clear, downgrade, instrument, or differently sign
-  `app.codecks`.
-- Never enable release minification or resource shrinking.
-- Never print, persist in tests, or commit private AI/SSH credentials.
-- No worker publishes, merges to `main`, releases, or installs production.
-- A passing emulator test is not real Samsung DeX, real-Mac permission, or
-  physical battery proof.
+**Dependencies:** T05, T13.
 
----
+**Likely files:** Entitlement repository, Upgrade/Account UI, diagnostics.
 
-# Active Implementation Plan: Preserve, fix, and consolidate v0.1.30
+**Estimated scope:** M.
 
-Status: approved for implementation on 2026-07-29
+### T15 — Update privacy, consent, and audience handling
 
-## Outcome
+**Description:** Isolate UMP in the Play variant, declare audience/content
+rating, add persistent privacy options, and update Data Safety/privacy
+disclosures for auth, sync, billing, Integrity, and ads.
 
-Preserve every unique dirty change, fix the confirmed Android/Mac-helper defects,
-merge the result to `main`, and leave the primary repository checkout as the
-canonical checkout. No worktree may be removed until its dirty state has a
-named safety commit or an explicitly retained artifact location.
+**Acceptance criteria:**
 
-## Ordered work
+- Production-dark launch never initializes or calls UMP. After separate ad
+  activation, consent is requested/refreshed only before an approved discovery
+  surface could request an ad.
+- User can reopen privacy choices from Settings.
+- EEA/UK/Swiss, California/US-state, under-age, unknown geography, offline, and
+  consent-error behavior is explicit.
 
-### C1: Preserve dirty worktrees
+**Verification:** UMP test geography/device flows, Data Safety SDK audit,
+privacy-policy review, and consent-withdrawal test pass.
 
-- Commit the four current v0.1.30 deck-cleanup files on their existing branch.
-- Create named preservation commits for the old foundation checkout and the
-  dirty Shortcuts-handler checkout.
-- Preserve `release-downloads/` outside source history; it is an artifact, not
-  product code.
-- Verify all other registered worktrees are clean before cleanup.
+**Dependencies:** T01, T03, T07.
 
-### C2: Repair navigation and deck editing
+**Likely files:** Play privacy source set, Settings, `PRIVACY.md`, Play Console.
 
-- Android Back from AI, Settings, Editor, and other More destinations returns to
-  the prior in-app destination instead of exiting Codecks.
-- Offline Mac buttons remain runnable-disabled but long-press management stays
-  enabled.
-- Deck changes use one contract: immediate persistence with undo; remove the
-  contradictory staged `Apply layout` state.
-- Keep management on the deck: reassign, move, duplicate, test, remove, and
-  forget. Destructive catalog forgetting requires confirmation and undo.
-- Replace the long editor catalog with search/category-driven bounded results
-  so controls are not buried below dozens of rows.
+**Estimated scope:** M.
 
-### C3: Repair polish and adaptive behavior
+### T16 — Build a dark, entitlement-aware ad runtime
 
-- Keep labels and accessible names during move mode.
-- Decouple template viewing from Favorite layout mutation.
-- Fix landscape semantics, keyboard clipping, trackpad connection copy, and
-  launcher/notification icon surfaces.
-- Preserve portrait/landscape editor state and 48dp touch targets.
+**Description:** Add Mobile Ads behind consent, entitlement, placement, and
+master kill switches, using test ads until Play review readiness.
 
-### C4: Unify Mac visual effects
+**Acceptance criteria:**
 
-- Built-in and AI-generated celebration buttons resolve through one reviewed
-  Mac visual-effect catalog.
-- Confetti/love/fire/focus/coffee/magic use a full-screen, click-through,
-  multi-display animated overlay with bounded duration and cleanup.
-- Tests assert catalog identity and reviewed-command recognition.
+- Production-dark never initializes the Ads SDK. After separate activation, it
+  initializes lazily only after owner policy, placement, and consent allow it.
+- Pro/Sync users, forbidden screens, background state, screen-off state, and
+  lockscreen never request ads.
+- Empty/error/slow ads reserve no unstable tappable layout; diagnostics expose
+  placement eligibility without ad identifiers.
 
-### C5: Preserve missing hardening
+**Verification:** Fake adapter and official test-ad E2E cover all eligibility
+combinations, lifecycle, frequency caps, and kill switches.
 
-- Port Reactive provider exception isolation without reverting current policy,
-  pinning, confidence, stale-state, or protocol contracts.
-- Port the Shortcuts bounded runner, concurrent pipe draining, timeout kill,
-  truncation reporting, safe catalog import, unknown-argument rejection, and
-  capability advertisement onto the current Mac-helper runtime.
-- Do not port obsolete unavailable Spotlight/SFTP stubs.
+**Dependencies:** T05, T06, T14, T15.
 
-### C6: Verification and consolidation
+**Likely files:** Play ads source set, entitlement-aware policy, DI/tests.
 
-- Focused Android unit tests, full release unit tests, lint, no-shrink, and
-  debug/release assembly pass.
-- Current Mac-helper Swift tests plus new hardening tests pass.
-- Maestro emulator flows cover Back, offline long-press, deletion/undo,
-  persistence, rotation, keyboard, and AI/Settings navigation.
-- Merge the verified branch into `main`.
-- Repoint the canonical `/Projects/codecks` checkout to updated `main`.
-- Remove only clean or safety-committed obsolete worktrees.
+**Estimated scope:** M.
 
-## Stop conditions
+### T17 — Add only approved ad placements
 
-- Never uninstall, clear, downgrade, or differently sign `app.codecks`.
-- Never target the physical phone with instrumentation.
-- Keep production minification and resource shrinking disabled.
-- Stop consolidation if any dirty worktree lacks a recoverable named commit.
+**Description:** Render labeled native discovery cards and optional rewarded
+preview without contaminating control workflows.
 
----
+**Acceptance criteria:**
 
-# Historical Implementation Plan: Close post-v0.1.21 gaps
+- Native ad is never before six organic items, next to action controls, or
+  inserted after the user begins a gesture.
+- Rewarded preview is opt-in, names the exact temporary benefit and expiry, and
+  degrades cleanly when unavailable.
+- No banner, interstitial, app-open, overlay, widget, notification, or
+  operational-surface ad exists.
 
-Status: active remediation plan
+**Verification:** Screenshot/accessibility tests, accidental-click spacing,
+rotation/DeX, slow-load layout stability, and Play ad-policy review pass.
 
-Audit source:
+**Dependencies:** T16, T18, T19.
 
-- `docs/release/POST_V0.1.21_PLAN_CONFORMANCE_AUDIT.md`
+**Likely files:** Explore/Theme UI in Play source set, ad placement tests.
 
-Governing specifications:
+**Estimated scope:** M.
 
-- `docs/product/DESK_VALUE_LOCKSCREEN_AND_REACTIVE_EXPANSION_PLAN.md`
-- `docs/reactive/REACTIVE_PLATFORM_IMPLEMENTATION_PLAN.md`
-- `AGENTS.md`
+### T18 — Create the Routine Bank/Explore surface
 
-## Outcome
+**Description:** Turn curated automations/actions into a searchable, previewable,
+versioned discovery surface with compatibility and permission preflight.
 
-Produce one evidence-backed release decision without risking the installed
-production app.
+**Acceptance criteria:**
 
-Two checkpoints are intentionally separate:
+- Users can inspect source, requirements, Mac capability, permissions, safety
+  level, and test expectations before install.
+- Imported routines enter disabled draft state and never inherit someone
+  else's execution receipt.
+- Free/premium ownership and update behavior are explicit.
 
-1. **Android slice checkpoint**: deck/keyboard/deep-link/README/lockscreen and
-   default-off Reactive foundation are safe enough for a bounded Android
-   release.
-2. **Full-plan checkpoint**: Mac helper, KMP, Reactive MVP, DeskDock, later
-   integrations, iOS, and cross-platform release gates are complete.
+**Verification:** Catalog signature/schema, install/update/remove, offline cache,
+incompatible Mac, permission denial, and malicious payload tests pass.
 
-No one may call the Android slice "the Reactive Platform complete."
+**Dependencies:** T01, T04, T05.
 
-## Standing invariants
+**Likely files:** Routine catalog domain/data/UI, shared schema, backend/static
+catalog.
 
-- Never uninstall, clear, downgrade, or differently sign `app.codecks`.
-- Never use physical-phone instrumentation without current explicit approval.
-- Keep release minification and resource shrinking disabled.
-- Do not publish a rebuilt APK after physical testing.
-- State, proximity, Tasker, NFC, ranking, and visibility are not authorization.
-- Lockscreen authority is pointer, scroll, mouse buttons, and release only.
-- HID pointer callbacks must stay independent from SSH/helper/state polling.
-- Unsupported capability means hidden control, not a dead control.
-- Every completion claim states E0/E1/E2/E3/E4/E5 evidence.
+**Estimated scope:** M.
 
-## Dependency graph
+### T19 — Create a coherent Theme Gallery
 
-```text
-G0 freeze truth
-  ├─> G1 Reactive safety repair
-  ├─> G2 README evidence repair
-  ├─> G3 Lockscreen lifecycle repair
-  └─> G4 Release/privacy surface repair
-          │
-          v
-      G5 UX closure
-          │
-          v
-      G6 emulator gate
-          │
-          v
-      G7 physical debug gate
-          │
-          v
-      G8 exact signed Android candidate
-          │
-          v
-      R0-R10 Reactive platform
-          │
-          v
-      D0-D1 + I1-I5
-          │
-          v
-      X0 full cross-platform release
-```
+**Description:** Package full-app visual systems—not isolated colors—with
+preview, accessibility metadata, ownership, download, and rollback.
 
-## Phase G0: Freeze and partition the current worktree
+**Acceptance criteria:**
 
-### Task G0.1: Record source ownership and patch groups
+- Theme affects all intended surfaces consistently and previews before apply.
+- Contrast, large text, OLED, motion reduction, portrait/landscape, and DeX
+  constraints are declared and tested.
+- Corrupt/removed premium theme falls back safely without losing user layout.
 
-Description: split the 72-file delta into reviewable ownership groups without
-dropping user work.
+**Verification:** Golden screenshots, accessibility checks, package validation,
+offline ownership cache, refund, and rollback tests pass.
 
-Acceptance criteria:
+**Dependencies:** T01, T04, T05, T14.
 
-- [ ] inventory matches `v0.1.21..HEAD` plus all untracked files;
-- [ ] files are assigned to docs, UX, lockscreen, Reactive core, Reactive UI,
-      tests, or release evidence;
-- [ ] overlapping `MainActivity.kt` and `MouseScreen.kt` ownership is explicit;
-- [ ] no reset, clean, stash, or deletion is used.
+**Likely files:** Theme domain/data/UI, theme package schema, Settings/Explore.
 
-Verification:
+**Estimated scope:** M.
 
-- [ ] `git status --short`
-- [ ] `git diff --check`
-- [ ] `git diff --name-status v0.1.21`
-- [ ] `git ls-files --others --exclude-standard`
+### T20 — Curate advanced typed SSH actions
 
-Files:
+**Description:** Add useful Mac actions only through typed, parameterized,
+preflighted adapters; do not sell arbitrary shell execution.
 
-- `tasks/todo.md`
-- `docs/release/POST_V0.1.21_PLAN_CONFORMANCE_AUDIT.md`
+**Acceptance criteria:**
 
-Dependencies: none
+- Each action declares inputs, supported macOS/tool versions, permissions,
+  timeout, output limits, confirmation, and undo/recovery.
+- Missing tools or permissions produce repair instructions.
+- Premium gating affects curated convenience; existing safe local actions remain
+  usable.
 
-### Task G0.2: Correct blueprint status and baseline language
+**Verification:** Command-injection corpus, fake/real-Mac preflight, timeout,
+partial failure, unsupported-version, and undo tests pass.
 
-Description: make the two plans distinguish historical `v0.1.19` assumptions,
-current partial Android prototypes, and the no-shrink rule.
+**Dependencies:** T01, T04, T05, T14.
 
-Acceptance criteria:
+**Likely files:** Typed action contracts/providers, Mac helper/SSH adapters,
+Routine Bank.
 
-- [ ] no active release instruction says minified Android artifact;
-- [ ] no private workstation/home path appears in public tracked docs;
-- [ ] current branch/HEAD/worktree state is recorded;
-- [ ] `PRE_LOCKSCREEN_BASELINE_COMMIT` remains explicitly unavailable until a
-      clean commit exists;
-- [ ] partial prototypes are not marked phase-complete.
+**Estimated scope:** M.
 
-Verification:
+### T21 — Close GA reliability and accessibility gaps
 
-- [ ] `rg -n "signed/minified|minified APK|PLATFORM_BASELINE_COMMIT" docs/reactive docs/product`
-- [ ] `python3 tools/secret_surface_check.py`
-- [ ] manual link/status review
+**Description:** Finish first-run setup, reconnection, diagnostics, clipboard,
+automation proof, backup migration, TalkBack, large text, switch access, DeX,
+battery, and device/macOS matrices.
 
-Files:
+**Acceptance criteria:**
 
-- `docs/reactive/REACTIVE_PLATFORM_IMPLEMENTATION_PLAN.md`
-- `docs/product/DESK_VALUE_LOCKSCREEN_AND_REACTIVE_EXPANSION_PLAN.md`
+- Setup and repair explain exact failures; reconnect survives documented
+  lifecycle transitions.
+- Core surfaces meet accessibility and adaptive-layout requirements.
+- Every physical claim has device/Mac evidence; no emulator result is mislabeled.
 
-Dependencies: G0.1
+**Verification:** Existing release gates plus physical Android 12–16, Samsung
+DeX, current macOS, long-session, battery, clipboard, HID, SSH, and accessibility
+matrices pass.
 
-## Phase G1: Repair Reactive safety before wider testing
+**Dependencies:** T03–T20 relevant slices.
 
-### Task G1.1: Bind action revision to the resolved execution contract
+**Likely files:** Core product verticals, tests, `docs/release/`.
 
-Description: replace static presentation-spec authorization with a canonical
-revision derived from the actual resolved action, target selector, safety
-fields, implementation kind, and arguments.
+**Estimated scope:** Multiple M tasks; split by existing GA gate.
 
-Acceptance criteria:
+### T22 — Complete Play listing, policy, support, and operations
 
-- [ ] confirmation prompt carries the actual resolved action revision;
-- [ ] review prompt carries the actual command revision;
-- [ ] edit/replacement between prompt and confirmation returns stale/review;
-- [ ] confirmation for action A cannot authorize action B sharing a control ID;
-- [ ] tests include dangerous-action swap and reviewed-command swap attacks.
+**Description:** Prepare store listing, screenshots, privacy/Data Safety, ads
+declaration, content rating, subscription terms, deletion URL, support,
+vulnerability intake, key recovery, rollback, and incident runbooks.
 
-Verification:
+**Acceptance criteria:**
 
-- [ ] focused executor adversarial tests
-- [ ] existing `RawCommandPolicyTest`
-- [ ] existing action-runner tests
+- Store claims match shipped flags and verified behavior.
+- All SDK data collection appears in Data Safety and privacy policy.
+- Billing, sync, ad, account, security, and outage support paths are rehearsed.
 
-Likely files:
+**Verification:** Play pre-review checks, SDK Index review, policy checklist,
+clean-account support drill, and release rollback rehearsal pass.
 
-- `app/src/main/java/io/codecks/domain/reactive/ReactiveControlModels.kt`
-- `app/src/main/java/io/codecks/core/reactive/DefaultReactiveActionExecutor.kt`
-- `app/src/test/java/io/codecks/core/reactive/DefaultReactiveActionExecutorTest.kt`
+**Dependencies:** T01–T21.
 
-Dependencies: G0.1
+**Likely files:** `fastlane/`, `docs/release/`, `PRIVACY.md`, support website.
 
-### Task G1.2: Revalidate target, state, capability, and registry at execution
+**Estimated scope:** M.
 
-Description: execution must not trust a control merely because it was rendered.
+### T23 — Run internal capability and exact-artifact dark tests
 
-Acceptance criteria:
+**Description:** Exercise commercial flows with `playInternal` against test
+services, then upload the exact production-dark `playRelease` AAB to validate
+delivery, signing, migrations, and inert public behavior.
 
-- [ ] selected Mac must still equal the control target;
-- [ ] state revision/TTL must still be acceptable;
-- [ ] every required capability is rechecked;
-- [ ] registry action/risk/revision parity is rechecked;
-- [ ] stale, removed, hidden, unsupported, or contract-mismatched controls fail
-      without a receipt.
+**Acceptance criteria:**
 
-Verification:
+- `playInternal` proves sign-in, purchase, RTDN, restore, sync, deletion, flags,
+  and consent without touching `app.codecks`.
+- Play-delivered `playRelease` updates safely and matches the expected
+  app-signing certificate.
+- All purchase lifecycle and backend paths have real sandbox receipts.
+- Ads use official test units; production ad serving remains killed.
+- `playRelease` has no override parser/verifier and proves commercial routes are
+  unreachable with zero commercial SDK construction or network request.
 
-- [ ] target-switch test
-- [ ] capability-loss test
-- [ ] stale-state test
-- [ ] registry-mismatch test
-- [ ] no-receipt-on-denial test
+**Verification:** Internal capability evidence plus exact-production-artifact
+dependency/manifest scan, adversarial state/intent tests, cold-start network
+capture, and in-place data-preservation test pass.
 
-Likely files:
+**Dependencies:** T02–T22.
 
-- `app/src/main/java/io/codecks/domain/reactive/ReactiveExecutionModels.kt`
-- `app/src/main/java/io/codecks/core/reactive/DefaultReactiveActionExecutor.kt`
-- `app/src/main/java/io/codecks/data/reactive/LiveMacStateRepository.kt`
-- focused tests
+**Likely files:** Evidence only; no ad-hoc production changes.
 
-Dependencies: G1.1
+**Estimated scope:** S plus observation.
 
-### Task G1.3: Correct command semantics and registry coverage
+### T24 — Run closed test and production-access gate
 
-Description: every displayed control must resolve to the intended reviewed
-catalog action or exact HID report.
+**Description:** Conduct the required closed test if the developer account is
+subject to it, while measuring setup completion, reconnect recovery, crashes,
+ANRs, battery, migration, and production-dark inertness. Commercial lifecycle
+testing remains isolated to `playInternal`.
 
-Acceptance criteria:
+**Acceptance criteria:**
 
-- [ ] Reload never maps to Command+Enter;
-- [ ] all default control action IDs exist in the catalog;
-- [ ] unsupported mappings are omitted before UI;
-- [ ] Browser/Finder/Terminal mappings have exact expected actions;
-- [ ] one contract test covers all shipped Reactive defaults.
+- Play Console testing requirement is satisfied when applicable.
+- No open P0/P1; crash-free sessions meet the repository GA target.
+- Testers prove core Mac workflows and zero production commercial reachability;
+  linked `playInternal` evidence covers each commercial lifecycle.
 
-Verification:
+**Verification:** Play Console status, tester matrix, issue ledger, and evidence
+review pass.
 
-- [ ] default registry/catalog parity test
-- [ ] HID command mapping test
-- [ ] provider output tests
+**Dependencies:** T23.
 
-Likely files:
+**Likely files:** Test evidence and targeted fixes only.
 
-- `app/src/main/java/io/codecks/core/reactive/ReactiveTrackpadDefaults.kt`
-- `app/src/main/java/io/codecks/core/reactive/DefaultReactiveActionExecutor.kt`
-- `app/src/test/java/io/codecks/core/reactive/`
+**Estimated scope:** Minimum policy window plus fixes.
 
-Dependencies: G1.2
+### T25 — Stage production with every commercial surface dark
 
-## Phase G2: Repair README evidence
+**Description:** Roll out the production-capable Play build in bounded stages
+while account, cloud sync, Billing, premium enforcement, and ads remain disabled.
 
-### Task G2.1: Recapture a stable manufacturer snapshot
+**Acceptance criteria:**
 
-Description: record named product IDs, visible price, regular price, promotion
-state, dimensions, access timestamp, and source URL. Do not use anonymous
-"visible row 01" entries.
+- Start at the smallest Play percentage available, observe, then expand only
+  when crash/ANR, auth, sync, purchase, refund, and support thresholds pass.
+- Public production exposes no account, cloud, upgrade, subscription, premium
+  lock, consent, or ad surface and initializes no commercial SDK.
+- Compiled defaults, remote defaults, backend policy, and kill switches all
+  agree on disabled; a single mistaken value cannot activate a surface.
+- The staged AAB digest is byte-for-byte the digest admitted by T23/T24. No
+  rebuild occurs between testing, review, promotion, and rollout.
+- A later activation requires explicit owner approval and its own staged
+  rollout. This task grants no activation authority.
 
-Acceptance criteria:
+**Verification:** Stage-by-stage release ledger, exact artifact digest, zero commercial UI
+reachability, zero commercial SDK/network initialization, unchanged local-core
+screens, support review, and final certificate/artifact checks pass.
 
-- [ ] every CSV row identifies a product/SKU;
-- [ ] sale inclusion policy is machine-checkable;
-- [ ] current source values reproduce min/max/mean/median;
-- [ ] unreachable source rows are removed or labeled unverified;
-- [ ] README uses only verified calculations.
+**Dependencies:** T24.
 
-Verification:
+**Likely files:** Release evidence and operational configuration.
 
-- [ ] deterministic evidence checker reproduces every README number;
-- [ ] manual open of every source;
-- [ ] source access failures are recorded.
+**Estimated scope:** Staged observation.
 
-Likely files:
+### T26 — Make separate post-launch activation decisions
 
-- `docs/marketing/desk_value_snapshot.csv`
-- `docs/marketing/DESK_VALUE_EVIDENCE.md`
-- `README.md`
-- optional `tools/verify_desk_value_evidence.py`
+**Description:** After stable production, decide independently whether to
+activate account, sync, Billing, premium entitlements, and ads. No decision is
+implied by completed implementation.
 
-Dependencies: G0.1
+**Acceptance criteria:**
 
-### Task G2.2: Make README citations directly usable
+- Each surface has a written go/no-go decision, current policy/data review,
+  owner, rollout percentage, health thresholds, and rollback trigger.
+- Account may activate without sync; account/sync may activate without Billing;
+  Billing may activate without ads. Ads always remain a separate last decision.
+- Any activated surface is canaried alone and can be killed independently.
 
-Acceptance criteria:
+**Verification:** Written decision and surface-specific activation/rollback
+drill. `Keep disabled` is a valid result.
 
-- [ ] each quantitative footnote includes a direct HTTPS link;
-- [ ] study age and nonrepresentative limitations remain adjacent;
-- [ ] manufacturer samples are never called market averages;
-- [ ] space allocation is never called recovered cash;
-- [ ] phone footprint caveat remains visible.
+**Dependencies:** T25 and a stable observation period.
 
-Verification:
+**Likely files:** Operational decision record; remote configuration only after
+approval.
 
-- [ ] Markdown link check
-- [ ] forbidden-claim grep from A1
-- [ ] evidence checker
+**Estimated scope:** S.
 
-Files:
+### Decisions intentionally deferred
 
-- `README.md`
-- `docs/marketing/DESK_VALUE_EVIDENCE.md`
+These do not block dark implementation: prices, trial/intro offers, final Play
+product merchandising, production ad unit IDs, later activation per surface,
+ad audience/regions, cloud region/retention duration, and catalog premium split.
+They become blocking before their affected surface is activated.
 
-Dependencies: G2.1
+These cannot defer past Checkpoint A0: variant matrix, app-signing lineage,
+root gate algebra, snapshot allowlist, backend identity key, deletion semantics,
+entitlement authority/state machine, commercial initializer policy,
+transaction-bound Integrity contract, cryptographic internal-test boundary, and
+unshrunk release policy.
 
-## Phase G3: Close the lockscreen lifecycle boundary
+## Parallel delivery lanes
 
-### Task G3.1: Fail closed before credential-protected reads
+Every implementation lane uses its own `codex/` branch and worktree. One
+integration lane owns shared hot spots. Agents never merge, push, release,
+install, alter Play Console, or touch the protected phone unless a separately
+authorized integration/release task says so.
 
-Description: determine post-boot unlock/keyguard state before reading settings
-or other credential-protected state.
+### Phase 0 — Contracts and proof boundaries
 
-Acceptance criteria:
+Run these in parallel, then stop at Checkpoint A0:
 
-- [ ] pre-first-unlock public URI exits or requires unlock without DataStore;
-- [ ] no HID start/register/connect path is called;
-- [ ] exceptions and unavailable services fail closed;
-- [ ] forged extras cannot change the outcome.
+| Lane | Exclusive ownership | Deliverable |
+| --- | --- | --- |
+| C0 Policy | `app/**/domain/commercial/**`, commercial additions under `domain/features/**`, focused tests | Immutable policy, typed algebra, decision reasons, property tests |
+| C1 Snapshot | `shared/**/snapshot/**`, `protocol/schemas/commercial/**`, fixtures | DTO allowlist, bounds, canonical codec, rejection taxonomy |
+| C2 Backend contract | new `backend/**`, commercial OpenAPI/schema except snapshot DTO | Account/session/deletion, entitlement state machine, RTDN/reconciliation, Integrity request binding |
+| C3 Build audit | read-only Gradle/manifest/signing analysis | Variant/dependency/initializer/signing contract and exact commands |
 
-Verification:
+Checkpoint A0 freezes the variant matrix, root gate algebra, initializer policy,
+snapshot schema, identity key, deletion behavior, entitlement authority/state
+machine, Integrity binding, no-shrink rule, and test-only boundary.
 
-- [ ] pure truth-table tests
-- [ ] direct-boot/locked instrumentation test where supported
-- [ ] source reachability test for `hidRepository.start/connect`
+### Phase 1 — Foundations
 
-Likely files:
+After A0, run in parallel:
 
-- `TrackpadEntryActivity.kt`
-- `LockscreenTrackpadPolicy.kt`
-- focused tests
+| Lane | Exclusive ownership | Work |
+| --- | --- | --- |
+| F0 Policy/data | `domain/commercial/**`, `data/features/**`, tests | Resolver, migration, no-op production source, diagnostics |
+| F1 Portable snapshot | `shared/**/snapshot/**`, `data/sync/codec/**`, tests | Codec/adapters/goldens/fuzz/canaries |
+| F2 Backend core | `backend/**` | Auth, sessions, deletion, snapshots, entitlement/RTDN state machines |
+| F3 Build boundary | `app/build.gradle.kts`, source-set manifests, commercial startup validators | `ossRelease`/`playRelease`/`playInternal`, dependency and initializer gates |
 
-Dependencies: G0.1
+Only F3 edits Gradle, manifests, `CodecksApplication`, startup providers, or DI
+composition roots. Generic `androidx.credentials` remains OSS-safe.
 
-### Task G3.2: Remove stale keyguard dispatch windows
+### Phase 2 — Vertical implementations
 
-Description: movement/click dispatch must stop immediately on lifecycle or
-keyguard policy loss rather than wait for the next 750 ms poll.
+After foundation contract tests pass, run in parallel:
 
-Acceptance criteria:
+| Lane | Exclusive ownership | Work |
+| --- | --- | --- |
+| V0 Account | `app/src/play/**/auth/**`, Account UI/tests | Credential Manager exchange, session recovery, sign-out/deletion |
+| V1 Sync | `app/src/play/**/sync/**`, Sync UI/tests | Explicit backup, preview/merge/replace/rollback/conflicts |
+| V2 Commerce | `app/src/play/**/billing/**`, Upgrade UI/tests | ProductDetails, purchase flow, backend verification, restore/manage |
+| V3 Ads/privacy | `app/src/play/**/ads/**`, `privacy/**`, tests | Dark UMP/Ads adapters, consent, eligibility, forbidden surfaces |
+| V4 Product value | isolated Explore/Theme/typed-SSH packages | T18–T20 without commercial hot-spot edits |
 
-- [ ] `onPause`, `onStop`, `onDestroy`, disconnect, and policy loss release all
-      buttons;
-- [ ] no pointer event dispatches after lock-state invalidation;
-- [ ] screen-off/on cannot retain a held button;
-- [ ] policy checks remain off the pointer hot path.
+The integration owner alone edits navigation, `MainActivity`, `SettingsScreen`,
+shared DI, versioning, migration dispatch, Explore/Theme placement composition,
+and release workflows.
 
-Verification:
+### Contract-request protocol
 
-- [ ] fake lifecycle tests
-- [ ] disconnect-during-drag instrumentation test
-- [ ] lock-transition instrumentation test
+Before changing another lane's contract, add one file under
+`tasks/contract-requests/` containing requester, owner, exact symbol/schema,
+reason, compatibility effect, migration effect, tests, and requested decision.
+The owning lane records `accepted`, `revised`, or `rejected`. No worker resolves
+an ownership collision by editing both sides. Contract changes invalidate
+dependent receipts and must rerun the owning and consumer test suites.
 
-Likely files:
+### Required review cycle per phase
 
-- `LockscreenTrackpadActivity.kt`
-- `LockscreenTrackpadViewModel.kt`
-- focused tests
+1. implementation lane reports files and focused gates;
+2. independent verification reruns claimed checks and inspects the diff;
+3. anti-pattern review searches bypasses, duplicate catalogs, eager startup,
+   unsafe serialization, and test-only leakage;
+4. quality review closes P0/P1 findings;
+5. only then may an integration task commit the phase.
 
-Dependencies: G3.1
+## Checkpoints
 
-### Task G3.3: Add real Android route and semantics tests
+### Checkpoint A — Foundation
 
-Acceptance criteria:
+- T01–T06 complete.
+- All three artifacts build and their dependency/manifest boundaries pass.
+- Signing continuity is proven.
+- Existing local flags and app data migrate.
 
-- [ ] exact URI resolves only to `TrackpadEntryActivity`;
-- [ ] launcher resolves only to `MainActivity`;
-- [ ] locked allowed state renders only pointer surface and mouse buttons;
-- [ ] locked denied state renders unlock/close only;
-- [ ] forbidden labels/actions are absent from the Compose semantics tree;
-- [ ] Back/Home/Recents reveal no protected content.
+### Checkpoint B — Account and sync
 
-Verification:
+- T07–T11 complete.
+- Optional sign-in and explicit backup/restore work across two test accounts and
+  two devices.
+- Account deletion works in-app and on web.
+- Secret-canary suite finds no excluded data in cloud.
 
-- [ ] debug AndroidTest on managed Pixel 6 API 35
-- [ ] instrumentation report contains named lockscreen test classes
+### Checkpoint C — Commerce
 
-Likely files:
+- T12–T14 complete.
+- Real Play sandbox purchases, RTDN, refund/revoke, restore, offline grace, and
+  account switching pass.
+- No client-only entitlement path exists.
 
-- `app/src/androidTest/java/io/codecks/ui/mouse/lockscreen/**`
-- test-only fakes/DI
+### Checkpoint D — Ads dark launch
 
-Dependencies: G3.2
+- T15–T17 complete.
+- Consent and privacy controls pass.
+- Production ad units remain disabled.
+- Forbidden-surface scan and ad-request instrumentation show zero requests from
+  operational surfaces.
 
-## Phase G4: Reconcile widget, notification, privacy, and release surfaces
+### Checkpoint E — Product and GA
 
-### Task G4.1: Decide widget shipment state
+- T18–T22 complete.
+- Core reliability/accessibility matrices pass.
+- Store listing and policies reflect the commercial build.
 
-Description: resolve the contradiction between an unconditional widget receiver
-and the release ledger's disabled Widget incubator.
+### Checkpoint F — Dark Play release
 
-Acceptance criteria:
+- T23–T25 complete.
+- Internal and closed test evidence pass.
+- Production staged with account, sync, Billing, premium enforcement, and ads
+  all disabled and unreachable.
+- T26 remains a separate post-stability owner decision for each surface.
 
-- [ ] widget is either intentionally public and documented or build/feature
-      gated;
-- [ ] receiver exposure and immutable explicit pending intent are documented;
-- [ ] widget carries no host name or arbitrary destination;
-- [ ] release-surface validation enforces the decision.
+## Release gates
 
-Verification:
+No public production release until:
 
-- [ ] merged manifest inspection
-- [ ] release-surface negative test
-- [ ] widget pending-intent test
+- exact AAB source SHA, version, signer lineage, and Play-delivered certificate
+  are recorded;
+- `ossRelease` and `playRelease` are both unshrunk and pass release-surface,
+  secret, unit, lint, managed-emulator, and migration checks;
+- `ossRelease` dependency and merged-manifest scans prove no Firebase,
+  commercial auth, Billing, Integrity, UMP, Mobile Ads, commercial provider,
+  receiver, service, worker, metadata, or transport leaked in;
+- exact `playRelease` cold-start capture proves zero commercial network calls
+  and construction spies prove no commercial SDK/client initialization;
+- corrupt preferences/cache/config, expired values, clock skew, crafted deep
+  links/intents, saved navigation, restored state, and test-override replay
+  cannot enable any production-dark surface;
+- property tests prove a lower-authority allow never defeats build, owner,
+  emergency-deny, entitlement, consent, or user-opt-in denial;
+- snapshot golden/property/fuzz tests cover all bounds, future/old schemas,
+  raw-command rejection, secret canaries, corruption, rollback, and process
+  death;
+- auth tests cover token audience/issuer/signature/expiry/nonce/replay, session
+  rotation/revocation, idempotent deletion, and recreated account;
+- Play sandbox evidence covers pending, purchase, renewal, grace, hold, pause,
+  cancellation, expiration, refund, revoke, chargeback, account switch, RTDN
+  duplicate/out-of-order delivery, and reconciliation;
+- ad tests assert zero requests—not only zero rendering—on every forbidden
+  surface, background, lockscreen, screen-off, rotation, and DeX state;
+- physical-phone update preserves `app.codecks` data;
+- real-Mac SSH and Bluetooth HID work on the exact candidate;
+- sign-in, backup, restore, purchase, RTDN, refund, account deletion, consent,
+  and kill-switch flows have `playInternal`/test-backend evidence;
+- privacy policy, Data Safety, ads declaration, content rating, store assets,
+  support URL, and deletion URL are live;
+- no unresolved P0/P1 exists;
+- rollback has been rehearsed.
 
-Likely files:
+The admitted artifact record contains Git commit, Gradle inputs, version,
+SHA-256 digest, app-signing lineage, dependency/manifest reports, and evidence
+bundle digest. Play promotion reuses that exact AAB digest; rebuilding resets
+admission.
 
-- `app/src/main/AndroidManifest.xml`
-- `app/build.gradle.kts`
-- `docs/release/CODECKS_RELEASE_LEDGER.md`
-- release-surface tests
+## Risks
 
-Dependencies: G3.1
+| Risk | Impact | Mitigation |
+| --- | --- | --- |
+| Wrong Play signer | Existing installs cannot update | T02 hard stop before upload |
+| Open-source client is modified | Local UI gates bypassed | Protect official services server-side; never claim unmoddable |
+| Commercial SDK contaminates FOSS build | Trust/privacy regression | T03 source-set and manifest dependency gates |
+| Sign-in overwrites local config | Data loss | Preview, local safety snapshot, explicit merge/replace |
+| Purchase token replay/account theft | Revenue/support loss | Backend verification, unique token, request-bound Integrity, RTDN |
+| Remote flag becomes authorization | Paid/security bypass | Monotonic conjunction; remote controls only subtract access |
+| Ad causes accidental control click | Safety/policy failure | No operational ads; fixed discovery placement only |
+| Dark feature accidentally activates | Privacy/commercial incident | Compiled, remote, backend, and kill-switch deny; reachability/network tests |
+| Ads destroy local-first trust | Retention loss | Ads off; separate T26 evidence-based go/no-go |
+| Subscription lacks recurring value | Churn/policy risk | Sell cloud/content maintenance; keep finite features in Lifetime |
+| Account deletion conflicts with billing | User harm | Explain Play cancellation separately; deletion remains available |
+| Cloud snapshot leaks secrets | Severe privacy issue | Allowlist codec, whole-object rejection, canaries, server limits, security review |
+| Backend outage breaks core | Product outage | Local core independent; cached entitlement grace; kill switches |
 
-### Task G4.2: Update permission/privacy and component ledgers
+## Rough critical path
 
-Acceptance criteria:
+- Contracts, signing, variants, flags: 1–2 focused weeks.
+- Account, backend, sync, billing, entitlement: 3–5 weeks with parallel lanes.
+- Consent, dark ads, Explore/themes/SSH packs, GA closure: 2–4 weeks.
+- Internal testing and fixes: 1–2 weeks.
+- Closed testing: add the Play-mandated window when applicable.
 
-- [ ] exported Trackpad entry Activity is listed;
-- [ ] exported widget receiver is listed if shipped;
-- [ ] non-exported lockscreen Activity is listed;
-- [ ] notification content/action behavior is documented;
-- [ ] no component claim exceeds tested evidence.
+These are engineering estimates, not release promises. Play review, tester
+eligibility, production-access approval, and policy review are external.
 
-Verification:
+## Final definition of done
 
-- [ ] `:app:validateReleaseSurface`
-- [ ] manual merged-manifest-to-ledger comparison
-
-Files:
-
-- `docs/security/PERMISSION_PRIVACY_LEDGER.md`
-- `docs/release/CODECKS_RELEASE_LEDGER.md`
-- `app/build.gradle.kts`
-
-Dependencies: G4.1
-
-## Phase G5: Close user-visible papercuts
-
-### Task G5.1: Reproduce and fix Trackpad click behavior
-
-Acceptance criteria:
-
-- [ ] real-finger single tap produces exactly one left click;
-- [ ] movement below/above threshold is characterized;
-- [ ] drag and double tap remain correct;
-- [ ] ADB synthetic tap evidence is not substituted for finger evidence;
-- [ ] regression test covers the root cause.
-
-Verification:
-
-- [ ] engine/unit test
-- [ ] managed emulator gesture test
-- [ ] approved physical debug test against a safe Mac target
-
-Likely files:
-
-- `TrackpadGestureEngine.kt`
-- `MouseScreen.kt`
-- focused tests
-
-Dependencies: G3.3
-
-### Task G5.2: Define Keyboard multi-touch behavior
-
-Acceptance criteria:
-
-- [ ] supported combinations are explicit;
-- [ ] unsupported simultaneous taps fail predictably;
-- [ ] no half-fired modifier or duplicate Enter;
-- [ ] success clears text; failure preserves it;
-- [ ] Mac-side target receives text and exactly one Enter.
-
-Verification:
-
-- [ ] Compose interaction test
-- [ ] ViewModel state test
-- [ ] approved physical debug test in a controlled text target
-
-Likely files:
-
-- `KeyboardScreen.kt`
-- `KeyboardViewModel.kt`
-- focused tests
-- `docs/ux/PAPER_CUT_AUDIT.md`
-
-Dependencies: G5.1
-
-### Task G5.3: Complete accessibility/navigation matrix
-
-Acceptance criteria:
-
-- [ ] TalkBack labels, roles, focus order, and state wording pass;
-- [ ] all touched controls meet 48 dp;
-- [ ] Back behavior passes across modes/sheets/orientation;
-- [ ] closed ledger rows contain test and physical evidence.
-
-Verification:
-
-- [ ] Compose semantics tests
-- [ ] managed emulator rotation/navigation
-- [ ] physical TalkBack spot check
-
-Dependencies: G5.2
-
-## Phase G6: Android emulator release-candidate gate
-
-### Task G6.1: Run aggregate source gates on Java 17
-
-Verification:
-
-- [ ] `python3 tools/secret_surface_check.py`
-- [ ] `scripts/verify_release_no_shrink.sh`
-- [ ] `python3 tools/ai_creator_v2_eval.py`
-- [ ] `:app:testReleaseUnitTest`
-- [ ] `:app:lintDebug`
-- [ ] `:app:check`
-- [ ] `:app:assembleDebug`
-- [ ] `python3 scripts/verify_mac_actions.py`
-
-Dependencies: G1-G5
-
-### Task G6.2: Run managed debug instrumentation
-
-Acceptance criteria:
-
-- [ ] startup, deep-link, lockscreen, widget, keyboard, Trackpad gesture, and
-      Reactive-exclusion tests execute;
-- [ ] report has zero failures/errors;
-- [ ] APK contains dex;
-- [ ] no physical device is selected.
-
-Verification:
-
-- [ ] `:app:pixel6Api35DebugAndroidTest`
-- [ ] inspect XML report for required classes
-
-Dependencies: G6.1
-
-## Phase G7: Approved physical debug matrix
-
-Description: test only `app.codecks.debug`; preserve `app.codecks`.
-
-Rules:
-
-- do not uninstall, clear, downgrade, overwrite, or instrument `app.codecks`;
-- do not force-stop production merely to steal HID ownership;
-- have the user disconnect/release production HID through normal UI;
-- restore the user's preferred production state after testing.
-
-Required matrix:
-
-- [ ] Trackpad movement, tap, drag, right click, scroll;
-- [ ] Keyboard text + exactly one Enter + clear success;
-- [ ] keyboard failure preserves draft;
-- [ ] keyboard multi-touch decision;
-- [ ] locked connected pointer-only entry;
-- [ ] locked disconnected no reconnect;
-- [ ] Bluetooth off releases buttons and closes;
-- [ ] pre-first-unlock fail closed;
-- [ ] notification entry;
-- [ ] widget unlocked entry;
-- [ ] Back/Home/Recents;
-- [ ] screen off/on and Mac sleep/wake;
-- [ ] minimum 30-minute idle.
-
-Dependencies: G6
-
-## Phase G8: Exact signed Android candidate
-
-This checkpoint is allowed only if the user accepts a bounded Android-slice
-release before full Reactive Platform completion. Otherwise skip it and
-continue to R0.
-
-### Task G8.1: Prepare version and detailed notes
-
-Acceptance criteria:
-
-- [ ] version code/name are new and unique;
-- [ ] notes distinguish completed Android features from disabled/partial
-      platform work;
-- [ ] evidence levels are explicit;
-- [ ] no Mac helper, iOS, DeskDock-engine, or integration claim appears.
-
-Likely files:
-
-- `app/build.gradle.kts`
-- `CHANGELOG.md`
-- `README.md`
-- `docs/release/RELEASE_NOTES_vX.Y.Z.md`
-- `docs/release/CODECKS_RELEASE_LEDGER.md`
-
-Dependencies: G7
-
-### Task G8.2: Build and preserve exact signed unshrunk artifact
-
-Acceptance criteria:
-
-- [ ] real release signing variables are present without disclosure;
-- [ ] minify/shrink remain false;
-- [ ] SHA-256 recorded before device test;
-- [ ] candidate cert equals installed `app.codecks` cert;
-- [ ] candidate version is not a downgrade;
-- [ ] candidate is never rebuilt after testing.
-
-Verification:
-
-- [ ] `apksigner verify --verbose --print-certs`
-- [ ] certificate digest comparison
-- [ ] `scripts/verify_release_no_shrink.sh <apk>`
-- [ ] SHA-256 comparison
-
-Dependencies: G8.1
-
-### Task G8.3: Exact-artifact physical SSH/HID/lockscreen proof
-
-Acceptance criteria:
-
-- [ ] in-place update only after specific user approval;
-- [ ] `adb install -r --no-streaming` succeeds;
-- [ ] app data and selected Mac remain;
-- [ ] real Mac SSH action succeeds;
-- [ ] HID movement/click/keyboard succeeds;
-- [ ] lockscreen matrix succeeds;
-- [ ] tested hash equals publish candidate hash.
-
-Dependencies: G8.2
-
-### Task G8.4: Publish only after all evidence is saved
-
-Acceptance criteria:
-
-- [ ] clean release commit;
-- [ ] signed/annotated unique tag;
-- [ ] GitHub workflow passes;
-- [ ] one production APK plus checksum only;
-- [ ] downloaded GitHub asset hash equals tested hash.
-
-Dependencies: G8.3
-
-## Phase R0-R10: Complete the Reactive MVP
-
-Execute the governing Reactive plan phase-by-phase after G8 or after a clean
-non-release baseline.
-
-### R0: ADRs, threat/privacy inventory, clean baseline
-
-- [ ] ADR-001 through ADR-010
-- [ ] exact `PLATFORM_BASELINE_COMMIT`
-- [ ] tool versions and actual Gradle tasks
-- [ ] platform threat model and privacy inventory
-- [ ] phase progress ledger
-
-### R1: KMP and Mac-helper scaffold
-
-- [ ] `:shared` Android/iOS targets
-- [ ] common smoke test
-- [ ] Swift helper test target
-- [ ] Android behavior unchanged
-
-### R2: canonical models/schema/fixtures
-
-- [ ] commonMain models
-- [ ] canonical revisions
-- [ ] valid/invalid fixtures
-- [ ] Kotlin/Swift parity
-
-### R3: authenticated protocol
-
-- [ ] bounded framing/version negotiation
-- [ ] P-256 identity and pairing transcript
-- [ ] replay/sequence/deadline protection
-- [ ] hostile loopback matrix
-
-### R4: native Mac helper
-
-- [ ] Bonjour `_codecks._tcp`
-- [ ] pair/revoke UI
-- [ ] front app/basic state
-- [ ] permission denial/revocation
-- [ ] signed local E3 proof
-
-### R5: Android helper client
-
-- [ ] discover/pair/auth/reconnect
-- [ ] pinned helper identity
-- [ ] capability status
-- [ ] wrong-key/revoke/offline tests
-
-### R6: unified Mac state
-
-- [ ] helper backend
-- [ ] bounded SSH fallback
-- [ ] field-level source/freshness
-- [ ] target switch isolation
-- [ ] no arbitrary JXA gateway
-
-### R7: provider suite
-
-- [ ] Browser
-- [ ] Terminal
-- [ ] Finder
-- [ ] Media
-- [ ] Generic Window
-- [ ] Undo
-- [ ] deterministic max-six policy
-
-### R8: executor/receipts/undo
-
-- [ ] helper and bundled SSH adapters
-- [ ] exact receipt store
-- [ ] mute/tab/screenshot-safe undo where exact
-- [ ] replay-safe execution
-- [ ] revision-bound authorization
-
-### R9: production Trackpad UI
-
-- [ ] four visible + More
-- [ ] undo first
-- [ ] danger in More
-- [ ] HUD/mode/result states
-- [ ] no pointer-path regression
-- [ ] instrumentation and performance trace
-
-### R10: real Mac matrix
-
-- [ ] Safari/Chrome
-- [ ] Terminal/iTerm where supported
-- [ ] Finder
-- [ ] Music/Spotify where supported
-- [ ] helper online/offline
-- [ ] SSH fallback
-- [ ] HID connected/disconnected
-
-## Phase R11-R16: Complete platform breadth
-
-Use the exact phase contracts in the governing Reactive plan:
-
-- [ ] R11 modes, window, cursor, screenshots
-- [ ] R12 clipboard and explicit selection
-- [ ] R13 profiles and gestures
-- [ ] R14 iOS controller
-- [ ] R15 Smart reference integration
-- [ ] R16 Android/Mac/iOS release hardening
-
-Each subphase needs its own tests and physical evidence. Do not collapse them
-into one implementation task.
-
-## Phase D0-D1: DeskDock
-
-- [ ] exact Tasker/phone recipe verified;
-- [ ] NFC documented as deterministic user action;
-- [ ] unified-state-dependent native score;
-- [ ] hysteresis/cooldown/manual suppress;
-- [ ] confidence never authorizes, unlocks, reconnects, or executes;
-- [ ] measured accuracy wording.
-
-Dependencies: R6, R8, R10
-
-## Phase I1-I5: Later integrations
-
-Order is fixed:
-
-1. typed Apple Shortcuts adapter/provider;
-2. reviewed provenance-bound app shortcut importer;
-3. bounded Spotlight search and SFTP transfer;
-4. brightness only with proven adapter;
-5. Accessibility discovery last.
-
-Every integration:
-
-- uses typed actions;
-- has strict arguments, timeouts, and output limits;
-- hides when unsupported;
-- never appears on lockscreen;
-- never injects raw UI shell strings;
-- has adapter-level and physical tests.
-
-## Final checkpoint X0
-
-Release-ready means:
-
-- [ ] all governing final-definition-of-done checkboxes have evidence;
-- [ ] Android signed unshrunk artifact passes exact-artifact gates;
-- [ ] Mac helper is signed/notarized if shipped;
-- [ ] iOS is signed and real-device tested if claimed;
-- [ ] protocol compatibility/rollback/revoke pass;
-- [ ] README and support matrix claim only proven features;
-- [ ] tested hashes equal published hashes;
-- [ ] production app was never uninstalled, cleared, downgraded, or
-      differently signed.
+The implementation program is done when T01–T25 and all checkpoints have
+evidence. Account, sync, Billing, premium enforcement, and ads still remain off.
+T26 is not automatic execution: each surface may remain disabled indefinitely.
