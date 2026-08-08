@@ -64,18 +64,23 @@ jobs:
           echo "CODECKS_RELEASE_STORE_FILE=$RUNNER_TEMP/codecks-release.jks" >> "$GITHUB_ENV"
       - name: Enforce unshrunk production release
         run: ./scripts/verify_release_no_shrink.sh
+      - name: Validate OSS distribution boundary
+        run: ./gradlew --no-daemon :app:validateCommercialBuildBoundaries
       - name: Build signed release emulator candidate
         run: |
-          ./gradlew --no-daemon :app:assembleRelease :app:assembleReleaseAndroidTest
+          ./gradlew --no-daemon :app:assembleOssRelease :app:assembleOssReleaseAndroidTest
           ./scripts/verify_release_no_shrink.sh \
-            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/apk/oss/release/app-oss-release.apk
+          python3 tools/validate_commercial_artifact.py \
+            --variant ossRelease \
+            --artifact app/build/outputs/apk/oss/release/app-oss-release.apk
       - name: Prepare release candidate artifacts
         run: |
-          unzip -Z1 app/build/outputs/apk/androidTest/release/app-release-androidTest.apk \
+          unzip -Z1 app/build/outputs/apk/androidTest/oss/release/app-oss-release-androidTest.apk \
             | grep -E '^classes([0-9]+)?\.dex$' >/dev/null
           mkdir -p release-candidate
-          cp app/build/outputs/apk/release/app-release.apk release-candidate/codecks-release.apk
-          sha256sum app/build/outputs/apk/androidTest/release/app-release-androidTest.apk \
+          cp app/build/outputs/apk/oss/release/app-oss-release.apk release-candidate/codecks-release.apk
+          sha256sum app/build/outputs/apk/androidTest/oss/release/app-oss-release-androidTest.apk \
             > "$RUNNER_TEMP/codecks-release-androidTest.sha256"
           (
             cd release-candidate
@@ -92,27 +97,27 @@ jobs:
           test -w /dev/kvm
       - name: Run exact signed release on managed emulator
         run: |
-          test "$(sha256sum app/build/outputs/apk/release/app-release.apk | awk '{print $1}')" = \
+          test "$(sha256sum app/build/outputs/apk/oss/release/app-oss-release.apk | awk '{print $1}')" = \
             "$(sha256sum release-candidate/codecks-release.apk | awk '{print $1}')"
           sha256sum --check "$RUNNER_TEMP/codecks-release-androidTest.sha256"
           ./gradlew --no-daemon \
             -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect \
-            :app:pixel6Api35ReleaseAndroidTest
+            :app:pixel6Api35OssReleaseAndroidTest
           grep -R --include='*.xml' -q \
             'io.codecks.ui.app.MainActivityStartupInstrumentedTest' \
-            app/build/outputs/androidTest-results/managedDevice/release/
+            app/build/outputs/androidTest-results/managedDevice/release/flavors/oss/
           grep -R --include='*.xml' -q \
             'io.codecks.release.ReleaseSshSmokeInstrumentedTest' \
-            app/build/outputs/androidTest-results/managedDevice/release/
+            app/build/outputs/androidTest-results/managedDevice/release/flavors/oss/
           grep -R --include='*.xml' -q \
             'io.codecks.ui.mouse.lockscreen.LockscreenEntryInstrumentedTest' \
-            app/build/outputs/androidTest-results/managedDevice/release/
+            app/build/outputs/androidTest-results/managedDevice/release/flavors/oss/
           python3 - <<'PY'
           import glob
           import xml.etree.ElementTree as ET
 
           files = glob.glob(
-              "app/build/outputs/androidTest-results/managedDevice/release/**/*.xml",
+              "app/build/outputs/androidTest-results/managedDevice/release/flavors/oss/**/*.xml",
               recursive=True,
           )
           assert files, "No managed release XML reports found"
@@ -127,7 +132,7 @@ jobs:
           assert totals["skipped"] >= 1, totals
           print(totals)
           PY
-          test "$(sha256sum app/build/outputs/apk/release/app-release.apk | awk '{print $1}')" = \
+          test "$(sha256sum app/build/outputs/apk/oss/release/app-oss-release.apk | awk '{print $1}')" = \
             "$(sha256sum release-candidate/codecks-release.apk | awk '{print $1}')"
           sha256sum --check "$RUNNER_TEMP/codecks-release-androidTest.sha256"
           cd release-candidate
@@ -138,8 +143,8 @@ jobs:
         with:
           name: codecks-signed-release-emulator-results
           path: |
-            app/build/reports/androidTests/managedDevice/release/
-            app/build/outputs/androidTest-results/managedDevice/release/
+            app/build/reports/androidTests/managedDevice/release/flavors/oss/
+            app/build/outputs/androidTest-results/managedDevice/release/flavors/oss/
           if-no-files-found: warn
           retention-days: 3
       - name: Upload release candidate

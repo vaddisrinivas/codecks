@@ -2,6 +2,7 @@ package io.codecks.domain.features
 
 import kotlinx.coroutines.flow.Flow
 
+// Kept literal: validateReleaseSurface scans these public-release defaults.
 val DEFAULT_FEATURE_FLAGS = mapOf(
     FeatureFlag.Deck to true,
     FeatureFlag.Trackpad to true,
