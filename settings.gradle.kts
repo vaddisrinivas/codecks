@@ -17,3 +17,4 @@ dependencyResolutionManagement {
 rootProject.name = "Codecks"
 include(":app")
 include(":shared")
+include(":backend")
