@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SERIAL="${1:-}"
+OUTPUT_DIR="${2:-$ROOT_DIR/build/commercial-proof/cold-start}"
+MODE="${3:---prepare-only}"
+RECEIPT="$OUTPUT_DIR/receipt.json"
+PACKAGE="app.codecks"
+mkdir -p "$OUTPUT_DIR"
+
+not_run() {
+  python3 - "$RECEIPT" "$1" <<'PY'
+import json
+from pathlib import Path
+import sys
+result={"schema":"codecks.commercial-proof.v1","kind":"cold_start_collection","overall":"NOT_RUN","checks":[{"id":"cold_start.collection","status":"NOT_RUN","evidence":sys.argv[2],"violations":[]}],"warning":"No trace-based product claim is allowed from NOT_RUN evidence."}
+Path(sys.argv[1]).write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
+PY
+}
+
+failed() {
+  python3 - "$RECEIPT" "$1" <<'PY'
+import json
+from pathlib import Path
+import sys
+result={"schema":"codecks.commercial-proof.v1","kind":"cold_start_collection","overall":"FAIL","checks":[{"id":"cold_start.launcher_component","status":"FAIL","evidence":sys.argv[2],"violations":[sys.argv[2]]}],"warning":"No trace-based product claim is allowed from failed evidence."}
+Path(sys.argv[1]).write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
+PY
+}
+
+if ! command -v adb >/dev/null || [[ -z "$SERIAL" ]]; then
+  not_run "adb unavailable or emulator serial omitted"
+  exit 0
+fi
+if [[ "$(adb -s "$SERIAL" shell getprop ro.kernel.qemu 2>/dev/null | tr -d '\r')" != "1" ]]; then
+  not_run "refused: cold-start harness is emulator-only"
+  exit 0
+fi
+if ! adb -s "$SERIAL" shell pm path "$PACKAGE" >"$OUTPUT_DIR/package-path.txt" 2>&1; then
+  not_run "$PACKAGE is not installed on emulator $SERIAL"
+  exit 0
+fi
+if [[ "$MODE" != "--run" ]]; then
+  not_run "prerequisites present; collection requires explicit --run"
+  exit 0
+fi
+
+for name in start.txt logcat.txt activity.txt package.txt jobscheduler.txt alarm.txt services.txt \
+    work.txt work.exit binder.txt binder.exit network.txt network.exit cold-start.perfetto-trace \
+    launcher-resolve.txt launcher-inventory.txt launcher-component.txt; do
+  [[ ! -e "$OUTPUT_DIR/$name" ]] || rm "$OUTPUT_DIR/$name"
+done
+
+if ! adb -s "$SERIAL" shell cmd package resolve-activity --brief \
+    -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p "$PACKAGE" \
+    >"$OUTPUT_DIR/launcher-resolve.txt" 2>&1; then
+  failed "launcher resolve command failed"
+  exit 1
+fi
+if ! adb -s "$SERIAL" shell cmd package query-activities --brief --components \
+    -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p "$PACKAGE" \
+    >"$OUTPUT_DIR/launcher-inventory.txt" 2>&1; then
+  failed "launcher inventory command failed"
+  exit 1
+fi
+if ! python3 - "$PACKAGE" "$OUTPUT_DIR/launcher-resolve.txt" \
+    "$OUTPUT_DIR/launcher-inventory.txt" "$OUTPUT_DIR/launcher-component.txt" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+expected_package, resolve_name, inventory_name, output_name = sys.argv[1:]
+pattern = re.compile(r"(?<![A-Za-z0-9_.])([A-Za-z][A-Za-z0-9_.]*)/([A-Za-z0-9_.$]+)")
+
+def components(path: str) -> set[str]:
+    return {f"{package}/{activity}" for package, activity in pattern.findall(Path(path).read_text(errors="ignore"))}
+
+resolved = components(resolve_name)
+inventory = components(inventory_name)
+all_components = resolved | inventory
+foreign = sorted(value for value in all_components if not value.startswith(f"{expected_package}/"))
+if foreign:
+    raise SystemExit(f"wrong-package launcher component: {', '.join(foreign)}")
+if len(resolved) != 1:
+    raise SystemExit(f"expected exactly one resolved launcher; found {len(resolved)}")
+if len(inventory) != 1:
+    raise SystemExit(f"expected exactly one exported launcher in package inventory; found {len(inventory)}")
+if resolved != inventory:
+    raise SystemExit("resolved launcher does not match exported package inventory")
+component = next(iter(resolved))
+if not component.startswith(f"{expected_package}/"):
+    raise SystemExit("resolved launcher has wrong package")
+Path(output_name).write_text(component + "\n")
+PY
+then
+  failed "launcher component absent, ambiguous, mismatched, or outside app.codecks"
+  exit 1
+fi
+LAUNCHER_COMPONENT="$(tr -d '\r\n' <"$OUTPUT_DIR/launcher-component.txt")"
+
+adb -s "$SERIAL" logcat -c
+adb -s "$SERIAL" shell am force-stop "$PACKAGE"
+adb -s "$SERIAL" shell am start -W -n "$LAUNCHER_COMPONENT" >"$OUTPUT_DIR/start.txt" 2>&1
+sleep 3
+adb -s "$SERIAL" logcat -d -v threadtime >"$OUTPUT_DIR/logcat.txt"
+adb -s "$SERIAL" shell dumpsys activity activities >"$OUTPUT_DIR/activity.txt"
+adb -s "$SERIAL" shell dumpsys package "$PACKAGE" >"$OUTPUT_DIR/package.txt"
+adb -s "$SERIAL" shell dumpsys jobscheduler >"$OUTPUT_DIR/jobscheduler.txt"
+adb -s "$SERIAL" shell dumpsys alarm >"$OUTPUT_DIR/alarm.txt"
+adb -s "$SERIAL" shell dumpsys activity services >"$OUTPUT_DIR/services.txt"
+collect_optional() {
+  local name="$1"
+  shift
+  set +e
+  adb -s "$SERIAL" shell "$@" >"$OUTPUT_DIR/$name.txt" 2>&1
+  local code="$?"
+  set -e
+  printf '%s\n' "$code" >"$OUTPUT_DIR/$name.exit"
+}
+
+collect_optional work dumpsys activity service androidx.work.impl.background.systemjob.SystemJobService
+collect_optional binder dumpsys binder_calls_stats
+collect_optional network dumpsys netstats detail
+
+PERFETTO_STATUS="NOT_RUN"
+if adb -s "$SERIAL" shell 'command -v perfetto' >/dev/null 2>&1; then
+  TRACE_DEVICE="/data/misc/perfetto-traces/codecks-commercial-proof.perfetto-trace"
+  if adb -s "$SERIAL" shell perfetto -o "$TRACE_DEVICE" -t 3s sched freq idle am wm binder_driver >/dev/null 2>&1 && \
+      adb -s "$SERIAL" pull "$TRACE_DEVICE" "$OUTPUT_DIR/cold-start.perfetto-trace" >/dev/null 2>&1; then
+    PERFETTO_STATUS="PASS"
+  fi
+fi
+
+python3 - "$OUTPUT_DIR" "$RECEIPT" "$SERIAL" "$PERFETTO_STATUS" "$LAUNCHER_COMPONENT" <<'PY'
+import hashlib
+import json
+from pathlib import Path
+import sys
+root=Path(sys.argv[1])
+required=("start.txt","logcat.txt","activity.txt","package.txt","jobscheduler.txt","alarm.txt","services.txt","launcher-resolve.txt","launcher-inventory.txt","launcher-component.txt")
+checks=[]
+for name in required:
+    path=root/name
+    ok=path.is_file() and (name == "logcat.txt" or path.stat().st_size > 0)
+    digest=hashlib.sha256(path.read_bytes()).hexdigest() if ok else None
+    checks.append({"id":f"collect.{name}","status":"PASS" if ok else "FAIL","evidence":str(path),"sha256":digest,"violations":[]})
+for name in ("work", "binder", "network"):
+    path=root/f"{name}.txt"
+    exit_path=root/f"{name}.exit"
+    try:
+        code=int(exit_path.read_text())
+    except (OSError, ValueError):
+        code=-1
+    ok=code == 0 and path.is_file() and path.stat().st_size > 0
+    digest=hashlib.sha256(path.read_bytes()).hexdigest() if ok else None
+    checks.append({"id":f"collect.{name}","status":"PASS" if ok else "NOT_RUN","evidence":str(path),"sha256":digest,"violations":[]})
+start=(root/"start.txt").read_text(errors="ignore") if (root/"start.txt").is_file() else ""
+launch_ok="Status: ok" in start and sys.argv[5] in start
+checks.append({"id":"cold_start.launch_truth","status":"PASS" if launch_ok else "FAIL","evidence":str(root/"start.txt"),"violations":[] if launch_ok else [start[-500:]]})
+checks.append({"id":"collect.perfetto","status":sys.argv[4],"evidence":str(root/"cold-start.perfetto-trace"),"violations":[]})
+statuses={item["status"] for item in checks}
+overall="FAIL" if "FAIL" in statuses else "NOT_RUN" if "NOT_RUN" in statuses else "PASS"
+result={"schema":"codecks.commercial-proof.v1","kind":"cold_start_collection","overall":overall,"emulator":sys.argv[3],"launcher_component":sys.argv[5],"checks":checks,"warning":"Collection success is not semantic proof; traces require review before any production-dark claim."}
+Path(sys.argv[2]).write_text(json.dumps(result, indent=2, sort_keys=True)+"\n")
+print(Path(sys.argv[2]))
+raise SystemExit(1 if overall == "FAIL" else 0)
+PY

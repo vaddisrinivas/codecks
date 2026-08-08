@@ -1,0 +1,3 @@
+# One reviewed record per line:
+# <lowercase-aab-sha256> <source-commit-sha> <artifact-name>
+# Empty by default. This file is the fail-closed admission boundary.

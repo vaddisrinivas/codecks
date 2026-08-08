@@ -1,0 +1,85 @@
+name: Verify admitted Play candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Workflow run containing the previously built playRelease artifact"
+        required: true
+        type: string
+      source_sha:
+        description: "Exact source commit recorded at admission"
+        required: true
+        type: string
+      admitted_sha256:
+        description: "Exact admitted playRelease AAB SHA-256"
+        required: true
+        type: string
+      artifact_name:
+        description: "Artifact name recorded at admission"
+        required: true
+        default: "codecks-play-release-candidate"
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: verify-play-candidate-${{ inputs.admitted_sha256 }}
+  cancel-in-progress: false
+
+jobs:
+  verify-only:
+    name: Verify only — never deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Require committed admission record
+        env:
+          ADMITTED_SHA256: ${{ inputs.admitted_sha256 }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        run: |
+          case "$ADMITTED_SHA256" in
+            *[!0-9a-f]*|'') echo "Digest must be lowercase hexadecimal" >&2; exit 1 ;;
+          esac
+          test "${#ADMITTED_SHA256}" -eq 64
+          git cat-file -e "$SOURCE_SHA^{commit}"
+          grep -Fqx "$ADMITTED_SHA256 $SOURCE_SHA $ARTIFACT_NAME" \
+            .github/play-admitted-digests.txt
+      - uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: admitted-candidate
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+      - name: Verify admitted digest and production-dark boundary
+        env:
+          ADMITTED_SHA256: ${{ inputs.admitted_sha256 }}
+        run: |
+          test -f admitted-candidate/codecks-play-release.aab
+          ACTUAL_SHA256="$(sha256sum admitted-candidate/codecks-play-release.aab | awk '{print $1}')"
+          test "$ACTUAL_SHA256" = "$ADMITTED_SHA256"
+          python3 tools/validate_commercial_artifact.py \
+            --variant playRelease \
+            --artifact admitted-candidate/codecks-play-release.aab
+      - name: Record verification receipt
+        run: |
+          mkdir -p verification-receipt
+          sha256sum admitted-candidate/codecks-play-release.aab \
+            > verification-receipt/SHA256SUMS.txt
+          printf '%s\n' '${{ inputs.source_sha }}' \
+            > verification-receipt/SOURCE_SHA.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: verified-play-candidate-receipt
+          path: verification-receipt
+          if-no-files-found: error
+          retention-days: 14
+
+      # Intentionally no Play credentials, service account, upload, rollout,
+      # promotion, or deployment step. Activation remains a separate decision.

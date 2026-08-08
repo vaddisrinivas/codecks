@@ -31,18 +31,25 @@ require_line "            isShrinkResources = false"
 reject_line "isMinifyEnabled = true"
 reject_line "isShrinkResources = true"
 
+for flavor in 'create("oss")' 'create("play")' 'create("playInternal")'; do
+  if ! grep -Fq "$flavor" "$BUILD_FILE"; then
+    echo "Release distribution flavor missing: $flavor" >&2
+    exit 1
+  fi
+done
+
 if [ -n "$APK_PATH" ]; then
   if [ ! -f "$APK_PATH" ]; then
     echo "Release APK not found: $APK_PATH" >&2
     exit 1
   fi
-  MAPPING_PATH="$ROOT_DIR/app/build/outputs/mapping/release/mapping.txt"
-  if [ -e "$MAPPING_PATH" ] && [ "$MAPPING_PATH" -nt "$APK_PATH" ]; then
-    echo "A current R8 mapping exists for release; refusing a potentially minified APK." >&2
+  if find "$ROOT_DIR/app/build/outputs/mapping" -name mapping.txt -newer "$APK_PATH" -print -quit 2>/dev/null \
+      | grep -q .; then
+    echo "A current R8 mapping exists; refusing a potentially minified artifact." >&2
     exit 1
   fi
-  if ! unzip -Z1 "$APK_PATH" | grep -E '^classes([0-9]+)?\.dex$' >/dev/null; then
-    echo "Release APK has no classes.dex: $APK_PATH" >&2
+  if ! unzip -Z1 "$APK_PATH" | grep -E '(^|/)classes([0-9]+)?\.dex$' >/dev/null; then
+    echo "Release artifact has no classes.dex: $APK_PATH" >&2
     exit 1
   fi
 fi
