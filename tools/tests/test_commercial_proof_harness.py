@@ -175,6 +175,116 @@ class ArtifactScannerTest(unittest.TestCase):
 
         self.assertEqual(proof.FAIL, status(result, "manifest.package"))
 
+    def test_base_minimum_and_higher_conditional_split_minimums_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base = root / "base-master.apk"
+            sdk_29 = root / "base-sdk_29.apk"
+            sdk_32 = root / "base-sdk_32.apk"
+            for artifact in (base, sdk_29, sdk_32):
+                make_artifact(artifact)
+            with mock.patch.object(
+                proof,
+                "_apkanalyzer_values",
+                return_value=(
+                    [
+                        (base, "app.codecks", "28", "<manifest />"),
+                        (sdk_29, "app.codecks", "29", "<manifest />"),
+                        (sdk_32, "app.codecks", "32", "<manifest />"),
+                    ],
+                    [],
+                    "fake-apkanalyzer",
+                ),
+            ):
+                result = proof.scan_artifact(root)
+
+        self.assertEqual(proof.PASS, status(result, "manifest.min_sdk"))
+        self.assertEqual({"28": 1, "29": 1, "32": 1}, result["min_sdk_distribution"])
+        self.assertTrue(result["base_apk"].endswith("base-master.apk"))
+
+    def test_conditional_split_minimum_below_base_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base = root / "base-master.apk"
+            conditional = root / "base-sdk_27.apk"
+            make_artifact(base)
+            make_artifact(conditional)
+            with mock.patch.object(
+                proof,
+                "_apkanalyzer_values",
+                return_value=(
+                    [
+                        (base, "app.codecks", "28", "<manifest />"),
+                        (conditional, "app.codecks", "27", "<manifest />"),
+                    ],
+                    [],
+                    "fake-apkanalyzer",
+                ),
+            ):
+                result = proof.scan_artifact(root)
+
+        self.assertEqual(proof.FAIL, status(result, "manifest.min_sdk"))
+
+    def test_unknown_conditional_split_minimum_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base = root / "base-master.apk"
+            conditional = root / "base-sdk_unknown.apk"
+            make_artifact(base)
+            make_artifact(conditional)
+            with mock.patch.object(
+                proof,
+                "_apkanalyzer_values",
+                return_value=(
+                    [
+                        (base, "app.codecks", "28", "<manifest />"),
+                        (conditional, "app.codecks", "unknown", "<manifest />"),
+                    ],
+                    [],
+                    "fake-apkanalyzer",
+                ),
+            ):
+                result = proof.scan_artifact(root)
+
+        self.assertEqual(proof.FAIL, status(result, "manifest.min_sdk"))
+
+    def test_unknown_base_minimum_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory) / "base.apk"
+            make_artifact(base)
+            with mock.patch.object(
+                proof,
+                "_apkanalyzer_values",
+                return_value=([(base, "app.codecks", "unknown", "<manifest />")], [], "fake-apkanalyzer"),
+            ):
+                result = proof.scan_artifact(base)
+
+        self.assertEqual(proof.FAIL, status(result, "manifest.min_sdk"))
+
+    def test_missing_or_ambiguous_base_fails(self) -> None:
+        scenarios = (
+            ("missing", ("base-sdk_29.apk", "base-sdk_32.apk")),
+            ("ambiguous", ("base-master.apk", "universal.apk")),
+        )
+        for label, names in scenarios:
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                artifacts = [root / name for name in names]
+                for artifact in artifacts:
+                    make_artifact(artifact)
+                with mock.patch.object(
+                    proof,
+                    "_apkanalyzer_values",
+                    return_value=(
+                        [(artifact, "app.codecks", "28", "<manifest />") for artifact in artifacts],
+                        [],
+                        "fake-apkanalyzer",
+                    ),
+                ):
+                    result = proof.scan_artifact(root)
+
+                self.assertEqual(proof.FAIL, status(result, "manifest.min_sdk"))
+
     def test_unsafe_apks_member_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             apks = Path(directory) / "unsafe.apks"

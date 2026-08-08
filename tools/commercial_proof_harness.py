@@ -178,8 +178,30 @@ def _apkanalyzer_values(apks: list[Path]) -> tuple[list[tuple[Path, str, str, st
     return values, failures, tool
 
 
+def _base_apk_values(
+    values: list[tuple[Path, str, str, str]],
+) -> list[tuple[Path, str, str, str]]:
+    """Identify the APK that establishes the install set's application minimum.
+
+    A single APK is self-contained. In a split set, bundletool's base master or
+    an explicitly universal APK is authoritative; feature master and conditional
+    configuration APKs are not.
+    """
+    if len(values) == 1:
+        return values
+    base_names = {"base.apk", "base-master.apk", "universal.apk"}
+    return [
+        value
+        for value in values
+        if value[0].name.lower() in base_names
+        or value[0].name.lower().endswith("-universal.apk")
+    ]
+
+
 def scan_artifact(path: Path) -> dict:
     checks: list[dict] = []
+    min_sdk_distribution: dict[str, int] = {}
+    base_apk: str | None = None
     if not path.exists():
         return receipt("artifact", [check("artifact.exists", NOT_RUN, f"missing: {path}")], artifact=str(path))
     with tempfile.TemporaryDirectory(prefix="codecks-proof-") as temp:
@@ -212,19 +234,54 @@ def scan_artifact(path: Path) -> dict:
             package_violations = [
                 f"{apk}: {package}" for apk, package, _, _ in analyzer_values if package != EXPECTED_PACKAGE
             ]
-            minimum_violations = [
-                f"{apk}: {minimum}" for apk, _, minimum, _ in analyzer_values if minimum != EXPECTED_MIN_SDK
-            ]
+            for _, _, minimum, _ in analyzer_values:
+                key = minimum or "<missing>"
+                min_sdk_distribution[key] = min_sdk_distribution.get(key, 0) + 1
             checks.append(check(
                 "manifest.package",
                 FAIL if package_violations else PASS,
                 f"{analyzer_tool}; analyzed {len(analyzer_values)} APKs",
                 package_violations,
             ))
+
+            base_values = _base_apk_values(analyzer_values)
+            minimum_violations: list[str] = []
+            base_minimum: int | None = None
+            if len(base_values) != 1:
+                minimum_violations.append(
+                    "ambiguous base APKs: " +
+                    (", ".join(str(value[0]) for value in base_values) or "none")
+                )
+            else:
+                base_apk = str(base_values[0][0])
+                try:
+                    base_minimum = int(base_values[0][2])
+                except (TypeError, ValueError):
+                    minimum_violations.append(
+                        f"base {base_values[0][0]}: unknown minSdk {base_values[0][2]!r}"
+                    )
+                if base_minimum is not None and base_minimum != int(EXPECTED_MIN_SDK):
+                    minimum_violations.append(
+                        f"base {base_values[0][0]}: {base_minimum}, expected {EXPECTED_MIN_SDK}"
+                    )
+            if base_minimum is not None:
+                base_paths = {value[0] for value in base_values}
+                for apk, _, minimum, _ in analyzer_values:
+                    if apk in base_paths:
+                        continue
+                    try:
+                        split_minimum = int(minimum)
+                    except (TypeError, ValueError):
+                        minimum_violations.append(f"conditional {apk}: unknown minSdk {minimum!r}")
+                        continue
+                    if split_minimum < base_minimum:
+                        minimum_violations.append(
+                            f"conditional {apk}: {split_minimum}, below base {base_minimum}"
+                        )
             checks.append(check(
                 "manifest.min_sdk",
                 FAIL if minimum_violations else PASS,
-                f"{analyzer_tool}; analyzed {len(analyzer_values)} APKs",
+                f"{analyzer_tool}; base={base_apk}; distribution={min_sdk_distribution}",
                 minimum_violations,
             ))
 
@@ -307,7 +364,14 @@ def scan_artifact(path: Path) -> dict:
             PASS if bool(dex) and bool(manifests) else FAIL,
             f"dex={len(dex)} manifest={len(manifests)} entries={len(entries)}",
         ))
-    return receipt("artifact", checks, artifact=str(path), split_count=len(artifacts))
+    return receipt(
+        "artifact",
+        checks,
+        artifact=str(path),
+        split_count=len(artifacts),
+        base_apk=base_apk,
+        min_sdk_distribution=min_sdk_distribution,
+    )
 
 
 def scan_backup_rules(root: Path) -> dict:
