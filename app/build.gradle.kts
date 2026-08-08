@@ -1,3 +1,6 @@
+import com.android.build.api.artifact.SingleArtifact
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -21,10 +24,36 @@ val releaseStorePassword = providers.environmentVariable("CODECKS_RELEASE_STORE_
 val releaseKeyPassword = providers.environmentVariable("CODECKS_RELEASE_KEY_PASSWORD")
     .orElse(providers.gradleProperty("releaseKeyPassword"))
     .orElse("")
+val playUploadStoreFile = providers.environmentVariable("CODECKS_PLAY_UPLOAD_STORE_FILE")
+    .orElse(providers.gradleProperty("playUploadStoreFile"))
+    .orElse("")
+val playUploadKeyAlias = providers.environmentVariable("CODECKS_PLAY_UPLOAD_KEY_ALIAS")
+    .orElse(providers.gradleProperty("playUploadKeyAlias"))
+    .orElse("")
+val playUploadStorePassword = providers.environmentVariable("CODECKS_PLAY_UPLOAD_STORE_PASSWORD")
+    .orElse(providers.gradleProperty("playUploadStorePassword"))
+    .orElse("")
+val playUploadKeyPassword = providers.environmentVariable("CODECKS_PLAY_UPLOAD_KEY_PASSWORD")
+    .orElse(providers.gradleProperty("playUploadKeyPassword"))
+    .orElse("")
+val playInternalStoreFile = providers.environmentVariable("CODECKS_PLAY_INTERNAL_STORE_FILE")
+    .orElse(providers.gradleProperty("playInternalStoreFile"))
+    .orElse("")
+val playInternalKeyAlias = providers.environmentVariable("CODECKS_PLAY_INTERNAL_KEY_ALIAS")
+    .orElse(providers.gradleProperty("playInternalKeyAlias"))
+    .orElse("")
+val playInternalStorePassword = providers.environmentVariable("CODECKS_PLAY_INTERNAL_STORE_PASSWORD")
+    .orElse(providers.gradleProperty("playInternalStorePassword"))
+    .orElse("")
+val playInternalKeyPassword = providers.environmentVariable("CODECKS_PLAY_INTERNAL_KEY_PASSWORD")
+    .orElse(providers.gradleProperty("playInternalKeyPassword"))
+    .orElse("")
+val commercialTestBackendUrl = providers.gradleProperty("commercialTestBackendUrl")
+    .orElse("https://codecks.invalid")
 
-val validateReleaseConfig by tasks.registering {
+val validateOssReleaseSigning by tasks.registering {
     group = "verification"
-    description = "Fails release builds when required production configuration is missing."
+    description = "Requires the protected GitHub/OSS release signer configuration."
     doLast {
         val missing = buildList {
             if (releaseStoreFile.get().isBlank()) add("releaseStoreFile")
@@ -33,7 +62,48 @@ val validateReleaseConfig by tasks.registering {
             if (releaseKeyPassword.get().isBlank()) add("releaseKeyPassword")
         }
         check(missing.isEmpty()) {
-            "Release config incomplete: ${missing.joinToString()}"
+            "OSS release signing config incomplete: ${missing.joinToString()}"
+        }
+    }
+}
+
+val validatePlayReleaseSigning by tasks.registering {
+    group = "verification"
+    description = "Requires the distinct Play upload signer without inspecting app-signing certificates."
+    doLast {
+        val missing = buildList {
+            if (playUploadStoreFile.get().isBlank()) add("playUploadStoreFile")
+            if (playUploadKeyAlias.get().isBlank()) add("playUploadKeyAlias")
+            if (playUploadStorePassword.get().isBlank()) add("playUploadStorePassword")
+            if (playUploadKeyPassword.get().isBlank()) add("playUploadKeyPassword")
+        }
+        check(missing.isEmpty()) {
+            "Play upload signing config incomplete: ${missing.joinToString()}"
+        }
+        check(
+            releaseStoreFile.get() != playUploadStoreFile.get() ||
+                releaseKeyAlias.get() != playUploadKeyAlias.get(),
+        ) {
+            "OSS release signer and Play upload signer must use distinct configured roles"
+        }
+    }
+}
+
+val validatePlayInternalSigning by tasks.registering {
+    group = "verification"
+    description = "Allows the debug signer or a complete isolated playInternal signer configuration."
+    doLast {
+        val values = listOf(
+            playInternalStoreFile.get(),
+            playInternalKeyAlias.get(),
+            playInternalStorePassword.get(),
+            playInternalKeyPassword.get(),
+        )
+        check(values.all(String::isBlank) || values.none(String::isBlank)) {
+            "playInternal signing must be entirely absent or completely configured"
+        }
+        check(commercialTestBackendUrl.get() == "https://codecks.invalid" || commercialTestBackendUrl.get().startsWith("https://")) {
+            "playInternal backend placeholder must use HTTPS"
         }
     }
 }
@@ -189,6 +259,7 @@ android {
 
     namespace = "io.codecks"
     compileSdk = 37
+    flavorDimensions += "distribution"
 
     defaultConfig {
         applicationId = "app.codecks"
@@ -212,13 +283,29 @@ android {
     }
 
     signingConfigs {
-        create("release") {
+        create("ossRelease") {
             if (releaseStoreFile.get().isNotBlank()) {
                 storeFile = file(releaseStoreFile.get())
             }
             releaseKeyAlias.get().takeIf { it.isNotBlank() }?.let { keyAlias = it }
             releaseStorePassword.get().takeIf { it.isNotBlank() }?.let { storePassword = it }
             releaseKeyPassword.get().takeIf { it.isNotBlank() }?.let { keyPassword = it }
+        }
+        create("playUpload") {
+            if (playUploadStoreFile.get().isNotBlank()) {
+                storeFile = file(playUploadStoreFile.get())
+            }
+            playUploadKeyAlias.get().takeIf { it.isNotBlank() }?.let { keyAlias = it }
+            playUploadStorePassword.get().takeIf { it.isNotBlank() }?.let { storePassword = it }
+            playUploadKeyPassword.get().takeIf { it.isNotBlank() }?.let { keyPassword = it }
+        }
+        create("playInternal") {
+            if (playInternalStoreFile.get().isNotBlank()) {
+                storeFile = file(playInternalStoreFile.get())
+            }
+            playInternalKeyAlias.get().takeIf { it.isNotBlank() }?.let { keyAlias = it }
+            playInternalStorePassword.get().takeIf { it.isNotBlank() }?.let { storePassword = it }
+            playInternalKeyPassword.get().takeIf { it.isNotBlank() }?.let { keyPassword = it }
         }
     }
 
@@ -233,7 +320,47 @@ android {
             // removed or rewrote classes that static analysis could not trace.
             isMinifyEnabled = false
             isShrinkResources = false
-            signingConfig = signingConfigs.getByName("release")
+        }
+    }
+
+    productFlavors {
+        create("oss") {
+            dimension = "distribution"
+            signingConfig = signingConfigs.getByName("ossRelease")
+            buildConfigField("String", "DISTRIBUTION_CHANNEL", "\"oss\"")
+            buildConfigField("String", "COMMERCIAL_POLICY_MODE", "\"ABSENT\"")
+            buildConfigField("Boolean", "COMMERCIAL_TEST_OVERRIDES_ALLOWED", "false")
+            buildConfigField("String", "COMMERCIAL_TEST_BACKEND_URL", "\"\"")
+        }
+        create("play") {
+            dimension = "distribution"
+            signingConfig = signingConfigs.getByName("playUpload")
+            buildConfigField("String", "DISTRIBUTION_CHANNEL", "\"play\"")
+            buildConfigField("String", "COMMERCIAL_POLICY_MODE", "\"PRODUCTION_DARK\"")
+            buildConfigField("Boolean", "COMMERCIAL_TEST_OVERRIDES_ALLOWED", "false")
+            buildConfigField("String", "COMMERCIAL_TEST_BACKEND_URL", "\"\"")
+        }
+        create("playInternal") {
+            dimension = "distribution"
+            applicationIdSuffix = ".internal"
+            versionNameSuffix = "-play-internal"
+            manifestPlaceholders["commercialTestBackendUrl"] = commercialTestBackendUrl.get()
+            signingConfig = if (
+                listOf(
+                    playInternalStoreFile.get(),
+                    playInternalKeyAlias.get(),
+                    playInternalStorePassword.get(),
+                    playInternalKeyPassword.get(),
+                ).none(String::isBlank)
+            ) {
+                signingConfigs.getByName("playInternal")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+            buildConfigField("String", "DISTRIBUTION_CHANNEL", "\"play_internal\"")
+            buildConfigField("String", "COMMERCIAL_POLICY_MODE", "\"INTERNAL_TEST_CAPABLE\"")
+            buildConfigField("Boolean", "COMMERCIAL_TEST_OVERRIDES_ALLOWED", "true")
+            buildConfigField("String", "COMMERCIAL_TEST_BACKEND_URL", "\"${commercialTestBackendUrl.get()}\"")
         }
     }
 
@@ -264,16 +391,257 @@ android {
     }
 }
 
-afterEvaluate {
-    tasks.matching { it.name in setOf("assembleRelease", "bundleRelease", "lintRelease", "preReleaseBuild") }
-        .configureEach {
-            dependsOn(validateReleaseConfig)
-            dependsOn(validateReleaseSurface)
+val validateCommercialDependencyBoundaries by tasks.registering {
+    group = "verification"
+    description = "Rejects commercial SDK dependencies before those integrations are explicitly admitted."
+    doLast {
+        val forbiddenCoordinates = setOf(
+            "com.android.billingclient:billing",
+            "com.android.billingclient:billing-ktx",
+            "com.google.android.gms:play-services-ads",
+            "com.google.android.gms:play-services-ads-lite",
+            "com.google.android.ump:user-messaging-platform",
+            "com.google.android.play:integrity",
+            "com.google.firebase:firebase-auth",
+            "com.google.firebase:firebase-config",
+            "com.google.firebase:firebase-firestore",
+            "com.google.firebase:firebase-functions",
+            "com.google.firebase:firebase-analytics",
+            "com.google.firebase:firebase-appcheck-playintegrity",
+        )
+        // Only public artifacts are permanently commercial-SDK-free. The
+        // isolated playInternal source set is the deliberate future test seam.
+        val publicConfigurationsToCheck = listOf(
+            "ossDebugRuntimeClasspath",
+            "ossReleaseRuntimeClasspath",
+            "playReleaseRuntimeClasspath",
+        )
+        val resolvedCoordinates = publicConfigurationsToCheck.associateWith { configurationName ->
+            configurations.getByName(configurationName)
+                .incoming
+                .resolutionResult
+                .allComponents
+                .mapNotNull { component ->
+                    val id = component.id as? ModuleComponentIdentifier ?: return@mapNotNull null
+                    "${id.group}:${id.module}"
+                }
+                .toSet()
         }
-    tasks.matching { it.name in setOf("check", "lintDebug", "testDebugUnitTest") }
+        val violations = resolvedCoordinates.flatMap { (configurationName, coordinates) ->
+            coordinates.filter { it in forbiddenCoordinates }.map { configurationName to it }
+        }
+        check(violations.isEmpty()) {
+            violations.joinToString(
+                prefix = "Commercial dependencies leaked into a public distribution: ",
+            ) { (configurationName, coordinate) -> "$configurationName=$coordinate" }
+        }
+        val requiredLocalDependencies = setOf(
+            "androidx.credentials:credentials",
+            "androidx.work:work-runtime-ktx",
+        )
+        val missingRequired = resolvedCoordinates.flatMap { (configurationName, coordinates) ->
+            requiredLocalDependencies.filterNot(coordinates::contains).map { configurationName to it }
+        }
+        check(missingRequired.isEmpty()) {
+            missingRequired.joinToString(
+                prefix = "Required local infrastructure was removed: ",
+            ) { (configurationName, coordinate) -> "$configurationName=$coordinate" }
+        }
+    }
+}
+
+val validateOssReleaseArtifact by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Builds and scans the GitHub OSS release APK."
+    dependsOn("assembleOssRelease")
+    commandLine(
+        "python3",
+        rootProject.file("tools/validate_commercial_artifact.py"),
+        "--variant",
+        "ossRelease",
+        "--artifact",
+        layout.buildDirectory.file("outputs/apk/oss/release/app-oss-release.apk").get().asFile,
+    )
+}
+
+val validatePlayReleaseArtifact by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Builds and scans the production-dark Play AAB. It does not upload."
+    dependsOn("bundlePlayRelease")
+    commandLine(
+        "python3",
+        rootProject.file("tools/validate_commercial_artifact.py"),
+        "--variant",
+        "playRelease",
+        "--artifact",
+        layout.buildDirectory.file("outputs/bundle/playRelease/app-play-release.aab").get().asFile,
+    )
+}
+
+val validatePlayInternalReleaseArtifact by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Builds and scans the isolated internal-test APK."
+    dependsOn("assemblePlayInternalRelease")
+    commandLine(
+        "python3",
+        rootProject.file("tools/validate_commercial_artifact.py"),
+        "--variant",
+        "playInternalRelease",
+        "--artifact",
+        layout.buildDirectory.file("outputs/apk/playInternal/release/app-playInternal-release.apk").get().asFile,
+        "--internal-backend-url",
+        commercialTestBackendUrl.get(),
+    )
+}
+
+val validateCommercialArtifacts by tasks.registering {
+    group = "verification"
+    description = "Runs all distribution artifact isolation scans."
+    dependsOn(
+        validateOssReleaseArtifact,
+        validatePlayReleaseArtifact,
+        validatePlayInternalReleaseArtifact,
+    )
+}
+
+val enabledDistributionVariants = mutableSetOf<String>()
+
+androidComponents {
+    beforeVariants(selector().all()) { variantBuilder ->
+        val distribution = variantBuilder.productFlavors
+            .firstOrNull { it.first == "distribution" }
+            ?.second
+        val supported = when (distribution) {
+            "oss" -> variantBuilder.buildType in setOf("debug", "release")
+            "play", "playInternal" -> variantBuilder.buildType == "release"
+            else -> false
+        }
+        variantBuilder.enable = supported
+    }
+
+    onVariants(selector().all()) { variant ->
+        val variantName = variant.name
+        enabledDistributionVariants += variantName
+        val expectedDistribution = when (variantName) {
+            "ossDebug", "ossRelease" -> "oss"
+            "playRelease" -> "play"
+            "playInternalRelease" -> "play_internal"
+            else -> error("Unexpected enabled Android variant: $variantName")
+        }
+        val expectedPolicy = when (variantName) {
+            "ossDebug", "ossRelease" -> "absent"
+            "playRelease" -> "production_dark"
+            "playInternalRelease" -> "internal_test_capable"
+            else -> error("Unexpected enabled Android variant: $variantName")
+        }
+        val expectedApplicationId = when (variantName) {
+            "ossDebug" -> "app.codecks.debug"
+            "ossRelease", "playRelease" -> "app.codecks"
+            "playInternalRelease" -> "app.codecks.internal"
+            else -> error("Unexpected enabled Android variant: $variantName")
+        }
+        val mergedManifest = variant.artifacts.get(SingleArtifact.MERGED_MANIFEST)
+        val applicationId = variant.applicationId
+        val taskName = "validate${variantName.replaceFirstChar(Char::uppercase)}CommercialManifest"
+        tasks.register(taskName) {
+            group = "verification"
+            description = "Rejects commercial initializer leakage in the $variantName merged manifest."
+            inputs.file(mergedManifest)
+            inputs.property("expectedApplicationId", expectedApplicationId)
+            doLast {
+                check(applicationId.get() == expectedApplicationId) {
+                    "$variantName application ID was ${applicationId.get()}, expected $expectedApplicationId"
+                }
+                val manifest = mergedManifest.get().asFile.readText()
+                val banned = listOf(
+                    "com.google.firebase.provider.FirebaseInitProvider",
+                    "com.google.android.gms.ads.MobileAdsInitProvider",
+                    "com.google.android.gms.ads.AdActivity",
+                    "com.google.android.ump",
+                    "com.android.billingclient",
+                    "com.google.android.play.core.integrity",
+                    "com.google.android.play.integrity",
+                )
+                val violations = banned.filter(manifest::contains)
+                check(violations.isEmpty()) {
+                    "$variantName merged manifest contains forbidden commercial components: ${violations.joinToString()}"
+                }
+                check("android:name=\"app.codecks.distribution\"" in manifest) {
+                    "$variantName merged manifest is missing the distribution marker"
+                }
+                check("android:value=\"$expectedDistribution\"" in manifest) {
+                    "$variantName merged manifest has the wrong distribution marker"
+                }
+                check("android:name=\"app.codecks.commercial_policy\"" in manifest) {
+                    "$variantName merged manifest is missing the commercial policy marker"
+                }
+                check("android:value=\"$expectedPolicy\"" in manifest) {
+                    "$variantName merged manifest has the wrong commercial policy marker"
+                }
+                if (variantName == "playInternalRelease") {
+                    check("android:name=\"app.codecks.test_backend\"" in manifest) {
+                        "playInternalRelease must carry an explicit test-backend marker"
+                    }
+                } else {
+                    check("app.codecks.test_backend" !in manifest) {
+                        "$variantName must not carry a test-backend marker"
+                    }
+                }
+            }
+        }
+    }
+}
+
+val validateDistributionMatrix by tasks.registering {
+    group = "verification"
+    description = "Rejects accidental extra or missing Android distribution variants."
+    doLast {
+        val expected = setOf("ossDebug", "ossRelease", "playRelease", "playInternalRelease")
+        check(enabledDistributionVariants == expected) {
+            "Enabled variants were ${enabledDistributionVariants.sorted()}, expected ${expected.sorted()}"
+        }
+    }
+}
+
+val validateCommercialManifests by tasks.registering {
+    group = "verification"
+    description = "Validates every enabled distribution merged manifest."
+    dependsOn(
+        "validateOssDebugCommercialManifest",
+        "validateOssReleaseCommercialManifest",
+        "validatePlayReleaseCommercialManifest",
+        "validatePlayInternalReleaseCommercialManifest",
+    )
+}
+
+val validateCommercialBuildBoundaries by tasks.registering {
+    group = "verification"
+    description = "Runs dependency and merged-manifest commercial isolation gates."
+    dependsOn(validateDistributionMatrix, validateCommercialDependencyBoundaries, validateCommercialManifests)
+}
+
+afterEvaluate {
+    tasks.matching { it.name in setOf("assembleOssRelease", "packageOssRelease", "bundleOssRelease") }.configureEach {
+        dependsOn(validateOssReleaseSigning)
+    }
+    tasks.matching { it.name in setOf("assemblePlayRelease", "packagePlayRelease", "bundlePlayRelease") }.configureEach {
+        dependsOn(validatePlayReleaseSigning)
+    }
+    tasks.matching { it.name in setOf("assemblePlayInternalRelease", "packagePlayInternalRelease", "bundlePlayInternalRelease") }.configureEach {
+        dependsOn(validatePlayInternalSigning)
+    }
+    tasks.matching {
+        it.name in setOf("preOssReleaseBuild", "prePlayReleaseBuild", "prePlayInternalReleaseBuild")
+    }.configureEach {
+        dependsOn(validateReleaseSurface)
+    }
+    tasks.matching {
+        it.name in setOf("check", "lintOssDebug", "testOssReleaseUnitTest")
+    }
         .configureEach {
             dependsOn(validateArchitectureBoundaries)
             dependsOn(validateReleaseSurface)
+            dependsOn(validateCommercialBuildBoundaries)
         }
 }
 

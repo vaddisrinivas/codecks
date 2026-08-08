@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <meta-data
+            android:name="app.codecks.distribution"
+            android:value="oss" />
+        <meta-data
+            android:name="app.codecks.commercial_policy"
+            android:value="absent" />
+    </application>
+</manifest>
