@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -432,6 +434,88 @@ class StaticScannerTest(unittest.TestCase):
             self.assertIn(marker, cold)
         self.assertIn("cold_start.launch_truth", cold)
         self.assertIn("collect_optional", cold)
+        self.assertIn("cmd package resolve-activity --brief", cold)
+        self.assertIn("cmd package query-activities --brief --components", cold)
+        self.assertGreaterEqual(cold.count('-p "$PACKAGE"'), 2)
+        self.assertNotIn('$PACKAGE/.MainActivity', cold)
+        self.assertIn('"launcher_component":sys.argv[5]', cold)
+
+    def test_cold_start_launcher_resolution_accepts_one_matching_exported_component(self) -> None:
+        result, receipt = self._run_fake_cold_start(
+            resolve="app.codecks/io.codecks.MainActivity",
+            inventory="app.codecks/io.codecks.MainActivity",
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual("app.codecks/io.codecks.MainActivity", receipt["launcher_component"])
+        self.assertEqual(proof.PASS, status(receipt, "cold_start.launch_truth"))
+
+    def test_cold_start_launcher_resolution_rejects_absent_ambiguous_and_wrong_package(self) -> None:
+        cases = (
+            ("No activity found", "No activities found"),
+            (
+                "app.codecks/io.codecks.MainActivity",
+                "app.codecks/io.codecks.MainActivity\napp.codecks/io.codecks.OtherActivity",
+            ),
+            ("evil.example/io.codecks.MainActivity", "evil.example/io.codecks.MainActivity"),
+        )
+        for resolved, inventory in cases:
+            with self.subTest(resolved=resolved, inventory=inventory):
+                result, receipt = self._run_fake_cold_start(resolve=resolved, inventory=inventory)
+                self.assertNotEqual(0, result.returncode)
+                self.assertEqual(proof.FAIL, receipt["overall"])
+                self.assertEqual(proof.FAIL, status(receipt, "cold_start.launcher_component"))
+
+    def _run_fake_cold_start(self, *, resolve: str, inventory: str) -> tuple[subprocess.CompletedProcess[str], dict]:
+        root = TOOLS.parents[0]
+        with tempfile.TemporaryDirectory() as directory:
+            temp = Path(directory)
+            fake_bin = temp / "bin"
+            output = temp / "output"
+            fake_bin.mkdir()
+            adb = fake_bin / "adb"
+            adb.write_text(
+                """#!/bin/sh
+case "$*" in
+  *"shell getprop ro.kernel.qemu"*) echo 1 ;;
+  *"shell pm path app.codecks"*) echo package:/data/app/app.codecks/base.apk ;;
+  *"shell cmd package resolve-activity --brief"*) printf '%s\\n' "$FAKE_RESOLVE" ;;
+  *"shell cmd package query-activities --brief --components"*) printf '%s\\n' "$FAKE_INVENTORY" ;;
+  *"shell am start -W -n "*) for value in "$@"; do last="$value"; done; echo "Status: ok"; echo "Activity: $last" ;;
+  *"shell command -v perfetto"*) exit 1 ;;
+  *"logcat -d -v threadtime"*) echo logcat ;;
+  *"shell dumpsys"*) echo inventory ;;
+  *) exit 0 ;;
+esac
+""",
+            )
+            adb.chmod(0o755)
+            sleep = fake_bin / "sleep"
+            sleep.write_text("#!/bin/sh\nexit 0\n")
+            sleep.chmod(0o755)
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "PATH": f"{fake_bin}{os.pathsep}{environment['PATH']}",
+                    "FAKE_RESOLVE": resolve,
+                    "FAKE_INVENTORY": inventory,
+                },
+            )
+            result = subprocess.run(
+                [
+                    str(root / "scripts/collect_commercial_cold_start.sh"),
+                    "emulator-test",
+                    str(output),
+                    "--run",
+                ],
+                cwd=root,
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            receipt = json.loads((output / "receipt.json").read_text())
+            return result, receipt
 
     def test_static_ci_step_has_no_network_or_device_action(self) -> None:
         root = TOOLS.parents[0]
