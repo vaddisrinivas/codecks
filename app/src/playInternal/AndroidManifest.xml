@@ -10,5 +10,21 @@
         <meta-data
             android:name="app.codecks.test_backend"
             android:value="${commercialTestBackendUrl}" />
+        <activity
+            android:name="io.codecks.internalcommercial.labui.CommercialLabActivity"
+            android:exported="false"
+            android:label="Codecks Commercial Lab"
+            android:theme="@style/Theme.Codecks" />
+        <activity-alias
+            android:name="io.codecks.internalcommercial.labui.CommercialLabLauncher"
+            android:enabled="true"
+            android:exported="true"
+            android:label="Codecks Commercial Lab"
+            android:targetActivity="io.codecks.internalcommercial.labui.CommercialLabActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
     </application>
 </manifest>
