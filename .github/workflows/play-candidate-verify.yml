@@ -51,7 +51,7 @@ jobs:
           git cat-file -e "$SOURCE_SHA^{commit}"
           grep -Fqx "$ADMITTED_SHA256 $SOURCE_SHA $ARTIFACT_NAME" \
             .github/play-admitted-digests.txt
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.artifact_name }}
           path: admitted-candidate
