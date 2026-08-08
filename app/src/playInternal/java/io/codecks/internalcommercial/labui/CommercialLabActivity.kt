@@ -269,10 +269,13 @@ private fun TestBackendBanner() {
 
 @Composable
 private fun LabStatusCard(state: CommercialLabState) {
+    val latestReceipt = state.receipts.firstOrNull()?.summary ?: "No test actions yet"
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).semantics {
             liveRegion = LiveRegionMode.Polite
-            contentDescription = "Lab status. Session ${state.session}. Purchase ${state.purchase}. Restore ${state.restore}."
+            contentDescription =
+                "Lab status. Session ${state.session}. Purchase ${state.purchase}. " +
+                    "Restore ${state.restore}. Latest receipt: $latestReceipt."
         },
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -283,6 +286,11 @@ private fun LabStatusCard(state: CommercialLabState) {
             Text(
                 "Restore: ${state.restore.displayName()}" +
                     (state.lastRestoreMode?.let { " · Mode: ${it.displayName()}" } ?: ""),
+            )
+            Text(
+                "Latest receipt: $latestReceipt",
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
             )
         }
     }

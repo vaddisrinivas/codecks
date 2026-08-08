@@ -49,8 +49,8 @@ class CommercialLabActivityTest {
         rule.activityRule.scenario.recreate()
 
         rule.onNodeWithText("Session: active · Consent: unknown").assertIsDisplayed()
-        rule.onNodeWithText("Current: pending").assertIsDisplayed()
-        rule.onNodeWithText("Purchase pending; no entitlement granted").assertIsDisplayed()
+        rule.onNodeWithText("Purchase: pending · Entitlement: none").assertIsDisplayed()
+        rule.onNodeWithText("Latest receipt: Purchase pending; no entitlement granted").assertIsDisplayed()
     }
 
     @Test
