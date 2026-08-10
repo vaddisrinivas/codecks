@@ -118,7 +118,6 @@ import io.codecks.navigation.KeyboardRoute
 import io.codecks.navigation.MouseRoute
 import io.codecks.navigation.RunLogRoute
 import io.codecks.navigation.SettingsRoute
-import io.codecks.navigation.title
 import io.codecks.ui.connection.ConnectionSetupController
 import io.codecks.ui.connection.ConnectionViewModel
 import io.codecks.ui.connection.HidConfirmationStore
@@ -139,10 +138,13 @@ import io.codecks.ui.automations.AutomationsScreen
 import io.codecks.ui.automations.AutomationsViewModel
 import io.codecks.ui.app.destinationRequestToRoute
 import io.codecks.ui.app.CodecksAppShell
-import io.codecks.ui.app.PrimaryTab
+import io.codecks.ui.app.RouteBuildExposure
+import io.codecks.ui.app.RouteRegistry
+import io.codecks.ui.app.enabled
 import io.codecks.ui.app.guardRoute
 import io.codecks.ui.app.launchRouteForRestoredTop
-import io.codecks.ui.app.routeEnabled
+import io.codecks.ui.app.routeStateKey
+import io.codecks.ui.app.restoredRouteFromStateKey
 import io.codecks.ui.ai.AiWorkspaceMode
 import io.codecks.ui.ai.AiProviderSettingsRoute
 import io.codecks.ui.clipboard.ClipboardScreen
@@ -322,7 +324,7 @@ class MainActivity : ComponentActivity() {
                     (keyCode == KeyEvent.KEYCODE_K && (event.isCtrlPressed || event.isMetaPressed))
                 )
         ) {
-            destinationRequest = "palette"
+            destinationRequest = RouteRegistry.requestAlias(CommandPaletteRoute)
             return true
         }
         if (hardwareKeyHandler?.invoke(event) == true) return true
@@ -334,10 +336,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun acceptIntent(intent: Intent?) {
-        reactiveHelperPairingJsonFromUri(intent?.dataString)?.let { payload ->
-            pendingReactiveHelperPairingJson = payload
-            destinationRequest = "pairing"
-            return
+        if (RouteRegistry.publicDeepLinkRoute(intent?.dataString, RouteBuildExposure.PUBLIC) == SettingsRoute) {
+            val pairingPrefix = requireNotNull(RouteRegistry.descriptor(SettingsRoute)).publicDeepLinks.single()
+            reactiveHelperPairingJsonFromUri(intent?.dataString, pairingPrefix)?.let { payload ->
+                pendingReactiveHelperPairingJson = payload
+                destinationRequest = RouteRegistry.requestAlias(SettingsRoute)
+                return
+            }
         }
         destinationRequest = resolveDestinationRequest(
             action = intent?.action,
@@ -391,35 +396,6 @@ private fun DeckAction.visibleForFlags(flags: Map<FeatureFlag, Boolean>): Boolea
         false
 }
 
-private fun navRouteFromStateKey(routeName: String?): NavKey = when (routeName) {
-    "mouse" -> MouseRoute
-    "keyboard" -> KeyboardRoute
-    "clipboard" -> ClipboardRoute
-    "automations" -> AutomationsRoute
-    "settings" -> SettingsRoute
-    "editor" -> EditorRoute
-    "ai_builder" -> AiBuilderRoute
-    "ai_provider" -> AiProviderRoute
-    "run_log" -> RunLogRoute
-    "command_palette" -> CommandPaletteRoute
-    else -> HomeRoute
-}
-
-private fun routeStateKey(route: NavKey): String = when (route) {
-    HomeRoute -> "home"
-    MouseRoute -> "mouse"
-    KeyboardRoute -> "keyboard"
-    ClipboardRoute -> "clipboard"
-    AutomationsRoute -> "automations"
-    SettingsRoute -> "settings"
-    EditorRoute -> "editor"
-    AiBuilderRoute -> "ai_builder"
-    AiProviderRoute -> "ai_provider"
-    RunLogRoute -> "run_log"
-    CommandPaletteRoute -> "command_palette"
-    else -> "home"
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CodecksApp(
@@ -452,8 +428,21 @@ private fun CodecksApp(
     connectionViewModel: ConnectionViewModel = viewModel(),
     automationsViewModel: AutomationsViewModel = viewModel(),
 ) {
-    val restoredTopRouteName = rememberSaveable { mutableStateOf("home") }
-    val backStack = rememberNavBackStack(navRouteFromStateKey(restoredTopRouteName.value))
+    val hostContext = LocalContext.current
+    val appContext = hostContext.applicationContext
+    val featureFlagRepository = remember(appContext) { LocalFeatureFlagRepository(appContext) }
+    val routeBuildExposure = remember {
+        RouteBuildExposure.fromDistributionChannel(BuildConfig.DISTRIBUTION_CHANNEL)
+    }
+    val restoredTopRouteName = rememberSaveable { mutableStateOf(routeStateKey(HomeRoute)) }
+    val initialRoute = remember {
+        restoredRouteFromStateKey(
+            routeName = restoredTopRouteName.value,
+            flags = featureFlagRepository.currentFlags,
+            exposure = routeBuildExposure,
+        )
+    }
+    val backStack = rememberNavBackStack(initialRoute)
     val homeState by homeViewModel.uiState.collectAsStateWithLifecycle()
     val connectionState by connectionViewModel.uiState.collectAsStateWithLifecycle()
     var proofClockEpochMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -469,15 +458,12 @@ private fun CodecksApp(
     val connectionHealth = connectionState.connectionHealth(proofClockEpochMs)
     val automationsState by automationsViewModel.uiState.collectAsStateWithLifecycle()
     val hidState by hidRepository.state.collectAsStateWithLifecycle()
-    val hostContext = LocalContext.current
-    val appContext = hostContext.applicationContext
     val hidConfirmationStore = remember(appContext) { HidConfirmationStore(appContext) }
     var hidTerminalReceipt by remember { mutableStateOf(hidConfirmationStore.load()) }
     val activity = remember(hostContext) { hostContext.findMainActivity() }
     val settingsConnectionSetupController = remember(hostContext, activity, connectionViewModel) {
         ConnectionSetupController(hostContext, activity, connectionViewModel)
     }
-    val featureFlagRepository = remember(appContext) { LocalFeatureFlagRepository(appContext) }
     val featureFlags by featureFlagRepository.flags.collectAsStateWithLifecycle(initialValue = emptyMap())
     val smartDeckEnabled =
         featureFlags.focusedEnabled(FeatureFlag.SmartSuggestions) && featureFlags.focusedEnabled(FeatureFlag.SmartDeck)
@@ -974,7 +960,7 @@ private fun CodecksApp(
     }
 
     fun navigate(route: NavKey, topLevel: Boolean = false) {
-        val guardedRoute = guardRoute(route, featureFlags)
+        val guardedRoute = guardRoute(route, featureFlags, exposure = routeBuildExposure)
         if (topLevel) backStack.clear()
         if (backStack.lastOrNull() != guardedRoute) backStack.add(guardedRoute)
     }
@@ -984,7 +970,7 @@ private fun CodecksApp(
     }
 
     LaunchedEffect(featureFlags, currentRoute) {
-        val guardedRoute = guardRoute(currentRoute, featureFlags)
+        val guardedRoute = guardRoute(currentRoute, featureFlags, exposure = routeBuildExposure)
         if (guardedRoute != currentRoute) {
             backStack.clear()
             backStack.add(guardedRoute)
@@ -995,7 +981,7 @@ private fun CodecksApp(
     }
 
     LaunchedEffect(destinationRequest) {
-        val route = destinationRequestToRoute(destinationRequest, featureFlags)
+        val route = destinationRequestToRoute(destinationRequest, featureFlags, routeBuildExposure)
         if (destinationRequest != null) {
             navigate(route, topLevel = true)
             onRequestConsumed()
@@ -1238,13 +1224,16 @@ private fun CodecksApp(
             currentRoute = currentRoute,
             backStackSize = backStack.size,
             fullscreen = fullscreen,
-            tabs = PrimaryTab.entries.filter { tab -> routeEnabled(tab.route, featureFlags) },
+            buildExposure = routeBuildExposure,
+            tabs = RouteRegistry.primaryDestinations(routeBuildExposure).filter { destination ->
+                destination.enabled(featureFlags)
+            },
             onBack = { backStack.removeLastOrNull() },
             onDestinationSelected = { route ->
                 if (route == AiBuilderRoute) aiPlacementSlot = null
                 navigate(
                     route,
-                    topLevel = route in setOf(HomeRoute, MouseRoute, KeyboardRoute, ClipboardRoute),
+                    topLevel = RouteRegistry.descriptor(route)?.clearsBackStack == true,
                 )
             },
             onOpenSettings = { navigate(SettingsRoute) },

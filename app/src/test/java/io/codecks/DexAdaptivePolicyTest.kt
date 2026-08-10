@@ -36,7 +36,7 @@ class DexAdaptivePolicyTest {
 
         val mainSource = File("src/main/java/io/codecks/MainActivity.kt").readText()
         assertTrue(mainSource.contains("restoredTopRouteName"))
-        assertTrue(mainSource.contains("navRouteFromStateKey"))
+        assertTrue(mainSource.contains("restoredRouteFromStateKey"))
         assertTrue(mainSource.contains("routeStateKey(currentRoute)"))
     }
 
@@ -62,6 +62,7 @@ class DexAdaptivePolicyTest {
     @Test
     fun largeWindowShellUsesDedicatedRailThreshold() {
         val shell = File("src/main/java/io/codecks/ui/app/CodecksAppShell.kt").readText()
+        val routeRegistry = File("src/main/java/io/codecks/ui/app/RouteRegistry.kt").readText()
         assertEquals(
             ShellNavigationMode.BottomBar,
             shellAccessibilityLayout(839, 720, 1f, fullscreen = false).navigationMode,
@@ -77,7 +78,9 @@ class DexAdaptivePolicyTest {
         assertTrue(shell.contains("val accessibilityLayout = shellAccessibilityLayout("))
         assertTrue(shell.contains(".verticalScroll(rememberScrollState())"))
         assertTrue(shell.contains("ModalBottomSheet(onDismissRequest"))
-        assertTrue(shell.contains(""") "AI Builder" else currentRoute.title()"""))
-        assertTrue(shell.contains("AiBuilderRoute -> 0"))
+        assertTrue(shell.contains("Text(currentRoute.title())"))
+        assertTrue(shell.contains("sortedBy { destination -> destination.moreOrder }"))
+        assertTrue(routeRegistry.contains("AiBuilderRoute, \"ai_builder\", \"AI Builder\""))
+        assertTrue(routeRegistry.contains("navigationOrder = 5, moreOrder = 0"))
     }
 }

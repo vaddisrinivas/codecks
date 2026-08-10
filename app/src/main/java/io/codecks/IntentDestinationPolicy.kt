@@ -2,6 +2,10 @@ package io.codecks
 
 import android.content.Context
 import android.content.Intent
+import io.codecks.navigation.AiBuilderRoute
+import io.codecks.navigation.MouseRoute
+import io.codecks.ui.app.RouteBuildExposure
+import io.codecks.ui.app.RouteRegistry
 import java.util.UUID
 
 object InternalIntentAuth {
@@ -32,13 +36,16 @@ internal fun resolveDestinationRequest(
     expectedToken: String,
 ): String? =
     when {
-        action == Intent.ACTION_SEND && type == "text/plain" && destination.isNullOrBlank() -> "clipboard"
-        action == Intent.ACTION_VIEW && dataUri == PUBLIC_AI_URI -> "ai"
+        action == Intent.ACTION_SEND && type == "text/plain" && destination.isNullOrBlank() ->
+            RouteRegistry.requestAlias(io.codecks.navigation.ClipboardRoute)
+        action == Intent.ACTION_VIEW &&
+            RouteRegistry.publicDeepLinkRoute(dataUri, RouteBuildExposure.PUBLIC) == AiBuilderRoute ->
+            RouteRegistry.requestAlias(AiBuilderRoute)
         destination.isNullOrBlank() -> null
         providedToken == expectedToken -> destination
         BuildConfig.DEBUG && action == InternalIntentAuth.ACTION_DEBUG_OPEN_DESTINATION -> destination
         else -> null
     }
 
-const val PUBLIC_TRACKPAD_URI = "codecks://trackpad"
-const val PUBLIC_AI_URI = "codecks://ai"
+val PUBLIC_TRACKPAD_URI: String = requireNotNull(RouteRegistry.descriptor(MouseRoute)).publicDeepLinks.single()
+val PUBLIC_AI_URI: String = requireNotNull(RouteRegistry.descriptor(AiBuilderRoute)).publicDeepLinks.single()

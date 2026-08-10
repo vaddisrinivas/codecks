@@ -16,12 +16,15 @@ import dagger.hilt.android.AndroidEntryPoint
 import io.codecks.HidRepository
 import io.codecks.InternalIntentAuth
 import io.codecks.MainActivity
-import io.codecks.PUBLIC_TRACKPAD_URI
 import io.codecks.core.trackpad.LockscreenControlState
 import io.codecks.core.trackpad.LockscreenDecision
 import io.codecks.core.trackpad.LockscreenTrackpadPolicy
 import io.codecks.core.trackpad.TrackpadEntryOrigin
 import io.codecks.core.trackpad.TrackpadSettingsRepository
+import io.codecks.navigation.MouseRoute
+import io.codecks.ui.app.LockscreenRoutePolicy
+import io.codecks.ui.app.RouteBuildExposure
+import io.codecks.ui.app.RouteRegistry
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -111,7 +114,7 @@ class TrackpadEntryActivity : ComponentActivity() {
             InternalIntentAuth.sign(
                 context,
                 Intent(context, MainActivity::class.java)
-                    .putExtra(MainActivity.EXTRA_DESTINATION, "mouse")
+                    .putExtra(MainActivity.EXTRA_DESTINATION, RouteRegistry.requestAlias(MouseRoute))
                     .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
             )
 
@@ -155,7 +158,11 @@ class TrackpadEntryActivity : ComponentActivity() {
             providedToken: String?,
             expectedToken: String?,
         ): TrackpadEntryOrigin {
-            if (action == Intent.ACTION_VIEW && dataString == PUBLIC_TRACKPAD_URI) {
+            val publicRoute = RouteRegistry.publicDeepLinkRoute(dataString, RouteBuildExposure.PUBLIC)
+            if (action == Intent.ACTION_VIEW &&
+                publicRoute == MouseRoute &&
+                RouteRegistry.descriptor(publicRoute)?.lockscreenPolicy == LockscreenRoutePolicy.RESTRICTED_POINTER
+            ) {
                 return TrackpadEntryOrigin.ExactPublicUri
             }
             if (providedToken != expectedToken) {

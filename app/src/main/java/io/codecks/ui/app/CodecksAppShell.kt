@@ -19,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.FullscreenExit
-import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.StopCircle
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -57,16 +56,13 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
-import io.codecks.navigation.AiBuilderRoute
-import io.codecks.navigation.AutomationsRoute
+import io.codecks.navigation.AppRoute
 import io.codecks.navigation.HomeRoute
-import io.codecks.navigation.RunLogRoute
 import io.codecks.navigation.SettingsRoute
-import io.codecks.navigation.title
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,7 +71,8 @@ fun CodecksAppShell(
     currentRoute: NavKey,
     backStackSize: Int,
     fullscreen: Boolean,
-    tabs: List<PrimaryTab> = PrimaryTab.entries,
+    buildExposure: RouteBuildExposure = RouteBuildExposure.PUBLIC,
+    tabs: List<RouteDescriptor<out AppRoute>> = RouteRegistry.primaryDestinations(),
     onBack: () -> Unit,
     onDestinationSelected: (NavKey) -> Unit,
     onOpenSettings: () -> Unit,
@@ -84,7 +81,7 @@ fun CodecksAppShell(
     onStopInput: () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    val shellDestinations = remember(tabs) { shellDestinations(tabs) }
+    val shellDestinations = remember(tabs, buildExposure) { shellDestinations(tabs, buildExposure) }
     val currentDestination = shellDestinations.firstOrNull { it.route == currentRoute }
     val showNavigation = !fullscreen && currentDestination != null
     val focusManager = LocalFocusManager.current
@@ -175,42 +172,13 @@ fun CodecksAppShell(
     }
 }
 
-private data class ShellDestination(
-    val route: NavKey,
-    val label: String,
-    val icon: ImageVector,
-    val group: ShellGroup,
-)
+private typealias ShellDestination = RouteDescriptor<out AppRoute>
 
-private enum class ShellGroup {
-    Control,
-    Build,
-    Manage,
-}
-
-private fun shellDestinations(tabs: List<PrimaryTab>): List<ShellDestination> {
-    return tabs.map { tab ->
-        ShellDestination(
-            route = tab.route,
-            label = tab.label,
-            icon = tab.icon,
-            group = when (tab) {
-                PrimaryTab.Deck,
-                PrimaryTab.Trackpad,
-                PrimaryTab.Keyboard,
-                PrimaryTab.Clipboard -> ShellGroup.Control
-                PrimaryTab.Automations,
-                PrimaryTab.Ai -> ShellGroup.Build
-                PrimaryTab.Settings -> ShellGroup.Manage
-            },
-        )
-    } + ShellDestination(
-        route = RunLogRoute,
-        label = "Run history",
-        icon = Icons.Outlined.History,
-        group = ShellGroup.Manage,
-    )
-}
+private fun shellDestinations(
+    tabs: List<RouteDescriptor<out AppRoute>>,
+    buildExposure: RouteBuildExposure,
+): List<ShellDestination> =
+    tabs + RouteRegistry.visibleDestinations(buildExposure).filter { it.visibility == RouteVisibility.SECONDARY }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -220,8 +188,7 @@ private fun CodecksBottomBar(
     onDestinationSelected: (NavKey) -> Unit,
 ) {
     var moreOpen by rememberSaveable { mutableStateOf(false) }
-    val pinnedRoutes = listOf(HomeRoute, PrimaryTab.Trackpad.route, PrimaryTab.Keyboard.route, PrimaryTab.Clipboard.route)
-    val pinned = pinnedRoutes.mapNotNull { route -> destinations.firstOrNull { it.route == route } }
+    val pinned = destinations.filter { it.clearsBackStack }
         .ifEmpty { destinations.take(4) }
     val moreDestinations = destinations
         .filterNot { destination -> pinned.any { it.route == destination.route } }
@@ -240,6 +207,7 @@ private fun CodecksBottomBar(
                 label = {
                     Text(destination.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 },
+                modifier = Modifier.testTag(destination.testTag),
             )
         }
         NavigationBarItem(
@@ -283,7 +251,7 @@ private fun CodecksBottomBar(
                         headlineContent = { Text(destination.label) },
                         supportingContent = { Text(destination.group.label) },
                         leadingContent = { Icon(destination.icon, contentDescription = null) },
-                        modifier = Modifier.clickable {
+                        modifier = Modifier.testTag(destination.testTag).clickable {
                             moreOpen = false
                             onDestinationSelected(destination.route)
                         },
@@ -330,15 +298,6 @@ private fun handleShellKeyEvent(
     }
 }
 
-private val ShellDestination.moreOrder: Int
-    get() = when (route) {
-        AiBuilderRoute -> 0
-        AutomationsRoute -> 1
-        RunLogRoute -> 2
-        SettingsRoute -> 3
-        else -> 4
-    }
-
 @Composable
 private fun CodecksNavigationRail(
     currentRoute: NavKey,
@@ -375,17 +334,11 @@ private fun CodecksNavigationRail(
                 onClick = { onDestinationSelected(destination.route) },
                 icon = { Icon(destination.icon, contentDescription = null) },
                 label = { Text(destination.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                modifier = Modifier.testTag(destination.testTag),
             )
         }
     }
 }
-
-private val ShellGroup.label: String
-    get() = when (this) {
-        ShellGroup.Control -> "Control"
-        ShellGroup.Build -> "Build"
-        ShellGroup.Manage -> "Manage"
-    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -397,7 +350,7 @@ private fun CodecksTopBar(
     onRequestFullscreen: () -> Unit,
 ) {
     TopAppBar(
-        title = { Text(if (currentRoute == AiBuilderRoute) "AI Builder" else currentRoute.title()) },
+        title = { Text(currentRoute.title()) },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.background,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
@@ -418,9 +371,10 @@ private fun CodecksTopBar(
             IconButton(onClick = onRequestFullscreen) {
                 Icon(Icons.Outlined.Fullscreen, contentDescription = "Fullscreen")
             }
-            if (currentRoute != SettingsRoute && PrimaryTab.entries.none { it.route == currentRoute }) {
+            if (currentRoute != SettingsRoute && RouteRegistry.primaryDestinations().none { it.route == currentRoute }) {
                 IconButton(onClick = onOpenSettings) {
-                    Icon(PrimaryTab.Settings.icon, contentDescription = "Settings")
+                    val settings = requireNotNull(RouteRegistry.descriptor(SettingsRoute))
+                    Icon(settings.icon, contentDescription = settings.label)
                 }
             }
         },

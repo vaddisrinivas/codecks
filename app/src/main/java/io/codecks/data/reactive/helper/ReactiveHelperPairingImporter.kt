@@ -49,9 +49,8 @@ class ReactiveHelperPairingImporter @Inject constructor(
     }
 }
 
-fun reactiveHelperPairingJsonFromUri(uri: String?): String? {
+fun reactiveHelperPairingJsonFromUri(uri: String?, prefix: String): String? {
     if (uri.isNullOrBlank()) return null
-    val prefix = "codecks://helper-pair"
     if (!uri.startsWith(prefix)) return null
     val query = uri.substringAfter('?', missingDelimiterValue = "")
     if (query.isBlank()) return null

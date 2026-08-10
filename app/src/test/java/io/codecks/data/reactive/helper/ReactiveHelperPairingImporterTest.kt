@@ -93,8 +93,9 @@ class ReactiveHelperPairingImporterTest {
         val json = """{"macId":"Desk Mac"}"""
         val encoded = URLEncoder.encode(json, "UTF-8")
 
-        assertEquals(json, reactiveHelperPairingJsonFromUri("codecks://helper-pair?payload=$encoded"))
-        assertNull(reactiveHelperPairingJsonFromUri("codecks://trackpad?payload=$encoded"))
-        assertNull(reactiveHelperPairingJsonFromUri("https://example.com?payload=$encoded"))
+        val prefix = "codecks://helper-pair"
+        assertEquals(json, reactiveHelperPairingJsonFromUri("$prefix?payload=$encoded", prefix))
+        assertNull(reactiveHelperPairingJsonFromUri("codecks://trackpad?payload=$encoded", prefix))
+        assertNull(reactiveHelperPairingJsonFromUri("https://example.com?payload=$encoded", prefix))
     }
 }
