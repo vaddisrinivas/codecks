@@ -1,0 +1,226 @@
+{
+  "schema": "codecks.autonomous-maturity.baseline.v1",
+  "captured_at_utc": "2026-08-10T13:04:49Z",
+  "status": "PASS",
+  "source": {
+    "repository": "https://github.com/vaddisrinivas/codecks",
+    "branch": "codex/autonomous-maturity",
+    "baseline_ref": "main",
+    "baseline_sha": "d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
+    "origin_main_sha": "d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
+    "release_tag": "v0.1.37",
+    "release_tag_sha": "0dc3cac1f7e6b02fa4d5f069eda8664789852370",
+    "initial_dirty_paths": [
+      "tasks/AUTONOMOUS_MATURITY_PLAN.md",
+      "tasks/AUTONOMOUS_MATURITY_TODO.md"
+    ],
+    "initial_dirty_path_ownership": "user-requested maturity planning documents; preserved",
+    "dependency_pr_ancestry": [
+      {
+        "pr": 18,
+        "merge_sha": "846435491d3493b0ca7182bc6d636f1255353a4a",
+        "ancestor_of_v0.1.37": false,
+        "ancestor_of_baseline": true
+      },
+      {
+        "pr": 19,
+        "merge_sha": "925f0eb9f7fe84465c71c4ef41bbc8ac398d042f",
+        "ancestor_of_v0.1.37": false,
+        "ancestor_of_baseline": true
+      },
+      {
+        "pr": 20,
+        "merge_sha": "cd5459db42bcded7cf4879f3f7dd40aa1b38678d",
+        "ancestor_of_v0.1.37": false,
+        "ancestor_of_baseline": true
+      },
+      {
+        "pr": 21,
+        "merge_sha": "0fc17bc6ef23137508077004b9082565f4d3caeb",
+        "ancestor_of_v0.1.37": false,
+        "ancestor_of_baseline": true
+      },
+      {
+        "pr": 22,
+        "merge_sha": "17e36493fa446f3a245c10547d5c512a378514bc",
+        "ancestor_of_v0.1.37": false,
+        "ancestor_of_baseline": true
+      },
+      {
+        "pr": 23,
+        "merge_sha": "5e683fbddca7e3c0eac6e3562224822077593036",
+        "ancestor_of_v0.1.37": false,
+        "ancestor_of_baseline": true
+      },
+      {
+        "pr": 24,
+        "merge_sha": "d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
+        "ancestor_of_v0.1.37": false,
+        "ancestor_of_baseline": true
+      }
+    ],
+    "ancestry_conclusion": "v0.1.37 excludes dependency PRs 18-24; the baseline includes all seven merge commits"
+  },
+  "release_artifact": {
+    "source": "https://github.com/vaddisrinivas/codecks/releases/tag/v0.1.37",
+    "published_at": "2026-08-08T20:05:08Z",
+    "draft": false,
+    "prerelease": false,
+    "apk_name": "codecks-release.apk",
+    "apk_size_bytes": 60122081,
+    "apk_sha256": "8c8eca1b3e4b0f56a2128185c42a062687011e68a9d3fd16fe24851616baa9f2",
+    "checksum_file_sha256": "6735f62e4f1169a8cdb075a2dc603899c8af9e315455a559aa0468090e489399",
+    "package": "app.codecks",
+    "version_code": 37,
+    "version_name": "0.1.37",
+    "min_sdk": 28,
+    "target_sdk": 37,
+    "compile_sdk": 37,
+    "signature_verification": "PASS",
+    "signature_scheme_v2": true,
+    "signer_subject": "CN=Codecks Release, OU=Release, O=Codecks, C=US",
+    "signer_certificate_sha256": "07a642e758f394b6aeaecfe35c64ca84d891ca4e6de4b6cc010702c0e52e2df6",
+    "private_signing_material_inspected": false,
+    "candidate_signer_continuity": "NOT_RUN"
+  },
+  "android": {
+    "namespace": "io.codecks",
+    "base_application_id": "app.codecks",
+    "compile_sdk": 37,
+    "min_sdk": 28,
+    "target_sdk": 37,
+    "version_code": 37,
+    "version_name": "0.1.37",
+    "java_source_target": 17,
+    "enabled_variants": [
+      {
+        "name": "ossDebug",
+        "application_id": "app.codecks.debug",
+        "distribution": "oss",
+        "commercial_policy": "ABSENT",
+        "signing_role": "debug"
+      },
+      {
+        "name": "ossRelease",
+        "application_id": "app.codecks",
+        "distribution": "oss",
+        "commercial_policy": "ABSENT",
+        "signing_role": "protected OSS release"
+      },
+      {
+        "name": "playRelease",
+        "application_id": "app.codecks",
+        "distribution": "play",
+        "commercial_policy": "PRODUCTION_DARK",
+        "signing_role": "Play upload; distinct from Play app-signing role"
+      },
+      {
+        "name": "playInternalRelease",
+        "application_id": "app.codecks.internal",
+        "distribution": "play_internal",
+        "commercial_policy": "INTERNAL_TEST_CAPABLE",
+        "signing_role": "isolated internal or debug fallback"
+      }
+    ],
+    "disabled_variant_rule": "only oss debug/release and play/playInternal release are enabled",
+    "release_minification": false,
+    "release_resource_shrinking": false,
+    "managed_devices": [
+      {
+        "name": "pixel6Api35",
+        "device": "Pixel 6",
+        "api": 35,
+        "image": "aosp"
+      }
+    ]
+  },
+  "toolchain": {
+    "host_os": "macOS 26.5.2 build 25F84",
+    "host_arch": "arm64",
+    "jdk_runtime": "OpenJDK 20.0.2",
+    "gradle": "9.4.1",
+    "android_gradle_plugin": "9.2.0",
+    "kotlin_multiplatform": "2.4.10",
+    "kotlin_compose_plugin": "2.4.10",
+    "kotlin_serialization_plugin": "2.3.21",
+    "swift_tools": "6.0",
+    "android_build_tools": ["34.0.0", "35.0.0", "36.0.0"],
+    "android_platforms": [35, 36, 37],
+    "android_emulator": "36.6.11",
+    "android_platform_tools": "37.0.0",
+    "installed_system_images": [
+      "android-34 google_apis arm64-v8a",
+      "android-35 default arm64-v8a",
+      "android-36 google_apis_playstore arm64-v8a"
+    ]
+  },
+  "modules": [
+    {"name": ":app", "production_source_lines": 57374, "note": "main, play, playInternal, and debug Kotlin/Java"},
+    {"name": ":shared", "production_source_lines": 1233, "targets": ["JVM", "iOS arm64", "iOS simulator arm64"]},
+    {"name": ":backend", "production_source_lines": 868, "target": "JVM contracts"},
+    {"name": "macHelper", "production_source_lines": 1598, "target": "macOS 13+ Swift package"}
+  ],
+  "fresh_checks": [
+    {
+      "id": "no_shrink",
+      "status": "PASS",
+      "command": "./scripts/verify_release_no_shrink.sh"
+    },
+    {
+      "id": "secret_surface",
+      "status": "PASS",
+      "command": "python3 tools/secret_surface_check.py"
+    },
+    {
+      "id": "architecture_release_distribution_commercial_manifests_shared_backend",
+      "status": "PASS",
+      "command": "./gradlew :app:validateArchitectureBoundaries :app:validateReleaseSurface :app:validateDistributionMatrix :app:validateCommercialDependencyBoundaries :app:validateCommercialManifests :shared:allTests :backend:test"
+    },
+    {
+      "id": "protocol_fixtures",
+      "status": "PASS",
+      "command": "python3 tools/verify_protocol_fixtures.py"
+    },
+    {
+      "id": "mac_helper_tests",
+      "status": "PASS",
+      "command": "swift test --package-path macHelper",
+      "tests": 30,
+      "failures": 0
+    }
+  ],
+  "not_run": [
+    {
+      "lane": "app unit and lint suites",
+      "status": "NOT_RUN",
+      "reason": "outside M00/M01 focused documentation and architecture scope; required by later phases"
+    },
+    {
+      "lane": "managed-device and physical-device suites",
+      "status": "NOT_RUN",
+      "reason": "no device action authorized; physical app.codecks is protected"
+    },
+    {
+      "lane": "fresh OSS/Play release artifact builds and split inspection",
+      "status": "NOT_RUN",
+      "reason": "later candidate phase; local protected signing configuration was not inspected"
+    },
+    {
+      "lane": "candidate signing continuity",
+      "status": "NOT_RUN",
+      "reason": "no candidate artifact exists and no private key material was accessed"
+    },
+    {
+      "lane": "live AI providers, SSH, helper service, clipboard, DeX, Intel Mac, Play admission, and human testing",
+      "status": "NOT_RUN",
+      "reason": "not baseline architecture proof"
+    }
+  ],
+  "commands_for_reproduction": {
+    "tag_ancestry": "git merge-base --is-ancestor <merge_sha> v0.1.37; git merge-base --is-ancestor <merge_sha> d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
+    "variant_inventory": "./gradlew :app:tasks --all",
+    "sdk_inventory": "/Users/srinivasvaddi/Library/Android/sdk/cmdline-tools/latest/bin/sdkmanager --list_installed",
+    "release_metadata": "gh release view v0.1.37 --json tagName,targetCommitish,isDraft,isPrerelease,publishedAt,url,assets",
+    "release_certificate": "/Users/srinivasvaddi/Library/Android/sdk/build-tools/36.0.0/apksigner verify --verbose --print-certs codecks-release.apk"
+  }
+}

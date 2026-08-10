@@ -1,0 +1,458 @@
+# Codecks codebase map
+
+Baseline: `d1f1788f03fe59bb0dceb5822e9f5b19194090fd` (`main`, August 10, 2026).
+
+Purpose: compact reachability and ownership map. This is not deletion proof or
+runtime evidence. Unknown dynamic reachability fails closed.
+
+## Classification
+
+| Class | Meaning |
+| --- | --- |
+| `CORE` | Public local-first product path, enabled by default or required infrastructure. |
+| `OPTIONAL_DEFAULT_OFF` | Compiled public path whose default flag/build property is off. |
+| `LAB_ONLY` | Isolated internal source set/package, not a public launcher path. |
+| `COMPANION` | Shared, Mac, or backend module outside the Android UI runtime. |
+| `DEAD_CANDIDATE` | No known production caller; deletion still requires M02 proof. |
+| `UNKNOWN_DYNAMIC` | Text/static reachability is insufficient; preserve until proven. |
+
+## Source and build boundaries
+
+| Root | Role | Exposure | Class |
+| --- | --- | --- | --- |
+| `app/src/main` | Android product, domain, data, HID, Compose UI | All enabled Android variants | Mixed; mapped below |
+| `app/src/oss` | Public GitHub manifest marker | `ossDebug`, `ossRelease` | `CORE` |
+| `app/src/play` | Production-dark service adapters and manifest marker | `playRelease` only | `OPTIONAL_DEFAULT_OFF` |
+| `app/src/playInternal` | Commercial test implementations and lab launcher | `app.codecks.internal` only | `LAB_ONLY` |
+| `app/src/debug` | Gesture test activity | `app.codecks.debug` only | `LAB_ONLY` |
+| `shared/src/commonMain` | Portable Reactive protocol and snapshot | JVM/iOS frameworks; Android dependency | `COMPANION` |
+| `backend/src/main` | Account, entitlement, integrity, snapshot contracts | JVM module; no Android runtime dependency | `COMPANION` |
+| `macHelper/Sources` | Authenticated Mac helper, capability handlers, CLI | Separate macOS 13+ executable/library | `COMPANION` |
+
+Enabled Android variants are exactly:
+
+| Variant | Package | Commercial policy | Public |
+| --- | --- | --- | --- |
+| `ossDebug` | `app.codecks.debug` | `ABSENT` | No |
+| `ossRelease` | `app.codecks` | `ABSENT` | Yes, GitHub |
+| `playRelease` | `app.codecks` | `PRODUCTION_DARK` | Candidate only; publication not authorized |
+| `playInternalRelease` | `app.codecks.internal` | `INTERNAL_TEST_CAPABLE` | No |
+
+Release minification and resource shrinking are both permanently disabled.
+
+## Bootstrap and composition
+
+```text
+Android process
+  CodecksApplication
+    PrivacyCrashAnrReporter (coarse local event only)
+  MainActivity (@AndroidEntryPoint)
+    Hilt: HidRepository, ActionRepository/Runner, ConnectionRepository,
+          DeviceRepository, backup, helper discovery/identity/secret stores
+    CodecksTheme + ThemeSettingsRepository
+    CodecksApp (composition, state, navigation, feature wiring)
+      CodecksAppShell
+        primary destination or secondary route content
+```
+
+- `AppModule.kt` owns singleton interface-to-implementation bindings.
+- `MainActivity.kt` is the current composition root and also contains duplicated
+  route persistence, feature construction, backup launchers, helper pairing, and
+  destination rendering. It is intentionally a later M03/M04 refactor target.
+- `Routes.kt`, `AppNavigator.kt`, and `PrimaryTab.kt` separately encode route
+  identity, title, visibility, label, summary, and icon. This is known metadata
+  duplication, not dead code.
+- `LocalFeatureFlagRepository` reads only typed user-editable product/lab flags.
+  Smart, Reactive Trackpad, OCR, and labs default off.
+
+## Navigation routes
+
+| Route symbol | User surface | Guard/exposure | Render owner | Class |
+| --- | --- | --- | --- | --- |
+| `HomeRoute` | Deck | `FeatureFlag.Deck`, default on | `MainActivity` -> `HomeScreen` | `CORE` |
+| `MouseRoute` | Trackpad | `Trackpad`, default on; `codecks://trackpad` enters via policy activity | `TrackpadHostScreen`/`MouseScreen` | `CORE` |
+| `KeyboardRoute` | Keyboard | `Keyboard`, default on | `KeyboardScreen` | `CORE` |
+| `ClipboardRoute` | Clipboard | `Clipboard`, default on | `ClipboardScreen` | `CORE` |
+| `AutomationsRoute` | Rules | `Automations`, default on | `AutomationsScreen` | `CORE` |
+| `SettingsRoute` | Settings/setup/support | Always valid fallback | `SettingsScreen` and dialogs | `CORE` |
+| `EditorRoute` | Deck editor | Deck + DeckEditor; restored top falls back home | `DeckEditorScreen` | `CORE` |
+| `AiBuilderRoute` | AI workspace | AI flag, default on; `codecks://ai` | `AiWorkspaceScreen` | `CORE` |
+| `AiProviderRoute` | AI provider settings | AI flag; restored top falls back home | `AiProviderSettingsScreen` | `CORE` |
+| `RunLogRoute` | Execution history | Always route-enabled; restored top falls back home | `RunLogScreen` | `CORE` |
+| `CommandPaletteRoute` | Command palette | Always route-enabled; restored top falls back home | `CommandPaletteScreen` | `CORE` |
+
+Unknown destination strings and forged/restored unsupported routes fall back to
+Settings or Home. Route serialization uses `@Serializable NavKey`; removal must
+therefore check saved-state serializers as well as callers.
+
+## Manifest and external entry points
+
+| Component/intent | Policy and destination | Class |
+| --- | --- | --- |
+| `CodecksApplication` | Hilt root; installs privacy-bounded crash/ANR recorder | `CORE` |
+| `MainActivity` launcher | Main Deck shell; resizable/freeform | `CORE` |
+| `MainActivity` `codecks://ai` | Guarded AI route | `CORE` |
+| `MainActivity` `ACTION_SEND text/plain` | Shared text enters guarded app flow | `CORE` |
+| `MainActivity` `codecks://helper-pair` | Imports bounded authenticated helper pairing payload | `CORE` companion setup seam |
+| `TrackpadEntryActivity` `codecks://trackpad` | Applies lock/connection policy before trackpad launch | `CORE` |
+| `LockscreenTrackpadActivity` | Non-exported, single-task lock-screen HID surface | `CORE` |
+| `TrackpadWidgetProvider` | Public widget entry; routes through trackpad policy | `CORE` |
+| `HidSessionService` | Non-exported connected-device foreground service | `CORE` |
+| `CodecksNotificationListenerService` | Exported only for Android binding; build property disables it by default | `OPTIONAL_DEFAULT_OFF` |
+| `GestureTestActivity` | Debug manifest only | `LAB_ONLY` |
+| `CommercialLabLauncher`/`Activity` | `app.codecks.internal` only; non-public product package | `LAB_ONLY` |
+| Support `FileProvider` | Non-exported, URI grants only, bounded support files | `CORE` |
+
+Deep links are not proof of authorization. Each target retains its feature,
+lock-screen, pairing, and execution policy.
+
+## Fourteen feature boundaries
+
+### 1. Shell and navigation
+
+- Symbols: `MainActivity`, `CodecksApp`, `CodecksAppShell`, `Routes`,
+  `AppNavigator`, `PrimaryTab`, accessibility/focus primitives.
+- Composition: `MainActivity` + `CodecksAppShell`.
+- Persistence: saved top-route string plus local feature/theme stores.
+- Execution: route push/pop only; local action dispatch is a separate boundary.
+- Tests: `AppNavigatorTest`, intent policy, startup instrumentation,
+  accessibility and keyboard-navigation policies.
+- Exposure: all Android variants; guarded destinations differ by flags/source.
+- Classification: public shell `CORE`; debug test surface `LAB_ONLY`.
+
+### 2. Deck and editing
+
+- Symbols: `HomeScreen`, `HomeViewModel`, `DeckEditorScreen`, `DeckLayout`,
+  `DeckTemplate`, `ActionRepository`, `DefaultActionRunner`, Deck design-system
+  components and `DeckIconResolver`.
+- Composition: Home/Editor routes in `MainActivity`; long-press editing remains
+  on the Deck surface.
+- Persistence: `ActionRepository` DataStore/JSON layout and migration; run
+  receipts in `RunHistoryRepository`; backup includes Deck payload.
+- Execution: `ActionRunner` -> reviewed local route or SSH command -> typed
+  `ActionResult`/history. HID is not used for SSH Deck actions.
+- Tests: Deck layout/import, action runner, raw-command policy, Home behavior,
+  editor/AI placement E2E policies.
+- Exposure: Deck and editor flags default on in public builds.
+- Classification: `CORE`.
+
+### 3. Trackpad and Bluetooth HID
+
+- Symbols: `TrackpadHostScreen`, `MouseScreen`, `MouseViewModel`,
+  `RawTrackpadView`, gesture policies/accumulators, `HidRepository`,
+  `HidController`, `HidReports`, `HidSessionService`.
+- Composition: Mouse route; raw Android pointer surface is hosted by Compose.
+- Persistence: `TrackpadSettingsRepository`; HID service/session state is live,
+  not treated as durable proof.
+- Execution: touch -> gesture engine -> HID report -> Android Bluetooth HID API.
+  Pointer dispatch never waits on SSH/helper transport.
+- Tests: gesture/hold/tap/scroll/settings unit tests, HID lifecycle/reconnect,
+  raw-view and system-event instrumentation.
+- Exposure: Trackpad flag default on; foreground service is non-exported.
+- Classification: `CORE`.
+
+### 4. Lock-screen trackpad
+
+- Symbols: `TrackpadEntryActivity`, `LockscreenTrackpadActivity`,
+  `LockscreenTrackpadScreen/ViewModel`, `LockscreenTrackpadPolicy`, widget.
+- Composition: isolated activity, not the full app shell.
+- Persistence: reads Trackpad settings and existing HID state; no SSH credentials
+  or unrestricted actions are exposed.
+- Execution: connected HID pointer/click path only; policy blocks reactive and
+  guarded non-trackpad actions.
+- Tests: entry/activity/interaction/reactive-exclusion policy and instrumented
+  lock-screen entry.
+- Exposure: deep link and widget are exported; actual lock-screen activity is not.
+- Classification: `CORE`.
+
+### 5. Keyboard
+
+- Symbols: `KeyboardScreen`, `KeyboardViewModel`, `MacTextDelivery`,
+  `HidHostHeader`.
+- Composition: Keyboard route in `MainActivity`.
+- Persistence: transient draft UI; configured target/connection lives in the
+  connection/device stores.
+- Execution: HID key reports for key controls; Mac text delivery selects bounded
+  delivery transport and surfaces result.
+- Tests: keyboard state/policy and HID safety/lifecycle suites.
+- Exposure: Keyboard flag default on.
+- Classification: `CORE`.
+
+### 6. Clipboard
+
+- Symbols: `ClipboardScreen/ViewModel`, `ClipboardSyncEngine`, content guard,
+  battery/conflict/session/receipt models, settings and last-sync stores.
+- Composition: Clipboard route; lifecycle ownership in view model/engine.
+- Persistence: DataStore settings and privacy-safe last-sync metadata; clipboard
+  content is not diagnostic/support data.
+- Execution: Android clipboard + explicit SSH Mac read/write; bounded polling,
+  self-echo suppression, conflict resolution, and backoff.
+- Tests: architecture, lifecycle, process recreation, conflicts, privacy,
+  battery, backoff, receipts, and status policy.
+- Exposure: Clipboard flag default on; background behavior remains OS-limited.
+- Classification: `CORE`.
+
+### 7. Rules and automation
+
+- Symbols: `AutomationsScreen/ViewModel`, `AutomationRepository`, trigger worker
+  and engine, execution coordinator, plans, preflight/live-test/revision models.
+- Composition: Automations route; WorkManager owns eligible background trigger
+  work, not the screen.
+- Persistence: versioned DataStore JSON recipes, bounded run history, quarantine,
+  approvals and proof stamps.
+- Execution: trigger claim -> revision/preflight/authorization -> bounded action
+  execution -> cleanup/receipt/retry outcome.
+- Tests: repository migration/enablement, worker safety, engine, preflight,
+  revision, cleanup, quoting/isolation, UI recovery.
+- Exposure: Automations flag default on; unsafe generated drafts remain disabled
+  until review/proof requirements pass.
+- Classification: `CORE`.
+
+### 8. Mac and SSH setup
+
+- Symbols: `ConnectionViewModel`, `ConnectionSetupController`, readiness/health/
+  issue presenters, `ConnectionRepository`, `SshDiscovery`, target/device models,
+  JSch transport and terminal proof stores.
+- Composition: Settings route owns the active setup UI. `ConnectionScreen` is a
+  separate unreferenced screen candidate.
+- Persistence: connection/device DataStore or preferences; Android Keystore-backed
+  credential storage; host identity and target migrations.
+- Execution: mDNS/manual discovery -> explicit host-key/auth setup -> JSch SSH;
+  failures map to typed diagnosis and repair state.
+- Tests: setup/health/readiness/terminal proof, migration, SSH policies and
+  release SSH instrumentation.
+- Exposure: Connection/Settings flags default on; no raw secrets in receipts.
+- Classification: active setup `CORE`; `ConnectionScreen` `DEAD_CANDIDATE`.
+
+### 9. AI creation
+
+- Symbols: `AiWorkspaceScreen`, provider settings screen/controller,
+  `CodecksAiAgentPack`, provider adapters, strict JSON/schema parsers,
+  artifact/history repositories, validator and generated-content planner.
+- Composition: AI and AI-provider routes; share intents can seed local drafts.
+- Persistence: provider config plus Keystore-encrypted API keys; encrypted,
+  bounded artifact/history stores; generated content is catalog-first.
+- Execution: explicit user request -> provider-specific bounded HTTPS adapter ->
+  strict schema/parser -> review/test -> catalog placement. Draft generation does
+  not directly execute commands.
+- Tests: provider contracts, schemas, repair/adversarial corpus, local routing,
+  settings, artifact persistence and placement.
+- Exposure: AI flag default on; network starts only for explicit provider action.
+- Classification: `CORE`.
+
+### 10. Settings, backup, theme, update, and support
+
+- Symbols: `SettingsScreen`, backup/restore/support dialogs, support and update
+  view models, `ThemeSettingsRepository`, `CodecksTheme`, icon packs,
+  `CodecksBackupRepository`, diagnostic/support builders, GitHub update repository.
+- Composition: Settings route and activity-result launchers in `MainActivity`.
+- Persistence: theme DataStore; transactional bounded ZIP backup for Deck and
+  Rules; local redacted diagnostics; update state is transient.
+- Execution: explicit export/import, rollback/recovery, redacted support share,
+  and allow-listed GitHub update intent.
+- Tests: backup migration/rollback/corruption, theme resolution, support privacy,
+  update source/intent/version, accessibility settings policies.
+- Exposure: Settings always available; no credential or clipboard export.
+- Classification: `CORE`.
+
+### 11. Smart and notification context
+
+- Symbols: `SmartDeckViewModel`, deterministic engine/providers, smart learning
+  store, `NotificationBackplane`, notification privacy settings/source.
+- Composition: view model is constructed by `MainActivity`; output is consumed
+  only when Smart Suggestions + Smart Deck flags are on. Notification flow is
+  replaced with an empty flow unless the build property is enabled.
+- Persistence: bounded 30-day smart feedback preferences and notification
+  privacy settings; raw notification content is not persisted by support paths.
+- Execution: deterministic local candidates only; notification listener records
+  privacy-filtered context when explicitly enabled.
+- Tests: smart engine/models/providers, privacy policy, feature gate policy.
+- Exposure: all Smart flags and `optionalContextSurfacesEnabled` default off.
+- Classification: `OPTIONAL_DEFAULT_OFF`.
+
+### 12. Reactive/helper
+
+- Symbols: `ReactiveTrackpadViewModel/Card`, live Mac-state repository, Reactive
+  engines/providers/executor, helper client/session/TCP transport, discovery,
+  pairing importer and credential store.
+- Composition: Reactive card is gated by `ReactiveTrackpad`; helper identity
+  discovery/pairing support is wired independently in Settings and pairing deep link.
+- Persistence: pinned public identity in DataStore; shared secret in Android
+  secure store; profiles/state use bounded typed models.
+- Execution: authenticated framed helper transport or SSH state source -> typed
+  provider/action -> receipt. Replay, identity, limits, and timeouts fail closed.
+- Tests: engine/profile/provider/state, pairing/session/TCP/replay, presentation,
+  protocol fixtures and Mac helper tests.
+- Exposure: Reactive Trackpad UI defaults off; helper pairing/setup seam exists;
+  helper is optional and HID never depends on it.
+- Classification: UI/providers `OPTIONAL_DEFAULT_OFF`; helper application
+  `COMPANION`; pairing seam `CORE` support infrastructure.
+
+### 13. Offline catalog and dark commercial foundations
+
+- Symbols: catalog contracts/install engine, bundled product/SSH action catalog,
+  commercial policy/service contracts; source-specific Play and internal adapters.
+- Composition: offline catalog feeds Deck/AI placement. Commercial lab owns its
+  own internal activity; public app has no commercial destination.
+- Persistence: in-memory/offline catalog now; commercial public services are
+  deny-only; internal stores belong only to `app.codecks.internal`.
+- Execution: catalog installation is reviewed local data. `ossRelease` has no
+  commercial implementation; `playRelease` policy denies all commercial calls;
+  internal test overrides cannot target `app.codecks`.
+- Tests: catalog architecture/install, commercial policy/contracts/services,
+  source-set isolation and managed attack harnesses.
+- Exposure: catalog `CORE`; public commercial contracts `OPTIONAL_DEFAULT_OFF`
+  under immutable production-dark policy; implementations/UI `LAB_ONLY`.
+
+### 14. Companion modules
+
+- `shared`: serialized Reactive protocol, replay guard, portable snapshot;
+  tests run on JVM and iOS simulator.
+- `macHelper`: authenticated TCP/frame/session runtime, pairing store, Shortcuts,
+  Spotlight/SFTP/brightness/accessibility capability handlers, CLI and launchd
+  support. It is independently installable and never required for HID.
+- `backend`: local contracts/tests for future accounts, entitlements, integrity,
+  and snapshots. It is not a deployed service and is not an Android dependency.
+- Persistence: shared schemas only; Mac helper local pairing/config; backend
+  module defines contracts rather than production storage.
+- Classification: all `COMPANION`; backend commercial behavior remains dark.
+
+## Persistence ownership
+
+| Store | Owner | Payload policy |
+| --- | --- | --- |
+| Deck/action DataStore | `ActionRepository` | Versioned layout JSON; migration and bounded import/export |
+| Automation DataStore | `AutomationRepository` | Versioned recipes/proofs/history; quarantine on decode failure |
+| Connection/device stores | connection/device repositories | Target identity and non-secret configuration; explicit migrations |
+| Secure credential stores | connection and AI/helper secure stores | API keys, SSH/helper secrets; Keystore-backed; never support-exported |
+| Clipboard DataStore | clipboard settings/last-sync stores | Mode/interval and content-free sync metadata |
+| AI artifact/history DataStores | AI repositories | Encrypted bounded draft/test/catalog metadata |
+| Theme DataStore | `ThemeSettingsRepository` | Mode/accent/surface/border/shape/deck/icon settings and revision |
+| Feature preferences | `LocalFeatureFlagRepository` | User-editable product/lab flags; reserved commercial keys removed |
+| Smart preferences | `SmartLearningStore` | Bounded, expiring feedback; optional feature only |
+| Helper identity DataStore | helper credential store | Public identity/fingerprint only; secret stored separately |
+| Backup recovery files | `CodecksBackupRepository` | Bounded transactional archive/residue with hashes and rollback |
+| Diagnostic files | event/support stores | Redacted metadata only; bounded temporary share files |
+
+The stores share concepts but not one transaction domain. Consolidation must
+standardize codecs, corruption, migration, and atomicity without creating a
+single mega-store or moving secrets into Room/DataStore plaintext.
+
+## Execution ownership
+
+```text
+Deck / command palette / AI-reviewed catalog item
+  -> ActionRunner / LocalActionDispatcher
+     -> local guarded route OR JSch SSH
+     -> ActionResult -> RunHistoryRepository
+
+Automation trigger
+  -> claim + revision gate + capability preflight + authorization
+  -> AutomationExecutionCoordinator
+     -> bounded action execution + optional cleanup
+  -> typed proof/receipt/outcome
+
+Trackpad / keyboard controls
+  -> gesture or key model
+  -> HidRepository/HidController
+  -> Bluetooth HID report
+
+Reactive provider
+  -> LiveMacStateRepository (helper and/or SSH source)
+  -> ReactiveEngine + DefaultReactiveActionExecutor
+  -> helper/SSH capability transport
+  -> typed receipt
+
+Clipboard
+  -> lifecycle/session/content guard/conflict resolver
+  -> explicit SSH clipboard operation
+  -> content-free sync receipt
+```
+
+Later unification may share review, preflight, receipt, retry, and undo contracts.
+It must retain separate HID, SSH, helper, clipboard, and local-route transports.
+
+## Reachability audit
+
+M01 considered these roots, not only text references:
+
+1. Enabled Gradle source sets and variant filtering.
+2. Main, flavor, internal, and debug manifests including aliases, services,
+   receivers, providers, deep links, share intents, and metadata.
+3. Navigation 3 serialized `NavKey` routes and restored route-name mapping.
+4. Hilt modules, injected interfaces, `viewModel()` construction, and factories.
+5. WorkManager worker class names and foreground-service ownership.
+6. DataStore/JSON serializers, backup schemas, stored enum names, and migrations.
+7. Android widget/notification system callbacks and Java Bluetooth controller.
+8. Shared KMP exports, Swift Package products, and CLI entry point.
+9. Test-only reflection/source-policy checks and Compose preview tooling.
+
+No JNI/native dynamic loading was found in owned production sources. JSch uses
+dynamic algorithm discovery, which is why shrinking remains forbidden.
+
+### Current reachability classifications
+
+| Symbols | Evidence | Classification / next action |
+| --- | --- | --- |
+| `ConnectionScreen` | Definition and previews/tests only; active setup is embedded in Settings | `DEAD_CANDIDATE`; M02 must compile every variant and run setup parity before deletion |
+| `DevicesScreen`, `DevicesViewModel` | Definitions only; device management is embedded in Settings | `DEAD_CANDIDATE`; verify Hilt/view-model and restored-route absence before deletion |
+| `AdaptiveSurfacePreviews` | Compose preview-only source | `DEAD_CANDIDATE`; preserve until preview/build-tool reachability is intentionally retired |
+| `io.codex.s23deck.data.automation.AutomationTriggerWorker` | Legacy package-shaped worker class | `UNKNOWN_DYNAMIC`; persisted WorkManager class names may outlive code references |
+| Serialized routes, action kinds, feature flags, theme/icon enum names | May exist in saved state/DataStore/backups | `UNKNOWN_DYNAMIC` for rename/deletion; migration required |
+| Smart/Reactive classes | Constructed or referenced but output gated off | `OPTIONAL_DEFAULT_OFF`, not dead |
+| Commercial contracts in main/play | Compiled, deny-only, architecture-tested | `OPTIONAL_DEFAULT_OFF`, not dead |
+| Internal lab classes | Internal manifest/source-set reachable | `LAB_ONLY`, not dead |
+
+`DEAD_CANDIDATE` never authorizes deletion. M02 requires manifest/route/DI/
+serialization/WorkManager checks, compile of all four variants, relevant unit and
+UI parity, and a rollback receipt.
+
+## Test and proof map
+
+| Boundary | Primary automated evidence |
+| --- | --- |
+| Shell/navigation | app navigator, intent destination, startup, accessibility/focus tests |
+| Deck/editor | layout/import, action runner/policy, Home/editor behavior |
+| Trackpad/HID/lock screen | gesture engines, HID lifecycle/reconnect, raw view and lock-screen instrumentation |
+| Keyboard | keyboard state/policy plus HID suites |
+| Clipboard | engine, conflict, lifecycle, privacy, battery/backoff/status |
+| Rules | repository/worker/engine/preflight/revision/cleanup/UI recovery |
+| Connection/SSH | setup/readiness/health/migration/policy and release SSH smoke harness |
+| AI | provider/schema/parser/adversarial corpus/artifact/placement |
+| Settings/backup/support/update | migration/rollback/privacy/theme/update tests |
+| Smart/context | deterministic providers, learning codec, feature/privacy gate tests |
+| Reactive/helper | state/engine/provider/transport/session/replay plus protocol fixtures |
+| Commercial/catalog | policy/contracts/source isolation/artifact and managed attack proofs |
+| Shared/backend/Mac | KMP JVM+iOS, backend JVM, Swift package suites |
+
+Baseline fresh proof is recorded in
+`tasks/test-evidence/autonomous-maturity-m00-baseline.json`. Static/unit proof is
+not device, live-provider, physical Mac/DeX, Play admission, or human evidence.
+
+## Architectural pressure points
+
+- `MainActivity.kt` is 2,237 lines and owns composition plus feature workflows.
+- `MouseScreen.kt` is 3,329 lines and mixes layout, raw input, gestures, overlay,
+  decoration, statistics, and experimental controls.
+- Route metadata appears in four owners.
+- Connection status/repair presentation and action receipt/preflight concepts
+  have multiple implementations.
+- Persistence has repeated hand-written JSON/migration/quarantine mechanics.
+- Optional Smart/Reactive construction occurs in the public composition root
+  even while user exposure defaults off.
+
+These are simplification targets. They are not proof that the corresponding
+features can be removed.
+
+## Non-negotiable boundaries
+
+- Bluetooth pointer/HID dispatch never waits on SSH, helper, AI, or persistence.
+- `app.codecks` is not uninstalled, cleared, downgraded, instrumented, or signed
+  with a different certificate.
+- Release minification and resource shrinking remain disabled.
+- Public commercial execution remains absent or production-dark; restored or
+  remote state cannot override it.
+- Credentials, clipboard contents, raw commands, and execution proof do not enter
+  logs, diagnostics, backups, or AI prompts unless a specific reviewed contract
+  explicitly allows bounded content.
+- A static map cannot close runtime, physical-device, Play, or human gates.
