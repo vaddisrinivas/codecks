@@ -46,14 +46,14 @@ Deck	Create a deck named Support Triage with actions: open https://mail.google.c
 Deck	Create a deck named Debugging with actions: template mac.open_terminal, open https://dash.codecks.local/logs, copy text adb logcat, and template mac.screenshot.
 Deck	Create a deck named Writing Docs with actions: open https://docs.codecks.local/editor, open https://platform.openai.com/docs, copy text Draft outline, and template mac.focus_ping_30.
 Deck	Create a deck named Browser Research with actions: open https://google.com/search?q=android+compose, template mac.new_tab, copy text research notes, and wait 5 seconds.
-Deck	Create a deck named Design Review with actions: open https://design.codecks.local/system, template mac.full_screen, template mac.screenshot, and copy text Design notes.
-Deck	Create a deck named Incident Response with actions: open https://dash.codecks.local/incidents, open https://chat.example.com/rooms/incidents, copy text Incident started, and template mac.focus_ping_30.
-Deck	Create a deck named Workspace URLs with actions: open https://mail.google.com, open https://calendar.google.com, open https://drive.google.com, and open https://github.com.
-Deck	Create a deck named Mac Basics with actions: template mac.open_finder, template mac.open_terminal, template mac.open_spotlight, and template mac.screenshot.
-Deck	Create a deck named Window Media with actions: template mac.mission_control, template mac.full_screen, template mac.new_tab, and template mac.play_pause.
-Deck	Create a deck named Dashboards with actions: open https://dash.codecks.local/prod, open https://dash.codecks.local/staging, open https://dash.codecks.local/errors, and open https://dash.codecks.local/usage.
-Deck	Create a deck named Product Planning with actions: open https://linear.app/codecks, open https://docs.codecks.local/roadmap, copy text Decision log, and template mac.new_tab.
-Deck	Create a deck named Customer Calls with actions: open https://calendar.google.com, copy text https://meet.google.com/abc-defg-hij, copy text Customer notes template, and template mac.mute.
+Deck	Create a complete neon cyber theme instead of a deck, including colors, typography, icons, and motion.
+Deck	Create a complete high-contrast theme instead of a deck, with accessible colors and reduced motion.
+Deck	Create a complete warm paper theme instead of a deck, including surface, border, and text tokens.
+Deck	Create a complete OLED black theme instead of a deck, with battery-friendly surfaces and vivid accents.
+Deck	Create a complete pastel theme instead of a deck, including all button states and typography.
+Deck	Create a complete macOS-inspired theme instead of a deck, including blur, spacing, and icon treatment.
+Deck	Create a complete retro terminal theme instead of a deck, with monospace type and green phosphor colors.
+Deck	Create a complete color-blind-safe theme instead of a deck, including contrast and motion metadata.
 Deck	Create a deck named Weekly Review with actions: open https://dash.codecks.local/week, open https://github.com/example/codecks/pulls, copy text Wins, risks, next, and wait 10 seconds.
 Deck	Create a deck named AI Settings Docs with actions: open https://platform.openai.com/api-keys, open https://platform.openai.com/docs, copy text Check model and provider, and template mac.new_tab.
 Deck	Create a deck named Source Control with actions: open https://github.com/example/codecks, open https://github.com/example/codecks/actions, open https://github.com/example/codecks/pulls, and copy text git status.

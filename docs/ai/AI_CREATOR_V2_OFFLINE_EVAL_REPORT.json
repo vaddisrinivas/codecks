@@ -1,8 +1,103 @@
 {
+  "categoryCoverage": {
+    "counts": {
+      "adversarial_command": 8,
+      "artifact_codec_roundtrip": 8,
+      "artifact_conversion": 8,
+      "automation": 8,
+      "button": 8,
+      "deck": 8,
+      "disabled_automation": 8,
+      "malformed_output": 8,
+      "oversized_content": 8,
+      "prompt_injection": 8,
+      "provider_error": 8,
+      "refine_once": 8,
+      "regenerate": 8,
+      "review_metadata": 8,
+      "unsupported_theme": 8
+    },
+    "sha256": "20bf96a4c82c4e6b7757c48c5ae9f28552e9fa60e7ae2dbc560619bd77d31196"
+  },
   "claims": {
     "corpusManifestValid": true,
+    "deterministicPipelineEvaluated": false,
     "generatedOutputPolicyEvaluatedByUnitGate": false,
     "providerQualityEvaluated": false
+  },
+  "combinedMetrics": {
+    "actionableFailure": {
+      "passed": null,
+      "status": "NOT_RUN",
+      "threshold": 1.0,
+      "total": null
+    },
+    "artifactCodecRoundTrip": {
+      "passed": null,
+      "status": "NOT_RUN",
+      "threshold": 1.0,
+      "total": null
+    },
+    "artifactConversion": {
+      "passed": null,
+      "status": "NOT_RUN",
+      "threshold": 1.0,
+      "total": null
+    },
+    "bypassActionable": {
+      "passed": null,
+      "status": "NOT_RUN",
+      "threshold": 1.0,
+      "total": null
+    },
+    "caseOutcome": {
+      "passed": null,
+      "status": "NOT_RUN",
+      "threshold": 1.0,
+      "total": null
+    },
+    "disabledAutomation": {
+      "passed": null,
+      "status": "NOT_RUN",
+      "threshold": 1.0,
+      "total": null
+    },
+    "parserConformance": {
+      "passed": null,
+      "status": "NOT_RUN",
+      "threshold": 0.99,
+      "total": null
+    },
+    "policyBypass": {
+      "passed": null,
+      "status": "NOT_RUN",
+      "threshold": 0.0,
+      "total": null
+    },
+    "refineOnce": {
+      "passed": null,
+      "status": "NOT_RUN",
+      "threshold": 1.0,
+      "total": null
+    },
+    "regenerate": {
+      "passed": null,
+      "status": "NOT_RUN",
+      "threshold": 1.0,
+      "total": null
+    },
+    "reviewMetadata": {
+      "passed": null,
+      "status": "NOT_RUN",
+      "threshold": 1.0,
+      "total": null
+    },
+    "safeSemanticValidity": {
+      "passed": null,
+      "status": "NOT_RUN",
+      "threshold": 0.95,
+      "total": null
+    }
   },
   "corpus": {
     "counts": {
@@ -10,25 +105,54 @@
       "Automation": 40,
       "Deck": 40
     },
-    "sha256": "f33316f29094edd00619e5771dfc9607fcd035ab942700c36117003df2130477",
+    "schemaVersion": 2,
+    "sha256": "50184226d85c5a8930d775c233f2a6821a08b29dac54f6430b34dc65bb39595a",
     "total": 120
   },
   "generatedOutputBypassCorpus": {
     "sha256": "833f4e13b91e5174e0c43ae7f756a72e3b7638b533fa599fb191124789659d2d",
     "total": 19
   },
-  "mode": "offline_static",
+  "liveProviders": [
+    {
+      "provider": "OpenAI-compatible",
+      "reason": "Local deterministic benchmark; credentials and network are intentionally unused.",
+      "status": "NOT_RUN"
+    },
+    {
+      "provider": "Anthropic",
+      "reason": "Local deterministic benchmark; credentials and network are intentionally unused.",
+      "status": "NOT_RUN"
+    },
+    {
+      "provider": "Gemini",
+      "reason": "Local deterministic benchmark; credentials and network are intentionally unused.",
+      "status": "NOT_RUN"
+    },
+    {
+      "provider": "gateway/custom",
+      "reason": "Local deterministic benchmark; credentials and network are intentionally unused.",
+      "status": "NOT_RUN"
+    }
+  ],
+  "mode": "offline_deterministic",
+  "overallStatus": "NOT_RUN",
   "providerCalls": false,
   "requiredUnitGates": [
     "io.codecks.domain.ai.AiCreatorV2EvalCorpusTest",
+    "io.codecks.domain.ai.AiCreatorM17BenchmarkTest",
+    "io.codecks.domain.ai.AiCreatorV2AdversarialTest",
+    "io.codecks.domain.ai.AiBuilderV2RepairTest",
     "io.codecks.core.actions.AiGeneratedContentPlannerTest",
     "io.codecks.core.actions.AiDraftConvertersTest",
     "io.codecks.core.actions.ActionRunnerTest",
+    "io.codecks.data.ai.AiArtifactJsonCodecTest",
+    "io.codecks.data.ai.AiProviderContractTest",
     "io.codecks.data.RawCommandPolicyTest",
     "io.codecks.domain.ai.MacVisualEffectCatalogTest",
     "io.codecks.domain.ai.StructuredDraftParserV2Test",
     "io.codecks.domain.automation.AutomationExecutionPlanTest"
   ],
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "unitGateReceipt": null
 }
