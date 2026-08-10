@@ -41,6 +41,8 @@ Mac shortcuts are fast until you need the command you never remember. Codecks gi
 
 See the [feature guide](docs/product/FEATURE_GUIDE.md) for what each feature is
 for, required setup, limitations, experimental boundaries, and deferred work.
+The machine-checked public/commercial release state is
+[`production-state.json`](docs/release/production-state.json).
 
 ## Safety Model
 
@@ -70,13 +72,13 @@ Requirements:
 ```bash
 git clone https://github.com/vaddisrinivas/codecks.git
 cd codecks
-./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+./gradlew :app:testOssReleaseUnitTest :app:lintOssDebug :app:assembleOssDebug
 ```
 
 Debug APK:
 
 ```text
-app/build/outputs/apk/debug/app-debug.apk
+app/build/outputs/apk/oss/debug/app-oss-debug.apk
 ```
 
 Release signing instructions live in [docs/release/RELEASING.md](docs/release/RELEASING.md).

@@ -1,12 +1,14 @@
 # Codecks local-only release ledger
 
-Updated: August 8, 2026
+Updated: August 10, 2026
 
 | Contract | Public-release value |
 | --- | --- |
 | Product | Codecks |
 | Application ID | `app.codecks` |
 | Version | `0.1.37` (`versionCode` 37) |
+| Public tag | `v0.1.37` |
+| Current candidate | Unreleased working state; next version unassigned; no artifact admitted |
 | Minimum Android | 9 / API 28 |
 | Target Android | API 37 |
 | Default mode | Local-only; sign-in, cloud sync, billing, premium enforcement, ads, commercial SDKs, and commercial network startup disabled |
@@ -25,6 +27,17 @@ Updated: August 8, 2026
 - AI generation is user initiated, shows provider/model/context, and produces reviewable drafts.
 - Generated buttons and Rules remain disabled/unverified until the current revision passes a test.
 - Codecks ships as one signed APK; debug or prototype builds must not be attached to public releases.
+
+## Evidence and truth ownership
+
+- [`production-state.json`](production-state.json) is the closed,
+  machine-checked public release/commercial-state record.
+- [`RELEASE_NOTES_v0.1.37.md`](RELEASE_NOTES_v0.1.37.md) records the published
+  artifact's scope and validation.
+- [`PRODUCTION_LAUNCH_PLAN.md`](PRODUCTION_LAUNCH_PLAN.md) separates implemented
+  foundations from external, physical, human, and exact-artifact GA gates.
+- `python3 tools/verify_release_documentation.py` fails CI on version,
+  commercial-state, evidence-path, or known stale-baseline drift.
 
 ## Public Android components
 

@@ -1,6 +1,6 @@
 # Codecks Feature Guide
 
-Applies to: public beta v0.1.25
+Applies to: public beta v0.1.37
 
 This guide explains what the shipped features do, why they exist, what they
 require, and where their boundaries are. It is a product guide, not a promise
@@ -82,7 +82,7 @@ flag and validating the exact build.
 
 ## Infrastructure, not a user feature
 
-v0.1.25 includes a Kotlin Multiplatform shared module, typed authenticated
+v0.1.37 includes a Kotlin Multiplatform shared module, typed authenticated
 protocol models, an Android Mac-helper client/session, a native Swift Mac helper
 runtime, launchd installer scaffold, helper pairing JSON import/deep link/manual
 import, and buildable iOS framework targets. These are experimental Reactive
@@ -97,3 +97,27 @@ Not shipped:
 - production DeskDock auto-launch confidence tuning;
 - production Shortcuts, SFTP, brightness, and Accessibility UX surfaces;
 - complete iOS application.
+
+## Limitations and deferred scope
+
+The following are explicit proof boundaries for the current public beta:
+
+- Commercial sign-in, cloud sync, Billing, premium enforcement, ads, and their
+  SDK/network startup are implemented only as production-dark foundations or
+  isolated internal tests. They are not public features.
+- Physical Samsung/non-Samsung/tablet coverage across Android 12–16, real DeX,
+  real Mac/architecture coverage, complete TalkBack/large-text/switch-access
+  acceptance, and multi-day field reliability remain incomplete.
+- First-run pairing success has not been measured at consumer scale. Android
+  vendor power rules can still affect reconnection and background clipboard
+  behavior.
+- The AI Builder requires user credentials and provider availability. Its
+  drafts remain reviewable, disabled work—not proof that a generated action
+  will succeed on a particular Mac.
+- A future candidate is not a release until its exact signed artifact, signer,
+  checksum, no-shrink settings, migrations, device behavior, and rollback path
+  are admitted. Local, unit, emulator, or source proof does not substitute.
+
+See the [production launch plan](../release/PRODUCTION_LAUNCH_PLAN.md) for the
+full GA matrix and [production state](../release/production-state.json) for the
+machine-checked public/commercial truth.

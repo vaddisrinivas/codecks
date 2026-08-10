@@ -1,110 +1,160 @@
-# TODO: Codecks dark commercial GA
+# Codecks production-dark commercial checklist
 
-Canonical contracts and acceptance criteria: `tasks/plan.md`.
-Protected baseline: `v0.1.36` / `b6fc0ce`.
+Updated: August 10, 2026
 
-## A0 — Contract freeze
+Canonical contracts: [`tasks/plan.md`](plan.md)
 
-- [ ] T01 freeze tier, grandfathering, deletion, retention, refund, support, data-classification contracts
-- [ ] Freeze `CommercialExecutionPolicy.PRODUCTION_DARK` below every flag/input
-- [ ] Freeze monotonic AND gate algebra and typed decision reasons
-- [ ] Keep local/Labs flags separate from commercial policy
-- [ ] Add compiled `release.premium_enforcement=false`
-- [ ] Freeze `ossRelease` / `playRelease` / `playInternal` matrix
-- [ ] Prohibit any override parser/verifier/path in `playRelease`
-- [ ] Freeze `playInternal` as `app.codecks.internal`, separate signer/backend/data
-- [ ] Distinguish upload certificate from Play app-signing certificate/lineage
-- [ ] Freeze explicit snapshot v1 DTO allowlist, bounds, and raw-command rejection
-- [ ] Freeze backend account identity, session, deletion, entitlement, RTDN, reconciliation contracts
-- [ ] Freeze transaction-bound Integrity request hash and replay contract
-- [ ] Freeze commercial initializer/network policy; preserve valid local WorkManager
-- [ ] Record deferred Reactive scope without claiming it complete
-- [ ] Resolve every open contract request in `tasks/contract-requests/`
+Public release: `v0.1.37`
 
-## A — Foundation
+Machine truth: [`docs/release/production-state.json`](../docs/release/production-state.json)
 
-- [ ] T02 prove installed/GitHub/Play app-signing continuity; record upload cert separately
-- [ ] T03 build all three artifacts; preserve package/data/no-shrink rules
-- [ ] Scan `ossRelease` dependencies and merged manifest for commercial leakage
-- [ ] Prove `playRelease` contains no internal override code
-- [ ] Audit commercial providers, metadata, AndroidX Startup, Firebase, workers, eager DI, SDK constructors
-- [ ] T04 implement typed commercial registry with owner/review/expiry metadata
-- [ ] T05 implement monotonic resolver, decision explanation, schema-v5 local migration
-- [ ] T06 implement no-op production-dark operational source and subtractive remote adapter
-- [ ] Property-test that lower-authority allows cannot defeat any mandatory deny
-- [ ] Adversarial-test corrupt/stale/cache/clock/deep-link/intent/restored state
+Legend: `[x]` implemented with repository evidence; `[ ]` incomplete or
+`NOT_RUN`. An implementation check does not authorize public activation.
 
-## B — Account and sync
+## A0 — Frozen contracts
 
-- [ ] T07 implement optional Credential Manager Google-token exchange and backend sessions
-- [ ] Verify audience, issuer, signature, expiry, nonce, replay, rotation, revoke, account switch
-- [ ] T08 ship in-app and public-web deletion before any account-creating test track
-- [ ] Test idempotent deletion, session-first revocation, active subscription guidance, recreate
-- [ ] T09 implement canonical allowlist-only snapshot codec and exhaustive adapters
-- [ ] Reject shell actions and command/test/cleanup strings; never redact into runnable objects
-- [ ] Fuzz sizes/counts/depth/strings/schemas/corruption; run secret canaries
-- [ ] T10 implement explicit upload with checksum, idempotency, visible receipt/retry
-- [ ] T11 implement preview, compatibility, local safety backup, merge/replace, rollback, conflicts
-- [ ] Import automations disabled with no execution/preflight/live-test proof
-- [ ] Prove two-device/account-switch/offline/quota/timeout/process-death behavior
+- [x] Production-dark root deny, monotonic gate algebra, typed reasons, and
+  compiled owner policy — [`CommercialExecutionPolicyTest.kt`](../app/src/test/java/io/codecks/domain/commercial/CommercialExecutionPolicyTest.kt).
+- [x] Local/Labs flags separated from commercial authority —
+  [`TypedFeatureFlagRegistryTest.kt`](../app/src/test/java/io/codecks/domain/features/TypedFeatureFlagRegistryTest.kt).
+- [x] `ossRelease` / `playRelease` / `playInternal` package and source-set
+  matrix; internal override isolated to `app.codecks.internal` —
+  [`PlayReleaseCommercialAdapterArchitectureTest.kt`](../app/src/test/java/io/codecks/domain/commercial/PlayReleaseCommercialAdapterArchitectureTest.kt).
+- [x] Snapshot v1 allowlist/bounds/raw-command rejection —
+  [`PortableSnapshotTest.kt`](../shared/src/commonTest/kotlin/io/codecks/shared/snapshot/PortableSnapshotTest.kt).
+- [x] Backend account/session/deletion/retention, entitlement/RTDN,
+  reconciliation, and transaction-bound integrity contracts —
+  [`AccountServiceTest.kt`](../backend/src/test/kotlin/io/codecks/backend/contracts/AccountServiceTest.kt)
+  and [`EntitlementServiceTest.kt`](../backend/src/test/kotlin/io/codecks/backend/contracts/EntitlementServiceTest.kt).
+- [x] Commercial initializer/network policy frozen; empty contract-request
+  queue — [`CommercialServiceArchitectureTest.kt`](../app/src/test/java/io/codecks/domain/commercial/CommercialServiceArchitectureTest.kt)
+  and [`run_commercial_static_proof.sh`](../scripts/run_commercial_static_proof.sh).
+- [x] Deferred Reactive scope recorded without launch claims —
+  [documentation drift tests](../tools/tests/test_verify_release_documentation.py).
+- [ ] Business decisions for tier split, prices, regions, retention duration,
+  grandfathering, refund handling, and support SLA — owner decision required.
 
-## C — Play commerce
+## A — Build and policy foundation
 
-- [ ] T13a implement backend entitlement state machine, token ownership, RTDN dedupe, reconciliation first
-- [ ] T12 create products/base plans/offers and Billing UX against approved T13a contract
-- [ ] Grant nothing for pending/client-only state; bind purchase token to one account
-- [ ] T13b verify server-side, persist before acknowledge, bind transaction Integrity, process voided purchases
-- [ ] Test purchase/renewal/grace/hold/pause/cancel/expire/refund/revoke/chargeback
-- [ ] Test RTDN duplicate/out-of-order/missed events and daily reconciliation
-- [ ] T14 implement account-bound entitlement cache, restore/manage/support, bounded offline grace
-- [ ] Keep premium enforcement OFF in public production
+- [x] All three variants compile and enforce separate package/data/no-shrink
+  boundaries — Gradle validators and
+  [`verify_release_no_shrink.sh`](../scripts/verify_release_no_shrink.sh).
+- [x] OSS dependency/manifest leakage, Play internal-override exclusion, and
+  initializer reachability have deterministic static gates —
+  [`commercial_proof_harness.py`](../tools/commercial_proof_harness.py) and app
+  architecture tests.
+- [x] Typed commercial registry/policy, corrupt/stale/cache/clock migration,
+  lower-authority-deny property tests, and no-op production services exist —
+  [`CommercialExecutionPolicyTest.kt`](../app/src/test/java/io/codecks/domain/commercial/CommercialExecutionPolicyTest.kt).
+- [ ] Existing production signer to Play app-signing lineage continuity — no
+  Play Console or exact signing-lineage evidence available.
+- [ ] Exact future `playRelease` AAB dependency/manifest/startup admission — no
+  next-version artifact is assigned or admitted.
 
-## D — Ads and privacy
+## B — Account and cloud snapshot foundations
 
-- [ ] T15 isolate UMP; no launch initialization or request while production-dark
-- [ ] Complete privacy, Data Safety, audience, content-rating, consent-withdrawal contracts
-- [ ] T16 isolate Mobile Ads; no launch initialization or request while production-dark
-- [ ] Require owner allow + no kill + rollout + consent + foreground + approved placement + not ad-free
-- [ ] T17 allow only labeled Routine Bank/Theme cards after six organic items and opt-in rewarded preview
-- [ ] Prohibit every operational/control/lockscreen/overlay/widget/notification placement
-- [ ] Assert zero ad requests, not merely zero rendering, across lifecycle/rotation/DeX/failure cases
-- [ ] Export only redacted commercial diagnostics; no tokens, IDs, contents, assignments, raw responses
+- [x] Account/session contracts cover nonce consumption, assertion replay,
+  session rotation/revocation, account switching, and deletion —
+  [`PlayInternalAccountAdapterTest.kt`](../app/src/testPlayInternal/java/io/codecks/commercial/auth/PlayInternalAccountAdapterTest.kt)
+  and [`AccountServiceTest.kt`](../backend/src/test/kotlin/io/codecks/backend/contracts/AccountServiceTest.kt).
+- [x] Account deletion state machine is idempotent, revokes sessions first,
+  deletes snapshots, and leaves failed deletion fail-closed —
+  [`AccountServiceTest.kt`](../backend/src/test/kotlin/io/codecks/backend/contracts/AccountServiceTest.kt).
+- [x] Portable snapshot codec/import pipeline rejects unsafe fields and covers
+  checksum, bounds, schemas, conflicts, preview, merge/replace, and rollback —
+  [`PortableSnapshotTest.kt`](../shared/src/commonTest/kotlin/io/codecks/shared/snapshot/PortableSnapshotTest.kt)
+  and [`PlayInternalSnapshotAdapterTest.kt`](../app/src/testPlayInternal/java/io/codecks/commercial/sync/PlayInternalSnapshotAdapterTest.kt).
+- [x] Public adapters deny before constructing backend/storage clients;
+  `playInternal` has isolated deterministic account/sync tests and lab UI —
+  [`ProductionPlayCommercialAdaptersTest.kt`](../app/src/testPlay/java/io/codecks/commercial/auth/ProductionPlayCommercialAdaptersTest.kt).
+- [ ] Live Google identity/backend exchange, public deletion web endpoint,
+  two-device cloud service, quotas, retention, and operational support.
+- [ ] Public sign-in or cloud-sync activation — **OFF; not authorized**.
+
+## C — Billing and entitlement foundations
+
+- [x] Backend-authoritative entitlement, RTDN dedupe/out-of-order handling,
+  reconciliation, token ownership, and transaction integrity contracts/tests —
+  [`EntitlementServiceTest.kt`](../backend/src/test/kotlin/io/codecks/backend/contracts/EntitlementServiceTest.kt).
+- [x] Internal sandbox covers purchase lifecycle, replay, account switching,
+  restore/manage, offline/error states, refunds/revokes, and reconciliation —
+  [`InternalBillingSandboxTest.kt`](../app/src/testPlayInternal/java/io/codecks/internalcommercial/billing/InternalBillingSandboxTest.kt).
+- [x] Public Play purchase, entitlement, and integrity adapters are inert and
+  production-dark; premium enforcement remains compiled off —
+  [`PlayReleaseCommercialAdaptersTest.kt`](../app/src/testPlay/java/io/codecks/commercial/PlayReleaseCommercialAdaptersTest.kt).
+- [ ] Play Console products/base plans/offers, real sandbox purchase/RTDN,
+  server credentialing, and exact AAB admission.
+- [ ] Public Billing or premium activation — **OFF; not authorized**.
+
+## D — Ads and privacy foundations
+
+- [x] Public consent/ad services deny before SDK or network construction;
+  commercial startup is absent under production-dark policy —
+  [`PlayProductionDarkAdsPrivacyTest.kt`](../app/src/testPlay/java/io/codecks/commercial/PlayProductionDarkAdsPrivacyTest.kt).
+- [x] Placement model excludes operational, control, lockscreen, overlay,
+  widget, and notification surfaces; internal adapters/tests are isolated —
+  [`InternalAdsAdaptersTest.kt`](../app/src/testPlayInternal/java/io/codecks/internalcommercial/ads/InternalAdsAdaptersTest.kt).
+- [x] Commercial diagnostics are bounded/redacted by typed contracts and tests
+  — [`InternalPrivacyAdaptersTest.kt`](../app/src/testPlayInternal/java/io/codecks/internalcommercial/privacy/InternalPrivacyAdaptersTest.kt).
+- [ ] UMP/Mobile Ads production SDK integration, Data Safety submission,
+  audience/content-rating review, consent-withdrawal and real ad-policy tests.
+- [ ] Public ads activation — **OFF; not authorized**.
 
 ## E — Product and GA
 
-- [ ] T18 ship signed/validated Routine Bank with disabled-draft imports
-- [ ] T19 ship coherent accessible Theme Gallery with preview/rollback
-- [ ] T20 ship typed/preflighted SSH packs; never sell arbitrary shell execution
-- [ ] T21 close setup/reconnect/clipboard/automation/accessibility/DeX/battery/device/macOS matrices
-- [ ] T22 complete listing, policies, support, deletion URL, key recovery, rollback, incident runbooks
+- [x] Typed offline Routine Bank, Theme Gallery foundations, and preflighted
+  SSH packs exist; imports are bounded, conflict checked, and rollback capable
+  — [`CatalogInstallEngineTest.kt`](../app/src/test/java/io/codecks/domain/catalog/CatalogInstallEngineTest.kt).
+- [ ] Final public catalog/theme UX acceptance and complete setup, reconnect,
+  clipboard, automation, accessibility, DeX, battery, Android/macOS matrices.
+- [ ] Store listing/policies/support/deletion URL/key recovery/rollback/incident
+  operations and external review.
 
-## F — Exact-artifact dark release
+## F — Exact-artifact release
 
-- [ ] T23 prove commercial E2E only in `playInternal`
-- [ ] T23 prove exact `playRelease` has zero commercial UI, SDK construction, or startup/network calls
-- [ ] Prove test-override replay is rejected by production package/certificate
-- [ ] Prove protected `app.codecks` in-place update preserves data, SSH, HID, and local core
-- [ ] T24 satisfy applicable closed-test/production-access gate with no open P0/P1
-- [ ] Record source SHA, version, AAB SHA-256, signing lineage, dependency/manifest/evidence digests
-- [ ] Promote the exact admitted AAB; any rebuild resets admission
-- [ ] T25 stage production with account/sync/Billing/premium enforcement/ads all OFF
-- [ ] Verify no release minification or resource shrinking
-- [ ] Verify rollback rehearsal and stage-by-stage health gates
+- [x] Commercial E2E is structurally isolated to `playInternal`; public tests
+  assert production-dark adapters and internal namespace exclusion —
+  [`ManagedCommercialDarkInstrumentedTest.kt`](../app/src/androidTestPlay/java/io/codecks/commercialproof/ManagedCommercialDarkInstrumentedTest.kt).
+- [x] Source, unit, architecture, managed-emulator, reachability, cold-start,
+  jobs/alarms, bundletool, and no-shrink proof lanes exist —
+  [static](../scripts/run_commercial_static_proof.sh),
+  [managed](../app/src/androidTestPlay/java/io/codecks/commercialproof/ManagedCommercialDarkInstrumentedTest.kt),
+  [reachability](../scripts/commercial_surface_attack.sh),
+  [cold-start](../scripts/collect_commercial_cold_start.sh),
+  [bundletool](../scripts/build_play_proof_artifacts.sh), and
+  [no-shrink](../scripts/verify_release_no_shrink.sh).
+- [ ] Repeat every proof against the exact next-version signed AAB/APK and
+  preserve its immutable evidence bundle.
+- [ ] Prove protected `app.codecks` in-place update preserves data, SSH, HID,
+  and core behavior on a physical phone and real Mac.
+- [ ] Play closed-test/production-access gate, no-open-P0/P1 review, staged
+  rollout, rollback rehearsal, and exact-artifact promotion.
 
 ## Later owner decisions — not authorized
 
-- [ ] T26 explicit separate go/no-go: account
-- [ ] T26 explicit separate go/no-go: cloud sync
-- [ ] T26 explicit separate go/no-go: Play Billing
-- [ ] T26 explicit separate go/no-go: premium enforcement
-- [ ] T26 explicit separate go/no-go: ads
-- [ ] `Keep disabled indefinitely` remains valid for every surface
+- [ ] Sign-in go/no-go — currently **OFF**.
+- [ ] Cloud sync go/no-go — currently **OFF**.
+- [ ] Play Billing go/no-go — currently **OFF**.
+- [ ] Premium enforcement go/no-go — currently **OFF**.
+- [ ] Ads go/no-go — currently **OFF**.
+- [x] `Keep disabled indefinitely` remains a supported decision for every
+  surface — [`CommercialExecutionPolicyTest.kt`](../app/src/test/java/io/codecks/domain/commercial/CommercialExecutionPolicyTest.kt).
 
 ## Permanent constraints
 
-- [ ] Never uninstall, clear, downgrade, differently sign, or instrument `app.codecks`
-- [ ] Never accept a Play app-signing mismatch
-- [ ] Never re-enable release minification/resource shrinking
-- [ ] Never let Remote Config, prefs, cached state, or client Billing grant access
-- [ ] Never sync credentials, clipboard, raw commands, host data, or execution proof
-- [ ] Never activate a commercial surface without later explicit owner approval
+- [x] Never uninstall, clear, downgrade, differently sign, or instrument the
+  protected `app.codecks` package without current explicit approval —
+  [`verify_release_no_shrink.sh`](../scripts/verify_release_no_shrink.sh).
+- [x] Never accept a Play app-signing mismatch —
+  [commercial proof harness tests](../tools/tests/test_commercial_proof_harness.py).
+- [x] Never re-enable release minification/resource shrinking without explicit
+  approval and exact physical SSH proof —
+  [`verify_release_no_shrink.sh`](../scripts/verify_release_no_shrink.sh).
+- [x] Never let remote config, preferences, cached state, or client Billing
+  override a mandatory commercial deny —
+  [`CommercialExecutionPolicyTest.kt`](../app/src/test/java/io/codecks/domain/commercial/CommercialExecutionPolicyTest.kt).
+- [x] Never sync credentials, clipboard, raw commands, host data, execution
+  proof, or diagnostics —
+  [`CommercialServiceArchitectureTest.kt`](../app/src/test/java/io/codecks/domain/commercial/CommercialServiceArchitectureTest.kt).
+- [x] Never activate a commercial surface without later explicit owner
+  approval for that surface — [`CommercialExecutionPolicyTest.kt`](../app/src/test/java/io/codecks/domain/commercial/CommercialExecutionPolicyTest.kt).

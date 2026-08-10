@@ -90,10 +90,10 @@ Status: Phase 0 evidence infrastructure only. Later product phases remain planne
 - [ ] M21 finalize and test self-service GitHub-only distribution/support path
 - [ ] M21 prepare Play listing, Data Safety, policy, and staged-rollout drafts only
 - [ ] M21 keep commercial systems dark and Play publication unauthorized
-- [ ] M22 reconcile production plan from v0.1.36 to actual release/candidate state
-- [ ] M22 reconcile commercial plan/checklist using evidence-linked completion
-- [ ] M22 update release ledger, feature guide, README, limitations, and deferred scope
-- [ ] M22 add documentation drift checks to CI
+- [x] M22 reconcile production plan from v0.1.36 to actual release/candidate state — [`PRODUCTION_LAUNCH_PLAN.md`](../docs/release/PRODUCTION_LAUNCH_PLAN.md)
+- [x] M22 reconcile commercial plan/checklist using evidence-linked completion — [`tasks/todo.md`](todo.md)
+- [x] M22 update release ledger, feature guide, README, limitations, and deferred scope — [`CODECKS_RELEASE_LEDGER.md`](../docs/release/CODECKS_RELEASE_LEDGER.md)
+- [x] M22 add documentation drift checks to CI — [`verify_release_documentation.py`](../tools/verify_release_documentation.py)
 - [ ] M23 build candidate containing dependency PRs #18-#24
 - [ ] M23 run all unit/shared/lint/managed/artifact/split/no-shrink/security gates
 - [ ] M23 run cold-start, reachability, migration, soak, AI, support, and rollback gates

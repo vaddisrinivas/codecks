@@ -1,15 +1,16 @@
 # Implementation Plan: Codecks Play GA, Accounts, Flags, Commerce, and Ads
 
-Updated: August 8, 2026
+Updated: August 10, 2026
 
-Status: governing implementation plan. This supersedes the pre-commercial
-local-product plan captured at Codecks `v0.1.36` / commit `b6fc0ce`; it does not
-erase that baseline or convert its deferred Reactive Platform work into a GA
-dependency.
+Status: governing implementation plan. `v0.1.37` is the current public beta.
+The working state is an unversioned, unadmitted candidate.
+Implementation status and proof boundaries are reconciled in
+[`tasks/todo.md`](todo.md); machine-checked public/commercial truth is in
+[`production-state.json`](../docs/release/production-state.json).
 
 ## Baseline preservation and supersession
 
-- `v0.1.36` / `b6fc0ce` is the protected local-only reference behavior.
+- `v0.1.37` is the protected public local-first reference behavior.
 - Existing Deck, Trackpad, Keyboard, Clipboard, SSH, HID, automation, backup,
   AI-drafting, and settings behavior must survive every migration.
 - The following Reactive work remains deferred and independently scoped:
