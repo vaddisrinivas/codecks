@@ -5,90 +5,200 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema",
-    "captured_at_utc",
-    "receipt_validation",
-    "maturity_assessment",
-    "source",
-    "release_artifact",
-    "android",
-    "toolchain",
-    "source_inventory",
-    "fresh_checks",
-    "not_run",
-    "commands_for_reproduction"
+    "schema", "captured_at_utc", "receipt_validation", "maturity_assessment",
+    "source", "release_artifact", "android", "toolchain", "source_inventory",
+    "fresh_checks", "not_run", "commands_for_reproduction"
   ],
   "properties": {
     "schema": {"const": "codecks.autonomous-maturity.baseline.v1"},
     "captured_at_utc": {"type": "string", "format": "date-time"},
     "receipt_validation": {"$ref": "#/$defs/receiptValidation"},
     "maturity_assessment": {"$ref": "#/$defs/maturityAssessment"},
-    "source": {"type": "object"},
-    "release_artifact": {"type": "object"},
-    "android": {"type": "object"},
-    "toolchain": {"type": "object"},
-    "source_inventory": {"type": "object"},
-    "fresh_checks": {
-      "type": "array",
-      "minItems": 1,
-      "items": {"$ref": "#/$defs/executedCheck"}
-    },
-    "not_run": {
-      "type": "array",
-      "items": {"$ref": "#/$defs/notRun"}
-    },
+    "source": {"$ref": "#/$defs/source"},
+    "release_artifact": {"$ref": "#/$defs/releaseArtifact"},
+    "android": {"$ref": "#/$defs/android"},
+    "toolchain": {"$ref": "#/$defs/toolchain"},
+    "source_inventory": {"$ref": "#/$defs/sourceInventory"},
+    "fresh_checks": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/executedCheck"}},
+    "not_run": {"type": "array", "items": {"$ref": "#/$defs/notRun"}},
     "commands_for_reproduction": {
       "type": "object",
-      "additionalProperties": {"type": "string"}
+      "additionalProperties": {"type": "string", "minLength": 1}
     }
   },
   "$defs": {
-    "status": {"enum": ["PASS", "FAIL", "NOT_RUN", "AUTONOMOUS_PROXY", "EXTERNAL_EVIDENCE_REMAINS"]},
-    "receiptValidation": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "gitSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "text": {"type": "string", "minLength": 1},
+    "counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "inventorySummary": {
       "type": "object",
       "additionalProperties": false,
+      "required": ["file_count", "physical_lines", "by_category", "by_source_set", "by_language"],
+      "properties": {
+        "file_count": {"type": "integer", "minimum": 1},
+        "physical_lines": {"type": "integer", "minimum": 0},
+        "by_category": {"$ref": "#/$defs/counts"},
+        "by_source_set": {"$ref": "#/$defs/counts"},
+        "by_language": {"$ref": "#/$defs/counts"}
+      }
+    },
+    "receiptValidation": {
+      "type": "object", "additionalProperties": false,
       "required": ["status", "validator", "scope"],
       "properties": {
         "status": {"enum": ["PASS", "FAIL"]},
-        "validator": {"type": "string"},
-        "scope": {"type": "string"}
+        "validator": {"$ref": "#/$defs/text"},
+        "scope": {"$ref": "#/$defs/text"}
       }
     },
     "maturityAssessment": {
-      "type": "object",
-      "additionalProperties": false,
+      "type": "object", "additionalProperties": false,
       "required": ["status", "completed_milestones", "note"],
       "properties": {
         "status": {"enum": ["NOT_RUN", "AUTONOMOUS_PROXY", "EXTERNAL_EVIDENCE_REMAINS"]},
-        "completed_milestones": {"type": "array", "items": {"type": "string"}},
-        "note": {"type": "string"}
+        "completed_milestones": {"type": "array", "items": {"$ref": "#/$defs/text"}},
+        "note": {"$ref": "#/$defs/text"}
+      }
+    },
+    "dependencyAncestry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["pr", "merge_sha", "ancestor_of_v0.1.37", "ancestor_of_baseline"],
+      "properties": {
+        "pr": {"type": "integer", "minimum": 1},
+        "merge_sha": {"$ref": "#/$defs/gitSha"},
+        "ancestor_of_v0.1.37": {"type": "boolean"},
+        "ancestor_of_baseline": {"type": "boolean"}
+      }
+    },
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "repository", "branch", "implementation_baseline_ref", "implementation_baseline_sha",
+        "evidence_parent_sha", "origin_main_sha", "release_tag", "release_tag_object_sha",
+        "release_tag_commit_sha", "capture_state", "dependency_pr_ancestry", "ancestry_conclusion"
+      ],
+      "properties": {
+        "repository": {"type": "string", "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+        "branch": {"$ref": "#/$defs/text"},
+        "implementation_baseline_ref": {"$ref": "#/$defs/text"},
+        "implementation_baseline_sha": {"$ref": "#/$defs/gitSha"},
+        "evidence_parent_sha": {"$ref": "#/$defs/gitSha"},
+        "origin_main_sha": {"$ref": "#/$defs/gitSha"},
+        "release_tag": {"type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "release_tag_object_sha": {"$ref": "#/$defs/gitSha"},
+        "release_tag_commit_sha": {"$ref": "#/$defs/gitSha"},
+        "capture_state": {"$ref": "#/$defs/text"},
+        "dependency_pr_ancestry": {"type": "array", "items": {"$ref": "#/$defs/dependencyAncestry"}},
+        "ancestry_conclusion": {"$ref": "#/$defs/text"}
+      }
+    },
+    "releaseArtifact": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "source", "published_at", "draft", "prerelease", "apk_name", "apk_size_bytes", "apk_sha256",
+        "checksum_file_sha256", "package", "version_code", "version_name", "min_sdk", "target_sdk",
+        "compile_sdk", "signature_verification", "signature_scheme_v2", "signer_subject",
+        "signer_certificate_sha256", "private_signing_material_inspected", "candidate_signer_continuity"
+      ],
+      "properties": {
+        "source": {"type": "string", "pattern": "^https://github\\.com/.+/releases/tag/v[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "published_at": {"type": "string", "format": "date-time"},
+        "draft": {"type": "boolean"}, "prerelease": {"type": "boolean"},
+        "apk_name": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+\\.apk$"},
+        "apk_size_bytes": {"type": "integer", "minimum": 1},
+        "apk_sha256": {"$ref": "#/$defs/sha256"}, "checksum_file_sha256": {"$ref": "#/$defs/sha256"},
+        "package": {"type": "string", "pattern": "^[a-z][A-Za-z0-9_.]+$"},
+        "version_code": {"type": "integer", "minimum": 1}, "version_name": {"$ref": "#/$defs/text"},
+        "min_sdk": {"type": "integer", "minimum": 1}, "target_sdk": {"type": "integer", "minimum": 1},
+        "compile_sdk": {"type": "integer", "minimum": 1},
+        "signature_verification": {"enum": ["PASS", "FAIL", "NOT_RUN"]},
+        "signature_scheme_v2": {"type": "boolean"}, "signer_subject": {"$ref": "#/$defs/text"},
+        "signer_certificate_sha256": {"$ref": "#/$defs/sha256"},
+        "private_signing_material_inspected": {"type": "boolean"},
+        "candidate_signer_continuity": {"enum": ["PASS", "FAIL", "NOT_RUN"]}
+      }
+    },
+    "variant": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "application_id", "distribution", "commercial_policy", "signing_role"],
+      "properties": {
+        "name": {"$ref": "#/$defs/text"}, "application_id": {"$ref": "#/$defs/text"},
+        "distribution": {"enum": ["oss", "play", "play_internal"]},
+        "commercial_policy": {"enum": ["ABSENT", "PRODUCTION_DARK", "INTERNAL_TEST_CAPABLE"]},
+        "signing_role": {"$ref": "#/$defs/text"}
+      }
+    },
+    "managedDevice": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "device", "api", "image"],
+      "properties": {
+        "name": {"$ref": "#/$defs/text"}, "device": {"$ref": "#/$defs/text"},
+        "api": {"type": "integer", "minimum": 1}, "image": {"$ref": "#/$defs/text"}
+      }
+    },
+    "android": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "namespace", "base_application_id", "compile_sdk", "min_sdk", "target_sdk", "version_code",
+        "version_name", "java_source_target", "enabled_variants", "disabled_variant_rule",
+        "release_minification", "release_resource_shrinking", "managed_devices"
+      ],
+      "properties": {
+        "namespace": {"$ref": "#/$defs/text"}, "base_application_id": {"$ref": "#/$defs/text"},
+        "compile_sdk": {"type": "integer", "minimum": 1}, "min_sdk": {"type": "integer", "minimum": 1},
+        "target_sdk": {"type": "integer", "minimum": 1}, "version_code": {"type": "integer", "minimum": 1},
+        "version_name": {"$ref": "#/$defs/text"}, "java_source_target": {"type": "integer", "minimum": 1},
+        "enabled_variants": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/variant"}},
+        "disabled_variant_rule": {"$ref": "#/$defs/text"},
+        "release_minification": {"type": "boolean"}, "release_resource_shrinking": {"type": "boolean"},
+        "managed_devices": {"type": "array", "items": {"$ref": "#/$defs/managedDevice"}}
+      }
+    },
+    "toolchain": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "host_os", "host_arch", "jdk_runtime", "gradle", "android_gradle_plugin", "kotlin_multiplatform",
+        "kotlin_compose_plugin", "kotlin_serialization_plugin", "swift", "android_build_tools",
+        "android_platforms", "android_emulator", "android_platform_tools", "installed_system_images"
+      ],
+      "properties": {
+        "host_os": {"$ref": "#/$defs/text"}, "host_arch": {"$ref": "#/$defs/text"},
+        "jdk_runtime": {"$ref": "#/$defs/text"}, "gradle": {"$ref": "#/$defs/text"},
+        "android_gradle_plugin": {"$ref": "#/$defs/text"}, "kotlin_multiplatform": {"$ref": "#/$defs/text"},
+        "kotlin_compose_plugin": {"$ref": "#/$defs/text"}, "kotlin_serialization_plugin": {"$ref": "#/$defs/text"},
+        "swift": {"$ref": "#/$defs/text"},
+        "android_build_tools": {"type": "array", "items": {"$ref": "#/$defs/text"}},
+        "android_platforms": {"type": "array", "items": {"type": "integer", "minimum": 1}},
+        "android_emulator": {"$ref": "#/$defs/text"}, "android_platform_tools": {"$ref": "#/$defs/text"},
+        "installed_system_images": {"type": "array", "items": {"$ref": "#/$defs/text"}}
+      }
+    },
+    "sourceInventory": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256", "summary"],
+      "properties": {
+        "path": {"const": "tasks/test-evidence/autonomous-maturity-source-inventory.json"},
+        "sha256": {"$ref": "#/$defs/sha256"}, "summary": {"$ref": "#/$defs/inventorySummary"}
       }
     },
     "executedCheck": {
-      "type": "object",
-      "additionalProperties": false,
+      "type": "object", "additionalProperties": false,
       "required": ["id", "status", "command", "started_at_utc", "finished_at_utc", "exit_code", "tool", "environment", "output_sha256"],
       "properties": {
-        "id": {"type": "string"},
-        "status": {"enum": ["PASS", "FAIL"]},
-        "command": {"type": "string"},
+        "id": {"type": "string", "minLength": 1, "pattern": "^[a-z0-9_]+$"},
+        "status": {"enum": ["PASS", "FAIL"]}, "command": {"$ref": "#/$defs/text"},
         "started_at_utc": {"type": "string", "format": "date-time"},
         "finished_at_utc": {"type": "string", "format": "date-time"},
-        "exit_code": {"type": "integer"},
-        "tool": {"type": "string"},
+        "exit_code": {"type": "integer"}, "tool": {"$ref": "#/$defs/text"},
         "environment": {"type": "object", "additionalProperties": {"type": ["string", "number", "boolean"]}},
-        "output_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        "output_sha256": {"$ref": "#/$defs/sha256"}
       }
     },
     "notRun": {
-      "type": "object",
-      "additionalProperties": false,
+      "type": "object", "additionalProperties": false,
       "required": ["lane", "status", "reason"],
-      "properties": {
-        "lane": {"type": "string"},
-        "status": {"const": "NOT_RUN"},
-        "reason": {"type": "string"}
-      }
+      "properties": {"lane": {"$ref": "#/$defs/text"}, "status": {"const": "NOT_RUN"}, "reason": {"$ref": "#/$defs/text"}}
     }
   }
 }

@@ -1,10 +1,10 @@
 {
   "schema": "codecks.autonomous-maturity.baseline.v1",
-  "captured_at_utc": "2026-08-10T13:49:42Z",
+  "captured_at_utc": "2026-08-10T14:17:35Z",
   "receipt_validation": {
     "status": "PASS",
     "validator": "tools/evidence/validate_autonomous_maturity_evidence.py",
-    "scope": "Receipt structure, closed check records, portable paths, source-inventory completeness and file digests; not overall product maturity"
+    "scope": "Closed receipt and inventory schemas, adversarial mutations, portable paths, repository-derived classification, source completeness and file digests; not overall product maturity"
   },
   "maturity_assessment": {
     "status": "NOT_RUN",
@@ -16,7 +16,7 @@
     "branch": "codex/autonomous-maturity",
     "implementation_baseline_ref": "main",
     "implementation_baseline_sha": "d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
-    "evidence_parent_sha": "a122b810c37feaa7fe874a175d668ce6fb4b06d2",
+    "evidence_parent_sha": "a132ac74ea69d00703ae4836bcb8f1da0d39dab4",
     "origin_main_sha": "d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
     "release_tag": "v0.1.37",
     "release_tag_object_sha": "3d21b395d49fa87d8fa04ba1f06f917acee5d081",
@@ -156,6 +156,20 @@
       "tool": "Python 3 / JSON Schema draft 2020-12 subset validator",
       "environment": {"host_os": "macOS 26.5.2", "host_arch": "arm64"},
       "output_sha256": "0479533d08072f9f616a615edec4c7786259b99677ace5d1ba3002add1352d29"
+    },
+    {
+      "id": "evidence_negative_mutations",
+      "status": "PASS",
+      "command": "python3 -m unittest -q tools/evidence/test_validate_autonomous_maturity_evidence.py",
+      "started_at_utc": "2026-08-10T14:17:34Z",
+      "finished_at_utc": "2026-08-10T14:17:35Z",
+      "exit_code": 0,
+      "tool": "Python 3 unittest",
+      "environment": {
+        "mutation_tests": 13,
+        "host_arch": "arm64"
+      },
+      "output_sha256": "ac67a9127f56bd1c72c279e5043f39065f41d44c57d09087254c9501a16f4148"
     },
     {
       "id": "codebase_map_bound",

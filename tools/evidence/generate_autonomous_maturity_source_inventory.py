@@ -13,6 +13,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "tasks/test-evidence/autonomous-maturity-source-inventory.json"
 SOURCE_SUFFIXES = {".kt": "Kotlin", ".java": "Java", ".swift": "Swift"}
+METHOD = {
+    "scope": "tracked *.kt, *.java, and *.swift files from git ls-files",
+    "line_definition": "Python str.splitlines physical lines; blank and comment lines included",
+    "generated_policy": "tracked build/generated sources are separate; untracked build outputs are excluded",
+    "classification": "path/source-set rules in tools/evidence/generate_autonomous_maturity_source_inventory.py",
+}
 
 
 def tracked_sources() -> list[str]:
@@ -107,12 +113,7 @@ def main() -> None:
 
     payload = {
         "schema": "codecks.autonomous-maturity.source-inventory.v1",
-        "method": {
-            "scope": "tracked *.kt, *.java, and *.swift files from git ls-files",
-            "line_definition": "Python str.splitlines physical lines; blank and comment lines included",
-            "generated_policy": "tracked build/generated sources are separate; untracked build outputs are excluded",
-            "classification": "path/source-set rules in tools/evidence/generate_autonomous_maturity_source_inventory.py",
-        },
+        "method": METHOD,
         "summary": {
             "file_count": len(entries),
             "physical_lines": sum(item["physical_lines"] for item in entries),

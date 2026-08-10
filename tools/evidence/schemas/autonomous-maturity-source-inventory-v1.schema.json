@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codecks.dev/schemas/autonomous-maturity-source-inventory-v1.schema.json",
+  "title": "Codecks autonomous maturity source inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "method", "summary", "files"],
+  "properties": {
+    "schema": {"const": "codecks.autonomous-maturity.source-inventory.v1"},
+    "method": {"$ref": "#/$defs/method"},
+    "summary": {"$ref": "#/$defs/summary"},
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/file"}
+    }
+  },
+  "$defs": {
+    "method": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "line_definition", "generated_policy", "classification"],
+      "properties": {
+        "scope": {"type": "string", "minLength": 1},
+        "line_definition": {"type": "string", "minLength": 1},
+        "generated_policy": {"type": "string", "minLength": 1},
+        "classification": {"type": "string", "minLength": 1}
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file_count", "physical_lines", "by_category", "by_source_set", "by_language"],
+      "properties": {
+        "file_count": {"type": "integer", "minimum": 1},
+        "physical_lines": {"type": "integer", "minimum": 0},
+        "by_category": {"$ref": "#/$defs/counts"},
+        "by_source_set": {"$ref": "#/$defs/counts"},
+        "by_language": {"$ref": "#/$defs/counts"}
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "category", "source_set", "feature_owner", "language", "physical_lines", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9_.+@/-]+\\.(?:kt|java|swift)$"
+        },
+        "category": {
+          "enum": ["build_definition", "companion", "debug_only", "generated", "internal_lab", "other_source_set", "public_production", "tests"]
+        },
+        "source_set": {
+          "enum": [
+            "android_androidTest", "android_androidTestDebug", "android_androidTestPlay",
+            "android_androidTestPlayInternal", "android_debug", "android_main", "android_oss",
+            "android_play_internal", "android_play_production_dark", "android_test", "android_testPlay",
+            "android_testPlayInternal", "backend_main", "backend_test", "generated", "mac_helper",
+            "mac_helper_package_manifest", "mac_helper_tests", "repository_other", "shared_commonMain",
+            "shared_commonTest"
+          ]
+        },
+        "feature_owner": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9_.+@/-]+$"},
+        "language": {"enum": ["Java", "Kotlin", "Swift"]},
+        "physical_lines": {"type": "integer", "minimum": 0},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}
