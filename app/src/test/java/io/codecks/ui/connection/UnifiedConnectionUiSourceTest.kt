@@ -12,7 +12,7 @@ class UnifiedConnectionUiSourceTest {
         val keyboard = File(root, "app/src/main/java/io/codecks/ui/keyboard/HidHostHeader.kt").readText()
         val settings = File(root, "app/src/main/java/io/codecks/ui/settings/SettingsScreen.kt").readText()
         val checklist = File(root, "app/src/main/java/io/codecks/ui/settings/SettingsThemeSections.kt").readText()
-        val connection = File(root, "app/src/main/java/io/codecks/ui/connection/ConnectionScreen.kt").readText()
+        val connection = File(root, "app/src/main/java/io/codecks/ui/settings/SettingsConnectionSections.kt").readText()
 
         listOf(keyboard, settings, checklist, connection).forEach {
             assertFalse(it.contains("hidHealth.detail"))
@@ -26,7 +26,7 @@ class UnifiedConnectionUiSourceTest {
     fun `all production channels consume typed repairs`() {
         val root = sourceRoot()
         val keyboard = File(root, "app/src/main/java/io/codecks/ui/keyboard/HidHostHeader.kt").readText()
-        val ssh = File(root, "app/src/main/java/io/codecks/ui/connection/ConnectionScreen.kt").readText()
+        val ssh = File(root, "app/src/main/java/io/codecks/ui/settings/SettingsConnectionSections.kt").readText()
         val helper = File(root, "app/src/main/java/io/codecks/ui/settings/SettingsConnectionSections.kt").readText()
         val clipboard = File(root, "app/src/main/java/io/codecks/ui/clipboard/ClipboardScreen.kt").readText()
 
@@ -45,14 +45,13 @@ class UnifiedConnectionUiSourceTest {
     }
 
     @Test
-    fun `credential repair opens and focuses credential editor`() {
-        val source = File(sourceRoot(), "app/src/main/java/io/codecks/ui/connection/ConnectionScreen.kt").readText()
-        assertTrue(source.contains("ConnectionRepair.ReenterCredentials -> ConnectionRepairHandler.EditCredentials"))
-        assertTrue(source.contains("onEditCredentials = { credentialEditorRequested = true }"))
-        assertTrue(source.contains("focusRequester(credentialFocusRequester)"))
-        assertTrue(source.contains("Text(\"Repair Mac login\""))
+    fun `settings repair panel exposes typed next action and focus`() {
+        val source = File(sourceRoot(), "app/src/main/java/io/codecks/ui/settings/SettingsConnectionSections.kt").readText()
+        assertTrue(source.contains("diagnostic.repairActions.firstOrNull()"))
+        assertTrue(source.contains("focusRequester(failureFocusRequester)"))
+        assertTrue(source.contains("state.connectionDiagnostic()"))
     }
 
     private fun sourceRoot(): File = generateSequence(File(requireNotNull(System.getProperty("user.dir")))) { it.parentFile }
-        .first { File(it, "app/src/main/java/io/codecks/ui/connection/ConnectionScreen.kt").isFile }
+        .first { File(it, "app/src/main/java/io/codecks/ui/settings/SettingsConnectionSections.kt").isFile }
 }

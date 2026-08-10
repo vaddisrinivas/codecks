@@ -15,7 +15,7 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
-from generate_autonomous_maturity_source_inventory import METHOD, classify, owner, read_source
+from generate_autonomous_maturity_source_inventory import METHOD, SOURCE_SUFFIXES, classify, owner, read_source
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -24,6 +24,7 @@ INVENTORY = ROOT / "tasks/test-evidence/autonomous-maturity-source-inventory.jso
 SCHEMA = ROOT / "tools/evidence/schemas/autonomous-maturity-baseline-v1.schema.json"
 INVENTORY_SCHEMA = ROOT / "tools/evidence/schemas/autonomous-maturity-source-inventory-v1.schema.json"
 HEX_64 = re.compile(r"^[0-9a-f]{64}$")
+HEX_40 = re.compile(r"^[0-9a-f]{40}$")
 RFC3339 = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$")
 SAFE_PATH = re.compile(r"^(?!/)(?!.*(?:^|/)\.\.(?:/|$))[A-Za-z0-9_.+@/-]+$")
 CHECK_KEYS = {
@@ -185,18 +186,67 @@ def validate_schema_node(value: object, rule: dict, root_schema: dict, field: st
                 validate_schema_node(item, additional, root_schema, f"{field}.{key}")
 
 
-def tracked_sources() -> list[str]:
+def tracked_sources(source_ref: str | None = None) -> list[str]:
+    argv = (
+        ["git", "ls-tree", "-r", "--name-only", source_ref]
+        if source_ref is not None
+        else ["git", "ls-files", "*.kt", "*.java", "*.swift"]
+    )
     result = subprocess.run(
-        ["git", "ls-files", "*.kt", "*.java", "*.swift"],
+        argv,
         cwd=ROOT,
         check=True,
         capture_output=True,
         text=True,
     )
-    return sorted(result.stdout.splitlines())
+    return sorted(
+        path for path in result.stdout.splitlines()
+        if Path(path).suffix in SOURCE_SUFFIXES
+    )
 
 
-def validate_inventory(data: dict) -> None:
+def inventory_source(path: str, source_ref: str | None = None) -> bytes:
+    if source_ref is None:
+        return read_source(ROOT, path)
+    if not HEX_40.fullmatch(source_ref):
+        fail("inventory source_ref must be a full Git commit SHA")
+    result = subprocess.run(
+        ["git", "show", f"{source_ref}:{path}"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        fail(f"inventory source missing from baseline commit: {path}")
+    return result.stdout
+
+
+def evidence_commit(source: dict) -> str:
+    parent = source["evidence_parent_sha"]
+    history = subprocess.run(
+        ["git", "log", "--all", "--format=%H", "--", "tasks/test-evidence/autonomous-maturity-m00-baseline.json"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    candidates = []
+    for commit in history:
+        actual_parent = subprocess.run(
+            ["git", "rev-parse", f"{commit}^"],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if actual_parent.returncode == 0 and actual_parent.stdout.strip() == parent:
+            candidates.append(commit)
+    if len(candidates) != 1:
+        fail("baseline evidence commit is not the unique child of evidence_parent_sha")
+    return candidates[0]
+
+
+def validate_inventory(data: dict, source_ref: str | None = None) -> None:
     schema = load(INVENTORY_SCHEMA)
     validate_schema_node(data, schema, schema, "inventory")
     if data.get("schema") != "codecks.autonomous-maturity.source-inventory.v1":
@@ -207,7 +257,7 @@ def validate_inventory(data: dict) -> None:
     if not isinstance(files, list):
         fail("inventory.files: expected list")
     paths = [entry["path"] for entry in files]
-    expected = tracked_sources()
+    expected = tracked_sources(source_ref)
     if paths != expected:
         fail("inventory.files: does not exactly match sorted tracked source files")
     category_lines: Counter[str] = Counter()
@@ -217,7 +267,7 @@ def validate_inventory(data: dict) -> None:
         path = entry["path"]
         if not SAFE_PATH.fullmatch(path) or Path(path).is_absolute():
             fail(f"inventory unsafe path: {path}")
-        raw = read_source(ROOT, path)
+        raw = inventory_source(path, source_ref)
         digest = hashlib.sha256(raw).hexdigest()
         lines = len(raw.decode("utf-8").splitlines())
         expected_category, expected_source_set = classify(path)
@@ -251,7 +301,12 @@ def validate_inventory(data: dict) -> None:
         fail("inventory summary mismatch")
 
 
-def validate_baseline(data: dict, inventory: dict, inventory_raw: bytes) -> None:
+def validate_baseline(
+    data: dict,
+    inventory: dict,
+    inventory_raw: bytes,
+    critical_source_ref: str | None = None,
+) -> None:
     schema = load(SCHEMA)
     validate_schema_node(data, schema, schema, "baseline")
     if data.get("schema") != "codecks.autonomous-maturity.baseline.v1":
@@ -355,7 +410,7 @@ def validate_baseline(data: dict, inventory: dict, inventory_raw: bytes) -> None
         if not SAFE_PATH.fullmatch(item["path"]):
             fail(f"critical_files unsafe path: {item['path']}")
         try:
-            raw = read_source(ROOT, item["path"])
+            raw = inventory_source(item["path"], critical_source_ref)
         except (OSError, ValueError) as exc:
             raise ValueError(f"critical_files unsafe: {item['path']}") from exc
         if hashlib.sha256(raw).hexdigest() != item["sha256"]:
@@ -369,8 +424,12 @@ def validate_baseline(data: dict, inventory: dict, inventory_raw: bytes) -> None
 
 
 def validate_evidence(baseline: dict, inventory: dict, inventory_raw: bytes) -> None:
-    validate_inventory(inventory)
-    validate_baseline(baseline, inventory, inventory_raw)
+    baseline_schema = load(SCHEMA)
+    validate_schema_node(baseline, baseline_schema, baseline_schema, "baseline")
+    inventory_ref = baseline["source"]["implementation_baseline_sha"]
+    critical_ref = evidence_commit(baseline["source"])
+    validate_inventory(inventory, source_ref=inventory_ref)
+    validate_baseline(baseline, inventory, inventory_raw, critical_source_ref=critical_ref)
 
 
 def checked_output(argv: tuple[str, ...], *, cwd: Path = ROOT) -> str:

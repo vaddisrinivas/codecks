@@ -94,27 +94,22 @@ class ConnectionDiagnosticPresenterTest {
     }
 
     @Test
-    fun `production connection handlers match repair promises`() {
-        assertEquals(ConnectionRepairHandler.Retry, connectionRepairHandler(ConnectionRepair.RetryNow))
-        assertEquals(
-            ConnectionRepairHandler.EditCredentials,
-            connectionRepairHandler(ConnectionRepair.ReenterCredentials),
-        )
-        assertEquals(ConnectionRepairHandler.Trust, connectionRepairHandler(ConnectionRepair.ReviewIdentity))
-        assertEquals(ConnectionRepair.entries.size, ConnectionRepair.entries.map(::connectionRepairHandler).size)
+    fun `production diagnostics expose only typed repair promises`() {
+        ConnectionIssueCode.entries.forEach { issue ->
+            presentConnectionDiagnostic(readyConfig, ConnectionOperation.Idle, issue)
+                .repairActions
+                .forEach { repair -> assertTrue(repair in ConnectionRepair.entries) }
+        }
         assertFalse(ConnectionRepair.entries.any { it.name.contains("Wake", ignoreCase = true) })
     }
 
     @Test
     fun setupSurfacesDoNotRenderRawExceptionText() {
-        val connectionScreen = File("src/main/java/io/codecks/ui/connection/ConnectionScreen.kt").readText()
         val settingsScreen = File(
             "src/main/java/io/codecks/ui/settings/SettingsConnectionSections.kt",
         ).readText()
 
-        assertFalse(connectionScreen.contains("Text(error"))
         assertFalse(settingsScreen.contains("state.error?.let { Text(it"))
-        assertTrue(connectionScreen.contains("state.connectionDiagnostic()"))
         assertTrue(settingsScreen.contains("state.connectionDiagnostic()"))
     }
 

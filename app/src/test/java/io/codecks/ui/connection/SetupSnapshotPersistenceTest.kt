@@ -72,12 +72,12 @@ class SetupSnapshotPersistenceTest {
         val store = File("src/main/java/io/codecks/ui/connection/SetupSnapshot.kt").readText()
         val viewModel = File("src/main/java/io/codecks/ui/connection/ConnectionViewModel.kt").readText()
         val controller = File("src/main/java/io/codecks/ui/connection/ConnectionSetupController.kt").readText()
-        val connectionScreen = File("src/main/java/io/codecks/ui/connection/ConnectionScreen.kt").readText()
+        val settingsScreen = File("src/main/java/io/codecks/ui/settings/SettingsConnectionSections.kt").readText()
 
         assertTrue(store.contains("getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)"))
         assertTrue(viewModel.contains("recordSetupPass("))
         assertTrue(controller.contains("viewModel.resumeSetupStep()"))
-        assertTrue(connectionScreen.contains("state.setupSnapshot"))
+        assertTrue(settingsScreen.contains("state.setupSnapshot"))
         forbiddenTokens.forEach { token ->
             assertFalse(store.contains("val $token", ignoreCase = true))
         }

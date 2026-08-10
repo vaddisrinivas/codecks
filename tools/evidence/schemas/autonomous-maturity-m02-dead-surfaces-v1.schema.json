@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codecks.dev/schemas/autonomous-maturity-m02-dead-surfaces-v1.schema.json",
+  "title": "Codecks M02 dead-surface reachability receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "milestone", "base_commit", "captured_at_utc", "status",
+    "deleted_public_production_lines", "inventory", "rollback", "candidates", "verification"
+  ],
+  "properties": {
+    "schema": {"const": "codecks.autonomous-maturity.m02-dead-surfaces.v1"},
+    "milestone": {"const": "M02"},
+    "base_commit": {"$ref": "#/$defs/gitSha"},
+    "captured_at_utc": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["PASS", "FAIL", "AUTONOMOUS_PROXY", "EXTERNAL_EVIDENCE_REMAINS"]},
+    "deleted_public_production_lines": {"type": "integer", "minimum": 0},
+    "inventory": {"$ref": "#/$defs/inventory"},
+    "rollback": {"$ref": "#/$defs/rollback"},
+    "candidates": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/candidate"}},
+    "verification": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/verification"}}
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1},
+    "gitSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "path": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9_.+@/-]+$"},
+    "counts": {"type": "object", "additionalProperties": {"type": "integer"}},
+    "summary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["file_count", "physical_lines", "by_category", "by_source_set", "by_language"],
+      "properties": {
+        "file_count": {"type": "integer", "minimum": 1},
+        "physical_lines": {"type": "integer", "minimum": 0},
+        "by_category": {"$ref": "#/$defs/counts"},
+        "by_source_set": {"$ref": "#/$defs/counts"},
+        "by_language": {"$ref": "#/$defs/counts"}
+      }
+    },
+    "inventoryRef": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256", "summary"],
+      "properties": {
+        "path": {"$ref": "#/$defs/path"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "summary": {"$ref": "#/$defs/summary"}
+      }
+    },
+    "inventory": {
+      "type": "object", "additionalProperties": false,
+      "required": ["baseline", "after", "public_production_line_delta"],
+      "properties": {
+        "baseline": {"$ref": "#/$defs/inventoryRef"},
+        "after": {"$ref": "#/$defs/inventoryRef"},
+        "public_production_line_delta": {"type": "integer", "maximum": 0}
+      }
+    },
+    "rollback": {
+      "type": "object", "additionalProperties": false,
+      "required": ["group_id", "commit_status", "atomic_after_commit", "restore_from_base", "remove_added"],
+      "properties": {
+        "group_id": {"const": "M02_ATOMIC"},
+        "commit_status": {"enum": ["NOT_RUN", "PASS"]},
+        "atomic_after_commit": {"$ref": "#/$defs/text"},
+        "restore_from_base": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/path"}, "uniqueItems": true},
+        "remove_added": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/path"}, "uniqueItems": true}
+      }
+    },
+    "reachability": {
+      "type": "object", "minProperties": 1,
+      "additionalProperties": {"$ref": "#/$defs/text"}
+    },
+    "candidate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["symbols", "removed_files", "removed_lines", "classification", "reachability", "replacement_path", "rollback_group_id"],
+      "properties": {
+        "symbols": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/text"}, "uniqueItems": true},
+        "removed_files": {"type": "array", "items": {"$ref": "#/$defs/path"}, "uniqueItems": true},
+        "removed_lines": {"type": "integer", "minimum": 0},
+        "classification": {"enum": ["DEAD_CONFIRMED", "RETAINED_TOOLING"]},
+        "reachability": {"$ref": "#/$defs/reachability"},
+        "replacement_path": {"$ref": "#/$defs/text"},
+        "rollback_group_id": {"const": "M02_ATOMIC"}
+      }
+    },
+    "verification": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "scope", "argv", "result"],
+      "properties": {
+        "status": {"enum": ["PASS", "FAIL", "NOT_RUN", "AUTONOMOUS_PROXY", "EXTERNAL_EVIDENCE_REMAINS"]},
+        "scope": {"$ref": "#/$defs/text"},
+        "argv": {"$ref": "#/$defs/text"},
+        "result": {"$ref": "#/$defs/text"}
+      }
+    }
+  }
+}

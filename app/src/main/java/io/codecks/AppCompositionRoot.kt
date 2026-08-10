@@ -799,7 +799,6 @@ internal fun CodecksApp(
                                 scope.launch { notificationPrivacySettingsRepository.update(transform) }
                             },
                             onAutomations = { navigate(AutomationsRoute) },
-                            onDevices = {},
                             onDeck = { navigate(HomeRoute, topLevel = true) },
                             onKeyboard = { navigate(KeyboardRoute) },
                             onClipboard = { navigate(ClipboardRoute) },
@@ -821,8 +820,6 @@ internal fun CodecksApp(
                                 aiPlacementSlot = null
                                 navigate(AiBuilderRoute)
                             },
-                            onAppearance = {},
-                            onAdvanced = {},
                             onDebugBundle = supportBundleViewModel::preview,
                             supportBundleState = supportBundleState,
                             onGenerateSupportBundle = {
