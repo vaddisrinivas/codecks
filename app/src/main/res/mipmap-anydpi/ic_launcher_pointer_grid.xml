@@ -1,0 +1,4 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item><shape android:shape="rectangle"><corners android:radius="24dp"/><solid android:color="@color/launcher_pointer_grid_background"/></shape></item>
+    <item android:drawable="@drawable/ic_launcher_pointer_grid_foreground" android:left="8dp" android:top="8dp" android:right="8dp" android:bottom="8dp"/>
+</layer-list>

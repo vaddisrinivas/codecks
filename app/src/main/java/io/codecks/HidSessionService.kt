@@ -23,6 +23,7 @@ import android.os.PowerManager
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
 import io.codecks.ui.mouse.lockscreen.TrackpadEntryActivity
+import io.codecks.launcher.LauncherIconManager
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -122,6 +123,7 @@ class HidSessionService : Service() {
 
     private fun buildNotification(): Notification {
         val pendingOpen = TrackpadEntryActivity.notificationPendingIntent(this)
+        val notificationIcon = LauncherIconManager(this).current().notificationDrawableRes
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, CHANNEL_ID)
         } else {
@@ -129,14 +131,14 @@ class HidSessionService : Service() {
             Notification.Builder(this)
         }
         return builder
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(notificationIcon)
             .setContentTitle("Codecks Bluetooth input")
             .setContentText("Keeping Trackpad and Keyboard ready for your Mac.")
             .setContentIntent(pendingOpen)
             .setOngoing(true)
             .setShowWhen(false)
             .setCategory(Notification.CATEGORY_SERVICE)
-            .addAction(R.drawable.ic_notification, "Trackpad", pendingOpen)
+            .addAction(notificationIcon, "Trackpad", pendingOpen)
             .build()
     }
 

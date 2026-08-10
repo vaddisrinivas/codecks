@@ -118,6 +118,8 @@ import io.codecks.navigation.KeyboardRoute
 import io.codecks.navigation.MouseRoute
 import io.codecks.navigation.RunLogRoute
 import io.codecks.navigation.SettingsRoute
+import io.codecks.launcher.LauncherIcon
+import io.codecks.launcher.LauncherIconManager
 import io.codecks.ui.connection.ConnectionSetupController
 import io.codecks.ui.connection.ConnectionViewModel
 import io.codecks.ui.connection.HidConfirmationStore
@@ -264,6 +266,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val appContext = LocalContext.current.applicationContext
             val themeSettingsRepository = remember(appContext) { ThemeSettingsRepository(appContext) }
+            val launcherIconManager = remember(appContext) { LauncherIconManager(appContext) }
+            var launcherIcon by remember { mutableStateOf(launcherIconManager.current()) }
             val themeScope = rememberCoroutineScope()
             val themeSettings by themeSettingsRepository.settings.collectAsStateWithLifecycle(
                 initialValue = CodecksThemeSettings(),
@@ -299,6 +303,10 @@ class MainActivity : ComponentActivity() {
                     onThemeShapeStyleChange = { style -> themeScope.launch { themeSettingsRepository.setShapeStyle(style) } },
                     onDeckStyleChange = { style -> themeScope.launch { themeSettingsRepository.setDeckStyle(style) } },
                     onIconPackChange = { iconPack -> themeScope.launch { themeSettingsRepository.setIconPack(iconPack) } },
+                    launcherIcon = launcherIcon,
+                    onLauncherIconChange = { selected ->
+                        launcherIconManager.select(selected).onSuccess { launcherIcon = it }
+                    },
                     onRequestConsumed = { destinationRequest = null },
                     onSharedTextConsumed = { pendingSharedText = null },
                 )
@@ -422,6 +430,8 @@ private fun CodecksApp(
     onThemeShapeStyleChange: (CodecksShapeStyle) -> Unit,
     onDeckStyleChange: (CodecksDeckStyle) -> Unit,
     onIconPackChange: (CodecksIconPack) -> Unit,
+    launcherIcon: LauncherIcon,
+    onLauncherIconChange: (LauncherIcon) -> Unit,
     onRequestConsumed: () -> Unit,
     onSharedTextConsumed: () -> Unit,
     homeViewModel: HomeViewModel = viewModel(),
@@ -1714,6 +1724,8 @@ private fun CodecksApp(
                             onThemeShapeStyleChange = onThemeShapeStyleChange,
                             onDeckStyleChange = onDeckStyleChange,
                             onIconPackChange = onIconPackChange,
+                            launcherIcon = launcherIcon,
+                            onLauncherIconChange = onLauncherIconChange,
                             trackpadSettings = trackpadSettings,
                             onTrackpadSettingsChange = { transform ->
                                 scope.launch { trackpadSettingsRepository.update(transform) }

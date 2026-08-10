@@ -1,0 +1,12 @@
+<resources>
+    <style name="Theme.Codecks" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowSplashScreenBackground">@color/launcher_robot_face_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_splash_shared_robot_face</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/launcher_robot_face_background</item>
+    </style>
+</resources>

@@ -6,11 +6,13 @@ import io.codecks.data.observability.PrivacyCrashAnrReporter
 import io.codecks.domain.observability.TelemetryEvent
 import io.codecks.domain.observability.TelemetryEventName
 import io.codecks.domain.observability.TelemetryResult
+import io.codecks.launcher.LauncherIconManager
 
 @HiltAndroidApp
 class CodecksApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        runCatching { LauncherIconManager(this).reconcile() }
         PrivacyCrashAnrReporter(this).apply {
             install()
             recordCoarseEvent(

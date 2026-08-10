@@ -1,0 +1,28 @@
+<resources>
+    <color name="launcher_robot_face_background">#050806</color>
+    <color name="launcher_robot_grid_background">#07170D</color>
+    <color name="launcher_pointer_grid_background">#071018</color>
+    <color name="launcher_minimal_green_background">#07110B</color>
+    <color name="launcher_monochrome_light_background">#F1F7F2</color>
+    <color name="launcher_monochrome_light_tint">#17351F</color>
+    <color name="launcher_monochrome_dark_background">#101411</color>
+    <color name="launcher_monochrome_dark_tint">#D8F8DF</color>
+
+    <item name="ic_launcher_robot_face_round" type="mipmap">@mipmap/ic_launcher_robot_face</item>
+    <item name="ic_launcher_robot_grid_round" type="mipmap">@mipmap/ic_launcher_robot_grid</item>
+    <item name="ic_launcher_pointer_grid_round" type="mipmap">@mipmap/ic_launcher_pointer_grid</item>
+    <item name="ic_launcher_minimal_green_round" type="mipmap">@mipmap/ic_launcher_minimal_green</item>
+
+    <!-- Android 12 splash theming belongs to MainActivity, not its aliases. -->
+    <item name="ic_splash_shared_robot_face" type="drawable">@drawable/ic_launcher</item>
+
+    <item name="ic_widget_robot_face" type="drawable">@drawable/ic_launcher</item>
+    <item name="ic_widget_robot_grid" type="drawable">@drawable/ic_launcher_robot_grid_foreground</item>
+    <item name="ic_widget_pointer_grid" type="drawable">@drawable/ic_launcher_pointer_grid_foreground</item>
+    <item name="ic_widget_minimal_green" type="drawable">@drawable/ic_launcher_minimal_green_foreground</item>
+
+    <item name="ic_notification_robot_face" type="drawable">@drawable/ic_launcher_robot_face_monochrome</item>
+    <item name="ic_notification_robot_grid" type="drawable">@drawable/ic_launcher_robot_grid_monochrome</item>
+    <item name="ic_notification_pointer_grid" type="drawable">@drawable/ic_launcher_pointer_grid_monochrome</item>
+    <item name="ic_notification_minimal_green" type="drawable">@drawable/ic_launcher_minimal_green_monochrome</item>
+</resources>

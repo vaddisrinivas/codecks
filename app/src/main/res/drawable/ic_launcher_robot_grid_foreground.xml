@@ -1,0 +1,9 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <group android:name="adaptive_safe_zone" android:pivotX="54" android:pivotY="54" android:scaleX="0.68" android:scaleY="0.68">
+    <path android:fillColor="#FFB8FFD0" android:pathData="M22,22h27v27H22zM59,22h27v27H59zM22,59h27v27H22zM59,59h27v27H59z" />
+    <path android:fillColor="#FF0B2A16" android:pathData="M36,35h36a8,8 0,0 1,8 8v22a8,8 0,0 1,-8 8H36a8,8 0,0 1,-8 -8V43a8,8 0,0 1,8 -8z" />
+    <path android:fillColor="#FF20E35B" android:pathData="M40,43h28a5,5 0,0 1,5 5v13a5,5 0,0 1,-5 5H40a5,5 0,0 1,-5 -5V48a5,5 0,0 1,5 -5zM52,27h4v8h-4zM54,23a3,3 0,1 1,0 6a3,3 0,1 1,0 -6" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M43,49h5v5h-5zM60,49h5v5h-5zM47,58c4,3 10,3 14,0v3c-4,3 -10,3 -14,0z" />
+    </group>
+</vector>

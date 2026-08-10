@@ -15,6 +15,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
@@ -63,6 +66,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -115,6 +122,8 @@ import io.codecks.ui.theme.CodecksShapeStyle
 import io.codecks.ui.theme.CodecksSurfaceStyle
 import io.codecks.ui.theme.CodecksThemeMode
 import io.codecks.ui.theme.CodecksThemeSettings
+import io.codecks.launcher.LauncherIcon
+import io.codecks.R
 
 @Composable
 fun SettingsScreen(
@@ -199,6 +208,8 @@ fun SettingsScreen(
     onThemeShapeStyleChange: (CodecksShapeStyle) -> Unit = {},
     onDeckStyleChange: (CodecksDeckStyle) -> Unit = {},
     onIconPackChange: (CodecksIconPack) -> Unit = {},
+    launcherIcon: LauncherIcon = LauncherIcon.RobotFace,
+    onLauncherIconChange: (LauncherIcon) -> Unit = {},
     trackpadSettings: TrackpadSettings = TrackpadSettings(),
     onTrackpadSettingsChange: ((TrackpadSettings) -> TrackpadSettings) -> Unit = {},
     modifier: Modifier = Modifier,
@@ -481,6 +492,12 @@ fun SettingsScreen(
                 }
                 item { SectionLabel("Icons") }
                 item {
+                    LauncherIconPanel(
+                        launcherIcon = launcherIcon,
+                        onLauncherIconChange = onLauncherIconChange,
+                    )
+                }
+                item {
                     IconPackPanel(
                         iconPack = themeSettings.iconPack,
                         onIconPackChange = onIconPackChange,
@@ -538,7 +555,7 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.Outlined.Info,
                         title = "About Codecks",
-                        summary = appVersionLabel,
+                        summary = "$appVersionLabel · ${launcherIcon.label} icon",
                         showChevron = false,
                     )
                 }
@@ -1536,6 +1553,69 @@ private fun DeckStylePreviewCard(
                 color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
             )
+        }
+    }
+}
+
+@Composable
+private fun LauncherIconPanel(
+    launcherIcon: LauncherIcon,
+    onLauncherIconChange: (LauncherIcon) -> Unit,
+) {
+    CodecksPanel(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(14.dp)) {
+            Text("App icon", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Changes the launcher, live widget, and next-session notification icon. The Android splash and widget-picker preview keep the original robot face.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            androidx.compose.foundation.lazy.LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.selectableGroup(),
+            ) {
+                items(LauncherIcon.entries, key = LauncherIcon::persistedValue) { icon ->
+                    val preview = when (icon) {
+                        LauncherIcon.RobotFace -> R.drawable.ic_launcher
+                        LauncherIcon.RobotGrid -> R.mipmap.ic_launcher_robot_grid
+                        LauncherIcon.PointerGrid -> R.mipmap.ic_launcher_pointer_grid
+                        LauncherIcon.MinimalGreen -> R.mipmap.ic_launcher_minimal_green
+                    }
+                    CodecksPanel(
+                        selected = launcherIcon == icon,
+                        modifier = Modifier
+                            .width(168.dp)
+                            .heightIn(min = 132.dp)
+                            .semantics(mergeDescendants = true) {
+                                contentDescription = "${icon.label}. ${icon.description}"
+                            }
+                            .selectable(
+                                selected = launcherIcon == icon,
+                                onClick = { onLauncherIconChange(icon) },
+                                role = Role.RadioButton,
+                            ),
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(12.dp),
+                        ) {
+                            Image(
+                                painter = painterResource(preview),
+                                contentDescription = null,
+                                modifier = Modifier.size(58.dp),
+                            )
+                            Text(icon.label, style = MaterialTheme.typography.labelLarge)
+                            Text(
+                                icon.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
