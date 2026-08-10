@@ -7,7 +7,10 @@ import org.junit.Test
 class AutomationsUiRecoveryTest {
     @Test
     fun editorUsesWhenIfThenLanguage() {
-        val source = File("src/main/java/io/codecks/ui/automations/AutomationsScreen.kt").readText()
+        val source = listOf("AutomationsScreen.kt", "AutomationSections.kt")
+            .joinToString("\n") { name ->
+                File("src/main/java/io/codecks/ui/automations/$name").readText()
+            }
 
         assertTrue(source.contains("AutomationSectionHeader("))
         assertTrue(source.contains("""label = "When""""))

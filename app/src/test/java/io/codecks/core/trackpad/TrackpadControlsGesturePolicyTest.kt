@@ -7,11 +7,12 @@ import org.junit.Test
 class TrackpadControlsGesturePolicyTest {
     @Test
     fun fiveFingerHoldOpensHiddenControlsWithoutChangingFourFingerDeckGesture() {
-        val source = File("src/main/java/io/codecks/ui/mouse/MouseScreen.kt").readText()
+        val adapter = File("src/main/java/io/codecks/ui/mouse/RawTrackpadAdapter.kt").readText()
+        val screen = File("src/main/java/io/codecks/ui/mouse/MouseScreen.kt").readText()
 
-        assertTrue(source.contains("4 -> \"hold:Deck\""))
-        assertTrue(source.contains("5 -> \"hold:Controls\""))
-        assertTrue(source.contains("onOpenControlsGesture()"))
-        assertTrue(source.contains("controlsOpen = true"))
+        assertTrue(adapter.contains("4 -> \"hold:Deck\""))
+        assertTrue(adapter.contains("5 -> \"hold:Controls\""))
+        assertTrue(adapter.contains("onOpenControlsGesture()"))
+        assertTrue(screen.contains("controlsOpen = true"))
     }
 }

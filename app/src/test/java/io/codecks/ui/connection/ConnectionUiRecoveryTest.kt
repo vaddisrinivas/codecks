@@ -8,7 +8,11 @@ import org.junit.Test
 class ConnectionUiRecoveryTest {
     @Test
     fun settingsMacPairingUsesLinearProductStepper() {
-        val source = File("src/main/java/io/codecks/ui/settings/SettingsScreen.kt").readText()
+        val source = listOf("SettingsConnectionSections.kt", "SettingsControlSections.kt")
+            .joinToString("\n") { name ->
+                File("src/main/java/io/codecks/ui/settings/$name").readText()
+            }
+        val settingsRoot = File("src/main/java/io/codecks/ui/settings/SettingsScreen.kt").readText()
 
         assertTrue(source.contains("MacPairingStepper("))
         assertTrue(source.contains("""FindMac("Find")"""))
@@ -21,8 +25,8 @@ class ConnectionUiRecoveryTest {
         assertTrue(source.contains("Use saved password"))
         assertTrue(source.contains("Save Mac"))
         assertTrue(source.contains("Open GitHub helper page"))
-        assertTrue(source.contains("Mac actions"))
-        assertTrue(source.contains("Mac input"))
+        assertTrue(settingsRoot.contains("Mac actions"))
+        assertTrue(settingsRoot.contains("Mac input"))
         assertFalse(source.contains("""SectionLabel("Readiness")"""))
         assertFalse(source.contains("Reading fingerprint"))
         assertFalse(source.contains("Trust manually"))

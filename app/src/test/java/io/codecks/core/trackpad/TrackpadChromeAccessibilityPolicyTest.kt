@@ -16,11 +16,12 @@ class TrackpadChromeAccessibilityPolicyTest {
 
     @Test
     fun trayIconsExposeButtonRoleAndSelectionState() {
-        val source = File("src/main/java/io/codecks/ui/mouse/MouseScreen.kt").readText()
+        val source = File("src/main/java/io/codecks/ui/mouse/MouseControls.kt").readText()
 
         assertTrue(source.contains("semantics(mergeDescendants = true)"))
         assertTrue(source.contains("role = Role.Button"))
         assertTrue(source.contains("""stateDescription = if (selected) "Selected" else "Not selected""""))
         assertTrue(source.contains(".clickable("))
     }
+
 }

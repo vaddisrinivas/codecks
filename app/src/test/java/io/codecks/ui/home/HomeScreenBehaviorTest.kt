@@ -42,7 +42,7 @@ class HomeScreenBehaviorTest {
 
     @Test
     fun deckResultUsesTileStateAndSnackbarWithoutInlineCompletionText() {
-        val source = File("src/main/java/io/codecks/ui/home/HomeScreen.kt").readText()
+        val source = homeSources()
 
         assertFalse(source.contains("completed:"))
         assertFalse(source.contains("deck-action-result"))
@@ -50,7 +50,7 @@ class HomeScreenBehaviorTest {
 
     @Test
     fun liveDeckOwnsNormalCustomizationAndEmptySlotChoices() {
-        val source = File("src/main/java/io/codecks/ui/home/HomeScreen.kt").readText()
+        val source = homeSources()
 
         assertTrue(source.contains("\"Customize on Deck\""))
         assertTrue(source.contains("\"Done customizing\""))
@@ -61,12 +61,12 @@ class HomeScreenBehaviorTest {
 
     @Test
     fun longPressActionsAndGeneratedPlacementSlotsRemainScrollable() {
-        val source = File("src/main/java/io/codecks/ui/home/HomeScreen.kt").readText()
+        val source = homeSources()
         val placementDialog = source
             .substringAfter("title = { Text(\"Place generated buttons\") }")
             .substringBefore("confirmButton =")
         val actionOptionsDialog = source
-            .substringAfter("private fun ActionOptionsDialog(")
+            .substringAfter("internal fun ActionOptionsDialog(")
             .substringBefore("private fun DialogActionButton(")
 
         assertTrue(placementDialog.contains("LazyColumn("))
@@ -85,4 +85,9 @@ class HomeScreenBehaviorTest {
         kind = ActionKind.Local,
         icon = icon,
     )
+
+    private fun homeSources(): String = listOf("HomeScreen.kt", "HomeDeckSections.kt")
+        .joinToString("\n") { name ->
+            File("src/main/java/io/codecks/ui/home/$name").readText()
+        }
 }

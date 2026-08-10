@@ -7,7 +7,9 @@ import org.junit.Test
 class DeckStyleGalleryPolicyTest {
     @Test
     fun settingsShowsActualDeckStylePreviewGallery() {
-        val settings = File("src/main/java/io/codecks/ui/settings/SettingsScreen.kt").readText()
+        val settings = File(
+            "src/main/java/io/codecks/ui/settings/SettingsControlSections.kt",
+        ).readText()
         val tiles = File("src/main/java/io/codecks/ui/designsystem/DeckComponents.kt").readText()
         val theme = File("src/main/java/io/codecks/ui/theme/ThemeSettingsRepository.kt").readText()
 

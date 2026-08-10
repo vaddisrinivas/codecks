@@ -18,7 +18,8 @@ class AccessibilityCriticalFlowPolicyTest {
 
     @Test
     fun automationCleanupAndRecoveryAreNamedAndOptionsScrollAtLargeFont() {
-        val source = source("ui/automations/AutomationsScreen.kt")
+        val source = listOf("AutomationsScreen.kt", "AutomationSections.kt")
+            .joinToString("\n") { source("ui/automations/$it") }
         val model = source("ui/automations/AutomationModels.kt")
 
         assertTrue(model.contains("val cleanupPassed: Boolean?"))

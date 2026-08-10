@@ -71,7 +71,9 @@ class ConnectionDiagnosticPresenterTest {
     @Test
     fun setupSurfacesDoNotRenderRawExceptionText() {
         val connectionScreen = File("src/main/java/io/codecks/ui/connection/ConnectionScreen.kt").readText()
-        val settingsScreen = File("src/main/java/io/codecks/ui/settings/SettingsScreen.kt").readText()
+        val settingsScreen = File(
+            "src/main/java/io/codecks/ui/settings/SettingsConnectionSections.kt",
+        ).readText()
 
         assertFalse(connectionScreen.contains("Text(error"))
         assertFalse(settingsScreen.contains("state.error?.let { Text(it"))

@@ -1,0 +1,812 @@
+package io.codecks.ui.home
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Computer
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import io.codecks.domain.ActionKind
+import io.codecks.domain.CommandOrigin
+import io.codecks.domain.DeckAction
+import io.codecks.domain.isRunnableFromSmartSuggestion
+import io.codecks.domain.deck.DeckLayout
+import io.codecks.domain.deck.DeckTemplate
+import io.codecks.ui.home.smart.SmartDeckSuggestionUi
+import io.codecks.ui.designsystem.DeckComponentState
+import io.codecks.ui.designsystem.DeckControlTile
+import io.codecks.ui.designsystem.DeckFilterPill
+import io.codecks.ui.icons.deckImageVector
+import io.codecks.ui.icons.imageVector
+
+@Composable
+internal fun SmartSuggestionRow(
+    suggestions: List<SmartDeckSuggestionUi>,
+    runPending: Boolean,
+    onRun: (SmartDeckSuggestionUi) -> Unit,
+    onPin: (SmartDeckSuggestionUi) -> Unit,
+    onHide: (SmartDeckSuggestionUi) -> Unit,
+    onWhy: (SmartDeckSuggestionUi) -> Unit,
+    onSuppressForContext: (SmartDeckSuggestionUi) -> Unit,
+    onNeverForAction: (SmartDeckSuggestionUi) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (suggestions.isEmpty()) return
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(vertical = 4.dp),
+        modifier = modifier.height(104.dp),
+    ) {
+        item {
+            Column(
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .height(96.dp)
+                    .width(92.dp),
+            ) {
+                Text(
+                    text = "Suggested",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = "Local only",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        items(suggestions.take(3), key = SmartDeckSuggestionUi::candidateId) { suggestion ->
+            var menuOpen by remember { mutableStateOf(false) }
+            val runnable = suggestion.action.isRunnableFromSmartSuggestion()
+            val canRun = runnable && !runPending
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                shape = MaterialTheme.shapes.large,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.28f)),
+                modifier = Modifier.widthIn(min = 220.dp, max = 280.dp),
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                ) {
+                    Text(
+                        text = "${suggestion.confidence}: ${suggestion.action.label}",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = suggestion.reason,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(
+                            onClick = { onRun(suggestion) },
+                            enabled = canRun,
+                        ) {
+                            Text(
+                                when {
+                                    !runnable -> "Test first"
+                                    runPending -> "Running…"
+                                    else -> "Run"
+                                },
+                            )
+                        }
+                        TextButton(onClick = { onPin(suggestion) }) { Text("Pin") }
+                        Box {
+                            IconButton(onClick = { menuOpen = true }) {
+                                Icon(Icons.Outlined.MoreVert, contentDescription = "More suggestion actions")
+                            }
+                            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("Why this?") },
+                                    onClick = {
+                                        menuOpen = false
+                                        onWhy(suggestion)
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Hide for now") },
+                                    onClick = {
+                                        menuOpen = false
+                                        onHide(suggestion)
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Don’t suggest here") },
+                                    onClick = {
+                                        menuOpen = false
+                                        onSuppressForContext(suggestion)
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Never suggest this button") },
+                                    onClick = {
+                                        menuOpen = false
+                                        onNeverForAction(suggestion)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LandscapeDeckLayout(
+    state: HomeUiState,
+    customActionSlots: List<HomeDeckSlot>,
+    gridActionSlots: List<HomeDeckSlot>,
+    runningActionId: String?,
+    focusedActionId: String?,
+    onAction: (DeckAction) -> Unit,
+    onEditSlot: (Int) -> Unit,
+    onCreateWithAiForSlot: (Int) -> Unit,
+    onTemplateSelected: (String) -> Unit,
+    onRefreshContext: () -> Unit,
+    onDynamicDeckChange: (Boolean) -> Unit,
+    locked: Boolean,
+    onLongClick: (HomeDeckSlot) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize().padding(12.dp)) {
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.width(204.dp).fillMaxSize(),
+        ) {
+            item {
+                Text("Dynamic", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            }
+            item {
+                DeckFilterPill(
+                    label = "Custom",
+                    selected = state.activeTemplateId == CUSTOM_TEMPLATE_ID,
+                    onClick = { onTemplateSelected(CUSTOM_TEMPLATE_ID) },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                )
+            }
+            items(state.deckTemplates, key = DeckTemplate::id) { template ->
+                DeckFilterPill(
+                    label = template.title,
+                    selected = state.activeTemplateId == template.id,
+                    onClick = { onTemplateSelected(template.id) },
+                    icon = template.icon.imageVector(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                )
+            }
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text("Auto", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = state.dynamicDeckEnabled,
+                        onCheckedChange = onDynamicDeckChange,
+                        enabled = state.connectionReady,
+                    )
+                }
+            }
+            item {
+                DeckFilterPill(
+                    label = state.activeMacApp ?: "Refresh app",
+                    selected = false,
+                    onClick = onRefreshContext,
+                    icon = Icons.Outlined.Refresh,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                )
+            }
+        }
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.width(184.dp).fillMaxSize(),
+        ) {
+            item { Text("Custom", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
+            items(customActionSlots, key = { "landscape-custom-${it.slot}-${it.action.id}" }) { slot ->
+                val action = slot.action
+                ActionCard(
+                    action = action,
+                    running = runningActionId == action.id,
+                    selected = action.id == focusedActionId,
+                    enabled = isDeckActionEnabled(action, state.connectionReady),
+                    onClick = { onAction(action) },
+                    onLongClick = { if (shouldShowActionOptions(action, locked)) onLongClick(slot) },
+                )
+            }
+        }
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = 116.dp),
+            contentPadding = PaddingValues(bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.weight(1f).fillMaxSize(),
+        ) {
+            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                Text("Controls", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            }
+            items(gridActionSlots, key = { "landscape-control-${it.slot}-${it.action.id}" }) { slot ->
+                val action = slot.action
+                ActionCard(
+                    action = action,
+                    running = runningActionId == action.id,
+                    selected = action.id == focusedActionId,
+                    enabled = isDeckActionEnabled(action, state.connectionReady),
+                        onClick = {
+                            if (action.id == "add_button" || action.id == "blank") {
+                                onCreateWithAiForSlot(slot.slot)
+                            } else {
+                                onAction(action)
+                            }
+                        },
+                    onLongClick = { if (shouldShowActionOptions(action, locked)) onLongClick(slot) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeckHero(
+    activeApp: String?,
+    activeTemplateId: String,
+    templates: List<DeckTemplate>,
+    dynamicDeckEnabled: Boolean,
+    connectionReady: Boolean,
+    locked: Boolean,
+    viewMode: DeckViewMode,
+    onTemplateSelected: (String) -> Unit,
+    onRefreshContext: () -> Unit,
+    onDynamicDeckChange: (Boolean) -> Unit,
+    onLockChange: (Boolean) -> Unit,
+    onViewModeChange: (DeckViewMode) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Surface(
+            color = Color.White.copy(alpha = 0.06f),
+            contentColor = Color.White,
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)),
+            shape = MaterialTheme.shapes.large,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
+                    contentColor = Color.White,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.size(48.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Outlined.AutoAwesome,
+                            contentDescription = null,
+                            tint = Color.White,
+                        )
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Codecks",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = when {
+                            !connectionReady -> "${activeTemplateTitle(activeTemplateId, templates)} • Mac not connected"
+                            activeApp.isNullOrBlank() -> "${activeTemplateTitle(activeTemplateId, templates)} • Ready"
+                            else -> "${activeTemplateTitle(activeTemplateId, templates)} • $activeApp"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.70f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                IconButton(onClick = onRefreshContext, enabled = connectionReady) {
+                    Icon(Icons.Outlined.Refresh, contentDescription = "Refresh active Mac app")
+                }
+                IconButton(onClick = { onLockChange(!locked) }) {
+                    Icon(Icons.Outlined.Lock, contentDescription = if (locked) "Unlock deck editing" else "Lock deck editing")
+                }
+            }
+        }
+        if (!connectionReady) {
+            DeckConnectionHint()
+        }
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 16.dp)) {
+            item {
+                DeckFilterPill(
+                    label = "Custom",
+                    selected = activeTemplateId == CUSTOM_TEMPLATE_ID,
+                    onClick = { onTemplateSelected(CUSTOM_TEMPLATE_ID) },
+                    modifier = Modifier.heightIn(min = 48.dp),
+                )
+            }
+            items(templates, key = DeckTemplate::id) { template ->
+                DeckFilterPill(
+                    label = template.title,
+                    selected = activeTemplateId == template.id,
+                    onClick = { onTemplateSelected(template.id) },
+                    icon = template.icon.imageVector(),
+                    modifier = Modifier.heightIn(min = 48.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeckGridHeader(
+    viewMode: DeckViewMode,
+    pageIndex: Int,
+    pageCount: Int,
+    onPageSelected: (Int) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = if (viewMode == DeckViewMode.Pages) "Controls · Page ${pageIndex + 1}/$pageCount" else "Controls",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(top = 2.dp, bottom = 2.dp),
+        )
+        if (viewMode == DeckViewMode.Pages && pageCount > 1) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 16.dp)) {
+                items(pageCount, key = { "deck-page-$it" }) { index ->
+                    DeckFilterPill(
+                        label = "${index + 1}",
+                        selected = index == pageIndex,
+                        onClick = { onPageSelected(index) },
+                        modifier = Modifier.width(56.dp).heightIn(min = 44.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+internal fun activeTemplateTitle(activeTemplateId: String, templates: List<DeckTemplate>): String =
+    if (activeTemplateId == CUSTOM_TEMPLATE_ID) {
+        "Deck"
+    } else {
+        templates.firstOrNull { it.id == activeTemplateId }?.title?.let { "$it Deck" } ?: "Deck"
+    }
+
+@Composable
+fun CustomActionRow(
+    actions: List<DeckAction>,
+    onAction: (DeckAction) -> Unit,
+    modifier: Modifier = Modifier,
+    selectedActionId: String? = null,
+    contentPadding: PaddingValues = PaddingValues(start = 16.dp, end = 32.dp),
+    isActionEnabled: (DeckAction) -> Boolean = { true },
+) {
+    if (actions.isEmpty()) return
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = contentPadding,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        items(actions, key = { "custom-row-${it.id}" }) { action ->
+            val selected = action.id == selectedActionId
+            val enabled = isActionEnabled(action)
+            DeckControlTile(
+                label = action.label,
+                icon = action.icon.imageVector(),
+                state = if (selected) DeckComponentState.Selected else DeckComponentState.Idle,
+                enabled = enabled,
+                danger = action.dangerous,
+                accentColor = action.deckAccentColor(),
+                onClick = { onAction(action) },
+                modifier = Modifier.size(width = 112.dp, height = 96.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActionCard(
+    action: DeckAction,
+    running: Boolean,
+    selected: Boolean = false,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    height: androidx.compose.ui.unit.Dp = 108.dp,
+) {
+    Box {
+        DeckControlTile(
+            label = action.label,
+            icon = action.icon.imageVector(),
+            state = when {
+                running -> DeckComponentState.Running
+                selected -> DeckComponentState.Selected
+                !enabled -> DeckComponentState.Disabled
+                else -> DeckComponentState.Idle
+            },
+            enabled = enabled,
+            danger = action.dangerous,
+            accentColor = action.deckAccentColor(),
+            onClick = onClick,
+            onLongClick = onLongClick,
+            modifier = Modifier.fillMaxWidth().height(height),
+        )
+    }
+}
+
+private enum class DeckViewMode(val label: String) {
+    Scroll("Scroll"),
+    Pages("Pages"),
+}
+
+internal data class HomeDeckSlot(
+    val slot: Int,
+    val action: DeckAction,
+    val id: String = "slot-${slot + 1}",
+    val columnSpan: Int = 1,
+)
+
+internal val bottomNavShortcutIds = setOf("trackpad", "keyboard", "clipboard", "automations", "settings_shortcut")
+internal val OPEN_SLOT_IDS = setOf("add_button", "blank")
+
+internal fun buildHomeDeckSlots(
+    layout: DeckLayout,
+    visibleSlotIndices: List<Int>,
+): List<HomeDeckSlot> =
+    visibleSlotIndices.mapNotNull { index ->
+        layout.slots.getOrNull(index)?.let { slot ->
+            HomeDeckSlot(
+                slot = index,
+                action = slot.action,
+                id = slot.id,
+                columnSpan = slot.columnSpan.coerceIn(1, layout.columns),
+            )
+        }
+    }
+
+internal fun buildHomeDeckSlots(
+    actions: List<DeckAction>,
+    visibleSlotIndices: List<Int>,
+): List<HomeDeckSlot> =
+    actions.mapIndexed { index, action ->
+        HomeDeckSlot(
+            slot = visibleSlotIndices.getOrNull(index) ?: index,
+            action = action,
+        )
+    }
+
+internal fun packHomeDeckRows(slots: List<HomeDeckSlot>, columns: Int): List<List<HomeDeckSlot>> {
+    val safeColumns = columns.coerceAtLeast(1)
+    val rows = mutableListOf<MutableList<HomeDeckSlot>>()
+    var row = mutableListOf<HomeDeckSlot>()
+    var usedColumns = 0
+    slots.forEach { original ->
+        val slot = original.copy(columnSpan = original.columnSpan.coerceIn(1, safeColumns))
+        if (row.isNotEmpty() && usedColumns + slot.columnSpan > safeColumns) {
+            rows += row
+            row = mutableListOf()
+            usedColumns = 0
+        }
+        row += slot
+        usedColumns += slot.columnSpan
+        if (usedColumns == safeColumns) {
+            rows += row
+            row = mutableListOf()
+            usedColumns = 0
+        }
+    }
+    if (row.isNotEmpty()) rows += row
+    return rows
+}
+
+internal fun shouldShowActionOptions(action: DeckAction, locked: Boolean): Boolean =
+    !locked && action.id !in setOf("add_button", "blank")
+
+internal fun isDeckActionEnabled(action: DeckAction, connectionReady: Boolean): Boolean =
+    action.route == "decor" ||
+        action.kind != ActionKind.Ssh ||
+        action.id in OPEN_SLOT_IDS ||
+        (connectionReady && (!action.requiresTest || action.liveSafe))
+
+internal fun DeckAction.isCatalogForgettable(): Boolean =
+    commandOrigin != CommandOrigin.Bundled || id.startsWith("artifact_") || id.startsWith("ai_") || id.startsWith("custom_")
+
+internal fun DeckAction.deckAccentColor(): Color? = colorHex?.toComposeColorOrNull()
+
+private fun String.toComposeColorOrNull(): Color? {
+    val normalized = trim().removePrefix("#")
+    if (normalized.length != 6 && normalized.length != 8) return null
+    val value = normalized.toLongOrNull(16) ?: return null
+    return if (normalized.length == 6) {
+        Color(0xFF000000L or value)
+    } else {
+        Color(value)
+    }
+}
+
+@Composable
+private fun DeckConnectionHint() {
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        ) {
+            Icon(Icons.Outlined.Computer, contentDescription = null)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Mac controls are locked", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    "Setup and local buttons still work. Connect your Mac to unlock Mac buttons.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun ActionOptionsDialog(
+    action: DeckAction,
+    canForget: Boolean,
+    onDismiss: () -> Unit,
+    onRun: () -> Unit,
+    onTest: () -> Unit,
+    onReassign: () -> Unit,
+    onMove: () -> Unit,
+    onResize: () -> Unit,
+    onDuplicate: () -> Unit,
+    onRemoveFromDeck: () -> Unit,
+    onForget: () -> Unit,
+    onViewLog: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(action.label) },
+        text = {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.heightIn(max = 440.dp),
+            ) {
+                item {
+                    Text(
+                        action.description.ifBlank { "Deck button" },
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                item { DialogActionButton("Run", onRun) }
+                item { DialogActionButton("Reassign this slot", onReassign) }
+                item { DialogActionButton("Move this button", onMove) }
+                item { DialogActionButton("Resize this button", onResize) }
+                item { DialogActionButton("Duplicate into empty slot", onDuplicate) }
+                item { DialogActionButton("Test", onTest) }
+                item { DialogActionButton("Run log", onViewLog) }
+                item { HorizontalDivider() }
+                item { DialogActionButton("Remove from deck", onRemoveFromDeck) }
+                if (canForget) {
+                    item { DialogActionButton("Forget from catalog", onForget) }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
+}
+
+@Composable
+private fun DialogActionButton(
+    label: String,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        )
+    }
+}
+
+@Composable
+internal fun ResizeActionDialog(
+    slot: Int,
+    currentSpan: Int,
+    maxSpan: Int,
+    onDismiss: () -> Unit,
+    onResize: (Int) -> Unit,
+) {
+    val choices = remember(maxSpan) {
+        listOf(1, 2, 4).filter { it <= maxSpan.coerceAtLeast(1) }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Resize slot ${slot + 1}") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                choices.forEach { span ->
+                    DialogActionButton(
+                        label = when (span) {
+                            1 -> "Single"
+                            maxSpan -> "Full row"
+                            else -> "$span columns"
+                        } + if (span == currentSpan) " · Current" else "",
+                        onClick = { onResize(span) },
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+internal fun AddToSlotDialog(
+    slot: Int,
+    onDismiss: () -> Unit,
+    onChooseFromCatalog: () -> Unit,
+    onCreateWithAi: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add to slot ${slot + 1}") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Choose an existing button or build a new one with AI.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                DialogActionButton("Choose from catalog", onChooseFromCatalog)
+                DialogActionButton("Create with AI", onCreateWithAi)
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+internal fun ReassignActionDialog(
+    slot: Int,
+    currentAction: DeckAction?,
+    actions: List<DeckAction>,
+    onDismiss: () -> Unit,
+    onAssign: (DeckAction) -> Unit,
+    onForget: (DeckAction) -> Unit,
+) {
+    var query by rememberSaveable { mutableStateOf("") }
+    val filtered = remember(actions, query) {
+        val needle = query.trim()
+        actions
+            .filter { action ->
+                needle.isBlank() ||
+                    action.label.contains(needle, ignoreCase = true) ||
+                    action.description.contains(needle, ignoreCase = true) ||
+                    action.id.contains(needle, ignoreCase = true)
+            }
+            .take(30)
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Reassign slot ${slot + 1}") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                currentAction?.let {
+                    Text(
+                        "Current: ${it.label}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    label = { Text("Find button") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.heightIn(max = 360.dp),
+                ) {
+                    items(filtered, key = DeckAction::id) { action ->
+                        Surface(
+                            onClick = { onAssign(action) },
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.54f),
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            shape = MaterialTheme.shapes.medium,
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                            ) {
+                                Icon(action.deckImageVector(), contentDescription = null, modifier = Modifier.size(20.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(action.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    if (action.description.isNotBlank()) {
+                                        Text(
+                                            action.description,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.74f),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                }
+                                if (action.isCatalogForgettable()) {
+                                    TextButton(onClick = { onForget(action) }) { Text("Forget") }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
+}

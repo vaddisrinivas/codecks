@@ -90,13 +90,14 @@ class LauncherIconArchitectureTest {
     @Test
     fun selectorExposesOneRadioGroupAndAboutNamesTheSelection() {
         val source = assertFile("app/src/main/java/io/codecks/ui/settings/SettingsScreen.kt").readText()
-        val panel = source.substringAfter("private fun LauncherIconPanel").substringBefore("private fun IconPackPanel")
+        val sections = assertFile("app/src/main/java/io/codecks/ui/settings/SettingsThemeSections.kt").readText()
+        val panel = sections.substringAfter("internal fun LauncherIconPanel").substringBefore("fun ThemeModePanel")
         assertTrue(panel.contains("Modifier.selectableGroup()"))
         assertTrue(panel.contains("role = Role.RadioButton"))
         assertTrue(panel.contains("selected = launcherIcon == icon"))
         assertTrue(panel.contains("contentDescription = null"))
         assertTrue(source.contains("${'$'}appVersionLabel · ${'$'}{launcherIcon.label} icon"))
-        assertTrue(source.contains("LauncherIcon.RobotFace -> R.drawable.ic_launcher"))
+        assertTrue(panel.contains("LauncherIcon.RobotFace -> R.drawable.ic_launcher"))
     }
 
     @Test
