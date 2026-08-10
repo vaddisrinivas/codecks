@@ -97,7 +97,7 @@
       "required": [
         "source", "published_at", "draft", "prerelease", "apk_name", "apk_size_bytes", "apk_sha256",
         "checksum_file_sha256", "package", "version_code", "version_name", "min_sdk", "target_sdk",
-        "compile_sdk", "signature_verification", "signature_scheme_v2", "signer_subject",
+        "compile_sdk", "signature_verification", "signature_scheme_v2",
         "signer_certificate_sha256", "private_signing_material_inspected", "candidate_signer_continuity"
       ],
       "properties": {
@@ -112,10 +112,10 @@
         "min_sdk": {"type": "integer", "minimum": 1}, "target_sdk": {"type": "integer", "minimum": 1},
         "compile_sdk": {"type": "integer", "minimum": 1},
         "signature_verification": {"enum": ["PASS", "FAIL", "NOT_RUN"]},
-        "signature_scheme_v2": {"type": "boolean"}, "signer_subject": {"$ref": "#/$defs/text"},
+        "signature_scheme_v2": {"type": "boolean"},
         "signer_certificate_sha256": {"$ref": "#/$defs/sha256"},
         "private_signing_material_inspected": {"type": "boolean"},
-        "candidate_signer_continuity": {"enum": ["PASS", "FAIL", "NOT_RUN"]}
+        "candidate_signer_continuity": {"const": "NOT_RUN"}
       }
     },
     "variant": {
@@ -191,11 +191,13 @@
     },
     "commitBinding": {
       "type": "object", "additionalProperties": false,
-      "required": ["kind", "self_hash_claimed", "allowed_commit_paths"],
+      "required": ["kind", "self_hash_claimed", "content_binding", "allowed_commit_paths", "required_evidence_paths"],
       "properties": {
         "kind": {"const": "IMMEDIATE_PARENT_PLUS_ALLOWED_DIFF_AND_CRITICAL_DIGESTS"},
         "self_hash_claimed": {"const": false},
-        "allowed_commit_paths": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+        "content_binding": {"const": "GIT_HEAD_BLOBS_VERIFIED_LIVE_NO_SELF_DIGEST"},
+        "allowed_commit_paths": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "required_evidence_paths": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
       }
     },
     "executedCheck": {

@@ -19,6 +19,7 @@ sys.path.insert(0, str(EVIDENCE_TOOLS))
 from validate_autonomous_maturity_evidence import (  # noqa: E402
     attest_git_and_critical_files,
     attest_public_artifact,
+    reject_sensitive_values,
     validate_evidence,
 )
 
@@ -128,6 +129,47 @@ class EvidenceMutationTest(unittest.TestCase):
         self.baseline["maturity_assessment"]["status"] = "FULL_GA"
         self.assert_rejected(self.baseline, self.inventory, "value outside enum")
 
+    def test_completed_milestones_are_derived_and_closed(self) -> None:
+        self.baseline["maturity_assessment"]["completed_milestones"].append("M24")
+        self.assert_rejected(self.baseline, self.inventory, "derived M00/M01 only")
+
+    def test_empty_or_forged_pr_manifest_is_rejected(self) -> None:
+        for ancestry in ([], self.baseline["source"]["dependency_pr_ancestry"][:-1]):
+            with self.subTest(entries=len(ancestry)):
+                baseline = copy.deepcopy(self.baseline)
+                baseline["source"]["dependency_pr_ancestry"] = ancestry
+                self.assert_rejected(baseline, self.inventory, "exactly derive PRs 18-24")
+
+    def test_candidate_signer_continuity_cannot_be_claimed(self) -> None:
+        self.baseline["release_artifact"]["candidate_signer_continuity"] = "PASS"
+        self.assert_rejected(self.baseline, self.inventory, "expected constant 'NOT_RUN'")
+
+    def test_unverified_signer_subject_is_rejected_as_unknown(self) -> None:
+        self.baseline["release_artifact"]["signer_subject"] = "CN=Forged"
+        self.assert_rejected(self.baseline, self.inventory, "unknown key signer_subject")
+
+    def test_nested_secret_keys_and_local_paths_are_rejected(self) -> None:
+        samples = [
+            ("api_key", "redacted"),
+            ("nested", "/private/tmp/evidence"),
+            ("nested", "/opt/local/evidence"),
+            ("nested", "/Volumes/build/evidence"),
+        ]
+        for key, value in samples:
+            with self.subTest(key=key, value=value):
+                baseline = copy.deepcopy(self.baseline)
+                baseline["fresh_checks"][0]["environment"][key] = value
+                self.assert_rejected(baseline, self.inventory, "forbidden")
+        with self.assertRaisesRegex(ValueError, "secret-like key is forbidden"):
+            reject_sensitive_values({"safe": {"token": "redacted"}})
+
+    def test_combined_forgery_is_rejected(self) -> None:
+        self.baseline["maturity_assessment"]["completed_milestones"] = ["M00", "M01", "M24"]
+        self.baseline["source"]["dependency_pr_ancestry"] = []
+        self.baseline["release_artifact"]["candidate_signer_continuity"] = "PASS"
+        self.baseline["fresh_checks"][0]["environment"]["password"] = "forged"
+        self.assert_rejected(self.baseline, self.inventory, "expected constant|derived M00/M01 only")
+
     def test_critical_file_digest_tampering_is_rejected(self) -> None:
         self.baseline["critical_files"][0]["sha256"] = "0" * 64
         self.assert_rejected(self.baseline, self.inventory, "critical_files digest mismatch")
@@ -177,6 +219,10 @@ class EvidenceMutationTest(unittest.TestCase):
                 return source["evidence_parent_sha"] + "\n"
             if argv[:4] == ("git", "diff-tree", "--no-commit-id", "--name-only"):
                 return "\n".join(self.baseline["commit_binding"]["allowed_commit_paths"]) + "\n"
+            if argv[:3] == ("git", "ls-tree", "HEAD"):
+                return f"100644 blob {'a' * 40}\t{argv[-1]}\n"
+            if argv[:2] == ("git", "hash-object"):
+                return "a" * 40 + "\n"
             if argv == ("git", "rev-parse", source["release_tag"]):
                 return "0" * 40 + "\n"
             expected = {

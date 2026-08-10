@@ -51,6 +51,17 @@ GATE_SPECS = {
     "mac_helper_tests": ("swift", "test", "--package-path", "macHelper"),
 }
 REQUIRED_GATE_IDS = frozenset(GATE_SPECS)
+REQUIRED_MILESTONES = ["M00", "M01"]
+REQUIRED_PR_ANCESTRY = {
+    18: "846435491d3493b0ca7182bc6d636f1255353a4a",
+    19: "925f0eb9f7fe84465c71c4ef41bbc8ac398d042f",
+    20: "cd5459db42bcded7cf4879f3f7dd40aa1b38678d",
+    21: "0fc17bc6ef23137508077004b9082565f4d3caeb",
+    22: "17e36493fa446f3a245c10547d5c512a378514bc",
+    23: "5e683fbddca7e3c0eac6e3562224822077593036",
+    24: "d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
+}
+ANCESTRY_CONCLUSION = "v0.1.37 excludes dependency PRs 18-24; the implementation baseline includes all seven merge commits"
 SENSITIVE_VALUE = re.compile(
     r"(?i)(?:bearer\s+[A-Za-z0-9._~+/=-]+|-----BEGIN [A-Z ]*PRIVATE KEY-----|"
     r"(?:api[_-]?key|password|secret|token)\s*[:=]\s*\S+|sk-[A-Za-z0-9_-]{12,}|"
@@ -58,8 +69,9 @@ SENSITIVE_VALUE = re.compile(
 )
 PRIVATE_OR_UNSAFE_PATH = re.compile(
     r"(?:/(?:Users|home)/|[A-Za-z]:[\\/](?:Users|Documents and Settings)[\\/]|"
-    r"file://|(?:^|\s)~[\\/]|\\\\[^\\\s]+\\[^\\\s]+)"
+    r"/(?:private|opt|Volumes)(?:/|\b)|file://|(?:^|\s)~[\\/]|\\\\[^\\\s]+\\[^\\\s]+)"
 )
+SENSITIVE_KEY = re.compile(r"(?i)(?:api[_-]?key|token|password|secret|credential)")
 
 
 def fail(message: str) -> None:
@@ -76,9 +88,18 @@ def timestamp(value: object, field: str) -> datetime:
 
 
 def load(path: Path) -> object:
-    if path.is_symlink():
-        fail(f"refusing symlinked evidence input: {path.name}")
-    return json.loads(path.read_text())
+    absolute = path.absolute()
+    try:
+        relative = str(absolute.relative_to(ROOT.absolute()))
+        raw = read_source(ROOT, relative)
+    except ValueError:
+        anchor = Path(absolute.anchor)
+        relative = str(absolute.relative_to(anchor))
+        try:
+            raw = read_source(anchor, relative)
+        except (OSError, ValueError) as exc:
+            raise ValueError(f"refusing symlinked evidence input: {path.name}") from exc
+    return json.loads(raw)
 
 
 def run(argv: tuple[str, ...], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
@@ -96,6 +117,8 @@ def reject_sensitive_values(value: object, field: str = "baseline") -> None:
             reject_sensitive_values(item, f"{field}[{index}]")
     elif isinstance(value, dict):
         for key, item in value.items():
+            if SENSITIVE_KEY.search(str(key)):
+                fail(f"{field}: secret-like key is forbidden")
             reject_sensitive_values(item, f"{field}.{key}")
 
 
@@ -248,6 +271,8 @@ def validate_baseline(data: dict, inventory: dict, inventory_raw: bytes) -> None
         fail("maturity_assessment: unknown or missing field")
     if maturity.get("status") not in {"NOT_ASSESSED", "AUTONOMOUS_PROXY_INCOMPLETE", "EXTERNAL_EVIDENCE_REQUIRED"}:
         fail("maturity_assessment cannot claim GA or completion")
+    if maturity["completed_milestones"] != REQUIRED_MILESTONES:
+        fail("maturity_assessment.completed_milestones must be derived M00/M01 only")
 
     if data["gate_specs_version"] != GATE_SPECS_VERSION:
         fail("gate_specs_version mismatch")
@@ -290,6 +315,8 @@ def validate_baseline(data: dict, inventory: dict, inventory_raw: bytes) -> None
         fail("release_artifact.package does not match android.base_application_id")
     if release["signature_verification"] == "PASS" and not release["signature_scheme_v2"]:
         fail("release signature PASS requires signature_scheme_v2")
+    if release["candidate_signer_continuity"] != "NOT_RUN":
+        fail("candidate_signer_continuity requires independent candidate attestation")
     if android["release_minification"] or android["release_resource_shrinking"]:
         fail("release shrinking must remain disabled")
 
@@ -306,6 +333,21 @@ def validate_baseline(data: dict, inventory: dict, inventory_raw: bytes) -> None
     if source_inventory.get("summary") != inventory.get("summary"):
         fail("source_inventory.summary mismatch")
 
+    ancestry = data["source"]["dependency_pr_ancestry"]
+    expected_ancestry = [
+        {
+            "pr": pr,
+            "merge_sha": merge_sha,
+            "ancestor_of_v0.1.37": False,
+            "ancestor_of_baseline": True,
+        }
+        for pr, merge_sha in REQUIRED_PR_ANCESTRY.items()
+    ]
+    if ancestry != expected_ancestry:
+        fail("dependency_pr_ancestry must exactly derive PRs 18-24")
+    if data["source"]["ancestry_conclusion"] != ANCESTRY_CONCLUSION:
+        fail("ancestry_conclusion mismatch")
+
     critical_paths = [item["path"] for item in data["critical_files"]]
     if critical_paths != sorted(set(critical_paths)):
         fail("critical_files paths must be unique and sorted")
@@ -318,6 +360,12 @@ def validate_baseline(data: dict, inventory: dict, inventory_raw: bytes) -> None
             raise ValueError(f"critical_files unsafe: {item['path']}") from exc
         if hashlib.sha256(raw).hexdigest() != item["sha256"]:
             fail(f"critical_files digest mismatch: {item['path']}")
+    binding = data["commit_binding"]
+    required_evidence = binding["required_evidence_paths"]
+    if required_evidence != sorted(set(required_evidence)):
+        fail("required_evidence_paths must be unique and sorted")
+    if not set(required_evidence).issubset(binding["allowed_commit_paths"]):
+        fail("required evidence must be part of the bound evidence commit")
 
 
 def validate_evidence(baseline: dict, inventory: dict, inventory_raw: bytes) -> None:
@@ -345,6 +393,15 @@ def attest_git_and_critical_files(data: dict) -> None:
         fail("live evidence commit paths do not match allowlist")
     if binding["kind"] != "IMMEDIATE_PARENT_PLUS_ALLOWED_DIFF_AND_CRITICAL_DIGESTS" or binding["self_hash_claimed"]:
         fail("invalid non-self-referential commit binding")
+    if binding["content_binding"] != "GIT_HEAD_BLOBS_VERIFIED_LIVE_NO_SELF_DIGEST":
+        fail("invalid evidence content binding")
+    for path in binding["required_evidence_paths"]:
+        tree = checked_output(("git", "ls-tree", "HEAD", "--", path)).strip().split()
+        if len(tree) < 4 or tree[1] != "blob":
+            fail(f"required evidence is not a committed blob: {path}")
+        working_blob = checked_output(("git", "hash-object", "--", path)).strip()
+        if working_blob != tree[2]:
+            fail(f"required evidence differs from HEAD blob: {path}")
 
     source = data["source"]
     checks = {
@@ -455,11 +512,13 @@ def main() -> int:
     mode.add_argument("--live", action="store_true")
     args = parser.parse_args()
     try:
-        inventory = load(INVENTORY)
-        baseline = load(BASELINE)
+        inventory_raw = read_source(ROOT, str(INVENTORY.relative_to(ROOT)))
+        baseline_raw = read_source(ROOT, str(BASELINE.relative_to(ROOT)))
+        inventory = json.loads(inventory_raw)
+        baseline = json.loads(baseline_raw)
         if not isinstance(inventory, dict) or not isinstance(baseline, dict):
             fail("root JSON values must be objects")
-        validate_evidence(baseline, inventory, INVENTORY.read_bytes())
+        validate_evidence(baseline, inventory, inventory_raw)
         if args.live:
             attest_live(baseline)
     except (OSError, json.JSONDecodeError, ValueError, KeyError, UnicodeDecodeError) as exc:

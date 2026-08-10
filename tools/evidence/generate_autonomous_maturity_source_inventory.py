@@ -6,8 +6,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import stat
 import subprocess
-import tempfile
 from argparse import ArgumentParser
 from collections import Counter
 from pathlib import Path
@@ -35,59 +35,92 @@ def tracked_sources(root: Path = ROOT) -> list[str]:
     return sorted(path for path in result.stdout.splitlines() if path)
 
 
-def safe_path(root: Path, relative: str) -> Path:
-    candidate = root
-    for part in Path(relative).parts:
-        if part in {"", ".", ".."}:
-            raise ValueError(f"unsafe source path: {relative}")
-        candidate /= part
-        if candidate.is_symlink():
-            raise ValueError(f"source symlink is forbidden: {relative}")
+def relative_parts(relative: str) -> tuple[str, ...]:
+    path = Path(relative)
+    if path.is_absolute() or not path.parts or any(part in {"", ".", ".."} for part in path.parts):
+        raise ValueError(f"unsafe repository path: {relative}")
+    return path.parts
+
+
+def open_root(root: Path) -> int:
+    resolved = root.resolve(strict=True)
+    return os.open(resolved, os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0))
+
+
+def open_parent(root: Path, relative: str) -> tuple[int, str]:
+    parts = relative_parts(relative)
+    descriptor = open_root(root)
     try:
-        candidate.resolve(strict=True).relative_to(root.resolve(strict=True))
-    except (FileNotFoundError, ValueError) as exc:
-        raise ValueError(f"source path escapes repository: {relative}") from exc
-    if not candidate.is_file():
-        raise ValueError(f"source is not a regular file: {relative}")
-    return candidate
+        for part in parts[:-1]:
+            child = os.open(
+                part,
+                os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0),
+                dir_fd=descriptor,
+            )
+            os.close(descriptor)
+            descriptor = child
+        return descriptor, parts[-1]
+    except Exception:
+        os.close(descriptor)
+        raise
 
 
 def read_source(root: Path, relative: str) -> bytes:
-    path = safe_path(root, relative)
+    parent, name = open_parent(root, relative)
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
-    descriptor = os.open(path, flags)
     try:
+        descriptor = os.open(name, flags, dir_fd=parent)
+    except OSError as exc:
+        os.close(parent)
+        raise ValueError(f"source symlink or missing file is forbidden: {relative}") from exc
+    try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise ValueError(f"source is not a regular file: {relative}")
         chunks = []
         while chunk := os.read(descriptor, 1024 * 1024):
             chunks.append(chunk)
         return b"".join(chunks)
     finally:
         os.close(descriptor)
+        os.close(parent)
 
 
 def atomic_write(root: Path, output: Path, payload: bytes) -> None:
-    root_real = root.resolve(strict=True)
-    parent = output.parent.resolve(strict=True)
     try:
-        parent.relative_to(root_real)
+        relative = str(output.absolute().relative_to(root.absolute()))
     except ValueError as exc:
         raise ValueError(f"output path escapes repository: {output}") from exc
-    if output.is_symlink():
-        raise ValueError(f"output symlink is forbidden: {output}")
-    temporary: str | None = None
+    parent, name = open_parent(root, relative)
+    temporary = f".{name}.{os.getpid()}.tmp"
     try:
-        with tempfile.NamedTemporaryFile(prefix=f".{output.name}.", dir=parent, delete=False) as handle:
-            temporary = handle.name
-            handle.write(payload)
-            handle.flush()
-            os.fsync(handle.fileno())
-        if output.is_symlink():
-            raise ValueError(f"output symlink is forbidden: {output}")
-        os.replace(temporary, output)
-        temporary = None
+        try:
+            current = os.stat(name, dir_fd=parent, follow_symlinks=False)
+            if stat.S_ISLNK(current.st_mode):
+                raise ValueError(f"output symlink is forbidden: {output}")
+        except FileNotFoundError:
+            pass
+        descriptor = os.open(
+            temporary,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+            0o600,
+            dir_fd=parent,
+        )
+        try:
+            view = memoryview(payload)
+            while view:
+                written = os.write(descriptor, view)
+                view = view[written:]
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+        os.replace(temporary, name, src_dir_fd=parent, dst_dir_fd=parent)
+        os.fsync(parent)
     finally:
-        if temporary is not None:
-            Path(temporary).unlink(missing_ok=True)
+        try:
+            os.unlink(temporary, dir_fd=parent)
+        except FileNotFoundError:
+            pass
+        os.close(parent)
 
 
 def classify(path: str) -> tuple[str, str]:
@@ -192,7 +225,12 @@ def main() -> None:
     payload = (json.dumps(generate(ROOT), indent=2, sort_keys=False) + "\n").encode()
     output = args.output.absolute()
     if args.check:
-        if output.is_symlink() or output.read_bytes() != payload:
+        try:
+            relative = str(output.relative_to(ROOT.absolute()))
+            current = read_source(ROOT, relative)
+        except (OSError, ValueError) as exc:
+            raise ValueError(f"inventory is stale or unsafe: {output}") from exc
+        if current != payload:
             raise ValueError(f"inventory is stale or unsafe: {output}")
         print("PASS: source inventory matches tracked repository sources")
     else:

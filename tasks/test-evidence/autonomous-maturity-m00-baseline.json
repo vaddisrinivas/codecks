@@ -1,6 +1,6 @@
 {
   "schema": "codecks.autonomous-maturity.baseline.v1",
-  "captured_at_utc": "2026-08-10T14:36:41Z",
+  "captured_at_utc": "2026-08-10T14:59:46Z",
   "receipt_validation": {
     "status": "STRUCTURE_VALID",
     "validator": "tools/evidence/validate_autonomous_maturity_evidence.py",
@@ -8,7 +8,7 @@
   },
   "maturity_assessment": {
     "status": "NOT_ASSESSED",
-    "completed_milestones": ["M00", "M01 feature/file inventory"],
+    "completed_milestones": ["M00", "M01"],
     "note": "This baseline validates evidence bookkeeping only. M02-M24, physical hardware, human usability, Play admission, and final maturity remain unproved."
   },
   "source": {
@@ -16,7 +16,7 @@
     "branch": "codex/autonomous-maturity",
     "implementation_baseline_ref": "main",
     "implementation_baseline_sha": "d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
-    "evidence_parent_sha": "57b01f8050ae07d518884ba6b8b39df759c0cd96",
+    "evidence_parent_sha": "10b97dab4f14025ac566808833c31490b8ce63d8",
     "origin_main_sha": "d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
     "release_tag": "v0.1.37",
     "release_tag_object_sha": "3d21b395d49fa87d8fa04ba1f06f917acee5d081",
@@ -50,7 +50,6 @@
     "compile_sdk": 37,
     "signature_verification": "PASS",
     "signature_scheme_v2": true,
-    "signer_subject": "CN=Codecks Release, OU=Release, O=Codecks, C=US",
     "signer_certificate_sha256": "07a642e758f394b6aeaecfe35c64ca84d891ca4e6de4b6cc010702c0e52e2df6",
     "private_signing_material_inspected": false,
     "candidate_signer_continuity": "NOT_RUN"
@@ -147,23 +146,28 @@
     {"path": "gradle/wrapper/gradle-wrapper.properties", "sha256": "70fa201501995e6f45c0c475def71093f8115849344c48322ca997cfddba8534"},
     {"path": "scripts/verify_release_no_shrink.sh", "sha256": "6fdf7ab044267c38e73777f2b74c2d39ffe883becc1ba0937f6711f5fddd193b"},
     {"path": "settings.gradle.kts", "sha256": "fa1294932a351609ca379427a498e7fc1c2e2c654e6a2fae7da0af6743db3146"},
-    {"path": "tools/evidence/generate_autonomous_maturity_source_inventory.py", "sha256": "e9b6d92ff0d158a69360146be0fc4b7f0a9bce7ddb87897952bbe45b4f56dde4"},
-    {"path": "tools/evidence/schemas/autonomous-maturity-baseline-v1.schema.json", "sha256": "a72009f9da3b1098e6ba69bdff5aa6498820da45705dac8350b297f609e7ebef"},
+    {"path": "tools/evidence/generate_autonomous_maturity_source_inventory.py", "sha256": "d3963c3b096472c30806adc5b71d061d075dc60d9b87fae2e6ba8c858be7dd0a"},
+    {"path": "tools/evidence/schemas/autonomous-maturity-baseline-v1.schema.json", "sha256": "d94ee51c113cc2e2075f19f4a5c956a4922353f6b03de057f0bcad1b051bb6ae"},
     {"path": "tools/evidence/schemas/autonomous-maturity-source-inventory-v1.schema.json", "sha256": "d6f6cb96e053b90a44bff73b2acf1fb3e642a5b5e6f54fc0a227fa9cd49b8d4b"},
-    {"path": "tools/evidence/validate_autonomous_maturity_evidence.py", "sha256": "85c14b2c1d3ed44abb02c24ffff0ec5bb486d4d128ffc56e36e30cccd651d7ed"},
+    {"path": "tools/evidence/validate_autonomous_maturity_evidence.py", "sha256": "c7ec4535f2260a207035ee72d3a131cff123dc7ec5720e03edd7b51c48cd9c83"},
     {"path": "tools/secret_surface_check.py", "sha256": "2b5a108c89a69d6b1ba295d7c6ca3341f8c93b08ca3e5230e45fcd7aaa51b227"}
   ],
   "commit_binding": {
     "kind": "IMMEDIATE_PARENT_PLUS_ALLOWED_DIFF_AND_CRITICAL_DIGESTS",
     "self_hash_claimed": false,
+    "content_binding": "GIT_HEAD_BLOBS_VERIFIED_LIVE_NO_SELF_DIGEST",
     "allowed_commit_paths": [
-      "tasks/AUTONOMOUS_MATURITY_TODO.md",
       "tasks/test-evidence/autonomous-maturity-m00-baseline.json",
       "tools/evidence/generate_autonomous_maturity_source_inventory.py",
       "tools/evidence/schemas/autonomous-maturity-baseline-v1.schema.json",
       "tools/evidence/test_generate_autonomous_maturity_source_inventory.py",
       "tools/evidence/test_validate_autonomous_maturity_evidence.py",
       "tools/evidence/validate_autonomous_maturity_evidence.py"
+    ],
+    "required_evidence_paths": [
+      "tasks/test-evidence/autonomous-maturity-m00-baseline.json",
+      "tools/evidence/test_generate_autonomous_maturity_source_inventory.py",
+      "tools/evidence/test_validate_autonomous_maturity_evidence.py"
     ]
   },
   "fresh_checks": [
@@ -195,15 +199,15 @@
       "id": "evidence_negative_mutations",
       "status": "RECORDED_SUCCESS",
       "argv": ["python3", "-m", "unittest", "-q", "tools/evidence/test_validate_autonomous_maturity_evidence.py", "tools/evidence/test_generate_autonomous_maturity_source_inventory.py"],
-      "started_at_utc": "2026-08-10T14:36:37Z",
-      "finished_at_utc": "2026-08-10T14:36:41Z",
+      "started_at_utc": "2026-08-10T14:59:41Z",
+      "finished_at_utc": "2026-08-10T14:59:46Z",
       "exit_code": 0,
       "tool": "Python 3 unittest",
       "environment": {
-        "mutation_tests": 28,
+        "mutation_tests": 36,
         "host_arch": "arm64"
       },
-      "output_sha256": "c2a30d68f941803904bdad3d15b23b7b2d4378aa0714b748f82e3d513f3e3d20",
+      "output_sha256": "7296dfe120a9efbbebfac1a069a0634fad500d899f8a89cac411fbf9a2057786",
       "output_digest_scope": "RAW_COMBINED_STREAM_NOT_RETAINED_HISTORICAL_ONLY"
     },
     {
