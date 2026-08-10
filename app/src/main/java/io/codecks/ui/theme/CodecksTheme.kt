@@ -11,10 +11,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import io.codecks.ui.designsystem.CodecksMaterialShapes
+import io.codecks.ui.designsystem.CodecksMaterialTypography
+import io.codecks.ui.designsystem.LocalCodecksMotionPolicy
+import io.codecks.ui.designsystem.rememberCodecksMotionPolicy
 
 private val DeckLightColors = lightColorScheme(
     primary = Color(0xFF087F3F),
@@ -112,22 +113,6 @@ private val DeckOledColors = darkColorScheme(
     surfaceContainerHighest = Color(0xFF171D19),
 )
 
-private val DeckTypography = Typography(
-    titleLarge = TextStyle(fontWeight = FontWeight.Bold, fontSize = 23.sp, lineHeight = 29.sp),
-    titleMedium = TextStyle(fontWeight = FontWeight.Bold, fontSize = 16.sp, lineHeight = 23.sp),
-    titleSmall = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 20.sp),
-    labelLarge = TextStyle(fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 20.sp),
-    labelMedium = TextStyle(fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 16.sp),
-)
-
-private val DeckShapes = Shapes(
-    extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
-    small = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-    medium = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-    large = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
-)
-
 data class CodecksScopedAppearance(val bundle: ThemeBundle) {
     fun scheme(target: ThemeTarget): ThemeScheme = bundle.resolve(target)
     fun semantic(role: ThemeColorRole): ThemeArgb = bundle.semantic(role)
@@ -190,15 +175,17 @@ fun CodecksTheme(
         darkResolved -> DeckDarkColors
         else -> DeckLightColors
     }.applyThemeSettings(settings, darkResolved).applyThemeScheme(settings.themeBundle.global)
+    val motionPolicy = rememberCodecksMotionPolicy()
 
     CompositionLocalProvider(
         LocalCodecksIconPack provides settings.iconPack,
         LocalCodecksScopedAppearance provides CodecksScopedAppearance(settings.themeBundle),
         LocalCodecksSemanticColors provides settings.themeBundle.global.semanticColors(),
+        LocalCodecksMotionPolicy provides motionPolicy,
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = DeckTypography,
+            typography = CodecksMaterialTypography,
             shapes = shapesFor(settings.shapeStyle),
             content = content,
         )
@@ -350,7 +337,7 @@ private fun Color.darken(amount: Float): Color =
     copy(red = red * (1f - amount), green = green * (1f - amount), blue = blue * (1f - amount))
 
 private fun shapesFor(style: CodecksShapeStyle): Shapes = when (style) {
-    CodecksShapeStyle.Native -> DeckShapes
+    CodecksShapeStyle.Native -> CodecksMaterialShapes
     CodecksShapeStyle.Compact -> Shapes(
         extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
         small = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),

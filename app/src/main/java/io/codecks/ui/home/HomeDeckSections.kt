@@ -49,7 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import io.codecks.core.design.CodecksDesignTokens
 import io.codecks.domain.ActionKind
 import io.codecks.domain.CommandOrigin
 import io.codecks.domain.DeckAction
@@ -60,6 +60,9 @@ import io.codecks.ui.home.smart.SmartDeckSuggestionUi
 import io.codecks.ui.designsystem.DeckComponentState
 import io.codecks.ui.designsystem.DeckControlTile
 import io.codecks.ui.designsystem.DeckFilterPill
+import io.codecks.ui.designsystem.codecksArgbColor
+import io.codecks.ui.designsystem.codecksOpaqueColor
+import io.codecks.ui.designsystem.codecksSemanticColorTokens
 import io.codecks.ui.icons.deckImageVector
 import io.codecks.ui.icons.imageVector
 
@@ -77,16 +80,16 @@ internal fun SmartSuggestionRow(
 ) {
     if (suggestions.isEmpty()) return
     LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(vertical = 4.dp),
-        modifier = modifier.height(104.dp),
+        horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.sm),
+        contentPadding = PaddingValues(vertical = CodecksDesignTokens.Spacing.xs),
+        modifier = modifier.height(CodecksDesignTokens.Size.HomeDeck.suggestionRowHeight),
     ) {
         item {
             Column(
                 verticalArrangement = Arrangement.Center,
                 modifier = Modifier
-                    .height(96.dp)
-                    .width(92.dp),
+                    .height(CodecksDesignTokens.Size.HomeDeck.suggestionCardHeight)
+                    .width(CodecksDesignTokens.Size.HomeDeck.suggestionCardWidth),
             ) {
                 Text(
                     text = "Suggested",
@@ -106,15 +109,15 @@ internal fun SmartSuggestionRow(
             val runnable = suggestion.action.isRunnableFromSmartSuggestion()
             val canRun = runnable && !runPending
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = CodecksDesignTokens.Opacity.emphasized),
                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 shape = MaterialTheme.shapes.large,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.28f)),
-                modifier = Modifier.widthIn(min = 220.dp, max = 280.dp),
+                border = BorderStroke(CodecksDesignTokens.Stroke.hairline, MaterialTheme.colorScheme.outline.copy(alpha = CodecksDesignTokens.Opacity.low)),
+                modifier = Modifier.widthIn(min = CodecksDesignTokens.Size.HomeDeck.suggestionMinWidth, max = CodecksDesignTokens.Size.HomeDeck.suggestionMaxWidth),
             ) {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.xxs),
+                    modifier = Modifier.padding(horizontal = CodecksDesignTokens.Spacing.md, vertical = CodecksDesignTokens.Spacing.sm),
                 ) {
                     Text(
                         text = "${suggestion.confidence}: ${suggestion.action.label}",
@@ -129,7 +132,7 @@ internal fun SmartSuggestionRow(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
                         TextButton(
                             onClick = { onRun(suggestion) },
                             enabled = canRun,
@@ -201,10 +204,10 @@ private fun LandscapeDeckLayout(
     locked: Boolean,
     onLongClick: (HomeDeckSlot) -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize().padding(12.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.md), modifier = Modifier.fillMaxSize().padding(CodecksDesignTokens.Spacing.md)) {
         LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.width(204.dp).fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.sm),
+            modifier = Modifier.width(CodecksDesignTokens.Size.HomeDeck.landscapeTemplateWidth).fillMaxSize(),
         ) {
             item {
                 Text("Dynamic", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -214,7 +217,7 @@ private fun LandscapeDeckLayout(
                     label = "Custom",
                     selected = state.activeTemplateId == CUSTOM_TEMPLATE_ID,
                     onClick = { onTemplateSelected(CUSTOM_TEMPLATE_ID) },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
                 )
             }
             items(state.deckTemplates, key = DeckTemplate::id) { template ->
@@ -223,7 +226,7 @@ private fun LandscapeDeckLayout(
                     selected = state.activeTemplateId == template.id,
                     onClick = { onTemplateSelected(template.id) },
                     icon = template.icon.imageVector(),
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
                 )
             }
             item {
@@ -242,13 +245,13 @@ private fun LandscapeDeckLayout(
                     selected = false,
                     onClick = onRefreshContext,
                     icon = Icons.Outlined.Refresh,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
                 )
             }
         }
         LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.width(184.dp).fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.md),
+            modifier = Modifier.width(CodecksDesignTokens.Size.HomeDeck.landscapeCustomWidth).fillMaxSize(),
         ) {
             item { Text("Custom", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
             items(customActionSlots, key = { "landscape-custom-${it.slot}-${it.action.id}" }) { slot ->
@@ -264,10 +267,10 @@ private fun LandscapeDeckLayout(
             }
         }
         LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 116.dp),
-            contentPadding = PaddingValues(bottom = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            columns = GridCells.Adaptive(minSize = CodecksDesignTokens.Size.HomeDeck.adaptiveCell),
+            contentPadding = PaddingValues(bottom = CodecksDesignTokens.Spacing.md),
+            horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.md),
             modifier = Modifier.weight(1f).fillMaxSize(),
         ) {
             item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
@@ -309,38 +312,39 @@ private fun DeckHero(
     onLockChange: (Boolean) -> Unit,
     onViewModeChange: (DeckViewMode) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+    val semantic = codecksSemanticColorTokens()
+    Column(verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.sm), modifier = Modifier.padding(horizontal = CodecksDesignTokens.Spacing.lg, vertical = CodecksDesignTokens.Spacing.md)) {
         Surface(
-            color = Color.White.copy(alpha = 0.06f),
-            contentColor = Color.White,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)),
+            color = semantic.content.copy(alpha = CodecksDesignTokens.Opacity.subtle),
+            contentColor = semantic.content,
+            border = BorderStroke(CodecksDesignTokens.Stroke.hairline, semantic.content.copy(alpha = CodecksDesignTokens.Opacity.soft)),
             shape = MaterialTheme.shapes.large,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.lg),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                modifier = Modifier.padding(horizontal = CodecksDesignTokens.Spacing.lg, vertical = CodecksDesignTokens.Spacing.md),
             ) {
                 Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
-                    contentColor = Color.White,
+                    color = semantic.accent.copy(alpha = CodecksDesignTokens.Opacity.low),
+                    contentColor = semantic.content,
                     shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(CodecksDesignTokens.Size.minTouchTarget),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Outlined.AutoAwesome,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = semantic.content,
                         )
                     }
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
+                Column(verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.xxs), modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Codecks",
                         style = MaterialTheme.typography.titleLarge,
-                        color = Color.White,
+                        color = semantic.content,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -351,7 +355,7 @@ private fun DeckHero(
                             else -> "${activeTemplateTitle(activeTemplateId, templates)} • $activeApp"
                         },
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.70f),
+                        color = semantic.content.copy(alpha = CodecksDesignTokens.Opacity.muted),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -367,13 +371,13 @@ private fun DeckHero(
         if (!connectionReady) {
             DeckConnectionHint()
         }
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 16.dp)) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.sm), contentPadding = PaddingValues(end = CodecksDesignTokens.Spacing.lg)) {
             item {
                 DeckFilterPill(
                     label = "Custom",
                     selected = activeTemplateId == CUSTOM_TEMPLATE_ID,
                     onClick = { onTemplateSelected(CUSTOM_TEMPLATE_ID) },
-                    modifier = Modifier.heightIn(min = 48.dp),
+                    modifier = Modifier.heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
                 )
             }
             items(templates, key = DeckTemplate::id) { template ->
@@ -382,7 +386,7 @@ private fun DeckHero(
                     selected = activeTemplateId == template.id,
                     onClick = { onTemplateSelected(template.id) },
                     icon = template.icon.imageVector(),
-                    modifier = Modifier.heightIn(min = 48.dp),
+                    modifier = Modifier.heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
                 )
             }
         }
@@ -396,21 +400,21 @@ private fun DeckGridHeader(
     pageCount: Int,
     onPageSelected: (Int) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+    Column(verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.sm), modifier = Modifier.fillMaxWidth()) {
         Text(
             text = if (viewMode == DeckViewMode.Pages) "Controls · Page ${pageIndex + 1}/$pageCount" else "Controls",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(top = 2.dp, bottom = 2.dp),
+            modifier = Modifier.padding(top = CodecksDesignTokens.Spacing.xxs, bottom = CodecksDesignTokens.Spacing.xxs),
         )
         if (viewMode == DeckViewMode.Pages && pageCount > 1) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 16.dp)) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.sm), contentPadding = PaddingValues(end = CodecksDesignTokens.Spacing.lg)) {
                 items(pageCount, key = { "deck-page-$it" }) { index ->
                     DeckFilterPill(
                         label = "${index + 1}",
                         selected = index == pageIndex,
                         onClick = { onPageSelected(index) },
-                        modifier = Modifier.width(56.dp).heightIn(min = 44.dp),
+                        modifier = Modifier.width(CodecksDesignTokens.Size.HomeDeck.pagePillWidth).heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
                     )
                 }
             }
@@ -431,12 +435,12 @@ fun CustomActionRow(
     onAction: (DeckAction) -> Unit,
     modifier: Modifier = Modifier,
     selectedActionId: String? = null,
-    contentPadding: PaddingValues = PaddingValues(start = 16.dp, end = 32.dp),
+    contentPadding: PaddingValues = PaddingValues(start = CodecksDesignTokens.Spacing.lg, end = CodecksDesignTokens.Spacing.xxxl),
     isActionEnabled: (DeckAction) -> Boolean = { true },
 ) {
     if (actions.isEmpty()) return
     LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.sm),
         contentPadding = contentPadding,
         modifier = modifier.fillMaxWidth(),
     ) {
@@ -451,7 +455,7 @@ fun CustomActionRow(
                 danger = action.dangerous,
                 accentColor = action.deckAccentColor(),
                 onClick = { onAction(action) },
-                modifier = Modifier.size(width = 112.dp, height = 96.dp),
+                modifier = Modifier.size(width = CodecksDesignTokens.Size.HomeDeck.featuredCardWidth, height = CodecksDesignTokens.Size.HomeDeck.suggestionCardHeight),
             )
         }
     }
@@ -465,7 +469,7 @@ private fun ActionCard(
     enabled: Boolean = true,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    height: androidx.compose.ui.unit.Dp = 108.dp,
+    height: androidx.compose.ui.unit.Dp = CodecksDesignTokens.Size.HomeDeck.carouselHeight,
 ) {
     Box {
         DeckControlTile(
@@ -571,9 +575,9 @@ private fun String.toComposeColorOrNull(): Color? {
     if (normalized.length != 6 && normalized.length != 8) return null
     val value = normalized.toLongOrNull(16) ?: return null
     return if (normalized.length == 6) {
-        Color(0xFF000000L or value)
+        codecksOpaqueColor(value.toInt())
     } else {
-        Color(value)
+        codecksArgbColor(value)
     }
 }
 
@@ -586,12 +590,12 @@ private fun DeckConnectionHint() {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = CodecksDesignTokens.Spacing.md, vertical = CodecksDesignTokens.Spacing.md),
         ) {
             Icon(Icons.Outlined.Computer, contentDescription = null)
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.xxs)) {
                 Text("Mac controls are locked", style = MaterialTheme.typography.labelLarge)
                 Text(
                     "Setup and local buttons still work. Connect your Mac to unlock Mac buttons.",
@@ -622,8 +626,8 @@ internal fun ActionOptionsDialog(
         title = { Text(action.label) },
         text = {
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.heightIn(max = 440.dp),
+                verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.sm),
+                modifier = Modifier.heightIn(max = CodecksDesignTokens.Size.HomeDeck.dialogListMaxHeight),
             ) {
                 item {
                     Text(
@@ -657,7 +661,7 @@ private fun DialogActionButton(
 ) {
     Surface(
         onClick = onClick,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = CodecksDesignTokens.Opacity.scrim),
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         shape = MaterialTheme.shapes.medium,
         modifier = Modifier.fillMaxWidth(),
@@ -665,7 +669,7 @@ private fun DialogActionButton(
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = CodecksDesignTokens.Spacing.md, vertical = CodecksDesignTokens.Spacing.md),
         )
     }
 }
@@ -685,7 +689,7 @@ internal fun ResizeActionDialog(
         onDismissRequest = onDismiss,
         title = { Text("Resize slot ${slot + 1}") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.sm)) {
                 choices.forEach { span ->
                     DialogActionButton(
                         label = when (span) {
@@ -714,7 +718,7 @@ internal fun AddToSlotDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add to slot ${slot + 1}") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.sm)) {
                 Text(
                     "Choose an existing button or build a new one with AI.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -753,7 +757,7 @@ internal fun ReassignActionDialog(
         onDismissRequest = onDismiss,
         title = { Text("Reassign slot ${slot + 1}") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.md)) {
                 currentAction?.let {
                     Text(
                         "Current: ${it.label}",
@@ -769,29 +773,29 @@ internal fun ReassignActionDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.heightIn(max = 360.dp),
+                    verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.xs),
+                    modifier = Modifier.heightIn(max = CodecksDesignTokens.Size.HomeDeck.compactDialogListMaxHeight),
                 ) {
                     items(filtered, key = DeckAction::id) { action ->
                         Surface(
                             onClick = { onAssign(action) },
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.54f),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = CodecksDesignTokens.Opacity.scrim),
                             contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             shape = MaterialTheme.shapes.medium,
                         ) {
                             Row(
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.md),
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = CodecksDesignTokens.Spacing.md, vertical = CodecksDesignTokens.Spacing.sm),
                             ) {
-                                Icon(action.deckImageVector(), contentDescription = null, modifier = Modifier.size(20.dp))
+                                Icon(action.deckImageVector(), contentDescription = null, modifier = Modifier.size(CodecksDesignTokens.Size.iconSm))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(action.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     if (action.description.isNotBlank()) {
                                         Text(
                                             action.description,
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.74f),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = CodecksDesignTokens.Opacity.emphasized),
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
                                         )

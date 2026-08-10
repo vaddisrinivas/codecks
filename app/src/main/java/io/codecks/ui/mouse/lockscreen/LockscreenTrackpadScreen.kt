@@ -18,7 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import io.codecks.core.design.CodecksDesignTokens
 import io.codecks.core.trackpad.LockscreenDecision
 import io.codecks.ui.mouse.RawTrackpadTouchLayer
 import kotlin.math.roundToInt
@@ -45,12 +45,12 @@ fun LockscreenTrackpadScreen(
 
     Surface(modifier = modifier.fillMaxSize()) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.lg),
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(CodecksDesignTokens.Spacing.page),
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.sm)) {
                 Text("Lockscreen Trackpad", style = MaterialTheme.typography.headlineSmall)
                 Text(
                     if (canUsePointer) {
@@ -65,12 +65,12 @@ fun LockscreenTrackpadScreen(
 
             if (canUsePointer) {
                 Surface(
-                    tonalElevation = 2.dp,
+                    tonalElevation = CodecksDesignTokens.Elevation.low,
                     shape = MaterialTheme.shapes.extraLarge,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .heightIn(min = 220.dp),
+                        .heightIn(min = CodecksDesignTokens.Size.pointerSurfaceMinHeight),
                 ) {
                     RawTrackpadTouchLayer(
                         enabled = true,
@@ -116,31 +116,31 @@ fun LockscreenTrackpadScreen(
                 }
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Grid.standardGap),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Button(
                         onClick = { onClick(LEFT_BUTTON) },
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
                     ) {
                         Text("Left")
                     }
                     Button(
                         onClick = { onClick(RIGHT_BUTTON) },
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
                     ) {
                         Text("Right")
                     }
                     Button(
                         onClick = { onClick(MIDDLE_BUTTON) },
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
                     ) {
                         Text("Middle")
                     }
                 }
             } else {
                 Surface(
-                    tonalElevation = 2.dp,
+                    tonalElevation = CodecksDesignTokens.Elevation.low,
                     shape = MaterialTheme.shapes.extraLarge,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -151,41 +151,41 @@ fun LockscreenTrackpadScreen(
                         verticalArrangement = Arrangement.Center,
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(24.dp),
+                            .padding(CodecksDesignTokens.Spacing.xxl),
                     ) {
                         androidx.compose.material3.Icon(
                             imageVector = Icons.Outlined.Lock,
                             contentDescription = null,
-                            modifier = Modifier.size(36.dp),
+                            modifier = Modifier.size(CodecksDesignTokens.Size.iconLg),
                         )
                         Text(
                             "Unlock to connect",
                             style = MaterialTheme.typography.titleLarge,
-                            modifier = Modifier.padding(top = 12.dp),
+                            modifier = Modifier.padding(top = CodecksDesignTokens.Spacing.md),
                         )
                         Text(
                             "Codecks does not start or reconnect Bluetooth HID from the lockscreen path.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 8.dp),
+                            modifier = Modifier.padding(top = CodecksDesignTokens.Spacing.sm),
                         )
                     }
                 }
             }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Grid.standardGap),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 OutlinedButton(
                     onClick = onClose,
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
                 ) {
                     Text("Close")
                 }
                 Button(
                     onClick = onUnlock,
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
                 ) {
                     Text("Unlock for full Codecks")
                 }

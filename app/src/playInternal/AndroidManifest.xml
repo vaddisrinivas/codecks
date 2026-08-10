@@ -15,6 +15,10 @@
             android:exported="false"
             android:label="Codecks Commercial Lab"
             android:theme="@style/Theme.Codecks" />
+        <activity
+            android:name="io.codecks.ui.designsystem.M09ADesignTestActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Codecks" />
         <activity-alias
             android:name="io.codecks.internalcommercial.labui.CommercialLabLauncher"
             android:enabled="true"

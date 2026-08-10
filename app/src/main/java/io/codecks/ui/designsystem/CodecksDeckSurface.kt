@@ -15,17 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
+import io.codecks.core.design.CodecksDesignTokens
 import io.codecks.ui.theme.LocalCodecksSemanticColors
-
-object CodecksDeckSurfaceTokens {
-    val edgeGlowDepth = 132.dp
-    val sideGlowWidth = 76.dp
-    const val topGlowAlpha = 0.11f
-    const val bottomGlowAlpha = 0.07f
-    const val sideGlowAlpha = 0.055f
-    const val centerVeilAlpha = 0.90f
-}
 
 @Composable
 fun CodecksPanel(
@@ -35,21 +26,24 @@ fun CodecksPanel(
     content: @Composable () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val semantic = codecksSemanticColorTokens()
     val accent = when {
         danger -> scheme.error
         selected -> scheme.primary
         else -> scheme.outlineVariant
     }
     Surface(
-        color = Color.Transparent,
+        color = semantic.transparent,
         contentColor = if (danger) scheme.onErrorContainer else scheme.onSurface,
         border = BorderStroke(
-            width = if (selected || danger) 1.5.dp else 1.dp,
-            color = accent.copy(alpha = if (selected || danger) 0.72f else 0.34f),
+            width = if (selected || danger) CodecksDesignTokens.Stroke.emphasized else CodecksDesignTokens.Stroke.hairline,
+            color = accent.copy(
+                alpha = if (selected || danger) CodecksDesignTokens.Opacity.emphasized else CodecksDesignTokens.Opacity.disabled,
+            ),
         ),
         shape = MaterialTheme.shapes.extraLarge,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
+        tonalElevation = CodecksDesignTokens.Elevation.flat,
+        shadowElevation = CodecksDesignTokens.Elevation.flat,
         modifier = modifier,
     ) {
         Box(
@@ -57,19 +51,19 @@ fun CodecksPanel(
                 Brush.verticalGradient(
                     colors = when {
                         danger -> listOf(
-                            scheme.error.copy(alpha = 0.16f),
-                            scheme.surfaceContainerLow.copy(alpha = 0.94f),
-                            Color.Black.copy(alpha = 0.44f),
+                            scheme.error.copy(alpha = CodecksDesignTokens.Opacity.soft),
+                            scheme.surfaceContainerLow.copy(alpha = CodecksDesignTokens.Opacity.nearlyOpaque),
+                            semantic.canvas.copy(alpha = CodecksDesignTokens.Opacity.outline),
                         )
                         selected -> listOf(
-                            scheme.primary.copy(alpha = 0.10f),
-                            scheme.surfaceContainerHigh.copy(alpha = 0.96f),
-                            Color.Black.copy(alpha = 0.42f),
+                            scheme.primary.copy(alpha = CodecksDesignTokens.Opacity.stateLayer),
+                            scheme.surfaceContainerHigh.copy(alpha = CodecksDesignTokens.Opacity.nearlyOpaque),
+                            semantic.canvas.copy(alpha = CodecksDesignTokens.Opacity.outline),
                         )
                         else -> listOf(
-                            scheme.primary.copy(alpha = 0.045f),
-                            scheme.surfaceContainerLow.copy(alpha = 0.96f),
-                            Color.Black.copy(alpha = 0.46f),
+                            scheme.primary.copy(alpha = CodecksDesignTokens.Opacity.barelyVisible),
+                            scheme.surfaceContainerLow.copy(alpha = CodecksDesignTokens.Opacity.nearlyOpaque),
+                            semantic.canvas.copy(alpha = CodecksDesignTokens.Opacity.medium),
                         )
                     },
                 ),
@@ -85,15 +79,16 @@ fun CodecksDeckEdgeGlowBackground(
     canvasColor: Color = MaterialTheme.colorScheme.background,
 ) {
     val glowStrength = LocalCodecksSemanticColors.current.glowStrength
+    val semantic = codecksSemanticColorTokens()
     Box(modifier = modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .height(CodecksDeckSurfaceTokens.edgeGlowDepth)
+                .height(CodecksDesignTokens.Surface.edgeGlowDepth)
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(glowColor.copy(alpha = CodecksDeckSurfaceTokens.topGlowAlpha * glowStrength), Color.Transparent),
+                        colors = listOf(glowColor.copy(alpha = CodecksDesignTokens.Surface.topGlowAlpha * glowStrength), semantic.transparent),
                     ),
                 ),
         )
@@ -101,10 +96,10 @@ fun CodecksDeckEdgeGlowBackground(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(CodecksDeckSurfaceTokens.edgeGlowDepth)
+                .height(CodecksDesignTokens.Surface.edgeGlowDepth)
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, glowColor.copy(alpha = CodecksDeckSurfaceTokens.bottomGlowAlpha * glowStrength)),
+                        colors = listOf(semantic.transparent, glowColor.copy(alpha = CodecksDesignTokens.Surface.bottomGlowAlpha * glowStrength)),
                     ),
                 ),
         )
@@ -112,10 +107,10 @@ fun CodecksDeckEdgeGlowBackground(
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .fillMaxHeight()
-                .width(CodecksDeckSurfaceTokens.sideGlowWidth)
+                .width(CodecksDesignTokens.Surface.sideGlowWidth)
                 .background(
                     Brush.horizontalGradient(
-                        colors = listOf(glowColor.copy(alpha = CodecksDeckSurfaceTokens.sideGlowAlpha * glowStrength), Color.Transparent),
+                        colors = listOf(glowColor.copy(alpha = CodecksDesignTokens.Surface.sideGlowAlpha * glowStrength), semantic.transparent),
                     ),
                 ),
         )
@@ -123,10 +118,10 @@ fun CodecksDeckEdgeGlowBackground(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
-                .width(CodecksDeckSurfaceTokens.sideGlowWidth)
+                .width(CodecksDesignTokens.Surface.sideGlowWidth)
                 .background(
                     Brush.horizontalGradient(
-                        colors = listOf(Color.Transparent, glowColor.copy(alpha = CodecksDeckSurfaceTokens.sideGlowAlpha * glowStrength)),
+                        colors = listOf(semantic.transparent, glowColor.copy(alpha = CodecksDesignTokens.Surface.sideGlowAlpha * glowStrength)),
                     ),
                 ),
         )
@@ -135,7 +130,7 @@ fun CodecksDeckEdgeGlowBackground(
                 .matchParentSize()
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(Color.Transparent, canvasColor.copy(alpha = CodecksDeckSurfaceTokens.centerVeilAlpha)),
+                        colors = listOf(semantic.transparent, canvasColor.copy(alpha = CodecksDesignTokens.Surface.centerVeilAlpha)),
                     ),
                 ),
         )

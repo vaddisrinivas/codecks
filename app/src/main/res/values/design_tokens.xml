@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="codecks_widget_canvas_fallback">#FF101418</color>
+    <color name="codecks_widget_content_fallback">#FFF5F7FA</color>
+    <dimen name="codecks_space_xs">4dp</dimen>
+    <dimen name="codecks_space_sm">8dp</dimen>
+    <dimen name="codecks_space_page">16dp</dimen>
+    <dimen name="codecks_widget_icon_size">40dp</dimen>
+    <dimen name="codecks_widget_title_text">18sp</dimen>
+    <dimen name="codecks_widget_detail_text">12sp</dimen>
+</resources>

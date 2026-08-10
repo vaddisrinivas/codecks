@@ -56,7 +56,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp
+import io.codecks.core.design.CodecksDesignTokens
+import io.codecks.ui.designsystem.codecksSemanticColorTokens
 import io.codecks.HidCommand
 import io.codecks.data.context.NotificationPreview
 import kotlin.math.abs
@@ -139,22 +140,22 @@ internal fun Trackpad(
             tracePoints.removeAll { now - it.timestampMillis > TRACE_TTL_MS }
         }
     }
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = modifier) {
+    Column(verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.md), modifier = modifier) {
         Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = if (enabled) 0.82f else 0.48f),
+            color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = if (enabled) CodecksDesignTokens.Opacity.high else CodecksDesignTokens.Opacity.medium),
             border = BorderStroke(
-                1.dp,
+                CodecksDesignTokens.Stroke.hairline,
                 if (enabled) {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
+                    MaterialTheme.colorScheme.primary.copy(alpha = CodecksDesignTokens.Opacity.low)
                 } else {
-                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f)
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = CodecksDesignTokens.Opacity.selectedContainer)
                 },
             ),
             shape = MaterialTheme.shapes.extraLarge,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .heightIn(min = 220.dp)
+                .heightIn(min = CodecksDesignTokens.Size.pointerSurfaceMinHeight)
                 .testTag(TrackpadTestTag)
         ) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.extraLarge)) {
@@ -233,21 +234,21 @@ internal fun Trackpad(
                 val now = SystemClock.uptimeMillis()
                 tracePoints.zipWithNext().forEach { (start, end) ->
                     val age = now - end.timestampMillis
-                    val alpha = (1f - (age.toFloat() / TRACE_TTL_MS)).coerceIn(0f, 0.64f)
+                    val alpha = (CodecksDesignTokens.Opacity.full - (age.toFloat() / TRACE_TTL_MS)).coerceIn(CodecksDesignTokens.Opacity.transparent, CodecksDesignTokens.TrackpadPaint.traceMaxAlpha)
                     val color = if (end.isStylus) stylusTraceColor else traceColor
                     drawLine(
                         color = color.copy(alpha = alpha),
                         start = start.position,
                         end = end.position,
-                        strokeWidth = if (end.isStylus) 4.5f else 6.5f,
+                        strokeWidth = if (end.isStylus) CodecksDesignTokens.TrackpadPaint.stylusStrokePx else CodecksDesignTokens.TrackpadPaint.touchStrokePx,
                         cap = StrokeCap.Round,
                     )
                 }
                 tracePoints.lastOrNull()?.let { last ->
                     val age = now - last.timestampMillis
-                    val alpha = (1f - (age.toFloat() / TRACE_TTL_MS)).coerceIn(0f, 0.52f)
+                    val alpha = (CodecksDesignTokens.Opacity.full - (age.toFloat() / TRACE_TTL_MS)).coerceIn(CodecksDesignTokens.Opacity.transparent, CodecksDesignTokens.TrackpadPaint.traceHeadMaxAlpha)
                     val color = if (last.isStylus) stylusTraceColor else traceColor
-                    drawCircle(color.copy(alpha = alpha), radius = if (last.isStylus) 7f else 9f, center = last.position)
+                    drawCircle(color.copy(alpha = alpha), radius = if (last.isStylus) CodecksDesignTokens.TrackpadPaint.stylusRadiusPx else CodecksDesignTokens.TrackpadPaint.touchRadiusPx, center = last.position)
                 }
             }
             if (!controlsOpen && !idleBlanked) {
@@ -265,7 +266,7 @@ internal fun Trackpad(
                     sessionPinned = sessionPinned,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(start = 16.dp, end = 16.dp, bottom = 106.dp),
+                        .padding(start = CodecksDesignTokens.Spacing.lg, end = CodecksDesignTokens.Spacing.lg, bottom = CodecksDesignTokens.Size.Trackpad.guardBottom),
                 )
             }
             if (latestTapFeedbackVisible && !controlsOpen) {
@@ -274,20 +275,20 @@ internal fun Trackpad(
                     latestTapFeedbackVisible = false
                 }
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.96f),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = CodecksDesignTokens.Opacity.nearlyOpaque),
                     contentColor = MaterialTheme.colorScheme.onSurface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    border = BorderStroke(CodecksDesignTokens.Stroke.hairline, MaterialTheme.colorScheme.outlineVariant),
                     shape = MaterialTheme.shapes.large,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 72.dp, start = 18.dp, end = 18.dp)
-                        .widthIn(max = 420.dp)
+                        .padding(top = CodecksDesignTokens.Size.Trackpad.feedbackTop, start = CodecksDesignTokens.Spacing.xl, end = CodecksDesignTokens.Spacing.xl)
+                        .widthIn(max = CodecksDesignTokens.Size.Trackpad.feedbackMaxWidth)
                         .zIndex(2f),
                 ) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.md),
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier.padding(horizontal = CodecksDesignTokens.Spacing.md, vertical = CodecksDesignTokens.Spacing.sm),
                     ) {
                         Text(
                             text = latestTapSample?.feedbackLabel() ?: "Gesture recognized",
@@ -314,7 +315,7 @@ internal fun Trackpad(
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .background(Color.Black.copy(alpha = 0.96f)),
+                        .background(codecksSemanticColorTokens().canvas.copy(alpha = CodecksDesignTokens.Opacity.nearlyOpaque)),
                 )
             }
         }
@@ -363,20 +364,20 @@ private fun TrackpadCenterHint(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier.padding(horizontal = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.sm),
+        modifier = modifier.padding(horizontal = CodecksDesignTokens.Size.Trackpad.centerHorizontal),
     ) {
         Surface(
             color = MaterialTheme.colorScheme.primary.copy(alpha = if (enabled) 0.12f else 0.08f),
             contentColor = MaterialTheme.colorScheme.primary,
             shape = MaterialTheme.shapes.large,
-            modifier = Modifier.size(52.dp),
+            modifier = Modifier.size(CodecksDesignTokens.Size.Trackpad.centerIconContainer),
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = if (dragLockEnabled) Icons.Outlined.Lock else Icons.Outlined.Mouse,
                     contentDescription = null,
-                    modifier = Modifier.size(26.dp),
+                    modifier = Modifier.size(CodecksDesignTokens.Size.Trackpad.centerIcon),
                 )
             }
         }
@@ -406,9 +407,9 @@ private fun TrackpadCenterHint(
 @Composable
 private fun TrackpadGuardHint(sessionPinned: Boolean, modifier: Modifier = Modifier) {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.72f),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = CodecksDesignTokens.Opacity.emphasized),
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.46f)),
+        border = BorderStroke(CodecksDesignTokens.Stroke.hairline, MaterialTheme.colorScheme.outlineVariant.copy(alpha = CodecksDesignTokens.Opacity.medium)),
         shape = MaterialTheme.shapes.medium,
         modifier = modifier,
     ) {
@@ -420,7 +421,7 @@ private fun TrackpadGuardHint(sessionPinned: Boolean, modifier: Modifier = Modif
             },
             style = MaterialTheme.typography.labelMedium,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            modifier = Modifier.padding(horizontal = CodecksDesignTokens.Spacing.md, vertical = CodecksDesignTokens.Spacing.sm),
         )
     }
 }
@@ -429,17 +430,17 @@ private fun TrackpadGuardHint(sessionPinned: Boolean, modifier: Modifier = Modif
 private fun TrackpadSurfaceDecoration(
     modifier: Modifier = Modifier,
 ) {
-    val laneColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.035f)
-    val cornerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)
+    val laneColor = MaterialTheme.colorScheme.onSurface.copy(alpha = CodecksDesignTokens.TrackpadPaint.laneAlpha)
+    val cornerColor = MaterialTheme.colorScheme.primary.copy(alpha = CodecksDesignTokens.TrackpadPaint.cornerAlpha)
     Canvas(modifier = modifier) {
-        val edge = 22.dp.toPx()
-        val short = 34.dp.toPx()
-        val stroke = 1.dp.toPx()
+        val edge = CodecksDesignTokens.Size.Trackpad.decorationEdge.toPx()
+        val short = CodecksDesignTokens.Size.Trackpad.decorationShort.toPx()
+        val stroke = CodecksDesignTokens.Stroke.hairline.toPx()
         listOf(size.height / 3f, size.height * 2f / 3f).forEach { y ->
             drawLine(laneColor, Offset(edge, y), Offset(size.width - edge, y), strokeWidth = stroke, cap = StrokeCap.Round)
         }
         listOf(size.width / 3f, size.width * 2f / 3f).forEach { x ->
-            drawLine(laneColor.copy(alpha = 0.025f), Offset(x, edge), Offset(x, size.height - edge), strokeWidth = stroke, cap = StrokeCap.Round)
+            drawLine(laneColor.copy(alpha = CodecksDesignTokens.TrackpadPaint.laneFineAlpha), Offset(x, edge), Offset(x, size.height - edge), strokeWidth = stroke, cap = StrokeCap.Round)
         }
         drawLine(cornerColor, Offset(edge, edge), Offset(edge + short, edge), strokeWidth = stroke, cap = StrokeCap.Round)
         drawLine(cornerColor, Offset(edge, edge), Offset(edge, edge + short), strokeWidth = stroke, cap = StrokeCap.Round)
@@ -475,7 +476,7 @@ private fun TrackpadBackground(
     }
     if (landscape) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.xl),
             modifier = modifier,
         ) {
             if (phoneNotificationLaneEnabled) {
@@ -505,8 +506,8 @@ private fun TrackpadBackground(
                     .fillMaxHeight()
                     .weight(1f)
                     .padding(
-                        start = if (controlsOpen && railSide == TrackpadRailSide.Left) 72.dp else 0.dp,
-                        end = if (controlsOpen && railSide == TrackpadRailSide.Right) 72.dp else 0.dp,
+                        start = if (controlsOpen && railSide == TrackpadRailSide.Left) CodecksDesignTokens.Size.Trackpad.controlInset else CodecksDesignTokens.Spacing.none,
+                        end = if (controlsOpen && railSide == TrackpadRailSide.Right) CodecksDesignTokens.Size.Trackpad.controlInset else CodecksDesignTokens.Spacing.none,
                     ),
             )
         }
@@ -543,9 +544,9 @@ private fun TrackpadBackground(
                 .fillMaxWidth()
                 .weight(1f)
                 .padding(
-                    bottom = if (controlsOpen) 96.dp else 0.dp,
-                    end = if (controlsOpen && railSide == TrackpadRailSide.Right) 84.dp else 0.dp,
-                    start = if (controlsOpen && railSide == TrackpadRailSide.Left) 84.dp else 0.dp,
+                    bottom = if (controlsOpen) CodecksDesignTokens.Size.Trackpad.bottomControlInset else CodecksDesignTokens.Spacing.none,
+                    end = if (controlsOpen && railSide == TrackpadRailSide.Right) CodecksDesignTokens.Size.Trackpad.sideControlInset else CodecksDesignTokens.Spacing.none,
+                    start = if (controlsOpen && railSide == TrackpadRailSide.Left) CodecksDesignTokens.Size.Trackpad.sideControlInset else CodecksDesignTokens.Spacing.none,
                 ),
         )
     }
@@ -563,7 +564,7 @@ private fun NotificationLane(
     Column(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+        modifier = modifier.padding(horizontal = CodecksDesignTokens.Spacing.xxl, vertical = CodecksDesignTokens.Spacing.md),
     ) {
         Text(
             text = title,
@@ -586,15 +587,15 @@ private fun NotificationLane(
             )
         } else {
             Column(
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.xs),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(top = 10.dp).fillMaxWidth(),
+                modifier = Modifier.padding(top = CodecksDesignTokens.Spacing.md).fillMaxWidth(),
             ) {
                 preview.forEach { item ->
                     Surface(
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.10f),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = CodecksDesignTokens.Opacity.subtle),
                         contentColor = textColor,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
+                        border = BorderStroke(CodecksDesignTokens.Stroke.hairline, MaterialTheme.colorScheme.primary.copy(alpha = CodecksDesignTokens.Opacity.selectedContainer)),
                         shape = MaterialTheme.shapes.large,
                         modifier = Modifier.fillMaxWidth(0.92f),
                     ) {
@@ -609,7 +610,7 @@ private fun NotificationLane(
                             maxLines = 1,
                             textAlign = TextAlign.Center,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = CodecksDesignTokens.Spacing.md, vertical = CodecksDesignTokens.Spacing.sm),
                         )
                     }
                 }
@@ -686,8 +687,8 @@ private fun ScrollRail(
     var lastHapticStep by remember { mutableIntStateOf(0) }
     var railSize by remember { mutableStateOf(IntSize.Zero) }
     val haptics = LocalHapticFeedback.current
-    val railColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.34f)
-    val centerColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.56f)
+    val railColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = CodecksDesignTokens.Opacity.disabled)
+    val centerColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = CodecksDesignTokens.Opacity.scrim)
     val activeColor = MaterialTheme.colorScheme.primary
 
     LaunchedEffect(enabled, activeStep) {
@@ -699,9 +700,9 @@ private fun ScrollRail(
 
     Surface(
         color = when {
-            !enabled -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f)
-            activeOffset != null -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.62f)
-            else -> MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.46f)
+            !enabled -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = CodecksDesignTokens.Opacity.low)
+            activeOffset != null -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = CodecksDesignTokens.Opacity.scrim)
+            else -> MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = CodecksDesignTokens.Opacity.medium)
         },
         contentColor = if (activeOffset != null) {
             MaterialTheme.colorScheme.onPrimaryContainer
@@ -709,8 +710,8 @@ private fun ScrollRail(
             MaterialTheme.colorScheme.onSurfaceVariant
         },
         border = BorderStroke(
-            width = 1.dp,
-            color = if (activeOffset != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
+            width = CodecksDesignTokens.Stroke.hairline,
+            color = if (activeOffset != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = CodecksDesignTokens.Opacity.emphasized),
         ),
         shape = MaterialTheme.shapes.large,
         modifier = modifier
@@ -747,7 +748,7 @@ private fun ScrollRail(
                 }
             },
     ) {
-        Canvas(modifier = Modifier.fillMaxSize().padding(3.dp)) {
+        Canvas(modifier = Modifier.fillMaxSize().padding(CodecksDesignTokens.Spacing.xs)) {
             val center = Offset(size.width / 2f, size.height / 2f)
             if (orientation == ScrollRailOrientation.Vertical) {
                 drawLine(
@@ -812,9 +813,9 @@ private fun BoxScope.TrackpadRailMarker(
         shape = MaterialTheme.shapes.small,
         modifier = Modifier
             .align(if (side == TrackpadRailSide.Left) Alignment.CenterStart else Alignment.CenterEnd)
-            .padding(horizontal = 5.dp)
-            .width(22.dp)
-            .height(72.dp),
+            .padding(horizontal = CodecksDesignTokens.Spacing.xs)
+            .width(CodecksDesignTokens.Size.Trackpad.railWidth)
+            .height(CodecksDesignTokens.Size.Trackpad.railHeight),
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.rotate(-90f))

@@ -6,7 +6,7 @@ import android.content.Context
 import android.content.Intent
 import io.codecks.widget.TrackpadWidgetProvider
 
-data class ThemeSystemSurfaceColors(val primary: Int, val background: Int)
+data class ThemeSystemSurfaceColors(val primary: Int, val background: Int, val content: Int)
 
 internal fun interface ThemeSystemSurfaceWriter {
     fun write(bundle: ThemeBundle): Boolean
@@ -18,25 +18,33 @@ class ThemeSystemSurfaceStore(context: Context) : ThemeSystemSurfaceWriter {
     override fun write(bundle: ThemeBundle): Boolean {
         val primary = bundle.global[ThemeColorRole.Primary].value.toInt()
         val background = bundle.global[ThemeColorRole.Background].value.toInt()
+        val content = ThemeContrast.readableForeground(bundle.global[ThemeColorRole.Background]).value.toInt()
         if (preferences.contains(PRIMARY) && preferences.getInt(PRIMARY, 0) == primary &&
-            preferences.contains(BACKGROUND) && preferences.getInt(BACKGROUND, 0) == background
+            preferences.contains(BACKGROUND) && preferences.getInt(BACKGROUND, 0) == background &&
+            preferences.contains(CONTENT) && preferences.getInt(CONTENT, 0) == content
         ) {
             return true
         }
         return preferences.edit()
             .putInt(PRIMARY, primary)
             .putInt(BACKGROUND, background)
+            .putInt(CONTENT, content)
             .commit()
     }
 
     fun read(): ThemeSystemSurfaceColors = ThemeSystemSurfaceColors(
         primary = preferences.getInt(PRIMARY, ThemePresetCatalog.default[ThemeColorRole.Primary].value.toInt()),
         background = preferences.getInt(BACKGROUND, ThemePresetCatalog.default[ThemeColorRole.Background].value.toInt()),
+        content = preferences.getInt(
+            CONTENT,
+            ThemeContrast.readableForeground(ThemePresetCatalog.default[ThemeColorRole.Background]).value.toInt(),
+        ),
     )
 
     private companion object {
         const val PRIMARY = "primary"
         const val BACKGROUND = "background"
+        const val CONTENT = "content"
     }
 }
 

@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -29,8 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
@@ -50,6 +51,9 @@ import io.codecks.ui.keyboard.KeyboardScreen
 import io.codecks.ui.keyboard.KeyboardViewModel
 import io.codecks.ui.mouse.MouseScreen
 import io.codecks.ui.mouse.MouseViewModel
+import io.codecks.core.design.CodecksDesignTokens
+import io.codecks.ui.designsystem.LocalCodecksMotionPolicy
+import io.codecks.ui.designsystem.codecksSemanticColorTokens
 import java.io.File
 import io.codecks.domain.features.FeatureFlag
 import io.codecks.domain.features.DEFAULT_FEATURE_FLAGS
@@ -68,18 +72,30 @@ import java.security.MessageDigest
 
 @Composable
 internal fun CelebrationOverlay(label: String, onDone: () -> Unit) {
+    val motion = LocalCodecksMotionPolicy.current
+    val colors = codecksSemanticColorTokens()
     LaunchedEffect(label) {
         kotlinx.coroutines.delay(1_250)
         onDone()
     }
     Box(modifier = Modifier.fillMaxSize()) {
-        Text("🎉", fontSize = 46.sp, modifier = Modifier.align(Alignment.TopStart).padding(start = 34.dp, top = 90.dp))
-        Text("✨", fontSize = 38.sp, modifier = Modifier.align(Alignment.TopEnd).padding(end = 38.dp, top = 150.dp))
-        Text("💚", fontSize = 42.sp, modifier = Modifier.align(Alignment.CenterStart).padding(start = 28.dp))
-        Text(label.take(2), fontSize = 52.sp, modifier = Modifier.align(Alignment.Center))
-        Text("🔥", fontSize = 42.sp, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 34.dp))
-        Text("✨", fontSize = 44.sp, modifier = Modifier.align(Alignment.BottomStart).padding(start = 56.dp, bottom = 150.dp))
-        Text("🎉", fontSize = 50.sp, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 52.dp, bottom = 108.dp))
+        if (motion.allowsContinuousMotion) {
+            Text("🎉", style = MaterialTheme.typography.displaySmall, modifier = Modifier.align(Alignment.TopStart).padding(CodecksDesignTokens.Spacing.xxl).clearAndSetSemantics { })
+            Text("✨", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.align(Alignment.TopEnd).padding(CodecksDesignTokens.Spacing.xxl).clearAndSetSemantics { })
+            Text("💚", style = MaterialTheme.typography.displaySmall, modifier = Modifier.align(Alignment.CenterStart).padding(CodecksDesignTokens.Spacing.xxl).clearAndSetSemantics { })
+            Text("🔥", style = MaterialTheme.typography.displaySmall, modifier = Modifier.align(Alignment.CenterEnd).padding(CodecksDesignTokens.Spacing.xxl).clearAndSetSemantics { })
+            Text("✨", style = MaterialTheme.typography.displaySmall, modifier = Modifier.align(Alignment.BottomStart).padding(CodecksDesignTokens.Spacing.xxl).clearAndSetSemantics { })
+            Text("🎉", style = MaterialTheme.typography.displaySmall, modifier = Modifier.align(Alignment.BottomEnd).padding(CodecksDesignTokens.Spacing.xxl).clearAndSetSemantics { })
+        }
+        Surface(
+            color = colors.surfaceRaised,
+            contentColor = colors.content,
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = CodecksDesignTokens.Elevation.medium,
+            modifier = Modifier.align(Alignment.Center),
+        ) {
+            Text(label.take(24), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(CodecksDesignTokens.Spacing.xxl))
+        }
     }
 }
 

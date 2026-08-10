@@ -3,32 +3,34 @@
     android:id="@+id/trackpad_widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/black"
+    android:background="@color/codecks_widget_canvas_fallback"
     android:gravity="center"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="@dimen/codecks_space_page">
 
     <ImageView
         android:id="@+id/trackpad_widget_icon"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
+        android:layout_width="@dimen/codecks_widget_icon_size"
+        android:layout_height="@dimen/codecks_widget_icon_size"
         android:contentDescription="@string/app_name"
         android:src="@drawable/ic_widget_robot_face" />
 
     <TextView
+        android:id="@+id/trackpad_widget_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Trackpad"
-        android:textColor="@android:color/white"
-        android:layout_marginTop="4dp"
-        android:textSize="18sp"
+        android:text="@string/widget_trackpad_title"
+        android:textColor="@color/codecks_widget_content_fallback"
+        android:layout_marginTop="@dimen/codecks_space_xs"
+        android:textSize="@dimen/codecks_widget_title_text"
         android:textStyle="bold" />
 
     <TextView
+        android:id="@+id/trackpad_widget_detail"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:text="Open pointer surface"
-        android:textColor="#CCFFFFFF"
-        android:textSize="12sp" />
+        android:layout_marginTop="@dimen/codecks_space_sm"
+        android:text="@string/widget_trackpad_detail"
+        android:textColor="@color/codecks_widget_content_fallback"
+        android:textSize="@dimen/codecks_widget_detail_text" />
 </LinearLayout>

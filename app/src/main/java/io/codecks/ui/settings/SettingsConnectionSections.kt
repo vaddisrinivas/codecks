@@ -50,6 +50,8 @@ import io.codecks.ui.connection.SetupStep
 import io.codecks.ui.connection.connectionDiagnostic
 import io.codecks.ui.connection.ConnectionRepair
 import io.codecks.ui.connection.statusLabel
+import io.codecks.core.design.CodecksDesignTokens
+import io.codecks.ui.designsystem.codecksSemanticColorTokens
 
 @Composable
 internal fun UpdateSettingsPanel(
@@ -132,62 +134,69 @@ internal fun CodecksHelperPanel(
     onSearch: (String) -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("Codecks") }
+    val colors = codecksSemanticColorTokens()
     val connectRepair = state.repairs.firstOrNull { it == ConnectionRepair.RetryNow }
     val setupRepair = state.repairs.firstOrNull {
         it == ConnectionRepair.PairHelper || it == ConnectionRepair.OpenHelper || it == ConnectionRepair.ReviewIdentity
     }
     CodecksPanel(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(
+            horizontal = CodecksDesignTokens.Spacing.page,
+            vertical = CodecksDesignTokens.Spacing.sm,
+        ),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(14.dp)) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Grid.standardGap),
+            modifier = Modifier.padding(CodecksDesignTokens.Spacing.lg),
+        ) {
             Text("Codecks helper", style = MaterialTheme.typography.titleMedium)
             Text(
                 state.statusDetail,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = colors.contentMuted,
             )
             state.supportCode?.let {
                 Text(
                     "Support code $it",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = colors.contentMuted,
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Grid.standardGap), modifier = Modifier.fillMaxWidth()) {
                 DeckFilterPill(
                     label = state.statusLabel,
                     selected = state.canRunActions,
                     onClick = {},
-                    modifier = Modifier.heightIn(min = 44.dp),
+                    modifier = Modifier.heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
                 )
                 DeckFilterPill(
                     label = if (state.discoveredCount == 1) "1 nearby" else "${state.discoveredCount} nearby",
                     selected = state.discoveredCount > 0,
                     onClick = {},
-                    modifier = Modifier.heightIn(min = 44.dp),
+                    modifier = Modifier.heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
                 )
             }
             state.pairedDisplayName?.let { name ->
                 Text(
                     name,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = colors.contentMuted,
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Grid.standardGap), modifier = Modifier.fillMaxWidth()) {
                 DeckActionButton(
                     label = if (state.statusLabel == "Connecting…") "Connecting…" else connectRepair?.label ?: "Connect helper",
                     onClick = onConnect,
                     enabled = state.canConnect && connectRepair != null,
                     icon = Icons.Outlined.Link,
-                    modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
                 )
                 DeckActionButton(
                     label = setupRepair?.label ?: if (state.hasPairing) "Pairing JSON" else "Open setup",
                     onClick = onOpenSetup,
                     enabled = true,
                     icon = Icons.Outlined.Terminal,
-                    modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
                 )
             }
             HorizontalDivider()
@@ -204,7 +213,7 @@ internal fun CodecksHelperPanel(
                 onClick = { onSearch(query.trim()) },
                 enabled = state.canRunActions && query.isNotBlank(),
                 icon = Icons.Outlined.Search,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
             )
         }
     }

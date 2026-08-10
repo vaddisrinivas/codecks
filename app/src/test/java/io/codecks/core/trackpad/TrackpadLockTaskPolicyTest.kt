@@ -26,7 +26,11 @@ class TrackpadLockTaskPolicyTest {
         assertTrue(controls.contains("Pin app"))
         assertTrue(controls.contains("Quiet while using Trackpad"))
         assertTrue(controls.contains("Screen blanks after idle"))
-        assertTrue(surface.contains("background(Color.Black.copy(alpha = 0.96f))"))
+        assertTrue(
+            surface.contains(
+                "background(codecksSemanticColorTokens().canvas.copy(alpha = CodecksDesignTokens.Opacity.nearlyOpaque))",
+            ),
+        )
         assertTrue(surface.contains("onActivity = ::recordTrackpadActivity"))
         assertTrue(mouseScreen.contains("phoneNotificationLaneEnabled && !quietModeEnabled"))
         assertTrue(mouseScreen.contains("dynamicEnabled = dynamicActions.isNotEmpty()"))

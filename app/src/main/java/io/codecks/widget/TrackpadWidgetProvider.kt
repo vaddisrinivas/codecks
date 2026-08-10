@@ -24,6 +24,8 @@ class TrackpadWidgetProvider : AppWidgetProvider() {
                     LauncherIconManager(context.applicationContext).current().widgetDrawableRes,
                 )
                 setInt(R.id.trackpad_widget_icon, "setColorFilter", theme.primary)
+                setTextColor(R.id.trackpad_widget_title, theme.content)
+                setTextColor(R.id.trackpad_widget_detail, theme.content)
                 setOnClickPendingIntent(R.id.trackpad_widget_root, TrackpadEntryActivity.widgetPendingIntent(context))
             }
             appWidgetManager.updateAppWidget(appWidgetId, views)
