@@ -162,16 +162,16 @@ class BackupRecoverySafetyTest {
 
     @Test
     fun recoveryRequiredOutcomeIsImmediatelyPublishedAndClosesStalePreview() {
-        val source = java.io.File("src/main/java/io/codecks/MainActivity.kt").readText()
+        val source = java.io.File("src/main/java/io/codecks/AppBackupRuntime.kt").readText()
         val recoveryBranch = source
             .substringAfter(
-                "else if (outcome is io.codecks.domain.backup.BackupRestoreResult.RecoveryRequired)",
+                "else if (outcome is BackupRestoreResult.RecoveryRequired)",
             )
             .substringBefore("}")
 
-        assertTrue(recoveryBranch.contains("pendingBackupRecovery = backupRepository.pendingRecovery()"))
+        assertTrue(recoveryBranch.contains("pendingRecovery = repository.pendingRecovery()"))
         assertTrue(recoveryBranch.contains("pendingRestorePayload = null"))
-        assertTrue(recoveryBranch.contains("pendingRestorePlan = null"))
+        assertTrue(recoveryBranch.contains("restorePlan = null"))
     }
 
     private suspend fun assertPropagatesAfterRollback(thrown: Throwable) {

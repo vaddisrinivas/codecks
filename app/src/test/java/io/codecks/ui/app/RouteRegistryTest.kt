@@ -114,18 +114,20 @@ class RouteRegistryTest {
     @Test
     fun registryRoutes_areReachableFromNavHostAndTestTagsAreConsumed() {
         val mainActivity = File("src/main/java/io/codecks/MainActivity.kt").readText()
+        val compositionRoot = File("src/main/java/io/codecks/AppCompositionRoot.kt").readText()
+        val navigationCoordinator = File("src/main/java/io/codecks/AppCoordinators.kt").readText()
         val shell = File("src/main/java/io/codecks/ui/app/CodecksAppShell.kt").readText()
 
         RouteRegistry.descriptors.forEach { descriptor ->
             assertTrue(
-                mainActivity.contains("entry<${descriptor.destinationClass.java.simpleName}>"),
+                compositionRoot.contains("entry<${descriptor.destinationClass.java.simpleName}>"),
             )
         }
         assertTrue(shell.contains("testTag(destination.testTag)"))
-        assertTrue(mainActivity.contains("RouteBuildExposure.fromDistributionChannel(BuildConfig.DISTRIBUTION_CHANNEL)"))
-        assertTrue(mainActivity.contains("RouteRegistry.primaryDestinations(routeBuildExposure)"))
-        assertTrue(mainActivity.contains("flags = featureFlagRepository.currentFlags"))
-        assertTrue(mainActivity.indexOf("restoredRouteFromStateKey(") < mainActivity.indexOf("rememberNavBackStack(initialRoute)"))
+        assertTrue(navigationCoordinator.contains("RouteBuildExposure.fromDistributionChannel(distributionChannel)"))
+        assertTrue(compositionRoot.contains("RouteRegistry.primaryDestinations(routeBuildExposure)"))
+        assertTrue(compositionRoot.contains("flags = featureFlagRepository.currentFlags"))
+        assertTrue(compositionRoot.indexOf("AppNavigationCoordinator.bootstrap(") < compositionRoot.indexOf("rememberNavBackStack(navigationBootstrap.initialRoute)"))
         assertFalse(mainActivity.contains("destinationRequest = \"palette\""))
         assertFalse(mainActivity.contains("destinationRequest = \"pairing\""))
         assertFalse(mainActivity.contains("mutableStateOf(\"home\")"))

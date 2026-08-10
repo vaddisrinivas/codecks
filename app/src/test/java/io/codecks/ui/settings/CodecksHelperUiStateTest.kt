@@ -79,7 +79,7 @@ class CodecksHelperUiStateTest {
 
     @Test
     fun visibleSpotlightActionUsesProviderCompatibleRevision() {
-        val mainActivity = File("src/main/java/io/codecks/MainActivity.kt").readText()
+        val mainActivity = File("src/main/java/io/codecks/AppHelperRuntime.kt").readText()
 
         assertTrue(mainActivity.contains("actionId = \"spotlight.search\""))
         assertTrue(mainActivity.contains("actionRevision = codecksSpotlightActionRevision(sanitizedQuery)"))

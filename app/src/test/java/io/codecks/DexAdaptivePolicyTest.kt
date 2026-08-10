@@ -34,15 +34,16 @@ class DexAdaptivePolicyTest {
         assertTrue(values.contains("smallestScreenSize"))
         assertTrue(values.contains("screenLayout"))
 
-        val mainSource = File("src/main/java/io/codecks/MainActivity.kt").readText()
+        val mainSource = File("src/main/java/io/codecks/AppCompositionRoot.kt").readText()
+        val coordinator = File("src/main/java/io/codecks/AppCoordinators.kt").readText()
         assertTrue(mainSource.contains("restoredTopRouteName"))
-        assertTrue(mainSource.contains("restoredRouteFromStateKey"))
+        assertTrue(coordinator.contains("restoredRouteFromStateKey(restoredStateKey, flags, exposure)"))
         assertTrue(mainSource.contains("routeStateKey(currentRoute)"))
     }
 
     @Test
     fun trackpadOnlyUsesImmersiveSystemBarsAfterExplicitToggle() {
-        val source = File("src/main/java/io/codecks/MainActivity.kt").readText()
+        val source = File("src/main/java/io/codecks/AppCompositionRoot.kt").readText()
 
         assertTrue(source.contains("val fullscreen = fullscreenOverride == true"))
         assertFalse(source.contains("currentRoute == MouseRoute && !desktopSurface"))

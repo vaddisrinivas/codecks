@@ -7,9 +7,9 @@ import org.junit.Test
 class TrackpadLockTaskPolicyTest {
     @Test
     fun trackpadOffersExplicitUserInitiatedScreenPinning() {
-        val mainActivity = File("src/main/java/io/codecks/MainActivity.kt")
+        val mainActivity = File("src/main/java/io/codecks/AppDestinationSupport.kt")
 
-        assertTrue("MainActivity.kt must be readable for screen-pinning regression guard", mainActivity.exists())
+        assertTrue("AppDestinationSupport.kt must be readable for screen-pinning regression guard", mainActivity.exists())
         val source = mainActivity.readText()
         assertTrue(source.contains("onToggleSessionPin ="))
         assertTrue(source.contains("host.startLockTask()"))
