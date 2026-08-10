@@ -30,8 +30,8 @@ import io.codecks.domain.reactive.ReactiveControlSource
 import io.codecks.domain.reactive.ReactiveExecutionOutcome
 import io.codecks.domain.reactive.ReactiveIcon
 import io.codecks.domain.reactive.ReactiveIdempotencyKey
+import io.codecks.domain.reactive.ReactiveOperationId
 import io.codecks.domain.reactive.ReactiveRisk
-import io.codecks.domain.reactive.ReactiveUndoAction
 import io.codecks.domain.reactive.ReactiveUndoOutcome
 import io.codecks.domain.reactive.ReceiptId
 import io.codecks.domain.reactive.SafeSftpTransferRequest
@@ -41,6 +41,18 @@ import io.codecks.shared.protocol.ActionPrecondition
 import io.codecks.shared.protocol.ActionPreconditionKind
 import io.codecks.shared.protocol.ReactiveHelperRequest
 import io.codecks.shared.protocol.validateExecuteRequest
+import io.codecks.domain.assurance.ActionAssuranceReceipt
+import io.codecks.domain.assurance.ActionAssuranceAdapter
+import io.codecks.domain.assurance.ActionAssuranceEngine
+import io.codecks.domain.assurance.ActionAssurancePolicy
+import io.codecks.domain.assurance.AssuranceComponentExecution
+import io.codecks.domain.assurance.AssuranceComponentReceipt
+import io.codecks.domain.assurance.AssuranceComponentStatus
+import io.codecks.domain.assurance.AssurancePreflightCode
+import io.codecks.domain.assurance.AssuranceReceiptStatus
+import io.codecks.domain.assurance.AssuranceRequest
+import io.codecks.domain.assurance.toAssuranceRequest
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -65,7 +77,12 @@ class DefaultReactiveActionExecutor @Inject constructor(
         val signature = control.idempotencySignature()
         receiptStore.findByIdempotencyKey(invocation.idempotencyKey)?.let { existing ->
             return if (existing.signature == signature) {
-                ReactiveExecutionOutcome(existing.receipt.result, existing.receipt)
+                ReactiveExecutionOutcome(
+                    existing.result,
+                    existing.receipt,
+                    existing.receipt.assuranceReceipt
+                        ?: reactiveAssuranceReceipt(control, invocation, existing.result, nowMillis),
+                )
             } else {
                 recordOutcome(
                     control = control,
@@ -131,13 +148,15 @@ class DefaultReactiveActionExecutor @Inject constructor(
                 actionId = action.actionId,
                 currentState = currentState,
             )
-            is ReactiveAction.Hid -> executeHid(
-                control = control,
-                nowMillis = nowMillis,
-                invocation = invocation,
-                idempotentSignature = signature,
-                command = action.command,
-            )
+            is ReactiveAction.Hid -> executeThroughAssurance(control, authorization, invocation, nowMillis) {
+                executeHid(
+                    control = control,
+                    nowMillis = nowMillis,
+                    invocation = invocation,
+                    idempotentSignature = signature,
+                    command = action.command,
+                )
+            }
             is ReactiveAction.Composite -> executeComposite(
                 control = control,
                 authorization = authorization,
@@ -147,14 +166,16 @@ class DefaultReactiveActionExecutor @Inject constructor(
                 actions = action.actions,
                 currentState = currentState,
             )
-            is ReactiveAction.Helper -> executeHelper(
-                control = control,
-                invocation = invocation,
-                nowMillis = nowMillis,
-                idempotentSignature = signature,
-                action = action,
-                currentState = currentState,
-            )
+            is ReactiveAction.Helper -> executeThroughAssurance(control, authorization, invocation, nowMillis) {
+                executeHelper(
+                    control = control,
+                    invocation = invocation,
+                    nowMillis = nowMillis,
+                    idempotentSignature = signature,
+                    action = action,
+                    currentState = currentState,
+                )
+            }
             is ReactiveAction.BundledSshFallback -> recordOutcome(
                 control = control,
                 invocation = invocation,
@@ -176,13 +197,15 @@ class DefaultReactiveActionExecutor @Inject constructor(
                 ),
                 idempotentSignature = signature,
             )
-            is ReactiveAction.SftpTransferRequest -> executeSftpTransfer(
-                control = control,
-                invocation = invocation,
-                nowMillis = nowMillis,
-                idempotentSignature = signature,
-                request = action.request,
-            )
+            is ReactiveAction.SftpTransferRequest -> executeThroughAssurance(control, authorization, invocation, nowMillis) {
+                executeSftpTransfer(
+                    control = control,
+                    invocation = invocation,
+                    nowMillis = nowMillis,
+                    idempotentSignature = signature,
+                    request = action.request,
+                )
+            }
             is ReactiveAction.ChangeMode -> recordOutcome(
                 control = control,
                 invocation = invocation,
@@ -234,6 +257,54 @@ class DefaultReactiveActionExecutor @Inject constructor(
             is ReactiveActionResult.RequiresConfirmation -> ReactiveUndoOutcome.Failed("undo_requires_confirmation", retryable = false)
             is ReactiveActionResult.RequiresReview -> ReactiveUndoOutcome.Failed("undo_requires_review", retryable = false)
         }
+    }
+
+    private suspend fun executeThroughAssurance(
+        control: ReactiveControl,
+        authorization: ReactiveAuthorization,
+        invocation: ReactiveActionInvocation,
+        nowMillis: Long,
+        dispatch: suspend () -> ReactiveExecutionOutcome,
+    ): ReactiveExecutionOutcome {
+        var dispatched: ReactiveExecutionOutcome? = null
+        val reviewedRevision = authorization.reviewedActionRevision
+            ?.takeIf { it == control.actionRevision }
+            ?.value
+        val baseRequest = control.toAssuranceRequest(
+            reviewedRevision = reviewedRevision,
+            confirmationGranted = control.risk != ReactiveRisk.Dangerous ||
+                authorization.confirmedActionRevision == control.actionRevision,
+            operationId = reactiveFingerprint(invocation.operationId.value),
+            idempotencyKey = reactiveFingerprint(invocation.idempotencyKey.value),
+        )
+        val revision = reactiveFingerprint(control.actionRevision.value)
+        val request = baseRequest.copy(
+            subjectId = reactiveFingerprint(control.id.value),
+            revision = revision,
+            review = baseRequest.review?.copy(reviewedRevision = revision),
+            reversible = false,
+        )
+        val engine = ActionAssuranceEngine(
+            adapter = object : ActionAssuranceAdapter {
+                override suspend fun execute(
+                    request: AssuranceRequest,
+                    componentIds: Set<String>?,
+                ): List<AssuranceComponentExecution> {
+                    val outcome = dispatch()
+                    dispatched = outcome
+                    return listOf(outcome.result.toAssuranceExecution(request.transport.name.lowercase()))
+                }
+            },
+            nowMillis = { nowMillis },
+        )
+        val assurance = engine.execute(request, revision)
+        val outcome = dispatched ?: return ReactiveExecutionOutcome(
+            result = assurance.toDeniedReactiveResult(control.actionRevision),
+            assuranceReceipt = assurance,
+        )
+        val updatedReceipt = outcome.receipt?.copy(assuranceReceipt = assurance)
+        if (updatedReceipt != null) receiptStore.replaceReceipt(updatedReceipt)
+        return outcome.copy(receipt = updatedReceipt, assuranceReceipt = assurance)
     }
 
     private suspend fun executeCatalog(
@@ -409,7 +480,6 @@ class DefaultReactiveActionExecutor @Inject constructor(
                 invocation = invocation,
                 nowMillis = nowMillis,
                 result = ReactiveActionResult.Succeeded("hid_command_sent"),
-                undo = command.undoAction(nowMillis),
                 metadata = mapOf(
                     "actionId" to (control.action as? ReactiveAction.Hid)?.command?.name.orEmpty(),
                     "hidCommand" to command.name,
@@ -495,7 +565,6 @@ class DefaultReactiveActionExecutor @Inject constructor(
                     invocation = invocation,
                     nowMillis = success?.completedAtMillis ?: nowMillis,
                     result = execution.toReactiveActionResult(control.actionRevision),
-                    undo = success?.toUndoAction(nowMillis),
                     metadata = success?.let {
                         mapOf(
                             "operationKind" to "helper_action",
@@ -549,35 +618,154 @@ class DefaultReactiveActionExecutor @Inject constructor(
         invocation: ReactiveActionInvocation,
         nowMillis: Long,
         result: ReactiveActionResult,
-        undo: ReactiveUndoAction? = null,
         expiresAtMillis: Long? = null,
         metadata: Map<String, String> = emptyMap(),
         actionRevision: ActionRevision = control.actionRevision,
         idempotentSignature: String?,
     ): ReactiveExecutionOutcome {
         if (result !is ReactiveActionResult.Succeeded) {
-            return ReactiveExecutionOutcome(result = result, receipt = null)
+            return ReactiveExecutionOutcome(
+                result = result,
+                receipt = null,
+                assuranceReceipt = reactiveAssuranceReceipt(control, invocation, result, nowMillis),
+            )
         }
+        val assuranceReceipt = reactiveAssuranceReceipt(control, invocation, result, nowMillis)
         val receipt = ReactiveActionReceipt(
             id = newReactiveReceiptId(),
-            operationId = invocation.operationId,
-            idempotencyKey = invocation.idempotencyKey,
-            controlId = control.id,
-            actionRevision = actionRevision,
+            operationId = ReactiveOperationId(reactiveFingerprint(invocation.operationId.value)),
+            idempotencyKey = ReactiveIdempotencyKey(reactiveFingerprint(invocation.idempotencyKey.value)),
+            controlId = ControlId(reactiveFingerprint(control.id.value)),
+            actionRevision = ActionRevision(reactiveFingerprint(actionRevision.value)),
             completedAtMillis = nowMillis,
-            result = result,
-            undo = undo,
+            result = result.toReceiptResult(),
+            undo = null,
             expiresAtMillis = expiresAtMillis,
-            metadata = metadata,
+            metadata = metadata.mapValues { reactiveFingerprint(it.value) },
+            assuranceReceipt = assuranceReceipt,
         )
         if (idempotentSignature == null) {
             receiptStore.record(receipt)
         } else {
-            receiptStore.recordIdempotent(idempotentSignature, receipt)
+            receiptStore.recordIdempotent(idempotentSignature, invocation.idempotencyKey, result, receipt)
         }
-        return ReactiveExecutionOutcome(result, receipt)
+        return ReactiveExecutionOutcome(
+            result,
+            receipt,
+            assuranceReceipt,
+        )
     }
 }
+
+private fun reactiveAssuranceReceipt(
+    control: ReactiveControl,
+    invocation: ReactiveActionInvocation,
+    result: ReactiveActionResult,
+    nowMillis: Long,
+): ActionAssuranceReceipt {
+    val reviewed = result !is ReactiveActionResult.RequiresReview
+    val request = control.toAssuranceRequest(
+        reviewedRevision = control.actionRevision.value.takeIf { reviewed },
+        operationId = reactiveFingerprint(invocation.operationId.value),
+        idempotencyKey = reactiveFingerprint(invocation.idempotencyKey.value),
+    )
+    val preflight = ActionAssurancePolicy.evaluate(request, control.actionRevision.value)
+    val succeeded = result is ReactiveActionResult.Succeeded
+    val denied = result is ReactiveActionResult.RequiresConfirmation ||
+        result is ReactiveActionResult.RequiresReview ||
+        result is ReactiveActionResult.Unsupported ||
+        result is ReactiveActionResult.Expired
+    val code = when (result) {
+        is ReactiveActionResult.Succeeded -> result.messageCode
+        is ReactiveActionResult.Failed -> result.errorCode
+        is ReactiveActionResult.RequiresConfirmation -> "confirmation_required"
+        is ReactiveActionResult.RequiresReview -> "review_required"
+        is ReactiveActionResult.Unsupported -> result.reasonCode
+        ReactiveActionResult.Expired -> "expired"
+    }.let(::reactiveFingerprint)
+    return ActionAssuranceReceipt(
+        receiptId = UUID.randomUUID().toString(),
+        operationId = request.operationId,
+        idempotencyKey = request.idempotencyKey,
+        subjectId = reactiveFingerprint(control.id.value),
+        revision = reactiveFingerprint(control.actionRevision.value),
+        source = request.source,
+        transport = request.transport,
+        status = when {
+            succeeded -> AssuranceReceiptStatus.Succeeded
+            denied -> AssuranceReceiptStatus.Denied
+            else -> AssuranceReceiptStatus.Failed
+        },
+        preflight = preflight,
+        components = listOf(
+            AssuranceComponentReceipt(
+                componentId = request.transport.name.lowercase(),
+                status = when {
+                    succeeded -> AssuranceComponentStatus.Succeeded
+                    denied -> AssuranceComponentStatus.Skipped
+                    else -> AssuranceComponentStatus.Failed
+                },
+                code = code,
+                retryable = result is ReactiveActionResult.Failed && result.retryable,
+                undoAvailable = false,
+            ),
+        ),
+        retryToken = null,
+        undoToken = null,
+        completedAtMillis = nowMillis,
+    )
+}
+
+private fun ReactiveActionResult.toAssuranceExecution(componentId: String): AssuranceComponentExecution =
+    AssuranceComponentExecution(
+        componentId = componentId,
+        status = when (this) {
+            is ReactiveActionResult.Succeeded -> AssuranceComponentStatus.Succeeded
+            is ReactiveActionResult.Failed -> AssuranceComponentStatus.Failed
+            is ReactiveActionResult.RequiresConfirmation,
+            is ReactiveActionResult.RequiresReview,
+            is ReactiveActionResult.Unsupported,
+            ReactiveActionResult.Expired,
+            -> AssuranceComponentStatus.Skipped
+        },
+        code = reactiveFingerprint(when (this) {
+            is ReactiveActionResult.Succeeded -> messageCode
+            is ReactiveActionResult.Failed -> errorCode
+            is ReactiveActionResult.RequiresConfirmation -> "confirmation_required"
+            is ReactiveActionResult.RequiresReview -> "review_required"
+            is ReactiveActionResult.Unsupported -> reasonCode
+            ReactiveActionResult.Expired -> "expired"
+        }),
+        retryable = this is ReactiveActionResult.Failed && retryable,
+        undoToken = null,
+    )
+
+private fun ActionAssuranceReceipt.toDeniedReactiveResult(revision: ActionRevision): ReactiveActionResult = when {
+    preflight.any { it.code == AssurancePreflightCode.Confirmation && !it.passed } ->
+        ReactiveActionResult.RequiresConfirmation(revision, "Confirm action", "Explicit confirmation required.")
+    preflight.any { it.code == AssurancePreflightCode.Review && !it.passed } ->
+        ReactiveActionResult.RequiresReview(revision, "Current action revision requires review.")
+    else -> ReactiveActionResult.Failed("assurance_denied", retryable = false)
+}
+
+private fun ReactiveActionResult.toReceiptResult(): ReactiveActionResult = when (this) {
+    is ReactiveActionResult.Succeeded -> ReactiveActionResult.Succeeded(reactiveFingerprint(messageCode))
+    is ReactiveActionResult.Failed -> ReactiveActionResult.Failed(reactiveFingerprint(errorCode), retryable)
+    is ReactiveActionResult.RequiresConfirmation -> copy(
+        actionRevision = ActionRevision(reactiveFingerprint(actionRevision.value)),
+        title = reactiveFingerprint(title),
+        body = reactiveFingerprint(body),
+    )
+    is ReactiveActionResult.RequiresReview -> copy(
+        actionRevision = ActionRevision(reactiveFingerprint(actionRevision.value)),
+        reason = reactiveFingerprint(reason),
+    )
+    is ReactiveActionResult.Unsupported -> ReactiveActionResult.Unsupported(reactiveFingerprint(reasonCode))
+    ReactiveActionResult.Expired -> ReactiveActionResult.Expired
+}
+
+private fun reactiveFingerprint(value: String): String =
+    "redacted_${io.codecks.domain.reactive.sha256Hex(value).take(12)}"
 
 private fun ReactiveControl.idempotencySignature(): String = listOf(
     id.value,
@@ -679,17 +867,4 @@ private fun SharedHidCommand.toHidCommand(): HidCommand = when (this) {
     SharedHidCommand.Enter -> HidCommand.Enter
     SharedHidCommand.CommandEnter -> HidCommand.CommandEnter
     SharedHidCommand.MediaPlayPause -> HidCommand.MediaPlayPause
-}
-
-private fun SharedHidCommand.undoAction(nowMillis: Long): ReactiveUndoAction? {
-    val inverse = when (this) {
-        SharedHidCommand.BrowserBack -> SharedHidCommand.BrowserForward
-        SharedHidCommand.BrowserForward -> SharedHidCommand.BrowserBack
-        else -> return null
-    }
-    return ReactiveUndoAction(
-        label = "Undo $name",
-        action = ReactiveAction.Hid(inverse),
-        expiresAtMillis = nowMillis + 30_000L,
-    )
 }

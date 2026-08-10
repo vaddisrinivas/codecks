@@ -55,9 +55,11 @@ import io.codecks.domain.reactive.Observed
 import io.codecks.domain.reactive.StateSource
 import io.codecks.domain.reactive.CodecksCapability
 import io.codecks.domain.reactive.TransferDirection
+import io.codecks.domain.assurance.AssuranceReceiptStatus
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -84,8 +86,16 @@ class DefaultReactiveActionExecutorTest {
         assertEquals(ReactiveActionResult.Succeeded("hid_command_sent"), outcome.result)
         assertEquals(listOf(HidCommand.BrowserBack), hid.sentCommands)
         assertNotNull(outcome.receipt)
+        assertNotNull(outcome.assuranceReceipt)
+        assertEquals(io.codecks.domain.assurance.AssuranceSource.Reactive, outcome.assuranceReceipt?.source)
+        assertEquals(io.codecks.domain.assurance.AssuranceReceiptStatus.Succeeded, outcome.assuranceReceipt?.status)
         assertEquals(1, receipts.all().size)
         assertEquals(1, receipts.protocolReceipts().size)
+        val emitted = outcome.receipt.toString() + receipts.protocolReceipts().single().toString()
+        assertFalse(emitted.contains("reactive_hid_back"))
+        assertFalse(emitted.contains("rev_hid"))
+        assertFalse(emitted.contains("hid_command_sent"))
+        assertFalse(emitted.contains("BrowserBack"))
     }
 
     @Test
@@ -106,7 +116,81 @@ class DefaultReactiveActionExecutorTest {
 
         assertEquals(ReactiveActionResult.Failed("hid_not_connected", true), outcome.result)
         assertNull(outcome.receipt)
+        assertNotNull(outcome.assuranceReceipt)
+        assertEquals(io.codecks.domain.assurance.AssuranceReceiptStatus.Failed, outcome.assuranceReceipt?.status)
+        assertTrue(outcome.assuranceReceipt?.components?.single()?.code?.startsWith("redacted_") == true)
         assertTrue(receipts.all().isEmpty())
+    }
+
+    @Test
+    fun wrongReviewRevisionRunsAssuranceGateBeforeRealHidDispatch() = kotlinx.coroutines.test.runTest {
+        val hid = FakeHidRepository(isConnected = true)
+        val executor = DefaultReactiveActionExecutor(
+            actionRepository = FakeReactiveActionRepository(emptyList()),
+            actionRunner = FakeReactiveActionRunner(),
+            hidRepository = hid,
+        )
+
+        val outcome = executor.execute(
+            hidControl().copy(risk = ReactiveRisk.Review),
+            authorization = ReactiveAuthorization(reviewedActionRevision = ActionRevision("stale_revision")),
+            nowMillis = 10_000L,
+        )
+
+        assertTrue(outcome.result is ReactiveActionResult.RequiresReview)
+        assertEquals(AssuranceReceiptStatus.Denied, outcome.assuranceReceipt?.status)
+        assertTrue(hid.sentCommands.isEmpty())
+    }
+
+    @Test
+    fun wrongReviewRevisionRunsAssuranceGateBeforeRealHelperDispatch() = kotlinx.coroutines.test.runTest {
+        val helper = FakeReactiveHelperActionClient(ReactiveHelperActionExecution.Failed("must_not_run", false))
+        val executor = DefaultReactiveActionExecutor(
+            actionRepository = FakeReactiveActionRepository(emptyList()),
+            actionRunner = FakeReactiveActionRunner(),
+            hidRepository = FakeHidRepository(isConnected = true),
+            helperActionClient = helper,
+        )
+
+        val outcome = executor.execute(
+            helperControl().copy(risk = ReactiveRisk.Review),
+            authorization = ReactiveAuthorization(reviewedActionRevision = ActionRevision("stale_revision")),
+            nowMillis = 10_000L,
+        )
+
+        assertTrue(outcome.result is ReactiveActionResult.RequiresReview)
+        assertEquals(AssuranceReceiptStatus.Denied, outcome.assuranceReceipt?.status)
+        assertTrue(helper.requests.isEmpty())
+    }
+
+    @Test
+    fun wrongReviewRevisionRunsAssuranceGateBeforeRealSftpDispatch() = kotlinx.coroutines.test.runTest {
+        val sftp = FakeReactiveSftpTransferClient(ReactiveSftpTransferExecution.Succeeded)
+        val request = SafeSftpTransferRequest(
+            direction = TransferDirection.MacToPhone,
+            localPath = "/Users/me/secret.txt",
+            remotePath = "/phone/inbox/secret.txt",
+            roots = SftpAllowedRoots("local", "/Users/me", "remote", "/phone/inbox"),
+            provenance = provenance(),
+        )
+        val executor = DefaultReactiveActionExecutor(
+            actionRepository = FakeReactiveActionRepository(emptyList()),
+            actionRunner = FakeReactiveActionRunner(),
+            hidRepository = FakeHidRepository(isConnected = true),
+            sftpTransferClient = sftp,
+        )
+        val control = reactiveControl("review_sftp", ReactiveAction.SftpTransferRequest(request), CodecksCapability.SftpTransfer)
+            .copy(risk = ReactiveRisk.Review)
+
+        val outcome = executor.execute(
+            control,
+            authorization = ReactiveAuthorization(reviewedActionRevision = ActionRevision("stale_revision")),
+            nowMillis = 10_000L,
+        )
+
+        assertTrue(outcome.result is ReactiveActionResult.RequiresReview)
+        assertEquals(AssuranceReceiptStatus.Denied, outcome.assuranceReceipt?.status)
+        assertTrue(sftp.requests.isEmpty())
     }
 
     @Test
@@ -121,8 +205,8 @@ class DefaultReactiveActionExecutorTest {
         )
         val control = hidControl()
         val invocation = ReactiveActionInvocation(
-            operationId = ReactiveOperationId("op-1"),
-            idempotencyKey = ReactiveIdempotencyKey("idem-1"),
+            operationId = ReactiveOperationId("op user@example.com"),
+            idempotencyKey = ReactiveIdempotencyKey("idem password=abc"),
             requestedAtMillis = 10_000L,
         )
 
@@ -130,6 +214,11 @@ class DefaultReactiveActionExecutorTest {
         val replay = executor.execute(control, ReactiveAuthorization(), 10_500L, invocation = invocation)
 
         assertEquals(first.receipt?.id, replay.receipt?.id)
+        assertEquals(first.assuranceReceipt?.receiptId, replay.assuranceReceipt?.receiptId)
+        assertFalse(first.receipt?.operationId?.value.orEmpty().contains("example.com"))
+        assertFalse(first.receipt?.idempotencyKey?.value.orEmpty().contains("password"))
+        assertFalse(first.assuranceReceipt?.operationId.orEmpty().contains("example.com"))
+        assertFalse(first.assuranceReceipt?.idempotencyKey.orEmpty().contains("password"))
         assertEquals(listOf(HidCommand.BrowserBack), hid.sentCommands)
         assertEquals(1, receipts.all().size)
     }
@@ -209,10 +298,10 @@ class DefaultReactiveActionExecutorTest {
         assertEquals(ReactiveActionResult.Succeeded("spotlight_preview_recorded"), outcome.result)
         assertTrue(hid.sentCommands.isEmpty())
         val receipt = outcome.receipt!!
-        assertEquals("spotlight_preview", receipt.metadata["operationKind"])
-        assertEquals("8", receipt.metadata["maxResults"])
+        assertTrue(receipt.metadata["operationKind"]!!.startsWith("redacted_"))
+        assertTrue(receipt.metadata["maxResults"]!!.startsWith("redacted_"))
         assertNull(receipt.metadata["query"])
-        assertTrue(receipt.metadata["queryFingerprint"]!!.length == 32)
+        assertTrue(receipt.metadata["queryFingerprint"]!!.startsWith("redacted_"))
     }
 
     @Test
@@ -251,12 +340,11 @@ class DefaultReactiveActionExecutorTest {
         assertEquals(listOf(request), sftp.requests)
         assertEquals(ReactiveActionResult.Succeeded("sftp_transfer_completed"), outcome.result)
         val receipt = outcome.receipt!!
-        assertEquals("sftp_transfer", receipt.metadata["operationKind"])
-        assertEquals("mac_downloads", receipt.metadata["localRootId"])
-        assertEquals("phone_inbox", receipt.metadata["remoteRootId"])
+        assertTrue(receipt.metadata["operationKind"]!!.startsWith("redacted_"))
+        assertFalse(receipt.metadata.values.any { it.contains("mac_downloads") || it.contains("phone_inbox") })
         assertNull(receipt.metadata["localPath"])
         assertNull(receipt.metadata["remotePath"])
-        assertTrue(receipt.metadata["localPathFingerprint"]!!.length == 32)
+        assertTrue(receipt.metadata["localPathFingerprint"]!!.startsWith("redacted_"))
     }
 
     @Test
@@ -328,7 +416,7 @@ class DefaultReactiveActionExecutorTest {
         assertEquals("apple_shortcuts.run", helper.requests.single().actionId)
         assertEquals("Daily Standup", helper.requests.single().arguments["shortcutName"])
         assertTrue(helper.requests.single().preconditions.any { it.expectedBundleId == "com.apple.Terminal" })
-        assertEquals("helper-receipt-1", outcome.receipt!!.metadata["helperReceiptId"])
+        assertFalse(outcome.receipt!!.metadata.values.any { it.contains("helper-receipt-1") || it.contains("apple_shortcuts.run") })
     }
 
     @Test
@@ -392,7 +480,7 @@ class DefaultReactiveActionExecutorTest {
     }
 
     @Test
-    fun undoHidReceiptRunsInverseCommand() = kotlinx.coroutines.test.runTest {
+    fun reactiveReceiptDoesNotAdvertiseUnvalidatedUndo() = kotlinx.coroutines.test.runTest {
         val receipts = InMemoryReactiveReceiptStore()
         val hid = FakeHidRepository(isConnected = true)
         val executor = DefaultReactiveActionExecutor(
@@ -403,10 +491,15 @@ class DefaultReactiveActionExecutorTest {
         )
 
         val outcome = executor.execute(hidControl(SharedHidCommand.BrowserBack), ReactiveAuthorization(), 10_000L)
-        val undo = executor.undo(outcome.receipt!!.id, nowMillis = 10_001L)
+        val receipt = requireNotNull(outcome.receipt)
+        val assurance = requireNotNull(outcome.assuranceReceipt)
+        val undo = executor.undo(receipt.id, nowMillis = 10_001L)
 
-        assertTrue(undo is ReactiveUndoOutcome.Succeeded)
-        assertEquals(listOf(HidCommand.BrowserBack, HidCommand.BrowserForward), hid.sentCommands)
+        assertEquals(ReactiveUndoOutcome.Unsupported("undo_unavailable"), undo)
+        assertNull(receipt.undo)
+        assertFalse(assurance.components.single().undoAvailable)
+        assertNull(assurance.undoToken)
+        assertEquals(listOf(HidCommand.BrowserBack), hid.sentCommands)
     }
 
     @Test
@@ -423,7 +516,7 @@ class DefaultReactiveActionExecutorTest {
         val outcome = executor.execute(hidControl(SharedHidCommand.BrowserBack), ReactiveAuthorization(), 10_000L)
         val undo = executor.undo(outcome.receipt!!.id, nowMillis = 40_001L)
 
-        assertEquals(ReactiveUndoOutcome.Expired, undo)
+        assertEquals(ReactiveUndoOutcome.Unsupported("undo_unavailable"), undo)
         assertEquals(listOf(HidCommand.BrowserBack), hid.sentCommands)
     }
 
@@ -791,7 +884,7 @@ class DefaultReactiveActionExecutorTest {
         basePriority = 10,
         reason = "test",
         requiredCapabilities = setOf(capability),
-        risk = ReactiveRisk.Review,
+        risk = ReactiveRisk.Safe,
         reversible = false,
         stateRevision = 1L,
         actionRevision = ActionRevision("rev_$id"),

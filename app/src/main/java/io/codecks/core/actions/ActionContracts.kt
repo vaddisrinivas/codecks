@@ -6,6 +6,8 @@ import io.codecks.domain.CommandReview
 import io.codecks.domain.DeckAction
 import io.codecks.domain.ExecutionAuthorization
 import io.codecks.domain.device.TargetSelector
+import io.codecks.domain.assurance.ActionAssuranceReceipt
+import io.codecks.domain.assurance.AssuranceComponentReceipt
 
 data class Deck(
     val id: String,
@@ -120,6 +122,8 @@ data class ActionResult(
     val logs: String = message,
     val target: String? = null,
     val timestampMillis: Long = System.currentTimeMillis(),
+    val assuranceReceipt: ActionAssuranceReceipt? = null,
+    val componentReceipts: List<AssuranceComponentReceipt> = emptyList(),
 ) {
     val succeeded: Boolean get() = status == ActionResultStatus.Succeeded
 }

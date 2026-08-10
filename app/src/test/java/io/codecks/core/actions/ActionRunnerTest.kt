@@ -20,9 +20,50 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ActionRunnerTest {
+    @Test
+    fun everyTerminalResultCarriesTypedAssuranceReceipt() = runTest {
+        val connection = FakeConnectionRepository()
+        val runner = testRunner(connection = connection)
+        val command = "printf hi"
+        val revision = commandRevision(
+            command,
+            TargetSelector.CurrentDevice,
+            CommandOrigin.UserAuthored,
+            dangerous = false,
+        )
+        val result = runner.run(
+            ActionSpec.ShellCommand(
+                "assured",
+                "Assured",
+                command,
+                review = CommandReview(reviewedRevision = revision),
+            ),
+        )
+
+        val receipt = requireNotNull(result.assuranceReceipt)
+        assertEquals(revision, receipt.revision)
+        assertTrue(receipt.preflight.all { it.passed })
+        assertEquals(1, receipt.components.size)
+        assertTrue(receipt.components.single().componentId.startsWith("target_"))
+        assertTrue(result.componentReceipts.single().componentId.startsWith("target_"))
+    }
+
+    @Test
+    fun reviewDenialAlsoCarriesFailClosedAssuranceReceipt() = runTest {
+        val result = testRunner().run(
+            ActionSpec.ShellCommand("unreviewed", "Unreviewed", "printf hi"),
+        )
+
+        assertEquals(ActionResultStatus.RequiresReview, result.status)
+        val receipt = requireNotNull(result.assuranceReceipt)
+        assertEquals(io.codecks.domain.assurance.AssuranceReceiptStatus.Denied, receipt.status)
+        assertTrue(receipt.preflight.any { !it.passed })
+    }
+
     @Test
     fun dangerousAction_requiresConfirmationByDefault() = runTest {
         val runner = testRunner()

@@ -11,8 +11,30 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import io.codecks.domain.assurance.ActionAssuranceReceipt
+import io.codecks.domain.assurance.AssuranceComponentReceipt
+import io.codecks.domain.assurance.AssuranceComponentStatus
+import io.codecks.domain.assurance.AssuranceReceiptStatus
+import io.codecks.domain.assurance.AssuranceSource
+import io.codecks.domain.assurance.AssuranceTransport
 
 class AutomationExecutionEngineTest {
+    @Test
+    fun ruleDispatchRetainsCommonReceiptAndRestampsSource() = runBlocking {
+        val runner = object : ActionRunner {
+            override suspend fun run(spec: ActionSpec, allowDangerous: Boolean): ActionResult =
+                result(spec, ActionResultStatus.Succeeded).copy(
+                    assuranceReceipt = assuranceReceipt(spec.id),
+                )
+        }
+        val result = AutomationExecutionEngine(runner).run(
+            recipe().copy(cleanupDefinition = AutomationCleanupDefinition()).executable(),
+            allowDangerous = false,
+        ) { true }
+
+        assertEquals(AssuranceSource.Rule, result.assuranceReceipt?.source)
+        assertEquals(AssuranceReceiptStatus.Succeeded, result.assuranceReceipt?.status)
+    }
     @Test
     fun failureRunsDeclaredCleanup() = runBlocking {
         val calls = mutableListOf<String>()
@@ -102,4 +124,28 @@ class AutomationExecutionEngineTest {
             status = status,
             message = status.name,
         )
+
+    private fun assuranceReceipt(subject: String) = ActionAssuranceReceipt(
+        receiptId = "receipt",
+        operationId = "operation",
+        idempotencyKey = "idempotency",
+        subjectId = subject,
+        revision = "revision",
+        source = AssuranceSource.Deck,
+        transport = AssuranceTransport.Ssh,
+        status = AssuranceReceiptStatus.Succeeded,
+        preflight = emptyList(),
+        components = listOf(
+            AssuranceComponentReceipt(
+                "ssh",
+                AssuranceComponentStatus.Succeeded,
+                "completed",
+                retryable = false,
+                undoAvailable = false,
+            ),
+        ),
+        retryToken = null,
+        undoToken = null,
+        completedAtMillis = 1L,
+    )
 }
