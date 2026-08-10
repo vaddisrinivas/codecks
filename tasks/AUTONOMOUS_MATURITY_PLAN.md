@@ -71,9 +71,18 @@ reported as Samsung, DeX, Intel Mac, Play admission, or human usability proof.
 
 ### Codebase targets
 
-Current measured production code is roughly 61,000 Kotlin/Java/Swift lines.
-Reducing the complete mature product to 1,000 lines is not credible: it would
-remove about 98% of behavior and most safety boundaries.
+The reproducible baseline contains 54,900 public-production lines, 2,474
+internal-lab lines, 5 debug-only lines, 3,699 companion lines, 29,642 test lines,
+and 22 Swift build-definition lines. These are physical lines in tracked
+Kotlin/Java/Swift files; blank and comment lines are included. The generated
+inventory and method live in
+`tasks/test-evidence/autonomous-maturity-source-inventory.json` and
+`tools/evidence/generate_autonomous_maturity_source_inventory.py`.
+
+The earlier roughly 61,000 figure combined public production, internal lab,
+debug, and companions. It is whole-system deployable code, not the public APK
+production denominator. Reducing the complete mature product to 1,000 lines is
+not credible: it would remove about 98% of behavior and safety boundaries.
 
 Use these targets instead:
 
@@ -87,7 +96,9 @@ Use these targets instead:
 - `MainActivity.kt` below 400 lines and limited to composition/navigation.
 - Tests may grow. Do not delete tests or compress code merely to improve LOC.
 - Moving code, generating opaque code, or excluding a module does not count as
-  reduction. Report whole-system production LOC by language and module.
+  reduction. Report public production, internal lab, debug-only, companions,
+  tests, generated sources, and build definitions separately by source set and
+  language. Public-production LOC is the <=50,000 target denominator.
 - Generate a separate codebase map under 1,000 lines for agent comprehension;
   do not confuse that map with the application.
 
@@ -152,7 +163,9 @@ Actions:
 
 Acceptance:
 
-- Machine-readable baseline receipt committed under `tasks/test-evidence/`.
+- Machine-readable baseline receipt committed under `tasks/test-evidence/` and
+  accepted by `tools/evidence/validate_autonomous_maturity_evidence.py` against
+  the checked-in JSON Schema. Receipt validity is separate from maturity.
 - Repository remains clean and `app.codecks` is untouched.
 
 ### M01 — Reconcile feature and reachability inventory
@@ -166,14 +179,19 @@ Actions:
   Smart/context, Reactive/helper, commercial/catalog, and companion modules.
 - For every entry point record route, manifest component, composition owner,
   persistence, execution path, tests, build variants, and default exposure.
-- Classify each symbol as `CORE`, `OPTIONAL_DEFAULT_OFF`, `LAB_ONLY`,
-  `COMPANION`, `DEAD_CANDIDATE`, or `UNKNOWN_DYNAMIC`.
+- Generate an exhaustive inventory of every tracked Kotlin/Java/Swift source
+  file with source set, exposure category, feature owner, language, LOC, and
+  digest. Feature-level classification does not claim symbol-level completeness.
+- For every `DEAD_CANDIDATE`, record definition symbols plus exact text,
+  manifest, route, DI, serializer, WorkManager, reflection, JNI, preview, and
+  migration reachability. Classify uncertain candidates `UNKNOWN_DYNAMIC`.
 - Generate `docs/architecture/CODEBASE_MAP.md` under 1,000 lines.
 
 Acceptance:
 
-- No deletion candidate relies only on text search; manifest, reflection,
-  serialization, JNI, Compose navigation, and DI reachability are considered.
+- Every tracked source file is inventoried. No deletion candidate relies only
+  on text search; manifest, reflection, serialization, JNI, Compose navigation,
+  DI, preview, WorkManager history, and migrations are considered.
 - Unknown dynamic reachability blocks deletion but not mapping.
 
 ## Phase 1 — Safe simplification
@@ -200,7 +218,9 @@ Acceptance:
 
 ### M02A — Dependency replacement spikes
 
-Dependencies: M01. Runs before M03-M08 migrations.
+Dependencies: M01.
+
+Its relevant decision must finish before M08, M09A, or M09C adopts a dependency.
 
 Actions:
 
@@ -209,7 +229,7 @@ Actions:
 - Measure handwritten LOC removed versus adapters/tests/migrations added;
   compile time; APK method/resource/size delta with shrinking still disabled;
   cold start; memory; accessibility; API 28 compatibility; license/SBOM;
-  maintainer/release health; and downgrade/rollback behavior.
+  maintainer/release health; older-reader refusal; and forward rollback behavior.
 - Test colorpicker-compose and additional modules from the already-used
   compose-icons project against theme/icon requirements.
 - Delete each spike unless it reaches its admission threshold.
@@ -324,7 +344,7 @@ Acceptance:
 
 ### M08 — Standardize bounded persistence
 
-Dependencies: M01.
+Dependencies: M01, M02A.
 
 Actions:
 
@@ -336,13 +356,15 @@ Actions:
 
 Acceptance:
 
-- Process-death, truncated-write, corrupt-version, downgrade, migration, and
-  Keystore-loss tests pass.
+- Process-death, truncated-write, corrupt-version, forward migration,
+  older-reader refusal, recovery, and Keystore-loss tests pass. Version-rollback
+  tests use isolated lab identities/data only; the protected app is never
+  downgraded.
 - No secret-bearing store becomes cloud/device-transfer eligible.
 
 ### M09 — Re-measure complexity
 
-Dependencies: M02-M08.
+Dependencies: M02, M02A, M03, M04, M05, M06, M07, M08.
 
 Actions:
 
@@ -404,7 +426,7 @@ Acceptance:
 
 ### M09C — Theme library and full color-scheme editor
 
-Dependencies: M09A, M02A color-picker decision.
+Dependencies: M02A, M09A.
 
 Actions:
 
@@ -458,7 +480,7 @@ Acceptance:
 
 ### M10 — Expand managed Android matrix
 
-Dependencies: M00; may run parallel with M02-M09.
+Dependencies: M00.
 
 Actions:
 
@@ -497,12 +519,16 @@ Dependencies: M00.
 
 Actions:
 
-- Automate SSH host-key first use/change, key/password auth where safe, timeout,
-  network loss, Mac sleep/wake, service restart, clipboard bridge, helper health,
-  and typed action receipts against the available Mac.
-- Use disposable test accounts/data and bounded commands; never expose keys.
-- Verify Bluetooth HID manually only through non-destructive observable state or
-  an already-authorized test package; do not disrupt the protected release.
+- Automate read-only SSH/helper health, timeout, bounded command, network-failure
+  simulation, clipboard bridge, and typed receipt checks against the available
+  Mac without changing its sleep, service, account, authorization, key, or HID
+  state.
+- Host sleep/wake, service restart, test-account creation/removal, host-key
+  replacement, permission changes, and equivalent primary-Mac mutations run
+  only on a disposable target or after explicit per-run approval in the current
+  conversation. Otherwise each lane is `NOT_RUN`.
+- Physical Bluetooth HID verification is external evidence. Automation never
+  manipulates the protected release app or its existing Mac pairing.
 
 Acceptance:
 
@@ -512,7 +538,7 @@ Acceptance:
 
 ### M13 — Accessibility automation
 
-Dependencies: M05, M10.
+Dependencies: M05, M09A, M09B, M09C, M09D, M10.
 
 Actions:
 
@@ -569,7 +595,7 @@ Acceptance:
 
 ### M16 — Seven-day autonomous soak
 
-Dependencies: M10-M15.
+Dependencies: M10, M11, M12, M13, M14, M15.
 
 Actions:
 
@@ -583,6 +609,13 @@ Actions:
 
 Acceptance:
 
+- A session is one profile-hour after successful harness admission. It must last
+  at least 50 minutes, execute at least 100 acknowledged user-level operations,
+  and cover at least five named core-flow categories. A harness outage is
+  excluded only when no app process was launched and the exclusion is recorded;
+  every admitted session remains in the denominator. Minimum evidence is 3,360
+  eligible sessions and 336,000 acknowledged operations. Crash/ANR-free rate is
+  `(eligible sessions - sessions with >=1 crash or ANR) / eligible sessions`.
 - At least 99.5% automated sessions crash/ANR free, zero P0/P1, no unbounded
   resource growth, and all failures classified.
 - This is `AUTONOMOUS_PROXY`; it does not equal 20 human testers.
@@ -629,7 +662,7 @@ Acceptance:
 
 ### M19 — Diagnostics and support package
 
-Dependencies: M06, M15-M18.
+Dependencies: M06, M15, M16, M17, M18.
 
 Actions:
 
@@ -641,7 +674,10 @@ Actions:
 
 Acceptance:
 
-- Secret canary and manual schema allowlist scans pass.
+- Secret canaries and a deterministic, fail-closed export-schema validator pass.
+  The validator rejects unknown keys, wrong types, unbounded collections,
+  unapproved payload classes, and content-bearing values; no manual allowlist
+  can close this gate.
 - A clean machine can diagnose every injected failure using only the package.
 
 ### M20 — Rollback, key, and incident rehearsal
@@ -656,6 +692,8 @@ Actions:
 - Verify CI signing continuity using fingerprints and a disposable rehearsal;
   never copy or print real private keys.
 - Check release checksum and source correspondence from a clean environment.
+- Never install an older APK over `app.codecks`. Rollback means withdrawal plus
+  forward-fix; previous artifacts are verified offline only.
 
 Acceptance:
 
@@ -665,7 +703,7 @@ Acceptance:
 
 ### M21 — GitHub-first distribution package
 
-Dependencies: M19-M20.
+Dependencies: M19, M20.
 
 Autonomous default: finalize a GitHub-only support strategy now. Play readiness
 may be prepared, but no account/commercial activation or store publication occurs.
@@ -688,7 +726,7 @@ Acceptance:
 
 ### M22 — Documentation reconciliation
 
-Dependencies: M00-M21.
+Dependencies: M09, M09B, M09C, M09D, M11, M13, M14, M16, M18, M21.
 
 Actions:
 
@@ -707,7 +745,7 @@ Acceptance:
 
 ### M23 — Post-dependency release candidate
 
-Dependencies: M02-M22.
+Dependencies: M09, M09B, M09C, M09D, M11, M13, M14, M16, M18, M21, M22.
 
 Actions:
 
@@ -792,21 +830,42 @@ This is a dependency schedule, not a promise. Any P0/P1, migration risk, SSH/HID
 regression, or evidence corruption extends it and reruns the affected downstream
 gates.
 
-```text
-M00 -> M01
-M01 -> (M02, M02A, M10)
-M02A -> (M03, M08, M09A)
-M03 -> M04 -> (M05, M06, M07)
-(M02..M08) -> M09
-(M05, M09A) -> M09B -> M09C
-(M07, M09A) -> M09D
-(M05, M10) -> M13
-(M06, M10, M12) -> M14
-(M10..M15) -> M16
-M07 -> M17 -> M18
-(M06, M15..M18) -> M19 -> M20 -> M21
-(M00..M21) -> M22 -> M23 -> M24
-```
+Canonical direct dependency graph:
+
+| Milestone | Direct prerequisites |
+| --- | --- |
+| M00 | none |
+| M01 | M00 |
+| M02 | M01 |
+| M02A | M01 |
+| M03 | M01 |
+| M04 | M03 |
+| M05 | M04 |
+| M06 | M04 |
+| M07 | M04 |
+| M08 | M01, M02A |
+| M09 | M02, M02A, M03, M04, M05, M06, M07, M08 |
+| M09A | M02A, M05 |
+| M09B | M09A |
+| M09C | M02A, M09A |
+| M09D | M07, M09A |
+| M10 | M00 |
+| M11 | M10 |
+| M12 | M00 |
+| M13 | M05, M09A, M09B, M09C, M09D, M10 |
+| M14 | M06, M10, M12 |
+| M15 | M10, M12 |
+| M16 | M10, M11, M12, M13, M14, M15 |
+| M17 | M07 |
+| M18 | M07, M12, M17 |
+| M19 | M06, M15, M16, M17, M18 |
+| M20 | M00, M19 |
+| M21 | M19, M20 |
+| M22 | M09, M09B, M09C, M09D, M11, M13, M14, M16, M18, M21 |
+| M23 | M09, M09B, M09C, M09D, M11, M13, M14, M16, M18, M21, M22 |
+| M24 | M23 |
+
+Each milestone's `Dependencies` line is normative and must match this table.
 
 Maximum parallelism is four lanes. Long emulator, soak, and AI jobs run in the
 background while architecture work proceeds, but no lane may edit another

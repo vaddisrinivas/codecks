@@ -7,11 +7,14 @@ Fresh evidence must bind the current candidate SHA.
 
 ## Phase 0 — Truth
 
+- [x] M00 validate the baseline receipt against its formal schema and deterministic validator
+- [x] M00 keep receipt-validation `PASS` separate from overall maturity `NOT_RUN`
 - [x] M00 record source, PR, tag, variant, SDK, signer, shrink, and evidence baseline — [`autonomous-maturity-m00-baseline.json`](test-evidence/autonomous-maturity-m00-baseline.json)
 - [x] M00 prove dependency PRs #18-#24 are on candidate main but outside v0.1.37 — [`source.dependency_pr_ancestry`](test-evidence/autonomous-maturity-m00-baseline.json)
-- [x] M01 generate complete feature/reachability inventory — [`CODEBASE_MAP.md`](../docs/architecture/CODEBASE_MAP.md#fourteen-feature-boundaries)
+- [x] M01 generate feature-level ownership/reachability map — [`CODEBASE_MAP.md`](../docs/architecture/CODEBASE_MAP.md#fourteen-feature-boundaries)
+- [x] M01 generate exhaustive tracked-source file inventory with reproducible per-source-set LOC — [`autonomous-maturity-source-inventory.json`](test-evidence/autonomous-maturity-source-inventory.json)
 - [x] M01 generate sub-1,000-line `docs/architecture/CODEBASE_MAP.md` — [`CODEBASE_MAP.md`](../docs/architecture/CODEBASE_MAP.md)
-- [x] M01 classify core, optional, lab, companion, dead candidate, and unknown symbols — [reachability classifications](../docs/architecture/CODEBASE_MAP.md#current-reachability-classifications)
+- [x] M01 document symbol-level reachability dossiers for every current deletion candidate — [reachability classifications](../docs/architecture/CODEBASE_MAP.md#current-reachability-classifications-and-deletion-candidate-dossiers)
 
 ## Phase 1 — Simplification
 
@@ -68,7 +71,7 @@ Fresh evidence must bind the current candidate SHA.
 
 - [ ] M15 characterize Clipboard lifecycle, conflicts, privacy events, battery, and reconnect
 - [ ] M15 expose truthful last-sync state and actionable background-policy limits
-- [ ] M16 run 20 isolated profiles for 168 hours
+- [ ] M16 run 20 isolated profiles for 168 hours: >=3,360 eligible profile-hours and >=336,000 acknowledged operations
 - [ ] M16 achieve >=99.5% automated crash/ANR-free sessions and zero P0/P1
 - [ ] M16 report human-tester evidence separately
 - [ ] M17 version and run >=100 AI prompt corpus
@@ -105,7 +108,8 @@ Fresh evidence must bind the current candidate SHA.
 
 ## Permanent gates
 
-- [ ] Never uninstall, clear, downgrade, instrument, or differently sign `app.codecks`
+- [ ] Never uninstall, clear, downgrade, instrument, or differently sign `app.codecks`; rollback is withdrawal plus forward-fix
+- [ ] Never mutate primary-Mac sleep, services, accounts, keys, permissions, or HID state without a disposable target or explicit per-run approval
 - [ ] Never enable minification or resource shrinking
 - [ ] Never activate sign-in, sync, Billing, premium enforcement, ads, or commercial startup
 - [ ] Never let remote, cache, prefs, entitlement, or restored state override production-dark

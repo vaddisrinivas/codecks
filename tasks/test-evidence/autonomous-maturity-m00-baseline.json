@@ -1,65 +1,37 @@
 {
   "schema": "codecks.autonomous-maturity.baseline.v1",
-  "captured_at_utc": "2026-08-10T13:04:49Z",
-  "status": "PASS",
+  "captured_at_utc": "2026-08-10T13:49:42Z",
+  "receipt_validation": {
+    "status": "PASS",
+    "validator": "tools/evidence/validate_autonomous_maturity_evidence.py",
+    "scope": "Receipt structure, closed check records, portable paths, source-inventory completeness and file digests; not overall product maturity"
+  },
+  "maturity_assessment": {
+    "status": "NOT_RUN",
+    "completed_milestones": ["M00", "M01 feature/file inventory"],
+    "note": "This baseline validates evidence bookkeeping only. M02-M24, physical hardware, human usability, Play admission, and final maturity remain unproved."
+  },
   "source": {
     "repository": "https://github.com/vaddisrinivas/codecks",
     "branch": "codex/autonomous-maturity",
-    "baseline_ref": "main",
-    "baseline_sha": "d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
+    "implementation_baseline_ref": "main",
+    "implementation_baseline_sha": "d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
+    "evidence_parent_sha": "a122b810c37feaa7fe874a175d668ce6fb4b06d2",
     "origin_main_sha": "d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
     "release_tag": "v0.1.37",
-    "release_tag_sha": "0dc3cac1f7e6b02fa4d5f069eda8664789852370",
-    "initial_dirty_paths": [
-      "tasks/AUTONOMOUS_MATURITY_PLAN.md",
-      "tasks/AUTONOMOUS_MATURITY_TODO.md"
-    ],
-    "initial_dirty_path_ownership": "user-requested maturity planning documents; preserved",
+    "release_tag_object_sha": "3d21b395d49fa87d8fa04ba1f06f917acee5d081",
+    "release_tag_commit_sha": "0dc3cac1f7e6b02fa4d5f069eda8664789852370",
+    "capture_state": "tracked Phase 0 evidence repair pending commit; no production source, dependency, device, release, or signing change",
     "dependency_pr_ancestry": [
-      {
-        "pr": 18,
-        "merge_sha": "846435491d3493b0ca7182bc6d636f1255353a4a",
-        "ancestor_of_v0.1.37": false,
-        "ancestor_of_baseline": true
-      },
-      {
-        "pr": 19,
-        "merge_sha": "925f0eb9f7fe84465c71c4ef41bbc8ac398d042f",
-        "ancestor_of_v0.1.37": false,
-        "ancestor_of_baseline": true
-      },
-      {
-        "pr": 20,
-        "merge_sha": "cd5459db42bcded7cf4879f3f7dd40aa1b38678d",
-        "ancestor_of_v0.1.37": false,
-        "ancestor_of_baseline": true
-      },
-      {
-        "pr": 21,
-        "merge_sha": "0fc17bc6ef23137508077004b9082565f4d3caeb",
-        "ancestor_of_v0.1.37": false,
-        "ancestor_of_baseline": true
-      },
-      {
-        "pr": 22,
-        "merge_sha": "17e36493fa446f3a245c10547d5c512a378514bc",
-        "ancestor_of_v0.1.37": false,
-        "ancestor_of_baseline": true
-      },
-      {
-        "pr": 23,
-        "merge_sha": "5e683fbddca7e3c0eac6e3562224822077593036",
-        "ancestor_of_v0.1.37": false,
-        "ancestor_of_baseline": true
-      },
-      {
-        "pr": 24,
-        "merge_sha": "d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
-        "ancestor_of_v0.1.37": false,
-        "ancestor_of_baseline": true
-      }
+      {"pr": 18, "merge_sha": "846435491d3493b0ca7182bc6d636f1255353a4a", "ancestor_of_v0.1.37": false, "ancestor_of_baseline": true},
+      {"pr": 19, "merge_sha": "925f0eb9f7fe84465c71c4ef41bbc8ac398d042f", "ancestor_of_v0.1.37": false, "ancestor_of_baseline": true},
+      {"pr": 20, "merge_sha": "cd5459db42bcded7cf4879f3f7dd40aa1b38678d", "ancestor_of_v0.1.37": false, "ancestor_of_baseline": true},
+      {"pr": 21, "merge_sha": "0fc17bc6ef23137508077004b9082565f4d3caeb", "ancestor_of_v0.1.37": false, "ancestor_of_baseline": true},
+      {"pr": 22, "merge_sha": "17e36493fa446f3a245c10547d5c512a378514bc", "ancestor_of_v0.1.37": false, "ancestor_of_baseline": true},
+      {"pr": 23, "merge_sha": "5e683fbddca7e3c0eac6e3562224822077593036", "ancestor_of_v0.1.37": false, "ancestor_of_baseline": true},
+      {"pr": 24, "merge_sha": "d1f1788f03fe59bb0dceb5822e9f5b19194090fd", "ancestor_of_v0.1.37": false, "ancestor_of_baseline": true}
     ],
-    "ancestry_conclusion": "v0.1.37 excludes dependency PRs 18-24; the baseline includes all seven merge commits"
+    "ancestry_conclusion": "v0.1.37 excludes dependency PRs 18-24; the implementation baseline includes all seven merge commits"
   },
   "release_artifact": {
     "source": "https://github.com/vaddisrinivas/codecks/releases/tag/v0.1.37",
@@ -93,49 +65,20 @@
     "version_name": "0.1.37",
     "java_source_target": 17,
     "enabled_variants": [
-      {
-        "name": "ossDebug",
-        "application_id": "app.codecks.debug",
-        "distribution": "oss",
-        "commercial_policy": "ABSENT",
-        "signing_role": "debug"
-      },
-      {
-        "name": "ossRelease",
-        "application_id": "app.codecks",
-        "distribution": "oss",
-        "commercial_policy": "ABSENT",
-        "signing_role": "protected OSS release"
-      },
-      {
-        "name": "playRelease",
-        "application_id": "app.codecks",
-        "distribution": "play",
-        "commercial_policy": "PRODUCTION_DARK",
-        "signing_role": "Play upload; distinct from Play app-signing role"
-      },
-      {
-        "name": "playInternalRelease",
-        "application_id": "app.codecks.internal",
-        "distribution": "play_internal",
-        "commercial_policy": "INTERNAL_TEST_CAPABLE",
-        "signing_role": "isolated internal or debug fallback"
-      }
+      {"name": "ossDebug", "application_id": "app.codecks.debug", "distribution": "oss", "commercial_policy": "ABSENT", "signing_role": "debug"},
+      {"name": "ossRelease", "application_id": "app.codecks", "distribution": "oss", "commercial_policy": "ABSENT", "signing_role": "protected OSS release"},
+      {"name": "playRelease", "application_id": "app.codecks", "distribution": "play", "commercial_policy": "PRODUCTION_DARK", "signing_role": "Play upload; distinct from Play app-signing role"},
+      {"name": "playInternalRelease", "application_id": "app.codecks.internal", "distribution": "play_internal", "commercial_policy": "INTERNAL_TEST_CAPABLE", "signing_role": "isolated internal or debug fallback"}
     ],
     "disabled_variant_rule": "only oss debug/release and play/playInternal release are enabled",
     "release_minification": false,
     "release_resource_shrinking": false,
     "managed_devices": [
-      {
-        "name": "pixel6Api35",
-        "device": "Pixel 6",
-        "api": 35,
-        "image": "aosp"
-      }
+      {"name": "pixel6Api35", "device": "Pixel 6", "api": 35, "image": "aosp"}
     ]
   },
   "toolchain": {
-    "host_os": "macOS 26.5.2 build 25F84",
+    "host_os": "macOS 26.5.2",
     "host_arch": "arm64",
     "jdk_runtime": "OpenJDK 20.0.2",
     "gradle": "9.4.1",
@@ -143,7 +86,7 @@
     "kotlin_multiplatform": "2.4.10",
     "kotlin_compose_plugin": "2.4.10",
     "kotlin_serialization_plugin": "2.3.21",
-    "swift_tools": "6.0",
+    "swift": "6.3.3",
     "android_build_tools": ["34.0.0", "35.0.0", "36.0.0"],
     "android_platforms": [35, 36, 37],
     "android_emulator": "36.6.11",
@@ -154,73 +97,148 @@
       "android-36 google_apis_playstore arm64-v8a"
     ]
   },
-  "modules": [
-    {"name": ":app", "production_source_lines": 57374, "note": "main, play, playInternal, and debug Kotlin/Java"},
-    {"name": ":shared", "production_source_lines": 1233, "targets": ["JVM", "iOS arm64", "iOS simulator arm64"]},
-    {"name": ":backend", "production_source_lines": 868, "target": "JVM contracts"},
-    {"name": "macHelper", "production_source_lines": 1598, "target": "macOS 13+ Swift package"}
-  ],
+  "source_inventory": {
+    "path": "tasks/test-evidence/autonomous-maturity-source-inventory.json",
+    "sha256": "fa4afa40ec297bdc29be2e823118f1349ea7242c0136d1217581ca3494a8f312",
+    "summary": {
+      "file_count": 515,
+      "physical_lines": 90742,
+      "by_category": {
+        "build_definition": 22,
+        "companion": 3699,
+        "debug_only": 5,
+        "internal_lab": 2474,
+        "public_production": 54900,
+        "tests": 29642
+      },
+      "by_source_set": {
+        "android_androidTest": 624,
+        "android_androidTestDebug": 484,
+        "android_androidTestPlay": 462,
+        "android_androidTestPlayInternal": 61,
+        "android_debug": 5,
+        "android_main": 54708,
+        "android_play_internal": 2474,
+        "android_play_production_dark": 192,
+        "android_test": 23693,
+        "android_testPlay": 243,
+        "android_testPlayInternal": 1791,
+        "backend_main": 868,
+        "backend_test": 721,
+        "mac_helper": 1598,
+        "mac_helper_package_manifest": 22,
+        "mac_helper_tests": 808,
+        "shared_commonMain": 1233,
+        "shared_commonTest": 755
+      },
+      "by_language": {"Java": 918, "Kotlin": 87396, "Swift": 2428}
+    }
+  },
   "fresh_checks": [
     {
-      "id": "no_shrink",
+      "id": "source_inventory",
       "status": "PASS",
-      "command": "./scripts/verify_release_no_shrink.sh"
+      "command": "python3 tools/evidence/generate_autonomous_maturity_source_inventory.py",
+      "started_at_utc": "2026-08-10T13:49:31Z",
+      "finished_at_utc": "2026-08-10T13:49:31Z",
+      "exit_code": 0,
+      "tool": "Python 3",
+      "environment": {"tracked_source_files": 515, "host_arch": "arm64"},
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "evidence_schema",
+      "status": "PASS",
+      "command": "python3 tools/evidence/validate_autonomous_maturity_evidence.py",
+      "started_at_utc": "2026-08-10T13:49:41Z",
+      "finished_at_utc": "2026-08-10T13:49:41Z",
+      "exit_code": 0,
+      "tool": "Python 3 / JSON Schema draft 2020-12 subset validator",
+      "environment": {"host_os": "macOS 26.5.2", "host_arch": "arm64"},
+      "output_sha256": "0479533d08072f9f616a615edec4c7786259b99677ace5d1ba3002add1352d29"
+    },
+    {
+      "id": "codebase_map_bound",
+      "status": "PASS",
+      "command": "test $(wc -l < docs/architecture/CODEBASE_MAP.md) -lt 1000",
+      "started_at_utc": "2026-08-10T13:49:41Z",
+      "finished_at_utc": "2026-08-10T13:49:41Z",
+      "exit_code": 0,
+      "tool": "POSIX shell / wc",
+      "environment": {"map_lines": 490, "limit_exclusive": 1000},
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
       "id": "secret_surface",
       "status": "PASS",
-      "command": "python3 tools/secret_surface_check.py"
+      "command": "python3 tools/secret_surface_check.py",
+      "started_at_utc": "2026-08-10T13:49:41Z",
+      "finished_at_utc": "2026-08-10T13:49:42Z",
+      "exit_code": 0,
+      "tool": "Python 3",
+      "environment": {"host_os": "macOS 26.5.2", "host_arch": "arm64"},
+      "output_sha256": "c47bb91e20ed28bf24bcf50fd1a69a1a9cb4d933c8487e5e0dd2ce22ee3d064c"
+    },
+    {
+      "id": "no_shrink",
+      "status": "PASS",
+      "command": "./scripts/verify_release_no_shrink.sh",
+      "started_at_utc": "2026-08-10T13:45:03Z",
+      "finished_at_utc": "2026-08-10T13:45:03Z",
+      "exit_code": 0,
+      "tool": "POSIX shell",
+      "environment": {"host_os": "macOS 26.5.2", "host_arch": "arm64"},
+      "output_sha256": "07c327c00304f5851671a5f2aa932fb3b74a4c84b72e7822a57cb5350368c6a0"
     },
     {
       "id": "architecture_release_distribution_commercial_manifests_shared_backend",
       "status": "PASS",
-      "command": "./gradlew :app:validateArchitectureBoundaries :app:validateReleaseSurface :app:validateDistributionMatrix :app:validateCommercialDependencyBoundaries :app:validateCommercialManifests :shared:allTests :backend:test"
+      "command": "./gradlew :app:validateArchitectureBoundaries :app:validateReleaseSurface :app:validateDistributionMatrix :app:validateCommercialDependencyBoundaries :app:validateCommercialManifests :shared:allTests :backend:test",
+      "started_at_utc": "2026-08-10T13:45:22Z",
+      "finished_at_utc": "2026-08-10T13:45:25Z",
+      "exit_code": 0,
+      "tool": "Gradle 9.4.1 / OpenJDK 20.0.2",
+      "environment": {"host_os": "macOS 26.5.2", "host_arch": "arm64"},
+      "output_sha256": "53d24b2ab12bc2da76bb9a2a78c768b7b90be7f4482f91ca1f9d7b7534c702a9"
     },
     {
       "id": "protocol_fixtures",
       "status": "PASS",
-      "command": "python3 tools/verify_protocol_fixtures.py"
+      "command": "python3 tools/verify_protocol_fixtures.py",
+      "started_at_utc": "2026-08-10T13:45:03Z",
+      "finished_at_utc": "2026-08-10T13:45:03Z",
+      "exit_code": 0,
+      "tool": "Python 3",
+      "environment": {"host_os": "macOS 26.5.2", "host_arch": "arm64"},
+      "output_sha256": "7d1e01c248248e32955405b998b132a7a1a75666b73fedded475b12df20cedbb"
     },
     {
       "id": "mac_helper_tests",
       "status": "PASS",
       "command": "swift test --package-path macHelper",
-      "tests": 30,
-      "failures": 0
+      "started_at_utc": "2026-08-10T13:45:22Z",
+      "finished_at_utc": "2026-08-10T13:45:25Z",
+      "exit_code": 0,
+      "tool": "Swift 6.3.3",
+      "environment": {"host_os": "macOS 26.5.2", "host_arch": "arm64", "tests": 30},
+      "output_sha256": "e5533bcaf749bb45b9db9d4c15e7abf21ce57ef2c7349cf77a8d9c2466dedc29"
     }
   ],
   "not_run": [
-    {
-      "lane": "app unit and lint suites",
-      "status": "NOT_RUN",
-      "reason": "outside M00/M01 focused documentation and architecture scope; required by later phases"
-    },
-    {
-      "lane": "managed-device and physical-device suites",
-      "status": "NOT_RUN",
-      "reason": "no device action authorized; physical app.codecks is protected"
-    },
-    {
-      "lane": "fresh OSS/Play release artifact builds and split inspection",
-      "status": "NOT_RUN",
-      "reason": "later candidate phase; local protected signing configuration was not inspected"
-    },
-    {
-      "lane": "candidate signing continuity",
-      "status": "NOT_RUN",
-      "reason": "no candidate artifact exists and no private key material was accessed"
-    },
-    {
-      "lane": "live AI providers, SSH, helper service, clipboard, DeX, Intel Mac, Play admission, and human testing",
-      "status": "NOT_RUN",
-      "reason": "not baseline architecture proof"
-    }
+    {"lane": "app unit and lint suites", "status": "NOT_RUN", "reason": "outside M00/M01 focused evidence scope; required by later phases"},
+    {"lane": "managed-device and physical-device suites", "status": "NOT_RUN", "reason": "no device action authorized; physical app.codecks is protected"},
+    {"lane": "fresh OSS/Play release artifact builds and split inspection", "status": "NOT_RUN", "reason": "later candidate phase; signing configuration was not inspected"},
+    {"lane": "candidate signing continuity", "status": "NOT_RUN", "reason": "no candidate artifact exists and no private key material was accessed"},
+    {"lane": "live AI providers, SSH, helper service, clipboard, DeX, Intel Mac, Play admission, and human testing", "status": "NOT_RUN", "reason": "not baseline architecture proof"},
+    {"lane": "primary-Mac sleep, service, account, key, permission, and HID mutation", "status": "NOT_RUN", "reason": "requires a disposable target or explicit per-run approval; manual HID remains external"}
   ],
   "commands_for_reproduction": {
+    "source_inventory": "python3 tools/evidence/generate_autonomous_maturity_source_inventory.py",
+    "evidence_validation": "python3 tools/evidence/validate_autonomous_maturity_evidence.py",
     "tag_ancestry": "git merge-base --is-ancestor <merge_sha> v0.1.37; git merge-base --is-ancestor <merge_sha> d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
     "variant_inventory": "./gradlew :app:tasks --all",
-    "sdk_inventory": "/Users/srinivasvaddi/Library/Android/sdk/cmdline-tools/latest/bin/sdkmanager --list_installed",
+    "sdk_inventory": "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --list_installed",
     "release_metadata": "gh release view v0.1.37 --json tagName,targetCommitish,isDraft,isPrerelease,publishedAt,url,assets",
-    "release_certificate": "/Users/srinivasvaddi/Library/Android/sdk/build-tools/36.0.0/apksigner verify --verbose --print-certs codecks-release.apk"
+    "release_certificate": "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner verify --verbose --print-certs codecks-release.apk"
   }
 }

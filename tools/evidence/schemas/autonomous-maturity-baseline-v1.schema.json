@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codecks.dev/schemas/autonomous-maturity-baseline-v1.schema.json",
+  "title": "Codecks autonomous maturity baseline receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "captured_at_utc",
+    "receipt_validation",
+    "maturity_assessment",
+    "source",
+    "release_artifact",
+    "android",
+    "toolchain",
+    "source_inventory",
+    "fresh_checks",
+    "not_run",
+    "commands_for_reproduction"
+  ],
+  "properties": {
+    "schema": {"const": "codecks.autonomous-maturity.baseline.v1"},
+    "captured_at_utc": {"type": "string", "format": "date-time"},
+    "receipt_validation": {"$ref": "#/$defs/receiptValidation"},
+    "maturity_assessment": {"$ref": "#/$defs/maturityAssessment"},
+    "source": {"type": "object"},
+    "release_artifact": {"type": "object"},
+    "android": {"type": "object"},
+    "toolchain": {"type": "object"},
+    "source_inventory": {"type": "object"},
+    "fresh_checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/executedCheck"}
+    },
+    "not_run": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/notRun"}
+    },
+    "commands_for_reproduction": {
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    }
+  },
+  "$defs": {
+    "status": {"enum": ["PASS", "FAIL", "NOT_RUN", "AUTONOMOUS_PROXY", "EXTERNAL_EVIDENCE_REMAINS"]},
+    "receiptValidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "validator", "scope"],
+      "properties": {
+        "status": {"enum": ["PASS", "FAIL"]},
+        "validator": {"type": "string"},
+        "scope": {"type": "string"}
+      }
+    },
+    "maturityAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "completed_milestones", "note"],
+      "properties": {
+        "status": {"enum": ["NOT_RUN", "AUTONOMOUS_PROXY", "EXTERNAL_EVIDENCE_REMAINS"]},
+        "completed_milestones": {"type": "array", "items": {"type": "string"}},
+        "note": {"type": "string"}
+      }
+    },
+    "executedCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "command", "started_at_utc", "finished_at_utc", "exit_code", "tool", "environment", "output_sha256"],
+      "properties": {
+        "id": {"type": "string"},
+        "status": {"enum": ["PASS", "FAIL"]},
+        "command": {"type": "string"},
+        "started_at_utc": {"type": "string", "format": "date-time"},
+        "finished_at_utc": {"type": "string", "format": "date-time"},
+        "exit_code": {"type": "integer"},
+        "tool": {"type": "string"},
+        "environment": {"type": "object", "additionalProperties": {"type": ["string", "number", "boolean"]}},
+        "output_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "notRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lane", "status", "reason"],
+      "properties": {
+        "lane": {"type": "string"},
+        "status": {"const": "NOT_RUN"},
+        "reason": {"type": "string"}
+      }
+    }
+  }
+}
