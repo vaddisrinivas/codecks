@@ -23,6 +23,9 @@ import android.os.PowerManager
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
 import io.codecks.ui.mouse.lockscreen.TrackpadEntryActivity
+import io.codecks.ui.theme.ThemeSystemSurfaceStore
+import io.codecks.ui.theme.ThemeActiveNotificationRefresher
+import io.codecks.ui.theme.ThemeActiveNotificationRegistry
 import io.codecks.launcher.LauncherIconManager
 import javax.inject.Inject
 
@@ -33,6 +36,7 @@ class HidSessionService : Service() {
     private var startedActivities = 0
     private var receiverRegistered = false
     private var activityCallbacksRegistered = false
+    private val themeNotificationRefresher = ThemeActiveNotificationRefresher(::refreshForegroundNotificationTheme)
 
     private val activityCallbacks = object : Application.ActivityLifecycleCallbacks {
         override fun onActivityStarted(activity: Activity) {
@@ -87,6 +91,7 @@ class HidSessionService : Service() {
         super.onCreate()
         ensureNotificationChannel()
         startForegroundSafely()
+        ThemeActiveNotificationRegistry.registerAndRefresh(themeNotificationRefresher)
         registerSystemInputs()
         emitInitialSystemState()
     }
@@ -101,6 +106,7 @@ class HidSessionService : Service() {
     }
 
     override fun onDestroy() {
+        ThemeActiveNotificationRegistry.unregister(themeNotificationRefresher)
         unregisterSystemInputs()
         hidRepository.releaseButtons()
         super.onDestroy()
@@ -138,8 +144,13 @@ class HidSessionService : Service() {
             .setOngoing(true)
             .setShowWhen(false)
             .setCategory(Notification.CATEGORY_SERVICE)
+            .setColor(ThemeSystemSurfaceStore(this).read().primary)
             .addAction(notificationIcon, "Trackpad", pendingOpen)
             .build()
+    }
+
+    private fun refreshForegroundNotificationTheme() {
+        getSystemService(NotificationManager::class.java)?.notify(NOTIFICATION_ID, buildNotification())
     }
 
     private fun ensureNotificationChannel() {

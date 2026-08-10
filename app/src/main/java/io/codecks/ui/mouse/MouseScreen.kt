@@ -47,6 +47,11 @@ import io.codecks.domain.DeckAction
 import io.codecks.data.context.NotificationPreview
 import io.codecks.ui.designsystem.CodecksDeckEdgeGlowBackground
 import io.codecks.ui.designsystem.CodecksPanel
+import io.codecks.ui.designsystem.DeckActionButton
+import io.codecks.ui.home.CustomActionRow
+import io.codecks.ui.keyboard.HidHostHeader
+import io.codecks.ui.theme.CodecksScopedTheme
+import io.codecks.ui.theme.ThemeTarget
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import io.codecks.core.trackpad.TrackpadRailSide
@@ -211,7 +216,8 @@ fun MouseScreen(
             onExitTrackpad()
         }
     }
-    Box(
+    CodecksScopedTheme(if (inputMode == MouseInputMode.Trackpad) ThemeTarget.Trackpad else ThemeTarget.Global) {
+        Box(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
@@ -456,6 +462,7 @@ fun MouseScreen(
                     )
                 }
             }
+        }
         }
     }
 }

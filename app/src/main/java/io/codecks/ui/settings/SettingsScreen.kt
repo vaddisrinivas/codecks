@@ -67,6 +67,7 @@ import io.codecks.ui.theme.CodecksShapeStyle
 import io.codecks.ui.theme.CodecksSurfaceStyle
 import io.codecks.ui.theme.CodecksThemeMode
 import io.codecks.ui.theme.CodecksThemeSettings
+import io.codecks.ui.theme.ThemeStudioPanel
 
 @Composable
 fun SettingsScreen(
@@ -427,6 +428,7 @@ fun SettingsScreen(
                     )
                 }
                 item { SectionLabel("Appearance") }
+                item { ThemeStudioPanel(settings = themeSettings) }
                 item {
                     DeckStylePanel(
                         deckStyle = themeSettings.deckStyle,

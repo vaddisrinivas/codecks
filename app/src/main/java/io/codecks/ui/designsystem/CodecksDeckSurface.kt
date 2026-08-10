@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import io.codecks.ui.theme.LocalCodecksSemanticColors
 
 object CodecksDeckSurfaceTokens {
     val edgeGlowDepth = 132.dp
@@ -80,9 +81,10 @@ fun CodecksPanel(
 @Composable
 fun CodecksDeckEdgeGlowBackground(
     modifier: Modifier = Modifier,
-    glowColor: Color = MaterialTheme.colorScheme.primary,
+    glowColor: Color = LocalCodecksSemanticColors.current.glow,
     canvasColor: Color = MaterialTheme.colorScheme.background,
 ) {
+    val glowStrength = LocalCodecksSemanticColors.current.glowStrength
     Box(modifier = modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -91,7 +93,7 @@ fun CodecksDeckEdgeGlowBackground(
                 .height(CodecksDeckSurfaceTokens.edgeGlowDepth)
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(glowColor.copy(alpha = CodecksDeckSurfaceTokens.topGlowAlpha), Color.Transparent),
+                        colors = listOf(glowColor.copy(alpha = CodecksDeckSurfaceTokens.topGlowAlpha * glowStrength), Color.Transparent),
                     ),
                 ),
         )
@@ -102,7 +104,7 @@ fun CodecksDeckEdgeGlowBackground(
                 .height(CodecksDeckSurfaceTokens.edgeGlowDepth)
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, glowColor.copy(alpha = CodecksDeckSurfaceTokens.bottomGlowAlpha)),
+                        colors = listOf(Color.Transparent, glowColor.copy(alpha = CodecksDeckSurfaceTokens.bottomGlowAlpha * glowStrength)),
                     ),
                 ),
         )
@@ -113,7 +115,7 @@ fun CodecksDeckEdgeGlowBackground(
                 .width(CodecksDeckSurfaceTokens.sideGlowWidth)
                 .background(
                     Brush.horizontalGradient(
-                        colors = listOf(glowColor.copy(alpha = CodecksDeckSurfaceTokens.sideGlowAlpha), Color.Transparent),
+                        colors = listOf(glowColor.copy(alpha = CodecksDeckSurfaceTokens.sideGlowAlpha * glowStrength), Color.Transparent),
                     ),
                 ),
         )
@@ -124,7 +126,7 @@ fun CodecksDeckEdgeGlowBackground(
                 .width(CodecksDeckSurfaceTokens.sideGlowWidth)
                 .background(
                     Brush.horizontalGradient(
-                        colors = listOf(Color.Transparent, glowColor.copy(alpha = CodecksDeckSurfaceTokens.sideGlowAlpha)),
+                        colors = listOf(Color.Transparent, glowColor.copy(alpha = CodecksDeckSurfaceTokens.sideGlowAlpha * glowStrength)),
                     ),
                 ),
         )

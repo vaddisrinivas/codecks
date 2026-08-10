@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 
 private val Context.themeDataStore by preferencesDataStore(name = "theme_settings")
 
@@ -86,6 +87,8 @@ data class CodecksThemeSettings(
     val shapeStyle: CodecksShapeStyle = CodecksShapeStyle.Soft,
     val deckStyle: CodecksDeckStyle = CodecksDeckStyle.StreamDeckPro,
     val iconPack: CodecksIconPack = CodecksIconPack.Tabler,
+    val themeBundle: ThemeBundle = ThemeBundle(ThemePresetCatalog.default),
+    val themeLoadIssue: ThemeImportResult.Reason? = null,
 )
 
 val CodecksReleaseThemeSettings = CodecksThemeSettings(
@@ -122,9 +125,13 @@ fun CodecksThemeSettings.resolveForCodecksRelease(
         shapeStyle = shapeStyle,
         deckStyle = deckStyle,
         iconPack = iconPack,
+        themeBundle = themeBundle,
+        themeLoadIssue = themeLoadIssue,
     )
 
 class ThemeSettingsRepository(private val context: Context) {
+    private val systemSurfaces = ThemeSystemSurfacePropagator(context)
+
     val settings: Flow<CodecksThemeSettings> = context.themeDataStore.data.map { preferences ->
         val useCodecksGreenDefaults = (preferences[VISUAL_SYSTEM_REVISION] ?: 0) < CURRENT_VISUAL_SYSTEM_REVISION
         val savedDeckStyle = preferences[DECK_STYLE]
@@ -137,6 +144,7 @@ class ThemeSettingsRepository(private val context: Context) {
             }
         val userSelectedDeckStyle = preferences[DECK_STYLE_USER_SELECTED] == true
         val deckStyleRevision = preferences[DECK_STYLE_REVISION] ?: 0
+        val persistedTheme = resolvePersistedTheme(preferences[THEME_BUNDLE])
         CodecksThemeSettings(
             mode = if (useCodecksGreenDefaults) CodecksThemeMode.Oled else preferences[MODE]?.let { saved -> CodecksThemeMode.entries.firstOrNull { it.name == saved } }
                 ?: CodecksThemeMode.Oled,
@@ -152,7 +160,11 @@ class ThemeSettingsRepository(private val context: Context) {
             iconPack = if (useCodecksGreenDefaults) CodecksIconPack.Tabler else preferences[ICON_PACK]
                 ?.let { saved -> CodecksIconPack.entries.firstOrNull { it.name == saved } }
                 ?: CodecksIconPack.Tabler,
+            themeBundle = persistedTheme.bundle,
+            themeLoadIssue = persistedTheme.issue,
         )
+    }.onEach { loaded ->
+        systemSurfaces.reconcilePersisted(loaded.themeBundle)
     }
 
     val mode: Flow<CodecksThemeMode> = context.themeDataStore.data.map { preferences ->
@@ -193,6 +205,15 @@ class ThemeSettingsRepository(private val context: Context) {
         context.themeDataStore.edit { it[ICON_PACK] = iconPack.name }
     }
 
+    suspend fun applyThemeBundle(bundle: ThemeBundle): Boolean {
+        if (!ThemeContrast.isBundleReadable(bundle)) return false
+        val encoded = ThemeSchemeCodec.encode(bundle)
+        if (encoded.toByteArray(Charsets.UTF_8).size > ThemeSchemeCodec.MAX_BYTES) return false
+        context.themeDataStore.edit { it[THEME_BUNDLE] = encoded }
+        systemSurfaces.propagateApplied(bundle)
+        return true
+    }
+
     suspend fun migrateToCurrentVisualSystem() {
         context.themeDataStore.edit { preferences ->
             if ((preferences[VISUAL_SYSTEM_REVISION] ?: 0) >= CURRENT_VISUAL_SYSTEM_REVISION) return@edit
@@ -220,5 +241,6 @@ class ThemeSettingsRepository(private val context: Context) {
         val DECK_STYLE_REVISION = intPreferencesKey("deck_style_revision")
         val ICON_PACK = stringPreferencesKey("icon_pack")
         val VISUAL_SYSTEM_REVISION = intPreferencesKey("visual_system_revision")
+        val THEME_BUNDLE = stringPreferencesKey("theme_bundle_v1")
     }
 }

@@ -63,6 +63,9 @@ import io.codecks.ui.connection.simpleConnectionHealth
 import io.codecks.ui.icons.deckImageVector
 import io.codecks.ui.icons.imageVector
 import io.codecks.ui.theme.CodecksDeckStyle
+import io.codecks.ui.theme.CodecksScopedTheme
+import io.codecks.ui.theme.ThemeTarget
+import io.codecks.ui.theme.LocalCodecksSemanticColors
 
 @Composable
 fun HomeScreen(
@@ -225,7 +228,8 @@ fun HomeScreen(
         )
     }
 
-    CodecksKeybedDeck(
+    CodecksScopedTheme(ThemeTarget.Deck) {
+        CodecksKeybedDeck(
         activeDeckLabel = when {
             movingFromSlot >= 0 -> deckActionSlots
                 .firstOrNull { it.slot == movingFromSlot }
@@ -273,10 +277,11 @@ fun HomeScreen(
             }
         },
         deckStyle = deckStyle,
-        modifier = modifier
-            .fillMaxSize()
-            .padding(contentPadding),
-    )
+            modifier = modifier
+                .fillMaxSize()
+                .padding(contentPadding),
+        )
+    }
     if (addToSlot >= 0) {
         val slot = addToSlot
         AddToSlotDialog(
@@ -612,11 +617,11 @@ private fun CodecksKeybedDeck(
 @Composable
 private fun connectionToneColor(kind: ConnectionHealthKind): Color =
     when (kind) {
-        ConnectionHealthKind.Ready -> MaterialTheme.colorScheme.tertiary
+        ConnectionHealthKind.Ready -> LocalCodecksSemanticColors.current.success
         ConnectionHealthKind.Scanning,
         ConnectionHealthKind.Verifying,
         ConnectionHealthKind.Connecting,
-        ConnectionHealthKind.Testing -> MaterialTheme.colorScheme.primary
+        ConnectionHealthKind.Testing -> LocalCodecksSemanticColors.current.warning
         ConnectionHealthKind.NeedsFingerprint,
         ConnectionHealthKind.NeedsKey,
         ConnectionHealthKind.NotConfigured -> MaterialTheme.colorScheme.secondary
