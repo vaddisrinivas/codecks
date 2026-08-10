@@ -5,7 +5,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
+import tempfile
+from argparse import ArgumentParser
 from collections import Counter
 from pathlib import Path
 
@@ -21,15 +24,70 @@ METHOD = {
 }
 
 
-def tracked_sources() -> list[str]:
+def tracked_sources(root: Path = ROOT) -> list[str]:
     result = subprocess.run(
         ["git", "ls-files", "*.kt", "*.java", "*.swift"],
-        cwd=ROOT,
+        cwd=root,
         check=True,
         capture_output=True,
         text=True,
     )
     return sorted(path for path in result.stdout.splitlines() if path)
+
+
+def safe_path(root: Path, relative: str) -> Path:
+    candidate = root
+    for part in Path(relative).parts:
+        if part in {"", ".", ".."}:
+            raise ValueError(f"unsafe source path: {relative}")
+        candidate /= part
+        if candidate.is_symlink():
+            raise ValueError(f"source symlink is forbidden: {relative}")
+    try:
+        candidate.resolve(strict=True).relative_to(root.resolve(strict=True))
+    except (FileNotFoundError, ValueError) as exc:
+        raise ValueError(f"source path escapes repository: {relative}") from exc
+    if not candidate.is_file():
+        raise ValueError(f"source is not a regular file: {relative}")
+    return candidate
+
+
+def read_source(root: Path, relative: str) -> bytes:
+    path = safe_path(root, relative)
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags)
+    try:
+        chunks = []
+        while chunk := os.read(descriptor, 1024 * 1024):
+            chunks.append(chunk)
+        return b"".join(chunks)
+    finally:
+        os.close(descriptor)
+
+
+def atomic_write(root: Path, output: Path, payload: bytes) -> None:
+    root_real = root.resolve(strict=True)
+    parent = output.parent.resolve(strict=True)
+    try:
+        parent.relative_to(root_real)
+    except ValueError as exc:
+        raise ValueError(f"output path escapes repository: {output}") from exc
+    if output.is_symlink():
+        raise ValueError(f"output symlink is forbidden: {output}")
+    temporary: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(prefix=f".{output.name}.", dir=parent, delete=False) as handle:
+            temporary = handle.name
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if output.is_symlink():
+            raise ValueError(f"output symlink is forbidden: {output}")
+        os.replace(temporary, output)
+        temporary = None
+    finally:
+        if temporary is not None:
+            Path(temporary).unlink(missing_ok=True)
 
 
 def classify(path: str) -> tuple[str, str]:
@@ -85,14 +143,14 @@ def owner(path: str) -> str:
     return "other"
 
 
-def main() -> None:
+def generate(root: Path = ROOT) -> dict:
     entries = []
     category_lines: Counter[str] = Counter()
     source_set_lines: Counter[str] = Counter()
     language_lines: Counter[str] = Counter()
 
-    for relative in tracked_sources():
-        raw = (ROOT / relative).read_bytes()
+    for relative in tracked_sources(root):
+        raw = read_source(root, relative)
         text = raw.decode("utf-8")
         lines = len(text.splitlines())
         category, source_set = classify(relative)
@@ -123,8 +181,22 @@ def main() -> None:
         },
         "files": entries,
     }
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(json.dumps(payload, indent=2, sort_keys=False) + "\n")
+    return payload
+
+
+def main() -> None:
+    parser = ArgumentParser()
+    parser.add_argument("--output", type=Path, default=OUTPUT)
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+    payload = (json.dumps(generate(ROOT), indent=2, sort_keys=False) + "\n").encode()
+    output = args.output.absolute()
+    if args.check:
+        if output.is_symlink() or output.read_bytes() != payload:
+            raise ValueError(f"inventory is stale or unsafe: {output}")
+        print("PASS: source inventory matches tracked repository sources")
+    else:
+        atomic_write(ROOT, output, payload)
 
 
 if __name__ == "__main__":

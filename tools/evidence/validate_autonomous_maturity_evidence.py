@@ -5,14 +5,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
+from argparse import ArgumentParser
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
-from generate_autonomous_maturity_source_inventory import METHOD, classify, owner
+from generate_autonomous_maturity_source_inventory import METHOD, classify, owner, read_source
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -23,13 +26,40 @@ INVENTORY_SCHEMA = ROOT / "tools/evidence/schemas/autonomous-maturity-source-inv
 HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 RFC3339 = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$")
 SAFE_PATH = re.compile(r"^(?!/)(?!.*(?:^|/)\.\.(?:/|$))[A-Za-z0-9_.+@/-]+$")
-PRIVATE_PATH = re.compile(
-    "(?:/" + "Users/|/" + "home/|[A-Za-z]:\\\\" + "Users\\\\)"
-)
 CHECK_KEYS = {
-    "id", "status", "command", "started_at_utc", "finished_at_utc",
-    "exit_code", "tool", "environment", "output_sha256",
+    "id", "status", "argv", "started_at_utc", "finished_at_utc", "exit_code",
+    "tool", "environment", "output_sha256", "output_digest_scope",
 }
+GATE_SPECS_VERSION = "phase0-live-v1"
+GATE_SPECS = {
+    "source_inventory": ("python3", "tools/evidence/generate_autonomous_maturity_source_inventory.py", "--check"),
+    "evidence_schema": ("python3", "tools/evidence/validate_autonomous_maturity_evidence.py", "--structural"),
+    "evidence_negative_mutations": (
+        "python3", "-m", "unittest", "-q",
+        "tools/evidence/test_validate_autonomous_maturity_evidence.py",
+        "tools/evidence/test_generate_autonomous_maturity_source_inventory.py",
+    ),
+    "codebase_map_bound": ("python3", "-c", "from pathlib import Path; assert len(Path('docs/architecture/CODEBASE_MAP.md').read_text().splitlines()) < 1000"),
+    "secret_surface": ("python3", "tools/secret_surface_check.py"),
+    "no_shrink": ("./scripts/verify_release_no_shrink.sh",),
+    "architecture_release_distribution_commercial_manifests_shared_backend": (
+        "./gradlew", ":app:validateArchitectureBoundaries", ":app:validateReleaseSurface",
+        ":app:validateDistributionMatrix", ":app:validateCommercialDependencyBoundaries",
+        ":app:validateCommercialManifests", ":shared:allTests", ":backend:test",
+    ),
+    "protocol_fixtures": ("python3", "tools/verify_protocol_fixtures.py"),
+    "mac_helper_tests": ("swift", "test", "--package-path", "macHelper"),
+}
+REQUIRED_GATE_IDS = frozenset(GATE_SPECS)
+SENSITIVE_VALUE = re.compile(
+    r"(?i)(?:bearer\s+[A-Za-z0-9._~+/=-]+|-----BEGIN [A-Z ]*PRIVATE KEY-----|"
+    r"(?:api[_-]?key|password|secret|token)\s*[:=]\s*\S+|sk-[A-Za-z0-9_-]{12,}|"
+    r"ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})"
+)
+PRIVATE_OR_UNSAFE_PATH = re.compile(
+    r"(?:/(?:Users|home)/|[A-Za-z]:[\\/](?:Users|Documents and Settings)[\\/]|"
+    r"file://|(?:^|\s)~[\\/]|\\\\[^\\\s]+\\[^\\\s]+)"
+)
 
 
 def fail(message: str) -> None:
@@ -46,7 +76,27 @@ def timestamp(value: object, field: str) -> datetime:
 
 
 def load(path: Path) -> object:
+    if path.is_symlink():
+        fail(f"refusing symlinked evidence input: {path.name}")
     return json.loads(path.read_text())
+
+
+def run(argv: tuple[str, ...], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(argv, cwd=cwd, capture_output=True, text=True)
+
+
+def reject_sensitive_values(value: object, field: str = "baseline") -> None:
+    if isinstance(value, str):
+        if SENSITIVE_VALUE.search(value):
+            fail(f"{field}: secret-like value is forbidden")
+        if PRIVATE_OR_UNSAFE_PATH.search(value):
+            fail(f"{field}: private or unsafe path is forbidden")
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            reject_sensitive_values(item, f"{field}[{index}]")
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            reject_sensitive_values(item, f"{field}.{key}")
 
 
 def schema_type_matches(value: object, expected: str) -> bool:
@@ -144,7 +194,7 @@ def validate_inventory(data: dict) -> None:
         path = entry["path"]
         if not SAFE_PATH.fullmatch(path) or Path(path).is_absolute():
             fail(f"inventory unsafe path: {path}")
-        raw = (ROOT / path).read_bytes()
+        raw = read_source(ROOT, path)
         digest = hashlib.sha256(raw).hexdigest()
         lines = len(raw.decode("utf-8").splitlines())
         expected_category, expected_source_set = classify(path)
@@ -188,22 +238,25 @@ def validate_baseline(data: dict, inventory: dict, inventory_raw: bytes) -> None
     validation = data.get("receipt_validation", {})
     if set(validation) != {"status", "validator", "scope"}:
         fail("receipt_validation: unknown or missing field")
-    if validation.get("status") != "PASS":
-        fail("receipt_validation.status must be PASS for committed receipt")
+    if validation.get("status") != "STRUCTURE_VALID":
+        fail("receipt_validation.status must be STRUCTURE_VALID")
     if validation.get("validator") != "tools/evidence/validate_autonomous_maturity_evidence.py":
         fail("receipt_validation.validator mismatch")
 
     maturity = data.get("maturity_assessment", {})
     if set(maturity) != {"status", "completed_milestones", "note"}:
         fail("maturity_assessment: unknown or missing field")
-    if maturity.get("status") not in {"NOT_RUN", "AUTONOMOUS_PROXY", "EXTERNAL_EVIDENCE_REMAINS"}:
-        fail("maturity_assessment cannot claim PASS")
+    if maturity.get("status") not in {"NOT_ASSESSED", "AUTONOMOUS_PROXY_INCOMPLETE", "EXTERNAL_EVIDENCE_REQUIRED"}:
+        fail("maturity_assessment cannot claim GA or completion")
+
+    if data["gate_specs_version"] != GATE_SPECS_VERSION:
+        fail("gate_specs_version mismatch")
 
     check_ids: set[str] = set()
     for index, check in enumerate(data.get("fresh_checks", [])):
         if set(check) != CHECK_KEYS:
             fail(f"fresh_checks[{index}]: unknown or missing field")
-        if check["status"] not in {"PASS", "FAIL"}:
+        if check["status"] not in {"RECORDED_SUCCESS", "RECORDED_FAILURE"}:
             fail(f"fresh_checks[{index}]: invalid executed status")
         if check["id"] in check_ids:
             fail(f"fresh_checks[{index}]: duplicate id {check['id']}")
@@ -214,14 +267,19 @@ def validate_baseline(data: dict, inventory: dict, inventory_raw: bytes) -> None
             fail(f"fresh_checks[{index}]: finished before started")
         if not isinstance(check["exit_code"], int):
             fail(f"fresh_checks[{index}]: exit_code must be integer")
-        if check["status"] != ("PASS" if check["exit_code"] == 0 else "FAIL"):
+        if check["status"] != ("RECORDED_SUCCESS" if check["exit_code"] == 0 else "RECORDED_FAILURE"):
             fail(f"fresh_checks[{index}]: status/exit_code mismatch")
         if not HEX_64.fullmatch(check["output_sha256"]):
             fail(f"fresh_checks[{index}]: invalid output_sha256")
-        if PRIVATE_PATH.search(check["command"]):
-            fail(f"fresh_checks[{index}]: private path in command")
-    if any(check["status"] != "PASS" for check in data["fresh_checks"]):
-        fail("receipt_validation.status cannot be PASS while a fresh check is FAIL")
+        expected_argv = list(GATE_SPECS.get(check["id"], ()))
+        if check["argv"] != expected_argv:
+            fail(f"fresh_checks[{index}]: argv does not match allowlisted gate spec")
+        if check["output_digest_scope"] != "RAW_COMBINED_STREAM_NOT_RETAINED_HISTORICAL_ONLY":
+            fail(f"fresh_checks[{index}]: invalid output digest scope")
+    if check_ids != REQUIRED_GATE_IDS:
+        fail(f"fresh_checks: required gate IDs mismatch: {sorted(REQUIRED_GATE_IDS - check_ids)}")
+    if any(check["status"] != "RECORDED_SUCCESS" for check in data["fresh_checks"]):
+        fail("structure cannot be valid while a recorded check is a failure")
 
     release = data["release_artifact"]
     android = data["android"]
@@ -239,9 +297,7 @@ def validate_baseline(data: dict, inventory: dict, inventory_raw: bytes) -> None
         if set(lane) != {"lane", "status", "reason"} or lane.get("status") != "NOT_RUN":
             fail(f"not_run[{index}]: invalid closed shape")
 
-    serialized = json.dumps(data, sort_keys=True)
-    if PRIVATE_PATH.search(serialized):
-        fail("baseline contains a private absolute path")
+    reject_sensitive_values(data)
     source_inventory = data.get("source_inventory", {})
     if source_inventory.get("path") != "tasks/test-evidence/autonomous-maturity-source-inventory.json":
         fail("source_inventory.path mismatch")
@@ -250,23 +306,169 @@ def validate_baseline(data: dict, inventory: dict, inventory_raw: bytes) -> None
     if source_inventory.get("summary") != inventory.get("summary"):
         fail("source_inventory.summary mismatch")
 
+    critical_paths = [item["path"] for item in data["critical_files"]]
+    if critical_paths != sorted(set(critical_paths)):
+        fail("critical_files paths must be unique and sorted")
+    for item in data["critical_files"]:
+        if not SAFE_PATH.fullmatch(item["path"]):
+            fail(f"critical_files unsafe path: {item['path']}")
+        try:
+            raw = read_source(ROOT, item["path"])
+        except (OSError, ValueError) as exc:
+            raise ValueError(f"critical_files unsafe: {item['path']}") from exc
+        if hashlib.sha256(raw).hexdigest() != item["sha256"]:
+            fail(f"critical_files digest mismatch: {item['path']}")
+
 
 def validate_evidence(baseline: dict, inventory: dict, inventory_raw: bytes) -> None:
     validate_inventory(inventory)
     validate_baseline(baseline, inventory, inventory_raw)
 
 
+def checked_output(argv: tuple[str, ...], *, cwd: Path = ROOT) -> str:
+    result = run(argv, cwd=cwd)
+    if result.returncode != 0:
+        fail(f"live command failed: {argv!r}: {(result.stdout + result.stderr)[-1000:]}")
+    return result.stdout
+
+
+def attest_git_and_critical_files(data: dict) -> None:
+    if checked_output(("git", "status", "--porcelain=v1")).strip():
+        fail("live attestation requires a clean worktree")
+    binding = data["commit_binding"]
+    head = checked_output(("git", "rev-parse", "HEAD")).strip()
+    parent = checked_output(("git", "rev-parse", "HEAD^")).strip()
+    if parent != data["source"]["evidence_parent_sha"]:
+        fail("live HEAD parent does not match evidence_parent_sha")
+    changed = sorted(checked_output(("git", "diff-tree", "--no-commit-id", "--name-only", "-r", head)).splitlines())
+    if changed != binding["allowed_commit_paths"]:
+        fail("live evidence commit paths do not match allowlist")
+    if binding["kind"] != "IMMEDIATE_PARENT_PLUS_ALLOWED_DIFF_AND_CRITICAL_DIGESTS" or binding["self_hash_claimed"]:
+        fail("invalid non-self-referential commit binding")
+
+    source = data["source"]
+    checks = {
+        "implementation baseline": (("git", "rev-parse", source["implementation_baseline_ref"]), source["implementation_baseline_sha"]),
+        "origin main": (("git", "rev-parse", "origin/main"), source["origin_main_sha"]),
+        "release tag object": (("git", "rev-parse", source["release_tag"]), source["release_tag_object_sha"]),
+        "release tag commit": (("git", "rev-parse", f"{source['release_tag']}^{{}}"), source["release_tag_commit_sha"]),
+    }
+    for label, (argv, expected) in checks.items():
+        if checked_output(argv).strip() != expected:
+            fail(f"live {label} mismatch")
+    for ancestry in source["dependency_pr_ancestry"]:
+        tag_result = run(("git", "merge-base", "--is-ancestor", ancestry["merge_sha"], source["release_tag_commit_sha"]))
+        baseline_result = run(("git", "merge-base", "--is-ancestor", ancestry["merge_sha"], source["implementation_baseline_sha"]))
+        if (tag_result.returncode == 0) != ancestry["ancestor_of_v0.1.37"]:
+            fail(f"live tag ancestry mismatch for PR {ancestry['pr']}")
+        if (baseline_result.returncode == 0) != ancestry["ancestor_of_baseline"]:
+            fail(f"live baseline ancestry mismatch for PR {ancestry['pr']}")
+
+
+def sdk_tool(name: str) -> Path:
+    sdk = os.environ.get("ANDROID_SDK_ROOT") or os.environ.get("ANDROID_HOME")
+    roots = [Path(sdk)] if sdk else []
+    roots.append(Path.home() / "Library/Android/sdk")
+    candidates = []
+    for root in roots:
+        candidates.extend(root.glob(f"build-tools/*/{name}"))
+    if not candidates:
+        fail(f"Android SDK tool unavailable: {name}")
+    return sorted(candidates)[-1]
+
+
+def download_public_assets(tag: str, repository: str, destination: Path, apk_name: str) -> None:
+    checked_output((
+        "gh", "release", "download", tag, "--repo", repository,
+        "--pattern", apk_name, "--pattern", "SHA256SUMS.txt", "--dir", str(destination),
+    ))
+
+
+def attest_public_artifact(data: dict) -> None:
+    release = data["release_artifact"]
+    repository = data["source"]["repository"].removeprefix("https://github.com/")
+    metadata_raw = checked_output((
+        "gh", "release", "view", data["source"]["release_tag"], "--repo", repository,
+        "--json", "tagName,isDraft,isPrerelease,publishedAt,assets,url",
+    ))
+    metadata = json.loads(metadata_raw)
+    if metadata["tagName"] != data["source"]["release_tag"] or metadata["url"] != release["source"]:
+        fail("public release identity mismatch")
+    if metadata["isDraft"] != release["draft"] or metadata["isPrerelease"] != release["prerelease"]:
+        fail("public release state mismatch")
+    if metadata["publishedAt"] != release["published_at"]:
+        fail("public release timestamp mismatch")
+    assets = {asset["name"]: asset for asset in metadata["assets"]}
+    apk_asset = assets.get(release["apk_name"])
+    checksum_asset = assets.get("SHA256SUMS.txt")
+    if not apk_asset or not checksum_asset:
+        fail("public release assets missing")
+    if apk_asset["size"] != release["apk_size_bytes"] or apk_asset.get("digest") != f"sha256:{release['apk_sha256']}":
+        fail("public APK metadata mismatch")
+    if checksum_asset.get("digest") != f"sha256:{release['checksum_file_sha256']}":
+        fail("public checksum metadata mismatch")
+
+    with tempfile.TemporaryDirectory() as directory:
+        destination = Path(directory)
+        apk = destination / release["apk_name"]
+        checksums = destination / "SHA256SUMS.txt"
+        download_public_assets(data["source"]["release_tag"], repository, destination, release["apk_name"])
+        if hashlib.sha256(apk.read_bytes()).hexdigest() != release["apk_sha256"]:
+            fail("downloaded APK digest mismatch")
+        if hashlib.sha256(checksums.read_bytes()).hexdigest() != release["checksum_file_sha256"]:
+            fail("downloaded checksum-file digest mismatch")
+        checksum_text = checksums.read_text()
+        if f"{release['apk_sha256']}  {release['apk_name']}" not in checksum_text:
+            fail("checksum file does not bind APK")
+
+        signer = checked_output((str(sdk_tool("apksigner")), "verify", "--verbose", "--print-certs", str(apk)))
+        if "Verified using v2 scheme (APK Signature Scheme v2): true" not in signer:
+            fail("public APK lacks verified v2 signature")
+        certificate = re.search(r"Signer #1 certificate SHA-256 digest: ([0-9a-f]+)", signer, re.IGNORECASE)
+        if not certificate or certificate.group(1).lower() != release["signer_certificate_sha256"]:
+            fail("public APK signer mismatch")
+        badging = checked_output((str(sdk_tool("aapt")), "dump", "badging", str(apk)))
+        expected_package = (
+            f"package: name='{release['package']}' versionCode='{release['version_code']}' "
+            f"versionName='{release['version_name']}'"
+        )
+        if expected_package not in badging:
+            fail("public APK package/version metadata mismatch")
+        checked_output(("./scripts/verify_release_no_shrink.sh", str(apk)))
+
+
+def attest_live(data: dict) -> None:
+    attest_git_and_critical_files(data)
+    for gate_id, argv in GATE_SPECS.items():
+        if gate_id == "evidence_schema":
+            continue
+        checked_output(argv)
+    attest_public_artifact(data)
+    if checked_output(("git", "status", "--porcelain=v1")).strip():
+        fail("live gates changed the worktree")
+
+
 def main() -> int:
+    parser = ArgumentParser()
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--structural", action="store_true")
+    mode.add_argument("--live", action="store_true")
+    args = parser.parse_args()
     try:
         inventory = load(INVENTORY)
         baseline = load(BASELINE)
         if not isinstance(inventory, dict) or not isinstance(baseline, dict):
             fail("root JSON values must be objects")
         validate_evidence(baseline, inventory, INVENTORY.read_bytes())
+        if args.live:
+            attest_live(baseline)
     except (OSError, json.JSONDecodeError, ValueError, KeyError, UnicodeDecodeError) as exc:
         print(f"FAIL: {exc}", file=sys.stderr)
         return 1
-    print("PASS: autonomous maturity evidence is structurally valid and current")
+    if args.live:
+        print("PASS: live repository, gates, and public release artifact attested")
+    else:
+        print("STRUCTURE_VALID: receipt shape only; run --live for current proof")
     return 0
 
 

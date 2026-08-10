@@ -2,17 +2,18 @@
 
 Canonical plan: `tasks/AUTONOMOUS_MATURITY_PLAN.md`.
 
-Status: planned; nothing below is complete merely because an older test exists.
-Fresh evidence must bind the current candidate SHA.
+Status: Phase 0 evidence infrastructure only. Later product phases remain planned.
+`STRUCTURE_VALID` proves receipt shape only; current proof requires the fail-closed
+`--live` attestation against a clean, bound evidence commit.
 
 ## Phase 0 — Truth
 
-- [x] M00 validate the baseline receipt against its formal schema and deterministic validator
-- [x] M00 keep receipt-validation `PASS` separate from overall maturity `NOT_RUN`
-- [x] M00 record source, PR, tag, variant, SDK, signer, shrink, and evidence baseline — [`autonomous-maturity-m00-baseline.json`](test-evidence/autonomous-maturity-m00-baseline.json)
-- [x] M00 prove dependency PRs #18-#24 are on candidate main but outside v0.1.37 — [`source.dependency_pr_ancestry`](test-evidence/autonomous-maturity-m00-baseline.json)
+- [x] M00 validate closed baseline/inventory receipt structures and adversarial mutations
+- [x] M00 keep `STRUCTURE_VALID`, live attestation, and overall maturity `NOT_ASSESSED` distinct
+- [x] M00 bind source, tag, artifact, signer, shrink settings, critical files, and immediate evidence parent without claiming a self-hash
+- [x] M00 live-attest clean HEAD, exact evidence diff, required gates, PR ancestry, and public v0.1.37 artifact
 - [x] M01 generate feature-level ownership/reachability map — [`CODEBASE_MAP.md`](../docs/architecture/CODEBASE_MAP.md#fourteen-feature-boundaries)
-- [x] M01 generate exhaustive tracked-source file inventory with reproducible per-source-set LOC — [`autonomous-maturity-source-inventory.json`](test-evidence/autonomous-maturity-source-inventory.json)
+- [x] M01 generate a symlink-safe inventory of tracked Kotlin/Java/Swift sources with repository-derived classification, digests, and LOC — [`autonomous-maturity-source-inventory.json`](test-evidence/autonomous-maturity-source-inventory.json)
 - [x] M01 generate sub-1,000-line `docs/architecture/CODEBASE_MAP.md` — [`CODEBASE_MAP.md`](../docs/architecture/CODEBASE_MAP.md)
 - [x] M01 document symbol-level reachability dossiers for every current deletion candidate — [reachability classifications](../docs/architecture/CODEBASE_MAP.md#current-reachability-classifications-and-deletion-candidate-dossiers)
 

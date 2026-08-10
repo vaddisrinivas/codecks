@@ -9,13 +9,18 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[2]
 EVIDENCE_TOOLS = ROOT / "tools/evidence"
 sys.path.insert(0, str(EVIDENCE_TOOLS))
 
-from validate_autonomous_maturity_evidence import validate_evidence  # noqa: E402
+from validate_autonomous_maturity_evidence import (  # noqa: E402
+    attest_git_and_critical_files,
+    attest_public_artifact,
+    validate_evidence,
+)
 
 
 BASELINE_PATH = ROOT / "tasks/test-evidence/autonomous-maturity-m00-baseline.json"
@@ -99,9 +104,9 @@ class EvidenceMutationTest(unittest.TestCase):
         self.assert_rejected(self.baseline, self.inventory, "inventory sha256 mismatch", sync_inventory=True)
 
     def test_receipt_pass_with_failed_check_is_rejected(self) -> None:
-        self.baseline["fresh_checks"][0]["status"] = "FAIL"
+        self.baseline["fresh_checks"][0]["status"] = "RECORDED_FAILURE"
         self.baseline["fresh_checks"][0]["exit_code"] = 1
-        self.assert_rejected(self.baseline, self.inventory, "cannot be PASS while a fresh check is FAIL")
+        self.assert_rejected(self.baseline, self.inventory, "recorded check is a failure")
 
     def test_not_run_used_as_executed_status_is_rejected(self) -> None:
         self.baseline["fresh_checks"][0]["status"] = "NOT_RUN"
@@ -110,6 +115,129 @@ class EvidenceMutationTest(unittest.TestCase):
     def test_pass_used_for_not_run_lane_is_rejected(self) -> None:
         self.baseline["not_run"][0]["status"] = "PASS"
         self.assert_rejected(self.baseline, self.inventory, "expected constant 'NOT_RUN'")
+
+    def test_missing_required_gate_is_rejected(self) -> None:
+        self.baseline["fresh_checks"].pop()
+        self.assert_rejected(self.baseline, self.inventory, "required gate IDs mismatch")
+
+    def test_fabricated_gate_argv_is_rejected(self) -> None:
+        self.baseline["fresh_checks"][0]["argv"] = ["true"]
+        self.assert_rejected(self.baseline, self.inventory, "argv does not match allowlisted gate spec")
+
+    def test_full_ga_maturity_claim_is_rejected(self) -> None:
+        self.baseline["maturity_assessment"]["status"] = "FULL_GA"
+        self.assert_rejected(self.baseline, self.inventory, "value outside enum")
+
+    def test_critical_file_digest_tampering_is_rejected(self) -> None:
+        self.baseline["critical_files"][0]["sha256"] = "0" * 64
+        self.assert_rejected(self.baseline, self.inventory, "critical_files digest mismatch")
+
+    def test_secret_and_cross_platform_private_paths_are_rejected(self) -> None:
+        samples = [
+            "Bearer abcdefghijklmnop",
+            "api_key=abcdefghijklmnop",
+            "/Users/example/private/file",
+            "C:\\Users\\example\\private.txt",
+            "\\\\server\\share\\private.txt",
+        ]
+        for sample in samples:
+            with self.subTest(sample=sample):
+                baseline = copy.deepcopy(self.baseline)
+                baseline["fresh_checks"][0]["environment"]["injected"] = sample
+                self.assert_rejected(baseline, self.inventory, "forbidden")
+
+    def test_dirty_worktree_is_rejected_by_live_attestation(self) -> None:
+        with patch("validate_autonomous_maturity_evidence.checked_output", return_value=" M changed"):
+            with self.assertRaisesRegex(ValueError, "clean worktree"):
+                attest_git_and_critical_files(self.baseline)
+
+    def test_changed_head_parent_is_rejected_by_live_attestation(self) -> None:
+        def output(argv: tuple[str, ...], **_: object) -> str:
+            if argv == ("git", "status", "--porcelain=v1"):
+                return ""
+            if argv == ("git", "rev-parse", "HEAD"):
+                return "f" * 40 + "\n"
+            if argv == ("git", "rev-parse", "HEAD^"):
+                return "0" * 40 + "\n"
+            raise AssertionError(argv)
+
+        with patch("validate_autonomous_maturity_evidence.checked_output", side_effect=output):
+            with self.assertRaisesRegex(ValueError, "HEAD parent"):
+                attest_git_and_critical_files(self.baseline)
+
+    def test_fake_release_tag_is_rejected_by_live_attestation(self) -> None:
+        source = self.baseline["source"]
+
+        def output(argv: tuple[str, ...], **_: object) -> str:
+            if argv == ("git", "status", "--porcelain=v1"):
+                return ""
+            if argv == ("git", "rev-parse", "HEAD"):
+                return "f" * 40 + "\n"
+            if argv == ("git", "rev-parse", "HEAD^"):
+                return source["evidence_parent_sha"] + "\n"
+            if argv[:4] == ("git", "diff-tree", "--no-commit-id", "--name-only"):
+                return "\n".join(self.baseline["commit_binding"]["allowed_commit_paths"]) + "\n"
+            if argv == ("git", "rev-parse", source["release_tag"]):
+                return "0" * 40 + "\n"
+            expected = {
+                source["implementation_baseline_ref"]: source["implementation_baseline_sha"],
+                "origin/main": source["origin_main_sha"],
+            }
+            if argv[:2] == ("git", "rev-parse") and argv[2] in expected:
+                return expected[argv[2]] + "\n"
+            raise AssertionError(argv)
+
+        with patch("validate_autonomous_maturity_evidence.checked_output", side_effect=output):
+            with self.assertRaisesRegex(ValueError, "release tag object mismatch"):
+                attest_git_and_critical_files(self.baseline)
+
+    def test_fake_public_artifact_metadata_is_rejected(self) -> None:
+        metadata = {
+            "tagName": self.baseline["source"]["release_tag"],
+            "url": self.baseline["release_artifact"]["source"],
+            "isDraft": False,
+            "isPrerelease": False,
+            "publishedAt": self.baseline["release_artifact"]["published_at"],
+            "assets": [],
+        }
+        with patch("validate_autonomous_maturity_evidence.checked_output", return_value=json.dumps(metadata)):
+            with self.assertRaisesRegex(ValueError, "public release assets missing"):
+                attest_public_artifact(self.baseline)
+
+    def test_fake_public_artifact_signer_is_rejected(self) -> None:
+        baseline = copy.deepcopy(self.baseline)
+        release = baseline["release_artifact"]
+        apk_bytes = b"APK"
+        release["apk_size_bytes"] = len(apk_bytes)
+        release["apk_sha256"] = hashlib.sha256(apk_bytes).hexdigest()
+        checksum_bytes = f"{release['apk_sha256']}  {release['apk_name']}\n".encode()
+        release["checksum_file_sha256"] = hashlib.sha256(checksum_bytes).hexdigest()
+        metadata = {
+            "tagName": baseline["source"]["release_tag"],
+            "url": release["source"], "isDraft": False, "isPrerelease": False,
+            "publishedAt": release["published_at"],
+            "assets": [
+                {"name": release["apk_name"], "size": len(apk_bytes), "digest": f"sha256:{release['apk_sha256']}", "url": "https://example.test/apk"},
+                {"name": "SHA256SUMS.txt", "digest": f"sha256:{release['checksum_file_sha256']}", "url": "https://example.test/sums"},
+            ],
+        }
+
+        def download(_: str, __: str, destination: Path, apk_name: str) -> None:
+            (destination / apk_name).write_bytes(apk_bytes)
+            (destination / "SHA256SUMS.txt").write_bytes(checksum_bytes)
+
+        def output(argv: tuple[str, ...], **_: object) -> str:
+            if argv[:3] == ("gh", "release", "view"):
+                return json.dumps(metadata)
+            if "apksigner" in argv[0]:
+                return "Verified using v2 scheme (APK Signature Scheme v2): true\nSigner #1 certificate SHA-256 digest: " + "0" * 64
+            raise AssertionError(argv)
+
+        with patch("validate_autonomous_maturity_evidence.checked_output", side_effect=output), \
+             patch("validate_autonomous_maturity_evidence.download_public_assets", side_effect=download), \
+             patch("validate_autonomous_maturity_evidence.sdk_tool", return_value=Path("apksigner")):
+            with self.assertRaisesRegex(ValueError, "public APK signer mismatch"):
+                attest_public_artifact(baseline)
 
 
 if __name__ == "__main__":

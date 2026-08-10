@@ -7,7 +7,7 @@
   "required": [
     "schema", "captured_at_utc", "receipt_validation", "maturity_assessment",
     "source", "release_artifact", "android", "toolchain", "source_inventory",
-    "fresh_checks", "not_run", "commands_for_reproduction"
+    "gate_specs_version", "critical_files", "commit_binding", "fresh_checks", "not_run"
   ],
   "properties": {
     "schema": {"const": "codecks.autonomous-maturity.baseline.v1"},
@@ -19,12 +19,11 @@
     "android": {"$ref": "#/$defs/android"},
     "toolchain": {"$ref": "#/$defs/toolchain"},
     "source_inventory": {"$ref": "#/$defs/sourceInventory"},
+    "gate_specs_version": {"const": "phase0-live-v1"},
+    "critical_files": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/criticalFile"}},
+    "commit_binding": {"$ref": "#/$defs/commitBinding"},
     "fresh_checks": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/executedCheck"}},
-    "not_run": {"type": "array", "items": {"$ref": "#/$defs/notRun"}},
-    "commands_for_reproduction": {
-      "type": "object",
-      "additionalProperties": {"type": "string", "minLength": 1}
-    }
+    "not_run": {"type": "array", "items": {"$ref": "#/$defs/notRun"}}
   },
   "$defs": {
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
@@ -47,7 +46,7 @@
       "type": "object", "additionalProperties": false,
       "required": ["status", "validator", "scope"],
       "properties": {
-        "status": {"enum": ["PASS", "FAIL"]},
+        "status": {"const": "STRUCTURE_VALID"},
         "validator": {"$ref": "#/$defs/text"},
         "scope": {"$ref": "#/$defs/text"}
       }
@@ -56,7 +55,7 @@
       "type": "object", "additionalProperties": false,
       "required": ["status", "completed_milestones", "note"],
       "properties": {
-        "status": {"enum": ["NOT_RUN", "AUTONOMOUS_PROXY", "EXTERNAL_EVIDENCE_REMAINS"]},
+        "status": {"enum": ["NOT_ASSESSED", "AUTONOMOUS_PROXY_INCOMPLETE", "EXTERNAL_EVIDENCE_REQUIRED"]},
         "completed_milestones": {"type": "array", "items": {"$ref": "#/$defs/text"}},
         "note": {"$ref": "#/$defs/text"}
       }
@@ -182,17 +181,36 @@
         "sha256": {"$ref": "#/$defs/sha256"}, "summary": {"$ref": "#/$defs/inventorySummary"}
       }
     },
+    "criticalFile": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9_.+@/-]+$"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "commitBinding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "self_hash_claimed", "allowed_commit_paths"],
+      "properties": {
+        "kind": {"const": "IMMEDIATE_PARENT_PLUS_ALLOWED_DIFF_AND_CRITICAL_DIGESTS"},
+        "self_hash_claimed": {"const": false},
+        "allowed_commit_paths": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+      }
+    },
     "executedCheck": {
       "type": "object", "additionalProperties": false,
-      "required": ["id", "status", "command", "started_at_utc", "finished_at_utc", "exit_code", "tool", "environment", "output_sha256"],
+      "required": ["id", "status", "argv", "started_at_utc", "finished_at_utc", "exit_code", "tool", "environment", "output_sha256", "output_digest_scope"],
       "properties": {
         "id": {"type": "string", "minLength": 1, "pattern": "^[a-z0-9_]+$"},
-        "status": {"enum": ["PASS", "FAIL"]}, "command": {"$ref": "#/$defs/text"},
+        "status": {"enum": ["RECORDED_SUCCESS", "RECORDED_FAILURE"]},
+        "argv": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
         "started_at_utc": {"type": "string", "format": "date-time"},
         "finished_at_utc": {"type": "string", "format": "date-time"},
         "exit_code": {"type": "integer"}, "tool": {"$ref": "#/$defs/text"},
         "environment": {"type": "object", "additionalProperties": {"type": ["string", "number", "boolean"]}},
-        "output_sha256": {"$ref": "#/$defs/sha256"}
+        "output_sha256": {"$ref": "#/$defs/sha256"},
+        "output_digest_scope": {"const": "RAW_COMBINED_STREAM_NOT_RETAINED_HISTORICAL_ONLY"}
       }
     },
     "notRun": {

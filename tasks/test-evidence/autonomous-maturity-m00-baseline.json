@@ -1,13 +1,13 @@
 {
   "schema": "codecks.autonomous-maturity.baseline.v1",
-  "captured_at_utc": "2026-08-10T14:17:35Z",
+  "captured_at_utc": "2026-08-10T14:36:41Z",
   "receipt_validation": {
-    "status": "PASS",
+    "status": "STRUCTURE_VALID",
     "validator": "tools/evidence/validate_autonomous_maturity_evidence.py",
     "scope": "Closed receipt and inventory schemas, adversarial mutations, portable paths, repository-derived classification, source completeness and file digests; not overall product maturity"
   },
   "maturity_assessment": {
-    "status": "NOT_RUN",
+    "status": "NOT_ASSESSED",
     "completed_milestones": ["M00", "M01 feature/file inventory"],
     "note": "This baseline validates evidence bookkeeping only. M02-M24, physical hardware, human usability, Play admission, and final maturity remain unproved."
   },
@@ -16,7 +16,7 @@
     "branch": "codex/autonomous-maturity",
     "implementation_baseline_ref": "main",
     "implementation_baseline_sha": "d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
-    "evidence_parent_sha": "a132ac74ea69d00703ae4836bcb8f1da0d39dab4",
+    "evidence_parent_sha": "57b01f8050ae07d518884ba6b8b39df759c0cd96",
     "origin_main_sha": "d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
     "release_tag": "v0.1.37",
     "release_tag_object_sha": "3d21b395d49fa87d8fa04ba1f06f917acee5d081",
@@ -134,108 +134,149 @@
       "by_language": {"Java": 918, "Kotlin": 87396, "Swift": 2428}
     }
   },
+  "gate_specs_version": "phase0-live-v1",
+  "critical_files": [
+    {"path": "app/build.gradle.kts", "sha256": "6163b0875d787d4c7f3fed73f2178d4a7b26b643c51d804f033fd612c4b027ab"},
+    {"path": "app/src/debug/AndroidManifest.xml", "sha256": "d7527468e1a7592b2d52a15fae778d6ba2fac4bf86b49a8073ff93380748d9f8"},
+    {"path": "app/src/main/AndroidManifest.xml", "sha256": "9d5f17af25885e6c9293fe1e8f9249347513e54122d93821a6040f7b32cdc9c9"},
+    {"path": "app/src/oss/AndroidManifest.xml", "sha256": "504549325fa4834810f149f55f1c3b867747a5c8ccf66b27cb39b98487371045"},
+    {"path": "app/src/play/AndroidManifest.xml", "sha256": "4518a5f3bb98795f78356200bbfd2b8129cb1536beacddce636f36163295fce5"},
+    {"path": "app/src/playInternal/AndroidManifest.xml", "sha256": "a884b659755453ff59f2efa6de1a7d2d7beb0f33a8b9d9ca065d852ec0cd031d"},
+    {"path": "build.gradle.kts", "sha256": "ecae3500f6ae0fe2bd204f12d42e36ec43b0f499b36d7b4d2fc42c396f91654c"},
+    {"path": "gradle.properties", "sha256": "19067360a652ac9d12ba35b945ab59808fd31fbf1dd5f4939f4baa658611aa36"},
+    {"path": "gradle/wrapper/gradle-wrapper.properties", "sha256": "70fa201501995e6f45c0c475def71093f8115849344c48322ca997cfddba8534"},
+    {"path": "scripts/verify_release_no_shrink.sh", "sha256": "6fdf7ab044267c38e73777f2b74c2d39ffe883becc1ba0937f6711f5fddd193b"},
+    {"path": "settings.gradle.kts", "sha256": "fa1294932a351609ca379427a498e7fc1c2e2c654e6a2fae7da0af6743db3146"},
+    {"path": "tools/evidence/generate_autonomous_maturity_source_inventory.py", "sha256": "e9b6d92ff0d158a69360146be0fc4b7f0a9bce7ddb87897952bbe45b4f56dde4"},
+    {"path": "tools/evidence/schemas/autonomous-maturity-baseline-v1.schema.json", "sha256": "a72009f9da3b1098e6ba69bdff5aa6498820da45705dac8350b297f609e7ebef"},
+    {"path": "tools/evidence/schemas/autonomous-maturity-source-inventory-v1.schema.json", "sha256": "d6f6cb96e053b90a44bff73b2acf1fb3e642a5b5e6f54fc0a227fa9cd49b8d4b"},
+    {"path": "tools/evidence/validate_autonomous_maturity_evidence.py", "sha256": "85c14b2c1d3ed44abb02c24ffff0ec5bb486d4d128ffc56e36e30cccd651d7ed"},
+    {"path": "tools/secret_surface_check.py", "sha256": "2b5a108c89a69d6b1ba295d7c6ca3341f8c93b08ca3e5230e45fcd7aaa51b227"}
+  ],
+  "commit_binding": {
+    "kind": "IMMEDIATE_PARENT_PLUS_ALLOWED_DIFF_AND_CRITICAL_DIGESTS",
+    "self_hash_claimed": false,
+    "allowed_commit_paths": [
+      "tasks/AUTONOMOUS_MATURITY_TODO.md",
+      "tasks/test-evidence/autonomous-maturity-m00-baseline.json",
+      "tools/evidence/generate_autonomous_maturity_source_inventory.py",
+      "tools/evidence/schemas/autonomous-maturity-baseline-v1.schema.json",
+      "tools/evidence/test_generate_autonomous_maturity_source_inventory.py",
+      "tools/evidence/test_validate_autonomous_maturity_evidence.py",
+      "tools/evidence/validate_autonomous_maturity_evidence.py"
+    ]
+  },
   "fresh_checks": [
     {
       "id": "source_inventory",
-      "status": "PASS",
-      "command": "python3 tools/evidence/generate_autonomous_maturity_source_inventory.py",
-      "started_at_utc": "2026-08-10T13:49:31Z",
-      "finished_at_utc": "2026-08-10T13:49:31Z",
+      "status": "RECORDED_SUCCESS",
+      "argv": ["python3", "tools/evidence/generate_autonomous_maturity_source_inventory.py", "--check"],
+      "started_at_utc": "2026-08-10T14:34:48Z",
+      "finished_at_utc": "2026-08-10T14:34:48Z",
       "exit_code": 0,
       "tool": "Python 3",
       "environment": {"tracked_source_files": 515, "host_arch": "arm64"},
-      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "output_sha256": "804a2f77b1efe06cf258542f99acb787d1361eb8bbe9ac13f05080b80ab80513",
+      "output_digest_scope": "RAW_COMBINED_STREAM_NOT_RETAINED_HISTORICAL_ONLY"
     },
     {
       "id": "evidence_schema",
-      "status": "PASS",
-      "command": "python3 tools/evidence/validate_autonomous_maturity_evidence.py",
-      "started_at_utc": "2026-08-10T13:49:41Z",
-      "finished_at_utc": "2026-08-10T13:49:41Z",
+      "status": "RECORDED_SUCCESS",
+      "argv": ["python3", "tools/evidence/validate_autonomous_maturity_evidence.py", "--structural"],
+      "started_at_utc": "2026-08-10T14:34:48Z",
+      "finished_at_utc": "2026-08-10T14:34:48Z",
       "exit_code": 0,
       "tool": "Python 3 / JSON Schema draft 2020-12 subset validator",
       "environment": {"host_os": "macOS 26.5.2", "host_arch": "arm64"},
-      "output_sha256": "0479533d08072f9f616a615edec4c7786259b99677ace5d1ba3002add1352d29"
+      "output_sha256": "f9f0403afd76e4748965786f459ae057eae14b166eb4cf013517318f47b84cea",
+      "output_digest_scope": "RAW_COMBINED_STREAM_NOT_RETAINED_HISTORICAL_ONLY"
     },
     {
       "id": "evidence_negative_mutations",
-      "status": "PASS",
-      "command": "python3 -m unittest -q tools/evidence/test_validate_autonomous_maturity_evidence.py",
-      "started_at_utc": "2026-08-10T14:17:34Z",
-      "finished_at_utc": "2026-08-10T14:17:35Z",
+      "status": "RECORDED_SUCCESS",
+      "argv": ["python3", "-m", "unittest", "-q", "tools/evidence/test_validate_autonomous_maturity_evidence.py", "tools/evidence/test_generate_autonomous_maturity_source_inventory.py"],
+      "started_at_utc": "2026-08-10T14:36:37Z",
+      "finished_at_utc": "2026-08-10T14:36:41Z",
       "exit_code": 0,
       "tool": "Python 3 unittest",
       "environment": {
-        "mutation_tests": 13,
+        "mutation_tests": 28,
         "host_arch": "arm64"
       },
-      "output_sha256": "ac67a9127f56bd1c72c279e5043f39065f41d44c57d09087254c9501a16f4148"
+      "output_sha256": "c2a30d68f941803904bdad3d15b23b7b2d4378aa0714b748f82e3d513f3e3d20",
+      "output_digest_scope": "RAW_COMBINED_STREAM_NOT_RETAINED_HISTORICAL_ONLY"
     },
     {
       "id": "codebase_map_bound",
-      "status": "PASS",
-      "command": "test $(wc -l < docs/architecture/CODEBASE_MAP.md) -lt 1000",
-      "started_at_utc": "2026-08-10T13:49:41Z",
-      "finished_at_utc": "2026-08-10T13:49:41Z",
+      "status": "RECORDED_SUCCESS",
+      "argv": ["python3", "-c", "from pathlib import Path; assert len(Path('docs/architecture/CODEBASE_MAP.md').read_text().splitlines()) < 1000"],
+      "started_at_utc": "2026-08-10T14:34:50Z",
+      "finished_at_utc": "2026-08-10T14:34:50Z",
       "exit_code": 0,
       "tool": "POSIX shell / wc",
       "environment": {"map_lines": 490, "limit_exclusive": 1000},
-      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output_digest_scope": "RAW_COMBINED_STREAM_NOT_RETAINED_HISTORICAL_ONLY"
     },
     {
       "id": "secret_surface",
-      "status": "PASS",
-      "command": "python3 tools/secret_surface_check.py",
+      "status": "RECORDED_SUCCESS",
+      "argv": ["python3", "tools/secret_surface_check.py"],
       "started_at_utc": "2026-08-10T13:49:41Z",
       "finished_at_utc": "2026-08-10T13:49:42Z",
       "exit_code": 0,
       "tool": "Python 3",
       "environment": {"host_os": "macOS 26.5.2", "host_arch": "arm64"},
-      "output_sha256": "c47bb91e20ed28bf24bcf50fd1a69a1a9cb4d933c8487e5e0dd2ce22ee3d064c"
+      "output_sha256": "c47bb91e20ed28bf24bcf50fd1a69a1a9cb4d933c8487e5e0dd2ce22ee3d064c",
+      "output_digest_scope": "RAW_COMBINED_STREAM_NOT_RETAINED_HISTORICAL_ONLY"
     },
     {
       "id": "no_shrink",
-      "status": "PASS",
-      "command": "./scripts/verify_release_no_shrink.sh",
+      "status": "RECORDED_SUCCESS",
+      "argv": ["./scripts/verify_release_no_shrink.sh"],
       "started_at_utc": "2026-08-10T13:45:03Z",
       "finished_at_utc": "2026-08-10T13:45:03Z",
       "exit_code": 0,
       "tool": "POSIX shell",
       "environment": {"host_os": "macOS 26.5.2", "host_arch": "arm64"},
-      "output_sha256": "07c327c00304f5851671a5f2aa932fb3b74a4c84b72e7822a57cb5350368c6a0"
+      "output_sha256": "07c327c00304f5851671a5f2aa932fb3b74a4c84b72e7822a57cb5350368c6a0",
+      "output_digest_scope": "RAW_COMBINED_STREAM_NOT_RETAINED_HISTORICAL_ONLY"
     },
     {
       "id": "architecture_release_distribution_commercial_manifests_shared_backend",
-      "status": "PASS",
-      "command": "./gradlew :app:validateArchitectureBoundaries :app:validateReleaseSurface :app:validateDistributionMatrix :app:validateCommercialDependencyBoundaries :app:validateCommercialManifests :shared:allTests :backend:test",
+      "status": "RECORDED_SUCCESS",
+      "argv": ["./gradlew", ":app:validateArchitectureBoundaries", ":app:validateReleaseSurface", ":app:validateDistributionMatrix", ":app:validateCommercialDependencyBoundaries", ":app:validateCommercialManifests", ":shared:allTests", ":backend:test"],
       "started_at_utc": "2026-08-10T13:45:22Z",
       "finished_at_utc": "2026-08-10T13:45:25Z",
       "exit_code": 0,
       "tool": "Gradle 9.4.1 / OpenJDK 20.0.2",
       "environment": {"host_os": "macOS 26.5.2", "host_arch": "arm64"},
-      "output_sha256": "53d24b2ab12bc2da76bb9a2a78c768b7b90be7f4482f91ca1f9d7b7534c702a9"
+      "output_sha256": "53d24b2ab12bc2da76bb9a2a78c768b7b90be7f4482f91ca1f9d7b7534c702a9",
+      "output_digest_scope": "RAW_COMBINED_STREAM_NOT_RETAINED_HISTORICAL_ONLY"
     },
     {
       "id": "protocol_fixtures",
-      "status": "PASS",
-      "command": "python3 tools/verify_protocol_fixtures.py",
+      "status": "RECORDED_SUCCESS",
+      "argv": ["python3", "tools/verify_protocol_fixtures.py"],
       "started_at_utc": "2026-08-10T13:45:03Z",
       "finished_at_utc": "2026-08-10T13:45:03Z",
       "exit_code": 0,
       "tool": "Python 3",
       "environment": {"host_os": "macOS 26.5.2", "host_arch": "arm64"},
-      "output_sha256": "7d1e01c248248e32955405b998b132a7a1a75666b73fedded475b12df20cedbb"
+      "output_sha256": "7d1e01c248248e32955405b998b132a7a1a75666b73fedded475b12df20cedbb",
+      "output_digest_scope": "RAW_COMBINED_STREAM_NOT_RETAINED_HISTORICAL_ONLY"
     },
     {
       "id": "mac_helper_tests",
-      "status": "PASS",
-      "command": "swift test --package-path macHelper",
+      "status": "RECORDED_SUCCESS",
+      "argv": ["swift", "test", "--package-path", "macHelper"],
       "started_at_utc": "2026-08-10T13:45:22Z",
       "finished_at_utc": "2026-08-10T13:45:25Z",
       "exit_code": 0,
       "tool": "Swift 6.3.3",
       "environment": {"host_os": "macOS 26.5.2", "host_arch": "arm64", "tests": 30},
-      "output_sha256": "e5533bcaf749bb45b9db9d4c15e7abf21ce57ef2c7349cf77a8d9c2466dedc29"
+      "output_sha256": "e5533bcaf749bb45b9db9d4c15e7abf21ce57ef2c7349cf77a8d9c2466dedc29",
+      "output_digest_scope": "RAW_COMBINED_STREAM_NOT_RETAINED_HISTORICAL_ONLY"
     }
   ],
   "not_run": [
@@ -245,14 +286,5 @@
     {"lane": "candidate signing continuity", "status": "NOT_RUN", "reason": "no candidate artifact exists and no private key material was accessed"},
     {"lane": "live AI providers, SSH, helper service, clipboard, DeX, Intel Mac, Play admission, and human testing", "status": "NOT_RUN", "reason": "not baseline architecture proof"},
     {"lane": "primary-Mac sleep, service, account, key, permission, and HID mutation", "status": "NOT_RUN", "reason": "requires a disposable target or explicit per-run approval; manual HID remains external"}
-  ],
-  "commands_for_reproduction": {
-    "source_inventory": "python3 tools/evidence/generate_autonomous_maturity_source_inventory.py",
-    "evidence_validation": "python3 tools/evidence/validate_autonomous_maturity_evidence.py",
-    "tag_ancestry": "git merge-base --is-ancestor <merge_sha> v0.1.37; git merge-base --is-ancestor <merge_sha> d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
-    "variant_inventory": "./gradlew :app:tasks --all",
-    "sdk_inventory": "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --list_installed",
-    "release_metadata": "gh release view v0.1.37 --json tagName,targetCommitish,isDraft,isPrerelease,publishedAt,url,assets",
-    "release_certificate": "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner verify --verbose --print-certs codecks-release.apk"
-  }
+  ]
 }
