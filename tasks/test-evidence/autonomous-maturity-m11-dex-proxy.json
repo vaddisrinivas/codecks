@@ -6,7 +6,7 @@
   "artifacts": [
     {
       "path": "tasks/test-evidence/m11/runtime/TEST-pixel6Api35-playInternalRelease-initial.xml",
-      "sha256": "f4a81df456fb3f2f29f39076d0b5ee6cda4edcd8f8f289febd1d8fa6401fc3c3",
+      "sha256": "e12e5d4b8e1b31ef8152e5c89e35a38e5b292b45a8fbf7fc745e9afa5c4ec7ba",
       "timestamp": "2026-08-10T23:06:27",
       "passedMethods": [
         "managedWindow1280x720",
@@ -25,7 +25,7 @@
     },
     {
       "path": "tasks/test-evidence/m11/runtime/TEST-pixel6Api35-playInternalRelease-corrected.xml",
-      "sha256": "51fdc149239b12514d74533cc3396a828cde6633e529a8df2be9e80a33812a9e",
+      "sha256": "fc1efd7e36570fec0d8dbec5e85b53df415496c77039fc1011bc4fe5962bfc01",
       "timestamp": "2026-08-10T23:10:05",
       "passedMethods": [
         "freeformWindow1280x720",
