@@ -48,6 +48,7 @@ import io.codecks.ui.connection.ConnectionOperation
 import io.codecks.ui.connection.ConnectionUiState
 import io.codecks.ui.connection.SetupStep
 import io.codecks.ui.connection.connectionDiagnostic
+import io.codecks.ui.connection.ConnectionRepair
 import io.codecks.ui.connection.statusLabel
 
 @Composable
@@ -131,6 +132,10 @@ internal fun CodecksHelperPanel(
     onSearch: (String) -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("Codecks") }
+    val connectRepair = state.repairs.firstOrNull { it == ConnectionRepair.RetryNow }
+    val setupRepair = state.repairs.firstOrNull {
+        it == ConnectionRepair.PairHelper || it == ConnectionRepair.OpenHelper || it == ConnectionRepair.ReviewIdentity
+    }
     CodecksPanel(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
@@ -141,6 +146,13 @@ internal fun CodecksHelperPanel(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            state.supportCode?.let {
+                Text(
+                    "Support code $it",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 DeckFilterPill(
                     label = state.statusLabel,
@@ -164,14 +176,14 @@ internal fun CodecksHelperPanel(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 DeckActionButton(
-                    label = if (state.statusLabel == "Connecting") "Connecting…" else "Connect helper",
+                    label = if (state.statusLabel == "Connecting…") "Connecting…" else connectRepair?.label ?: "Connect helper",
                     onClick = onConnect,
-                    enabled = state.canConnect,
+                    enabled = state.canConnect && connectRepair != null,
                     icon = Icons.Outlined.Link,
                     modifier = Modifier.weight(1f).heightIn(min = 52.dp),
                 )
                 DeckActionButton(
-                    label = if (state.hasPairing) "Pairing JSON" else "Open setup",
+                    label = setupRepair?.label ?: if (state.hasPairing) "Pairing JSON" else "Open setup",
                     onClick = onOpenSetup,
                     enabled = true,
                     icon = Icons.Outlined.Terminal,
@@ -476,6 +488,7 @@ internal fun MacConnectionSettingsPanel(
                     detail = buildString {
                         append(diagnostic.detail)
                         diagnostic.repairActions.firstOrNull()?.let { append(" Next: ${it.label}") }
+                        diagnostic.supportCode?.let { append(" Support code $it.") }
                     },
                     kind = AccessibleStatusKind.Error,
                     announceChanges = true,

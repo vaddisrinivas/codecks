@@ -63,7 +63,7 @@ class KeyboardViewModelTest {
 
         val state = viewModel.uiState.value
         assertEquals("ship it", state.text)
-        assertEquals("Enter failed", state.status)
+        assertEquals("Send failed (CX-HID-FAIL)", state.status)
         assertTrue(hidRepository.typedTexts.contains("ship it"))
         assertTrue(hidRepository.sentCommands.contains(HidCommand.Enter))
         assertTrue(state.recentSends.isEmpty())
@@ -126,7 +126,7 @@ class KeyboardViewModelTest {
         runCurrent()
 
         assertEquals("keep me", viewModel.uiState.value.text)
-        assertEquals("Mac rejected text report", viewModel.uiState.value.status)
+        assertEquals("Send failed (CX-HID-FAIL)", viewModel.uiState.value.status)
         assertTrue(hid.sentCommands.isEmpty())
     }
 }

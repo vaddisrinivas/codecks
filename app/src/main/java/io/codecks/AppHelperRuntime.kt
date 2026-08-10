@@ -19,6 +19,7 @@ import io.codecks.shared.protocol.ReactiveHelperRequest
 import io.codecks.ui.settings.CodecksHelperConnectionKind
 import io.codecks.ui.settings.CodecksHelperUiState
 import io.codecks.ui.settings.codecksHelperUiState
+import io.codecks.ui.connection.toUnifiedConnectionPresentation
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -72,7 +73,7 @@ internal fun rememberHelperRuntime(
             snackbarHostState.showSnackbar(
                 result.fold(
                     onSuccess = { "Codecks helper paired: ${it.displayName}" },
-                    onFailure = { it.message ?: "Codecks helper pairing failed" },
+                    onFailure = { "Helper pairing failed (CX-HLP-FAIL)" },
                 ),
             )
         }
@@ -90,7 +91,7 @@ internal fun rememberHelperRuntime(
         snackbarHostState.showSnackbar(
             result.fold(
                 onSuccess = { "Codecks helper paired: ${it.displayName}" },
-                onFailure = { it.message ?: "Codecks helper pairing failed" },
+                onFailure = { "Helper pairing failed (CX-HLP-FAIL)" },
             ),
         )
         onPendingPairingConsumed()
@@ -135,6 +136,10 @@ internal fun rememberHelperRuntime(
     val hasSavedEndpoint = identities.firstOrNull()?.let { identity ->
         !identity.host.isNullOrBlank() && identity.port != null
     } == true
+    val helperPresentation = status.toUnifiedConnectionPresentation(
+        paired = identities.isNotEmpty(),
+        endpointAvailable = discoveredHelpers.isNotEmpty() || hasSavedEndpoint,
+    )
     val uiState = codecksHelperUiState(
         pairedDisplayName = identities.firstOrNull()?.displayName,
         connectionKind = when (status) {
@@ -145,7 +150,7 @@ internal fun rememberHelperRuntime(
         },
         discoveredCount = discoveredHelpers.size,
         hasSavedEndpoint = hasSavedEndpoint,
-        failureCode = (status as? ReactiveHelperSessionStatus.Failed)?.code,
+        presentation = helperPresentation,
     )
     val connect: () -> Unit = {
         scope.launch {
@@ -162,7 +167,10 @@ internal fun rememberHelperRuntime(
                         when (result) {
                             is ReactiveHelperSessionStatus.Connected -> "Codecks helper connected"
                             is ReactiveHelperSessionStatus.Connecting -> "Codecks helper connecting"
-                            is ReactiveHelperSessionStatus.Failed -> "Codecks helper failed: ${result.code}"
+                            is ReactiveHelperSessionStatus.Failed -> {
+                                val diagnostic = result.toUnifiedConnectionPresentation()
+                                "${diagnostic.title} (${diagnostic.supportCode})"
+                            }
                             ReactiveHelperSessionStatus.Idle -> "Codecks helper idle"
                         },
                     )

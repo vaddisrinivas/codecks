@@ -42,22 +42,22 @@ class ConnectionDiagnosticPresenterTest {
             nowMillis = 10_000L,
         )
 
-        assertEquals(ConnectionDiagnosticState.Connecting, connecting.state)
+        assertEquals(ConnectionPresentationState.Checking, connecting.state)
         assertEquals(3, connecting.attempt)
-        assertEquals(ConnectionDiagnosticState.Backoff, backoff.state)
+        assertEquals(ConnectionPresentationState.Reconnecting, backoff.state)
         assertEquals(4, backoff.attempt)
         assertEquals(15, backoff.retryInSeconds)
-        assertEquals(listOf(ConnectionRepairAction.RetryNow), backoff.repairActions)
+        assertEquals(listOf(ConnectionRepair.RetryNow), backoff.repairActions)
     }
 
     @Test
     fun failuresRemainDistinctAndUnknownFallsBackSafely() {
         val expected = mapOf(
-            ConnectionIssueCode.MAC_OFFLINE_OR_ASLEEP to ConnectionDiagnosticState.Offline,
-            ConnectionIssueCode.SSH_AUTH_FAILED to ConnectionDiagnosticState.AuthenticationFailed,
-            ConnectionIssueCode.SSH_HOST_KEY_MISMATCH to ConnectionDiagnosticState.HostKeyMismatch,
-            ConnectionIssueCode.MAC_TOOL_MISSING to ConnectionDiagnosticState.ToolMissing,
-            ConnectionIssueCode.UNKNOWN to ConnectionDiagnosticState.Unknown,
+            ConnectionIssueCode.MAC_OFFLINE_OR_ASLEEP to ConnectionPresentationState.Sleeping,
+            ConnectionIssueCode.SSH_AUTH_FAILED to ConnectionPresentationState.AuthenticationFailed,
+            ConnectionIssueCode.SSH_HOST_KEY_MISMATCH to ConnectionPresentationState.IdentityMismatch,
+            ConnectionIssueCode.MAC_TOOL_MISSING to ConnectionPresentationState.SetupRequired,
+            ConnectionIssueCode.UNKNOWN to ConnectionPresentationState.Failed,
         )
 
         expected.forEach { (issue, state) ->
@@ -66,6 +66,43 @@ class ConnectionDiagnosticPresenterTest {
                 presentConnectionDiagnostic(readyConfig, ConnectionOperation.Idle, issue).state,
             )
         }
+    }
+
+    @Test
+    fun `diagnostic state and repairs are identical to unified presentation`() {
+        ConnectionIssueCode.entries.forEach { issue ->
+            val diagnostic = presentConnectionDiagnostic(readyConfig, ConnectionOperation.Idle, issue)
+            val unified = ConnectionHealth(
+                kind = when (issue) {
+                    ConnectionIssueCode.SSH_AUTH_FAILED,
+                    ConnectionIssueCode.BLUETOOTH_PERMISSION_DENIED,
+                    ConnectionIssueCode.HOST_UNPAIRED,
+                    -> ConnectionHealthKind.AuthFailed
+                    ConnectionIssueCode.SSH_HOST_KEY_MISMATCH -> ConnectionHealthKind.FingerprintMismatch
+                    ConnectionIssueCode.CONNECTING -> ConnectionHealthKind.Connecting
+                    else -> ConnectionHealthKind.Offline
+                },
+                title = "ignored",
+                detail = "ignored",
+                issueOverride = issue,
+            ).toUnifiedConnectionPresentation()
+
+            assertEquals(unified.state, diagnostic.state)
+            assertEquals(unified.repairs, diagnostic.repairActions)
+            assertEquals(unified.supportCode, diagnostic.supportCode)
+        }
+    }
+
+    @Test
+    fun `production connection handlers match repair promises`() {
+        assertEquals(ConnectionRepairHandler.Retry, connectionRepairHandler(ConnectionRepair.RetryNow))
+        assertEquals(
+            ConnectionRepairHandler.EditCredentials,
+            connectionRepairHandler(ConnectionRepair.ReenterCredentials),
+        )
+        assertEquals(ConnectionRepairHandler.Trust, connectionRepairHandler(ConnectionRepair.ReviewIdentity))
+        assertEquals(ConnectionRepair.entries.size, ConnectionRepair.entries.map(::connectionRepairHandler).size)
+        assertFalse(ConnectionRepair.entries.any { it.name.contains("Wake", ignoreCase = true) })
     }
 
     @Test

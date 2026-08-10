@@ -92,6 +92,9 @@ fun ConnectionScreen(
         state.operation == ConnectionOperation.Idle
     val blockingDiagnostic = state.error?.let { state.connectionDiagnostic() }
     val failureFocusRequester = remember { FocusRequester() }
+    val credentialFocusRequester = remember { FocusRequester() }
+    var credentialEditorRequested by remember { mutableStateOf(false) }
+    val showSetupEditor = !state.config.isReady || credentialEditorRequested
     val failureKey = blockingDiagnostic?.let { it.issueCode?.name ?: it.state.name }
     var previousFailureKey by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(failureKey) {
@@ -99,6 +102,9 @@ fun ConnectionScreen(
             failureFocusRequester.requestFocus()
         }
         previousFailureKey = failureKey
+    }
+    LaunchedEffect(credentialEditorRequested) {
+        if (credentialEditorRequested) credentialFocusRequester.requestFocus()
     }
     DeckPage(
         contentPadding = contentPadding,
@@ -120,6 +126,7 @@ fun ConnectionScreen(
                         onRetry = onTest,
                         onFindMac = onScan,
                         onTrustMac = onVerifyHostKey,
+                        onEditCredentials = { credentialEditorRequested = true },
                         modifier = Modifier
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                             .focusRequester(failureFocusRequester)
@@ -127,7 +134,33 @@ fun ConnectionScreen(
                     )
                 }
             }
-            if (!state.config.isReady) {
+            if (credentialEditorRequested) {
+                item {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    ) {
+                        Text("Repair Mac login", style = MaterialTheme.typography.titleSmall)
+                        OutlinedTextField(
+                            value = state.user,
+                            onValueChange = onUserChange,
+                            label = { Text("Mac username") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth().focusRequester(credentialFocusRequester),
+                        )
+                        OutlinedTextField(
+                            value = state.password,
+                            onValueChange = onPasswordChange,
+                            label = { Text("Mac password") },
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
+            if (showSetupEditor) {
                 item {
                     MacPairingStepper(
                         state = state,
@@ -166,7 +199,7 @@ fun ConnectionScreen(
                 }
             }
             item {
-                if (state.config.isReady) {
+                if (!showSetupEditor) {
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
                         shape = MaterialTheme.shapes.medium,
@@ -225,7 +258,7 @@ fun ConnectionScreen(
                     }
                 }
             }
-            if (state.message != null && !state.config.isReady) {
+            if (state.message != null && showSetupEditor) {
                 item {
                     Text(
                         text = state.message,
@@ -234,7 +267,7 @@ fun ConnectionScreen(
                     )
                 }
             }
-            if (!state.config.isReady) {
+            if (showSetupEditor) {
                 item {
                     SectionTitle(
                         title = "Authorize once",
@@ -609,6 +642,8 @@ private fun UnifiedSetupStatus(
     onOpenHidSetup: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val macPresentation = macHealth.toUnifiedConnectionPresentation()
+    val hidPresentation = hidHealth?.toUnifiedConnectionPresentation()
     val macReady = macHealth.isReady
     val hidReady = hidHealth?.canSendInput
     val title = when {
@@ -643,7 +678,7 @@ private fun UnifiedSetupStatus(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Text(
-                        macHealth.detail,
+                        macPresentation.detail,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -653,14 +688,14 @@ private fun UnifiedSetupStatus(
                 label = "Mac",
                 ready = macReady,
                 status = macHealth.statusLabel(),
-                detail = macHealth.actionHint ?: macHealth.title,
+                detail = "${macPresentation.detail} Support code ${macPresentation.supportCode}.",
             )
             hidHealth?.let { health ->
                 ReadinessLine(
                     label = "Trackpad",
                     ready = health.canSendInput,
                     status = health.statusLabel(),
-                    detail = health.detail,
+                    detail = "${requireNotNull(hidPresentation).detail} Support code ${hidPresentation.supportCode}.",
                 )
                 if (!health.canSendInput) {
                     DeckActionButton(
@@ -710,6 +745,7 @@ private fun ConnectionErrorCard(
     onRetry: () -> Unit,
     onFindMac: () -> Unit,
     onTrustMac: () -> Unit,
+    onEditCredentials: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -730,33 +766,53 @@ private fun ConnectionErrorCard(
         ) {
             Text(diagnostic.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Text(diagnostic.detail, style = MaterialTheme.typography.bodyMedium)
+            Text("Support code ${diagnostic.supportCode}", style = MaterialTheme.typography.labelSmall)
             diagnostic.repairActions.firstOrNull()?.let { action ->
-                when (action) {
-                    ConnectionRepairAction.RetryNow -> DeckActionButton(
+                when (connectionRepairHandler(action)) {
+                    ConnectionRepairHandler.Retry -> DeckActionButton(
                         label = action.label,
                         onClick = onRetry,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     )
-                    ConnectionRepairAction.FindMac -> DeckActionButton(
+                    ConnectionRepairHandler.FindMac -> DeckActionButton(
                         label = action.label,
                         onClick = onFindMac,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     )
-                    ConnectionRepairAction.TrustMac -> DeckActionButton(
+                    ConnectionRepairHandler.EditCredentials -> DeckActionButton(
+                        label = action.label,
+                        onClick = onEditCredentials,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    )
+                    ConnectionRepairHandler.Trust -> DeckActionButton(
                         label = action.label,
                         onClick = onTrustMac,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     )
-                    ConnectionRepairAction.InstallControlKey,
-                    ConnectionRepairAction.ReenterCredentials,
-                    ConnectionRepairAction.ReviewHostKey,
-                    ConnectionRepairAction.InstallRequiredTool,
-                    ConnectionRepairAction.OpenSupport,
-                    -> Text("Next: ${action.label}", style = MaterialTheme.typography.labelMedium)
+                    ConnectionRepairHandler.Guidance ->
+                        Text("Next: ${action.label}", style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
     }
+}
+
+internal enum class ConnectionRepairHandler { Retry, FindMac, EditCredentials, Trust, Guidance }
+
+internal fun connectionRepairHandler(action: ConnectionRepair): ConnectionRepairHandler = when (action) {
+    ConnectionRepair.RetryNow -> ConnectionRepairHandler.Retry
+    ConnectionRepair.OpenConnectionSetup,
+    ConnectionRepair.PairMac,
+    -> ConnectionRepairHandler.FindMac
+    ConnectionRepair.ReenterCredentials -> ConnectionRepairHandler.EditCredentials
+    ConnectionRepair.ReviewIdentity -> ConnectionRepairHandler.Trust
+    ConnectionRepair.RequestPermission,
+    ConnectionRepair.OpenBluetoothSettings,
+    ConnectionRepair.PairHelper,
+    ConnectionRepair.OpenHelper,
+    ConnectionRepair.ResolveConflict,
+    ConnectionRepair.ContactSupport,
+    -> ConnectionRepairHandler.Guidance
 }
 
 @Composable

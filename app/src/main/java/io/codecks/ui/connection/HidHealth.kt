@@ -47,19 +47,7 @@ val HidHealth.issueCode: ConnectionIssueCode?
 val HidHealth.remediations: List<RemediationAction>
     get() = issueCode?.remediations.orEmpty()
 
-fun HidHealth.statusLabel(): String =
-    when (kind) {
-        HidHealthKind.PermissionMissing -> "Setup needed"
-        HidHealthKind.Unavailable -> "Offline"
-        HidHealthKind.Stopped -> "Setup needed"
-        HidHealthKind.Starting -> "Connecting…"
-        HidHealthKind.ReadyNoTarget -> "Setup needed"
-        HidHealthKind.ReadyToConnect -> "Ready"
-        HidHealthKind.Reconnecting -> "Connecting…"
-        HidHealthKind.Connecting -> "Connecting…"
-        HidHealthKind.Connected -> "Connected"
-        HidHealthKind.Failed -> "Failed"
-    }
+fun HidHealth.statusLabel(): String = toUnifiedConnectionPresentation().statusLabel
 
 fun HidState.hidHealth(permissionGranted: Boolean): HidHealth {
     val normalized = status.lowercase()

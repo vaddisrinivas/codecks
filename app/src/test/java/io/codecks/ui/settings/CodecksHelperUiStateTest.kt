@@ -68,11 +68,10 @@ class CodecksHelperUiStateTest {
             pairedDisplayName = "Example MacBook Pro",
             connectionKind = CodecksHelperConnectionKind.Failed,
             discoveredCount = 1,
-            failureCode = "helper_authentication_failed",
         )
 
         assertEquals("Needs attention", state.statusLabel)
-        assertTrue(state.statusDetail.contains("helper_authentication_failed"))
+        assertFalse(state.statusDetail.contains("error code"))
         assertTrue(state.canConnect)
         assertFalse(state.canRunActions)
     }

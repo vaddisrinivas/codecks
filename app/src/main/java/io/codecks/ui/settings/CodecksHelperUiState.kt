@@ -1,5 +1,8 @@
 package io.codecks.ui.settings
 
+import io.codecks.ui.connection.UnifiedConnectionPresentation
+import io.codecks.ui.connection.ConnectionRepair
+
 enum class CodecksHelperConnectionKind {
     Idle,
     Connecting,
@@ -14,6 +17,8 @@ data class CodecksHelperUiState(
     val discoveredCount: Int = 0,
     val canConnect: Boolean = false,
     val canRunActions: Boolean = false,
+    val supportCode: String? = null,
+    val repairs: List<ConnectionRepair> = emptyList(),
 ) {
     val hasPairing: Boolean = pairedDisplayName != null
 }
@@ -23,11 +28,11 @@ fun codecksHelperUiState(
     connectionKind: CodecksHelperConnectionKind,
     discoveredCount: Int,
     hasSavedEndpoint: Boolean = false,
-    failureCode: String? = null,
+    presentation: UnifiedConnectionPresentation? = null,
 ): CodecksHelperUiState {
     val cleanName = pairedDisplayName?.takeIf { it.isNotBlank() }
     val hasConnectionTarget = discoveredCount > 0 || hasSavedEndpoint
-    return when {
+    val base = when {
         cleanName == null -> CodecksHelperUiState(
             pairedDisplayName = null,
             statusLabel = "Not paired",
@@ -58,7 +63,7 @@ fun codecksHelperUiState(
         connectionKind == CodecksHelperConnectionKind.Failed -> CodecksHelperUiState(
             pairedDisplayName = cleanName,
             statusLabel = "Needs attention",
-            statusDetail = "Codecks helper could not connect: ${failureCode ?: "unknown error"}.",
+            statusDetail = "Codecks helper could not connect. Retry or review pairing.",
             discoveredCount = discoveredCount,
             canConnect = hasConnectionTarget,
             canRunActions = false,
@@ -86,4 +91,12 @@ fun codecksHelperUiState(
             canRunActions = false,
         )
     }
+    return presentation?.let {
+        base.copy(
+            statusLabel = it.statusLabel,
+            statusDetail = it.detail,
+            supportCode = it.supportCode,
+            repairs = it.repairs,
+        )
+    } ?: base
 }

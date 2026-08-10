@@ -63,6 +63,7 @@ import io.codecks.ui.connection.canSendInput
 import io.codecks.ui.connection.hidHealth
 import io.codecks.ui.connection.isReady
 import io.codecks.ui.connection.statusLabel
+import io.codecks.ui.connection.toUnifiedConnectionPresentation
 import io.codecks.ui.icons.imageVector
 import io.codecks.ui.theme.CodecksAccent
 import io.codecks.ui.theme.CodecksBorderStyle
@@ -255,17 +256,19 @@ internal fun SetupChecklist(
 ) {
     val macReady = connectionReady && connectionHealth.isReady
     val hidHealth = hidState.hidHealth(bluetoothPermissionGranted)
+    val macPresentation = connectionHealth.toUnifiedConnectionPresentation()
+    val hidPresentation = hidHealth.toUnifiedConnectionPresentation()
     Column(verticalArrangement = Arrangement.spacedBy(0.dp), modifier = Modifier.fillMaxWidth()) {
         SetupRow(
             title = "Mac control channel",
-            summary = connectionHealth.detail,
+            summary = "${macPresentation.detail} Support code ${macPresentation.supportCode}.",
             ready = macReady,
             statusLabel = connectionHealth.statusLabel(),
             onClick = onConnection,
         )
         SetupRow(
             title = "Trackpad Mac",
-            summary = hidHealth.detail,
+            summary = "${hidPresentation.detail} Support code ${hidPresentation.supportCode}.",
             ready = hidHealth.canSendInput,
             statusLabel = hidHealth.statusLabel(),
             onClick = onBluetooth,
@@ -399,7 +402,9 @@ internal fun notificationPrivacySummary(settings: NotificationPrivacySettings): 
 }
 
 private fun bluetoothSummary(state: HidState, permissionGranted: Boolean): String =
-    state.hidHealth(permissionGranted).detail
+    state.hidHealth(permissionGranted).toUnifiedConnectionPresentation().let {
+        "${it.detail} Support code ${it.supportCode}."
+    }
 
 internal fun ClipboardSyncSettings.summary(): String = when (mode) {
     ClipboardSyncMode.Off -> "Automatic sync is off"

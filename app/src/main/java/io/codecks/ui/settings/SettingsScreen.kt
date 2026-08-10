@@ -54,6 +54,7 @@ import io.codecks.ui.connection.ConnectionHealth
 import io.codecks.ui.connection.ConnectionUiState
 import io.codecks.ui.connection.hidHealth
 import io.codecks.ui.connection.simpleConnectionHealth
+import io.codecks.ui.connection.toUnifiedConnectionPresentation
 import io.codecks.ui.connection.codecksReadiness
 import io.codecks.ui.connection.BluetoothPermissionState
 import io.codecks.ui.connection.evaluateRuntimeSetupCompletion
@@ -173,6 +174,8 @@ fun SettingsScreen(
     var trackpadFineTuneOpen by rememberSaveable { mutableStateOf(false) }
     var macConnectionOpen by rememberSaveable { mutableStateOf(!connectionReady) }
     val hidHealth = hidState.hidHealth(bluetoothPermissionGranted)
+    val macConnectionPresentation = connectionHealth.toUnifiedConnectionPresentation()
+    val hidConnectionPresentation = hidHealth.toUnifiedConnectionPresentation()
     val setupCompletion = evaluateRuntimeSetupCompletion(
         state = connectionState,
         hidState = hidState,
@@ -215,7 +218,7 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.Outlined.Link,
                         title = "Mac actions",
-                        summary = "Deck, clipboard, and Rules over a secure connection. ${connectionHealth.detail}",
+                        summary = "Deck, clipboard, and Rules over a secure connection. ${macConnectionPresentation.detail} Support code ${macConnectionPresentation.supportCode}.",
                         value = connectionHealth.statusLabel(),
                         onClick = { macConnectionOpen = !macConnectionOpen },
                     )
@@ -232,7 +235,7 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.Outlined.Mouse,
                         title = "Mac input",
-                        summary = "Trackpad and Text over Bluetooth. ${hidHealth.detail}",
+                        summary = "Trackpad and Text over Bluetooth. ${hidConnectionPresentation.detail} Support code ${hidConnectionPresentation.supportCode}.",
                         value = hidHealth.statusLabel(),
                         onClick = onBluetooth,
                     )
