@@ -60,7 +60,7 @@ import io.codecks.ui.connection.ConnectionHealth
 import io.codecks.ui.connection.ConnectionHealthKind
 import io.codecks.ui.connection.isReady
 import io.codecks.ui.connection.simpleConnectionHealth
-import io.codecks.ui.icons.deckImageVector
+import io.codecks.ui.icons.deckImageVectorOrNull
 import io.codecks.ui.icons.imageVector
 import io.codecks.ui.theme.CodecksDeckStyle
 import io.codecks.ui.theme.CodecksScopedTheme
@@ -578,7 +578,7 @@ private fun CodecksKeybedDeck(
                             val enabled = openSlot || isDeckActionEnabled(action, connectionReady)
                             DeckControlTile(
                                 label = if (openSlot) "Tap to assign" else action.label,
-                                icon = action.deckImageVector(),
+                                icon = action.deckImageVectorOrNull(),
                                 state = when {
                                     running -> DeckComponentState.Running
                                     selected -> DeckComponentState.Selected

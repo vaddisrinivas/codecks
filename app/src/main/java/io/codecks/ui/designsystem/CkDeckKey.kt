@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.semantics.contentDescription
@@ -82,7 +83,7 @@ val CodecksFocusRingColorSemantics = SemanticsPropertyKey<Long>("CodecksFocusRin
 @Composable
 fun CkDeckKey(
     label: String,
-    icon: ImageVector,
+    icon: ImageVector?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     state: DeckKeyVisualState = DeckKeyVisualState.Idle,
@@ -302,12 +303,14 @@ fun CkDeckKey(
                     .border(BorderStroke(CodecksDesignTokens.Stroke.hairline, semantic.content.copy(alpha = CodecksDesignTokens.Opacity.soft)), wellShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = if (enabled) semantic.content else semantic.content.copy(alpha = CodecksDesignTokens.Opacity.disabled),
-                    modifier = Modifier.size(CodecksDesignTokens.Size.deckGlyph),
-                )
+                if (icon != null) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = if (enabled) semantic.content else semantic.content.copy(alpha = CodecksDesignTokens.Opacity.disabled),
+                        modifier = Modifier.size(CodecksDesignTokens.Size.deckGlyph).testTag("deck-control-icon"),
+                    )
+                }
             }
 
             if (showLabel) {

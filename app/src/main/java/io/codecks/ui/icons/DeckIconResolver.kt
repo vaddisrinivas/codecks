@@ -6,10 +6,14 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.automirrored.outlined.VolumeDown
 import androidx.compose.material.icons.automirrored.outlined.VolumeOff
+import androidx.compose.material.icons.automirrored.rounded.VolumeDown
+import androidx.compose.material.icons.automirrored.rounded.VolumeOff
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Computer
+import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.Lock
@@ -22,6 +26,7 @@ import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Tab
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Web
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
 import compose.icons.FeatherIcons
@@ -54,6 +59,13 @@ fun DeckAction.deckImageVector(): ImageVector {
     }
 }
 
+/** Decor blanks are intentionally glyph-free; every other Empty icon keeps its safe fallback. */
+internal fun DeckAction.hasVisibleDeckIcon(): Boolean = route != "decor" || icon != ActionIcon.Empty
+
+@Composable
+fun DeckAction.deckImageVectorOrNull(): ImageVector? =
+    if (hasVisibleDeckIcon()) deckImageVector() else null
+
 private fun resolveActionIcon(icon: ActionIcon, pack: CodecksIconPack): ImageVector =
     when (pack) {
         CodecksIconPack.Material -> when (icon) {
@@ -62,7 +74,7 @@ private fun resolveActionIcon(icon: ActionIcon, pack: CodecksIconPack): ImageVec
             ActionIcon.Browser -> Icons.Outlined.Web
             ActionIcon.Control -> Icons.Outlined.Tune
             ActionIcon.Finder -> Icons.Outlined.Computer
-            ActionIcon.Github -> Icons.Outlined.Apps
+            ActionIcon.Github -> Icons.Outlined.Code
             ActionIcon.Keyboard -> Icons.Outlined.Keyboard
             ActionIcon.Lock -> Icons.Outlined.Lock
             ActionIcon.Mouse -> Icons.Outlined.Mouse
@@ -84,7 +96,7 @@ private fun resolveActionIcon(icon: ActionIcon, pack: CodecksIconPack): ImageVec
             ActionIcon.Browser -> FeatherIcons.Globe
             ActionIcon.Control -> FeatherIcons.Sliders
             ActionIcon.Finder -> FeatherIcons.Monitor
-            ActionIcon.Github -> FeatherIcons.Github
+            ActionIcon.Github -> FeatherIcons.Code
             ActionIcon.Keyboard -> FeatherIcons.Command
             ActionIcon.Lock -> FeatherIcons.Lock
             ActionIcon.Mouse -> FeatherIcons.MousePointer
@@ -106,7 +118,7 @@ private fun resolveActionIcon(icon: ActionIcon, pack: CodecksIconPack): ImageVec
             ActionIcon.Browser -> TablerIcons.World
             ActionIcon.Control -> TablerIcons.Adjustments
             ActionIcon.Finder -> TablerIcons.DeviceDesktop
-            ActionIcon.Github -> TablerIcons.BrandGithub
+            ActionIcon.Github -> TablerIcons.Code
             ActionIcon.Keyboard -> TablerIcons.Keyboard
             ActionIcon.Lock -> TablerIcons.Lock
             ActionIcon.Mouse -> TablerIcons.Mouse
@@ -121,52 +133,82 @@ private fun resolveActionIcon(icon: ActionIcon, pack: CodecksIconPack): ImageVec
             ActionIcon.Emoji -> TablerIcons.Stars
             ActionIcon.Empty -> TablerIcons.Plus
         }
+
+        CodecksIconPack.Rounded -> when (icon) {
+            ActionIcon.Add -> Icons.Rounded.Add
+            ActionIcon.Apps -> Icons.Rounded.Apps
+            ActionIcon.Browser -> Icons.Rounded.Public
+            ActionIcon.Control -> Icons.Rounded.Tune
+            ActionIcon.Finder -> Icons.Rounded.Computer
+            ActionIcon.Github -> Icons.Rounded.Code
+            ActionIcon.Keyboard -> Icons.Rounded.Keyboard
+            ActionIcon.Lock -> Icons.Rounded.Lock
+            ActionIcon.Mouse -> Icons.Rounded.Mouse
+            ActionIcon.Notifications -> Icons.Rounded.Notifications
+            ActionIcon.Play -> Icons.Rounded.PlayArrow
+            ActionIcon.Screenshot -> Icons.Rounded.PhotoCamera
+            ActionIcon.Search -> Icons.Rounded.Search
+            ActionIcon.Terminal -> Icons.Rounded.Terminal
+            ActionIcon.Volume -> Icons.AutoMirrored.Rounded.VolumeUp
+            ActionIcon.Party -> Icons.Rounded.Celebration
+            ActionIcon.Sparkle -> Icons.Rounded.AutoAwesome
+            ActionIcon.Emoji -> Icons.Rounded.Mood
+            ActionIcon.Empty -> Icons.Rounded.AddBox
+        }
     }
 
 private fun CodecksIconPack.arrowLeft(): ImageVector = when (this) {
     CodecksIconPack.Material -> Icons.AutoMirrored.Outlined.ArrowBack
     CodecksIconPack.Feather -> FeatherIcons.ArrowLeft
     CodecksIconPack.Tabler -> TablerIcons.ArrowLeft
+    CodecksIconPack.Rounded -> Icons.AutoMirrored.Outlined.ArrowBack
 }
 
 private fun CodecksIconPack.arrowRight(): ImageVector = when (this) {
     CodecksIconPack.Material -> Icons.AutoMirrored.Outlined.ArrowForward
     CodecksIconPack.Feather -> FeatherIcons.ArrowRight
     CodecksIconPack.Tabler -> TablerIcons.ArrowRight
+    CodecksIconPack.Rounded -> Icons.AutoMirrored.Outlined.ArrowForward
 }
 
 private fun CodecksIconPack.fullscreen(): ImageVector = when (this) {
     CodecksIconPack.Material -> Icons.Outlined.Fullscreen
     CodecksIconPack.Feather -> FeatherIcons.Maximize
     CodecksIconPack.Tabler -> TablerIcons.Maximize
+    CodecksIconPack.Rounded -> Icons.Rounded.Fullscreen
 }
 
 private fun CodecksIconPack.automations(): ImageVector = when (this) {
     CodecksIconPack.Material -> Icons.Outlined.AutoAwesome
     CodecksIconPack.Feather -> FeatherIcons.Zap
     CodecksIconPack.Tabler -> TablerIcons.Stars
+    CodecksIconPack.Rounded -> Icons.Rounded.AutoAwesome
 }
 
 private fun CodecksIconPack.missionControl(): ImageVector = when (this) {
     CodecksIconPack.Material -> Icons.Outlined.Apps
     CodecksIconPack.Feather -> FeatherIcons.Command
     CodecksIconPack.Tabler -> TablerIcons.LayoutGrid
+    CodecksIconPack.Rounded -> Icons.Rounded.Apps
 }
 
 private fun CodecksIconPack.newTab(): ImageVector = when (this) {
     CodecksIconPack.Material -> Icons.Outlined.Tab
     CodecksIconPack.Feather -> FeatherIcons.PlusSquare
     CodecksIconPack.Tabler -> TablerIcons.LayoutGridAdd
+    CodecksIconPack.Rounded -> Icons.Rounded.AddToPhotos
 }
 
 private fun CodecksIconPack.mute(): ImageVector = when (this) {
     CodecksIconPack.Material -> Icons.AutoMirrored.Outlined.VolumeOff
     CodecksIconPack.Feather -> FeatherIcons.VolumeX
     CodecksIconPack.Tabler -> TablerIcons.Volume3
+    CodecksIconPack.Rounded -> Icons.AutoMirrored.Rounded.VolumeOff
 }
 
 private fun CodecksIconPack.volumeDown(): ImageVector = when (this) {
     CodecksIconPack.Material -> Icons.AutoMirrored.Outlined.VolumeDown
     CodecksIconPack.Feather -> FeatherIcons.Volume1
     CodecksIconPack.Tabler -> TablerIcons.Volume
+    CodecksIconPack.Rounded -> Icons.AutoMirrored.Rounded.VolumeDown
 }

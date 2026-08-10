@@ -64,6 +64,7 @@ import io.codecks.ui.designsystem.codecksArgbColor
 import io.codecks.ui.designsystem.codecksOpaqueColor
 import io.codecks.ui.designsystem.codecksSemanticColorTokens
 import io.codecks.ui.icons.deckImageVector
+import io.codecks.ui.icons.deckImageVectorOrNull
 import io.codecks.ui.icons.imageVector
 
 @Composable
@@ -449,7 +450,7 @@ fun CustomActionRow(
             val enabled = isActionEnabled(action)
             DeckControlTile(
                 label = action.label,
-                icon = action.icon.imageVector(),
+                icon = action.deckImageVectorOrNull(),
                 state = if (selected) DeckComponentState.Selected else DeckComponentState.Idle,
                 enabled = enabled,
                 danger = action.dangerous,
@@ -474,7 +475,7 @@ private fun ActionCard(
     Box {
         DeckControlTile(
             label = action.label,
-            icon = action.icon.imageVector(),
+            icon = action.deckImageVectorOrNull(),
             state = when {
                 running -> DeckComponentState.Running
                 selected -> DeckComponentState.Selected

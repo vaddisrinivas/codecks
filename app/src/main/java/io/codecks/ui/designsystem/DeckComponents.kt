@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.heading
@@ -164,7 +165,7 @@ enum class DeckComponentState {
 @Composable
 fun DeckControlTile(
     label: String,
-    icon: ImageVector,
+    icon: ImageVector?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     state: DeckComponentState = DeckComponentState.Idle,
@@ -209,7 +210,7 @@ fun DeckControlTile(
 @Composable
 private fun FlatDeckTile(
     label: String,
-    icon: ImageVector,
+    icon: ImageVector?,
     state: DeckComponentState,
     enabled: Boolean,
     danger: Boolean,
@@ -289,7 +290,7 @@ private fun FlatDeckTile(
             verticalArrangement = Arrangement.spacedBy(if (showLabel) CodecksDesignTokens.Spacing.sm else CodecksDesignTokens.Spacing.xxs, Alignment.CenterVertically),
             modifier = Modifier.fillMaxSize().padding(horizontal = CodecksDesignTokens.Spacing.sm, vertical = CodecksDesignTokens.Spacing.sm),
         ) {
-            Surface(
+            if (icon != null) Surface(
                 color = colors.iconContainer,
                 contentColor = colors.icon,
                 shape = MaterialTheme.shapes.medium,
@@ -306,7 +307,9 @@ private fun FlatDeckTile(
                         imageVector = icon,
                         contentDescription = null,
                         tint = colors.icon,
-                        modifier = Modifier.size(if (showLabel) CodecksDesignTokens.Size.deckGlyph else CodecksDesignTokens.Size.deckGlyphLarge),
+                        modifier = Modifier
+                            .size(if (showLabel) CodecksDesignTokens.Size.deckGlyph else CodecksDesignTokens.Size.deckGlyphLarge)
+                            .testTag("deck-control-icon"),
                     )
                 }
             }
