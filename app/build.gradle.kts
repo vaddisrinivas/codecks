@@ -381,6 +381,20 @@ android {
     testOptions {
         managedDevices {
             localDevices {
+                val m10Profiles = listOf(
+                    "Compact" to "Small Phone",
+                    "Standard" to "Pixel 6",
+                    "Tablet" to "Pixel Tablet",
+                )
+                (31..36).forEach { api ->
+                    m10Profiles.forEach { (profileName, hardwareProfile) ->
+                        create("m10${profileName}Api$api") {
+                            device = hardwareProfile
+                            apiLevel = api
+                            systemImageSource = "aosp"
+                        }
+                    }
+                }
                 create("pixel6Api35") {
                     device = "Pixel 6"
                     apiLevel = 35
