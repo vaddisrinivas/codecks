@@ -81,14 +81,21 @@ class DiagnosticEventStoreTest {
             """.trimIndent(),
         )
         val store = DiagnosticEventStore(backend) { 200L }
-        val restored = store.events().single()
-
-        assertEquals(DiagnosticComponent.UNKNOWN, restored.component)
-        assertEquals(DiagnosticEventCode.UNKNOWN, restored.event)
-        assertEquals(DiagnosticResultCode.UNKNOWN, restored.result)
+        assertTrue(store.events().isEmpty())
 
         backend.value = """{"schemaVersion":1,"events":[{"attempt":"secret"}]}"""
         assertTrue(store.events().isEmpty())
+    }
+
+    @Test
+    fun corruptJournalBlocksMutationWithoutOverwritingRawValue() {
+        val original = """{"schemaVersion":1,"events":[{"component":"connection"}]}"""
+        val backend = FakeDiagnosticEventBackend(original)
+        val store = DiagnosticEventStore(backend) { 200L }
+
+        assertTrue(runCatching { store.record(event(100L)) }.isFailure)
+        assertTrue(runCatching { store.clear() }.isFailure)
+        assertEquals(original, backend.value)
     }
 
     private fun store(nowEpochMs: Long): DiagnosticEventStore =

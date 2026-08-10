@@ -6,6 +6,7 @@ import io.codecks.domain.ai.DraftKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
+import org.junit.Assert.assertTrue
 
 class AiGenerationHistoryJsonCodecTest {
     @Test
@@ -58,5 +59,14 @@ class AiGenerationHistoryJsonCodecTest {
 
         assertFalse(encoded.contains("sk-test-secret"))
         assertFalse(encoded.contains("apiKey"))
+    }
+
+    @Test
+    fun malformedItemOrUnknownEnumRejectsWholeHistory() {
+        val valid = AiGenerationHistoryJsonCodec.encode(emptyList()).replace(
+            "\"items\":[]",
+            "\"items\":[{\"id\":\"x\",\"draftKind\":\"Future\",\"status\":\"Ready\",\"validationErrors\":[],\"createdAtMillis\":1}]",
+        )
+        assertTrue(AiGenerationHistoryJsonCodec.decode(valid).isEmpty())
     }
 }

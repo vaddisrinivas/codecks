@@ -48,6 +48,51 @@ internal class JsonObject(private val fields: Map<String, JsonValue>) {
     fun optObj(name: String): JsonObject? = (fields[name] as? JsonValue.Obj)?.let { JsonObject(it.fields) }
 
     fun array(name: String): List<JsonValue> = (fields[name] as? JsonValue.Arr)?.items ?: emptyList()
+
+    fun strictInt(name: String): Int {
+        val number = (fields[name] as? JsonValue.Num)?.value ?: error("Missing integer field $name")
+        val value = number.toInt()
+        require(value.toDouble() == number) { "Non-integer field $name" }
+        return value
+    }
+
+    fun strictLongOr(name: String, default: Long): Long {
+        if (!fields.containsKey(name)) return default
+        val number = (fields[name] as? JsonValue.Num)?.value ?: error("Invalid long field $name")
+        val value = number.toLong()
+        require(value.toDouble() == number) { "Non-integer field $name" }
+        return value
+    }
+
+    fun strictBoolOr(name: String, default: Boolean): Boolean = when (val value = fields[name]) {
+        null -> default
+        is JsonValue.Bool -> value.value
+        else -> error("Invalid boolean field $name")
+    }
+
+    fun strictStringOr(name: String, default: String): String = when (val value = fields[name]) {
+        null -> default
+        is JsonValue.Str -> value.value
+        else -> error("Invalid string field $name")
+    }
+
+    fun strictOptionalString(name: String): String? = when (val value = fields[name]) {
+        null, JsonValue.Null -> null
+        is JsonValue.Str -> value.value
+        else -> error("Invalid optional string field $name")
+    }
+
+    fun strictArrayOrEmpty(name: String): List<JsonValue> = when (val value = fields[name]) {
+        null -> emptyList()
+        is JsonValue.Arr -> value.items
+        else -> error("Invalid array field $name")
+    }
+
+    fun strictOptionalObject(name: String): JsonObject? = when (val value = fields[name]) {
+        null, JsonValue.Null -> null
+        is JsonValue.Obj -> JsonObject(value.fields)
+        else -> error("Invalid object field $name")
+    }
 }
 
 internal fun JsonValue.asObject(): JsonObject =

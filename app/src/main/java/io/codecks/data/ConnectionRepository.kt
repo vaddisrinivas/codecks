@@ -15,6 +15,10 @@ import com.jcraft.jsch.Session
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.codecks.core.actions.RawCommandPolicy
 import io.codecks.data.ai.EncryptedApiKeyCodec
+import io.codecks.data.persistence.AtomicBoundedFileStore
+import io.codecks.data.persistence.BoundedPayload
+import io.codecks.data.persistence.PersistenceRead
+import io.codecks.data.persistence.TransactionalFilePairStore
 import io.codecks.domain.reactive.SafeSftpTransferRequest
 import io.codecks.domain.reactive.TransferDirection
 import io.codecks.domain.connection.ConnectionIssueCode
@@ -51,6 +55,24 @@ data class ConnectionConfig(
 ) {
     val isConfigured: Boolean get() = host.isNotBlank() && user.isNotBlank() && port in 1..65535
     val isReady: Boolean get() = isConfigured && hasKey && hostKey.isNotBlank()
+}
+
+/** Candidate work is complete before [commit] may touch the live SSH key files. */
+internal fun prepareAndCommitSshKeyPair(
+    generate: () -> Pair<String, String>,
+    encrypt: (String) -> String,
+    validatePlain: (String, String) -> Unit,
+    validateStored: (String, String) -> Unit,
+    commit: (String, String, (String, String) -> Unit) -> Unit,
+    afterCommit: () -> Unit = {},
+): String {
+    val (privateKey, publicKey) = generate()
+    validatePlain(privateKey, publicKey)
+    val encryptedPrivate = encrypt(privateKey)
+    validateStored(encryptedPrivate, publicKey)
+    commit(encryptedPrivate, publicKey, validateStored)
+    afterCommit()
+    return publicKey.trim()
 }
 
 data class ConnectionTarget(
@@ -288,15 +310,23 @@ class DefaultConnectionRepository @Inject constructor(
 
     override suspend fun generateKey(): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            if (!hasPrivateKey() || !hasPublicKey()) {
-                val keyPair = KeyPair.genKeyPair(JSch(), KeyPair.RSA, 3072)
-                val privateOutput = ByteArrayOutputStream()
-                val publicOutput = ByteArrayOutputStream()
-                keyPair.writePrivateKey(privateOutput)
-                keyPair.writePublicKey(publicOutput, "codecks")
-                keyPair.dispose()
-                writePrivateKey(privateOutput.toString(Charsets.UTF_8.name()))
-                publicKeyFile().writeBytes(publicOutput.toByteArray())
+            recoverKeyPairTransaction()
+            val hasPrivate = hasPrivateKey()
+            val hasPublic = hasPublicKey()
+            check(hasPrivate == hasPublic) { "Incomplete SSH keypair preserved; repair is required" }
+            if (!hasPrivate) {
+                prepareAndCommitSshKeyPair(
+                    generate = ::generateSshKeyPairCandidate,
+                    encrypt = privateKeyCodec::encrypt,
+                    validatePlain = ::validatePlainKeyPair,
+                    validateStored = ::validateStoredKeyPair,
+                    commit = { privateKey, publicKey, validate ->
+                        keyPairTransaction().commit(privateKey, publicKey, validate)
+                    },
+                )
+                hardenPrivateKeyFile()
+            } else {
+                validatePlainKeyPair(readPrivateKey(), readPublicKey())
             }
             hardenPrivateKeyFile()
             keyRevision.value += 1
@@ -354,12 +384,22 @@ class DefaultConnectionRepository @Inject constructor(
 
     override suspend fun rotateKey(): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            privateKeyFile().delete()
-            legacyPrivateKeyFile().delete()
-            publicKeyFile().delete()
-            legacyPublicKeyFile().delete()
-            val publicKey = generateKey().getOrThrow()
+            recoverKeyPairTransaction()
+            val publicKey = prepareAndCommitSshKeyPair(
+                generate = ::generateSshKeyPairCandidate,
+                encrypt = privateKeyCodec::encrypt,
+                validatePlain = ::validatePlainKeyPair,
+                validateStored = ::validateStoredKeyPair,
+                commit = { privateKey, candidatePublicKey, validate ->
+                    keyPairTransaction().commit(privateKey, candidatePublicKey, validate)
+                },
+                afterCommit = {
+                    legacyPrivateKeyFile().delete()
+                    legacyPublicKeyFile().delete()
+                },
+            )
             hardenPrivateKeyFile()
+            keyRevision.value += 1
             "New SSH key ready. Reinstall it on your Mac.\n$publicKey"
         }
     }
@@ -804,36 +844,66 @@ class DefaultConnectionRepository @Inject constructor(
     private fun legacyPrivateKeyFile() = context.filesDir.resolve("deckbridge_ssh_private")
     private fun publicKeyFile() = context.filesDir.resolve("codecks_ssh_public")
     private fun legacyPublicKeyFile() = context.filesDir.resolve("deckbridge_ssh_public")
+    private fun privateKeyStore() = AtomicBoundedFileStore(privateKeyFile(), MAX_PRIVATE_KEY_BYTES)
+    private fun publicKeyStore() = AtomicBoundedFileStore(publicKeyFile(), MAX_PUBLIC_KEY_BYTES)
+    private fun keyPairTransaction() = TransactionalFilePairStore(
+        privateKeyFile(), publicKeyFile(), MAX_PRIVATE_KEY_BYTES, MAX_PUBLIC_KEY_BYTES,
+    )
 
-    private fun hasPrivateKey(): Boolean = privateKeyFile().exists() || legacyPrivateKeyFile().exists()
-    private fun hasPublicKey(): Boolean = publicKeyFile().exists() || legacyPublicKeyFile().exists()
+    private fun recoverKeyPairTransaction() = keyPairTransaction().recover(::validateStoredKeyPair)
 
-    private fun writePrivateKey(privateKey: String) {
-        privateKeyFile().writeText(privateKeyCodec.encrypt(privateKey))
-        legacyPrivateKeyFile().delete()
+    private fun hasPrivateKey(): Boolean {
+        recoverKeyPairTransaction()
+        migrateLegacyKeyPairIfComplete()
+        return privateKeyFile().exists()
+    }
+    private fun hasPublicKey(): Boolean {
+        recoverKeyPairTransaction()
+        migrateLegacyKeyPairIfComplete()
+        return publicKeyFile().exists()
+    }
+
+    private fun migrateLegacyKeyPairIfComplete() {
+        val hasNewPrivate = privateKeyFile().isFile
+        val hasNewPublic = publicKeyFile().isFile
+        if (hasNewPrivate || hasNewPublic) {
+            check(hasNewPrivate && hasNewPublic) { "Incomplete SSH keypair preserved; repair is required" }
+            return
+        }
+        val hasLegacyPrivate = legacyPrivateKeyFile().isFile
+        val hasLegacyPublic = legacyPublicKeyFile().isFile
+        if (!hasLegacyPrivate && !hasLegacyPublic) return
+        check(hasLegacyPrivate && hasLegacyPublic) { "Incomplete legacy SSH keypair preserved; repair is required" }
+        check(legacyPrivateKeyFile().length() <= MAX_PRIVATE_KEY_PLAINTEXT_BYTES)
+        check(legacyPublicKeyFile().length() <= MAX_PUBLIC_KEY_BYTES)
+        val privateKey = legacyPrivateKeyFile().readText().takeIf(String::isNotBlank)
+            ?: error("Legacy SSH private key is blank")
+        val publicKey = legacyPublicKeyFile().readText().takeIf(String::isNotBlank)
+            ?: error("Legacy SSH public key is blank")
+        validatePlainKeyPair(privateKey, publicKey)
+        keyPairTransaction().commit(privateKeyCodec.encrypt(privateKey), publicKey, ::validateStoredKeyPair)
         hardenPrivateKeyFile()
+        legacyPrivateKeyFile().delete()
+        legacyPublicKeyFile().delete()
     }
 
     private fun readPrivateKeyOrNull(): String? {
+        recoverKeyPairTransaction()
+        migrateLegacyKeyPairIfComplete()
         if (privateKeyFile().exists()) {
-            return privateKeyCodec.decrypt(privateKeyFile().readText())
+            return privateKeyCodec.decrypt(privateKeyStore().read().requiredValue("SSH private key"))
         }
-        val legacy = legacyPrivateKeyFile().takeIf { it.exists() }?.readText()?.takeIf(String::isNotBlank)
-            ?: return null
-        writePrivateKey(legacy)
-        return legacy
+        return null
     }
 
     private fun readPrivateKey(): String =
         requireNotNull(readPrivateKeyOrNull()) { "Generate or install the SSH key first" }
 
     private fun readPublicKeyOrNull(): String? {
-        if (publicKeyFile().exists()) return publicKeyFile().readText()
-        val legacy = legacyPublicKeyFile().takeIf { it.exists() }?.readText()?.takeIf(String::isNotBlank)
-            ?: return null
-        publicKeyFile().writeText(legacy)
-        legacyPublicKeyFile().delete()
-        return legacy
+        recoverKeyPairTransaction()
+        migrateLegacyKeyPairIfComplete()
+        if (publicKeyFile().exists()) return publicKeyStore().read().requiredValue("SSH public key")
+        return null
     }
 
     private fun readPublicKey(): String =
@@ -847,6 +917,49 @@ class DefaultConnectionRepository @Inject constructor(
             setReadable(true, true)
             setWritable(true, true)
         }
+    }
+
+    private fun validateStoredKeyPair(encryptedPrivate: String, publicKey: String) =
+        validatePlainKeyPair(privateKeyCodec.decrypt(encryptedPrivate), publicKey)
+
+    private fun generateSshKeyPairCandidate(): Pair<String, String> {
+        val keyPair = KeyPair.genKeyPair(JSch(), KeyPair.RSA, 3072)
+        return try {
+            val privateOutput = ByteArrayOutputStream()
+            val publicOutput = ByteArrayOutputStream()
+            keyPair.writePrivateKey(privateOutput)
+            keyPair.writePublicKey(publicOutput, "codecks")
+            BoundedPayload.utf8(
+                privateOutput.toString(Charsets.UTF_8.name()),
+                MAX_PRIVATE_KEY_PLAINTEXT_BYTES,
+            ) to BoundedPayload.utf8(
+                publicOutput.toString(Charsets.UTF_8.name()),
+                MAX_PUBLIC_KEY_BYTES,
+            )
+        } finally {
+            keyPair.dispose()
+        }
+    }
+
+    private fun validatePlainKeyPair(privateKey: String, publicKey: String) {
+        val loaded = KeyPair.load(JSch(), privateKey.toByteArray(), null)
+        try {
+            val derived = ByteArrayOutputStream().also { loaded.writePublicKey(it, "codecks") }
+                .toString(Charsets.UTF_8.name())
+            check(publicMaterial(derived) == publicMaterial(publicKey)) { "SSH public/private key mismatch" }
+        } finally {
+            loaded.dispose()
+        }
+    }
+
+    private fun publicMaterial(value: String): String = value.trim().split(Regex("\\s+")).take(2).joinToString(" ")
+
+    private fun PersistenceRead<String>.requiredValue(label: String): String = when (this) {
+        is PersistenceRead.Value -> value
+        PersistenceRead.Missing -> error("$label is missing")
+        is PersistenceRead.Corrupt -> error("$label is corrupt")
+        PersistenceRead.KeyUnavailable -> error("$label key is unavailable")
+        is PersistenceRead.FutureVersion -> error("$label is from a newer app")
     }
 
     private suspend fun rememberHostKey(hostKey: String) {
@@ -921,5 +1034,8 @@ class DefaultConnectionRepository @Inject constructor(
         val TARGETS_QUARANTINE = stringPreferencesKey("targets_quarantine")
         val CURRENT_TARGET_ID = stringPreferencesKey("current_target_id")
         const val CONNECT_TIMEOUT_MS = 9_000
+        const val MAX_PRIVATE_KEY_BYTES = 64 * 1024
+        const val MAX_PRIVATE_KEY_PLAINTEXT_BYTES = 32 * 1024
+        const val MAX_PUBLIC_KEY_BYTES = 16 * 1024
     }
 }

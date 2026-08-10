@@ -11,6 +11,9 @@ import io.codecks.domain.smart.smartCandidateId
 import io.codecks.domain.smart.smartTransitionKey
 import org.json.JSONArray
 import org.json.JSONObject
+import io.codecks.data.persistence.BoundedPayload
+import io.codecks.data.persistence.PersistenceRead
+import io.codecks.data.persistence.valueForMutation
 
 private const val SMART_PREFS = "codecks.smart.learning"
 private const val KEY_EVENTS = "events"
@@ -21,31 +24,41 @@ class SmartLearningStore(context: Context) {
 
     fun record(feedback: SmartFeedback) {
         synchronized(lock) {
-            val events = (readEventsAndMigrate() + feedback)
+            val events = (readEventsForMutation() + feedback)
                 .sortedBy { it.atMillis }
                 .takeLast(SmartLearningCodec.MAX_EVENTS)
-            preferences.edit().putString(KEY_EVENTS, SmartLearningCodec.encode(events)).apply()
+            check(preferences.edit().putString(KEY_EVENTS, SmartLearningCodec.encode(events)).commit()) {
+                "Smart learning commit failed"
+            }
         }
     }
 
     fun summary(nowMillis: Long = System.currentTimeMillis()): SmartFeedbackSummary =
         synchronized(lock) {
-            SmartLearningCodec.summary(readEventsAndMigrate(), nowMillis)
+            SmartLearningCodec.summary(readEvents(), nowMillis)
         }
 
     fun clear() {
         synchronized(lock) {
-            preferences.edit().remove(KEY_EVENTS).apply()
+            SmartLearningCodec.read(preferences.getString(KEY_EVENTS, null))
+                .valueForMutation("Smart learning") { emptyList() }
+            check(preferences.edit().remove(KEY_EVENTS).commit()) { "Smart learning clear failed" }
         }
     }
 
-    private fun readEventsAndMigrate(): List<SmartFeedback> {
+    private fun readEvents(): List<SmartFeedback> =
+        (SmartLearningCodec.read(preferences.getString(KEY_EVENTS, null)) as? PersistenceRead.Value)?.value.orEmpty()
+
+    private fun readEventsForMutation(): List<SmartFeedback> {
         val raw = preferences.getString(KEY_EVENTS, null)
-        val migrated = SmartLearningCodec.migrateToCurrent(raw)
-        if (migrated != null) {
-            preferences.edit().putString(KEY_EVENTS, migrated).apply()
+        val result = SmartLearningCodec.read(raw)
+        val events = result.valueForMutation("Smart learning") { emptyList() }
+        if (result is PersistenceRead.Value && result.migratedFrom != null) {
+            check(preferences.edit().putString(KEY_EVENTS, SmartLearningCodec.encode(events)).commit()) {
+                "Smart migration commit failed"
+            }
         }
-        return SmartLearningCodec.decode(migrated ?: raw)
+        return events
     }
 }
 
@@ -55,8 +68,9 @@ object SmartLearningCodec {
     const val MAX_EVENTS = 200
     const val RETENTION_MS = 30L * 24L * 60L * 60L * 1000L
     const val MAX_TRANSITION_GAP_MS = 5L * 60L * 1000L
+    private const val MAX_BYTES = 512 * 1024
 
-    fun encode(events: List<SmartFeedback>): String =
+    fun encode(events: List<SmartFeedback>): String = BoundedPayload.utf8(
         JSONObject()
             .put("schemaVersion", SCHEMA_VERSION)
             .put(
@@ -79,42 +93,49 @@ object SmartLearningCodec {
                     }
                 },
             )
-            .toString()
+            .toString(),
+        MAX_BYTES,
+    )
 
     fun migrateToCurrent(raw: String?): String? =
-        runCatching {
-            val root = JSONObject(raw?.takeIf(String::isNotBlank) ?: return null)
-            val rawVersion = root.opt("schemaVersion")
-            val version = when {
-                rawVersion == null || rawVersion == JSONObject.NULL -> LEGACY_SCHEMA_VERSION
-                rawVersion is Number && rawVersion.toDouble() == rawVersion.toInt().toDouble() -> rawVersion.toInt()
-                else -> return null
-            }
-            if (version != LEGACY_SCHEMA_VERSION || root.optJSONArray("events") == null) return null
-            encode(decode(raw))
-        }.getOrNull()
+        (read(raw) as? PersistenceRead.Value)
+            ?.takeIf { it.migratedFrom == LEGACY_SCHEMA_VERSION }
+            ?.let { encode(it.value) }
 
-    fun decode(raw: String?): List<SmartFeedback> =
-        runCatching {
-            val root = JSONObject(raw?.takeIf { it.isNotBlank() } ?: return emptyList())
+    fun decode(raw: String?): List<SmartFeedback> = (read(raw) as? PersistenceRead.Value)?.value.orEmpty()
+
+    fun read(raw: String?): PersistenceRead<List<SmartFeedback>> {
+        if (raw == null) return PersistenceRead.Missing
+        if (raw.isBlank()) return PersistenceRead.Corrupt("blank")
+        if (raw.toByteArray(Charsets.UTF_8).size > MAX_BYTES) return PersistenceRead.Corrupt("oversized")
+        return runCatching {
+            val value = raw
+            val root = JSONObject(value)
             val rawSchemaVersion = root.opt("schemaVersion")
             val schemaVersion = when {
                 rawSchemaVersion == null || rawSchemaVersion == JSONObject.NULL -> LEGACY_SCHEMA_VERSION
                 rawSchemaVersion is Number &&
                     rawSchemaVersion.toDouble() == rawSchemaVersion.toInt().toDouble() -> rawSchemaVersion.toInt()
-                else -> return emptyList()
+                else -> return PersistenceRead.Corrupt("schema")
             }
-            if (schemaVersion !in setOf(LEGACY_SCHEMA_VERSION, SCHEMA_VERSION)) return emptyList()
-            val array = root.optJSONArray("events") ?: JSONArray()
-            List(array.length()) { index -> array.optJSONObject(index) }
+            if (schemaVersion > SCHEMA_VERSION) return PersistenceRead.FutureVersion(schemaVersion, SCHEMA_VERSION)
+            if (schemaVersion !in setOf(LEGACY_SCHEMA_VERSION, SCHEMA_VERSION)) return PersistenceRead.Corrupt("schema")
+            val array = root.optJSONArray("events") ?: return PersistenceRead.Corrupt("events")
+            if (array.length() > MAX_EVENTS) return PersistenceRead.Corrupt("count")
+            val events = List(array.length()) { index -> requireNotNull(array.optJSONObject(index)) }
                 .mapNotNull { json ->
                     when (schemaVersion) {
-                        LEGACY_SCHEMA_VERSION -> json?.let(::decodeLegacyV1Event)
-                        SCHEMA_VERSION -> json?.let(::decodeV2Event)
-                        else -> null
+                        LEGACY_SCHEMA_VERSION -> {
+                            if (json.optString("type") in setOf("Run", "Hide")) null
+                            else requireNotNull(decodeLegacyV1Event(json))
+                        }
+                        SCHEMA_VERSION -> requireNotNull(decodeV2Event(json))
+                        else -> error("unsupported")
                     }
                 }
-        }.getOrDefault(emptyList())
+            PersistenceRead.Value(events, schemaVersion.takeIf { it != SCHEMA_VERSION })
+        }.getOrElse { PersistenceRead.Corrupt("decode") }
+    }
 
     private fun decodeV2Event(json: JSONObject): SmartFeedback? {
         val candidateId = json.optString("candidateId")
@@ -122,31 +143,39 @@ object SmartLearningCodec {
         val type = runCatching { SmartFeedbackType.valueOf(json.optString("type")) }.getOrNull()
         val surface = runCatching { SmartSurface.valueOf(json.optString("surface")) }.getOrNull()
         if (candidateId.isBlank() || type == null || surface == null) return null
+        val rawSuccess = json.opt("success")
+        val success = if (rawSuccess == null || rawSuccess === JSONObject.NULL) null
+        else rawSuccess as? Boolean ?: return null
+        val coarseHourBucket = json.strictInt("coarseHourBucket") ?: return null
+        val atMillis = json.strictLong("atMillis") ?: return null
+        val contextKeys = json.strictContextKeys() ?: return null
+        val appKey = json.strictOptionalSmartAppKey() ?: return null
+        val macId = json.strictOptionalSmartMacId() ?: return null
         return SmartFeedback(
             candidateId = candidateId,
             actionId = actionId,
-            appKey = json.optionalSmartAppKey(),
+            appKey = appKey.value,
             surface = surface,
-            macId = json.optionalSmartMacId(),
+            macId = macId.value,
             type = type,
-            success = json.opt("success") as? Boolean,
-            coarseHourBucket = json.optInt("coarseHourBucket"),
-            contextKeys = json.safeContextKeys(),
-            atMillis = json.optLong("atMillis"),
+            success = success,
+            coarseHourBucket = coarseHourBucket,
+            contextKeys = contextKeys,
+            atMillis = atMillis,
         )
     }
 
     private fun decodeLegacyV1Event(json: JSONObject): SmartFeedback? {
         val legacyCandidateId = json.optString("candidateId")
         val actionId = json.optString("actionId").takeIf(String::isNotBlank)
-        val appKey = json.optionalSmartAppKey()
+        val appKey = (json.strictOptionalSmartAppKey() ?: return null).value
         if (legacyCandidateId.isBlank() || actionId == null) return null
 
         // v1 only shipped Smart Deck and did not persist surface or Mac ID.
         // Prefer the candidate/context surface when recoverable; otherwise Deck is the
         // intentional compatibility default. A missing Mac remains null so old events
         // cannot create newly context-scoped transitions.
-        val legacyContextKeys = json.safeContextKeys(includeMac = false)
+        val legacyContextKeys = json.strictContextKeys(includeMac = false) ?: return null
         val surface = legacySurface(legacyCandidateId, legacyContextKeys)
         val type = when (json.optString("type")) {
             "Pin" -> SmartFeedbackType.Pin
@@ -170,10 +199,12 @@ object SmartLearningCodec {
             surface = surface,
             macId = null,
             type = type,
-            success = json.opt("success") as? Boolean,
-            coarseHourBucket = json.optInt("coarseHourBucket"),
+            success = json.opt("success").let { raw ->
+                if (raw == null || raw === JSONObject.NULL) null else raw as? Boolean ?: return null
+            },
+            coarseHourBucket = json.strictInt("coarseHourBucket") ?: return null,
             contextKeys = legacyContextKeys,
-            atMillis = json.optLong("atMillis"),
+            atMillis = json.strictLong("atMillis") ?: return null,
         )
     }
 
@@ -191,21 +222,40 @@ object SmartLearningCodec {
             ?: SmartSurface.Deck
     }
 
-    private fun JSONObject.optionalSmartAppKey(): SmartAppKey? =
-        optString("appKey").takeIf(String::isNotBlank)?.let { runCatching { SmartAppKey(it) }.getOrNull() }
+    private data class OptionalValue<T>(val value: T?)
 
-    private fun JSONObject.optionalSmartMacId(): SmartMacId? =
-        optString("macId").takeIf(String::isNotBlank)?.let { runCatching { SmartMacId(it) }.getOrNull() }
+    private fun JSONObject.strictOptionalSmartAppKey(): OptionalValue<SmartAppKey>? {
+        val raw = opt("appKey")
+        if (raw == null || raw == JSONObject.NULL || raw == "") return OptionalValue(null)
+        val value = raw as? String ?: return null
+        return runCatching { OptionalValue(SmartAppKey(value)) }.getOrNull()
+    }
 
-    private fun JSONObject.safeContextKeys(includeMac: Boolean = true): Set<String> =
-        optJSONArray("contextKeys")?.let { keys ->
-            List(keys.length()) { keys.optString(it) }
-                .filter { key ->
-                    SAFE_CONTEXT_KEY_PREFIXES.any(key::startsWith) &&
-                        (includeMac || !key.startsWith("mac:"))
-                }
-                .toSet()
-        }.orEmpty()
+    private fun JSONObject.strictOptionalSmartMacId(): OptionalValue<SmartMacId>? {
+        val raw = opt("macId")
+        if (raw == null || raw == JSONObject.NULL || raw == "") return OptionalValue(null)
+        val value = raw as? String ?: return null
+        return runCatching { OptionalValue(SmartMacId(value)) }.getOrNull()
+    }
+
+    private fun JSONObject.strictContextKeys(includeMac: Boolean = true): Set<String>? {
+        val keys = optJSONArray("contextKeys") ?: return null
+        val values = List(keys.length()) { index -> keys.opt(index) as? String ?: return null }
+        if (includeMac && values.any { key -> SAFE_CONTEXT_KEY_PREFIXES.none(key::startsWith) }) return null
+        return values.filter { key ->
+            SAFE_CONTEXT_KEY_PREFIXES.any(key::startsWith) && (includeMac || !key.startsWith("mac:"))
+        }.toSet()
+    }
+
+    private fun JSONObject.strictInt(name: String): Int? {
+        val number = opt(name) as? Number ?: return null
+        return number.toInt().takeIf { it.toDouble() == number.toDouble() }
+    }
+
+    private fun JSONObject.strictLong(name: String): Long? {
+        val number = opt(name) as? Number ?: return null
+        return number.toLong().takeIf { it.toDouble() == number.toDouble() }
+    }
 
     fun summary(events: List<SmartFeedback>, nowMillis: Long): SmartFeedbackSummary {
         val fresh = events.filter { nowMillis - it.atMillis <= RETENTION_MS }

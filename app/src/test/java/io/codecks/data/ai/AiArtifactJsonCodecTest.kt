@@ -89,7 +89,7 @@ class AiArtifactJsonCodecTest {
     }
 
     @Test
-    fun decode_skipsCorruptArtifactsAndActionsWithoutDroppingValidArtifacts() {
+    fun decode_rejectsEntirePayloadWhenAnyArtifactOrActionIsCorrupt() {
         val raw =
             """
             [
@@ -118,17 +118,19 @@ class AiArtifactJsonCodecTest {
 
         val decoded = AiArtifactJsonCodec.decode(raw)
 
-        assertEquals(2, decoded.size)
-        assertEquals("valid-1", decoded[0].id)
-        assertEquals(listOf("good"), decoded[0].actions.map { it.id })
-        assertEquals("valid-2", decoded[1].id)
-        assertEquals("action_0", decoded[1].actions.single().id)
-        assertEquals(AiArtifactTestStatus.Failed, decoded[1].lastTest?.status)
+        assertTrue(decoded.isEmpty())
     }
 
     @Test
     fun decode_returnsEmptyListForMalformedRoot() {
         assertEquals(emptyList<AiArtifact>(), AiArtifactJsonCodec.decode("""{"not":"array"}"""))
         assertEquals(emptyList<AiArtifact>(), AiArtifactJsonCodec.decode("not json"))
+    }
+
+    @Test
+    fun unknownEnumRejectsWholePayload() {
+        val raw = """[{"id":"one","kind":"FutureKind","title":"x","actions":[]}]"""
+        assertTrue(AiArtifactJsonCodec.decode(raw).isEmpty())
+        assertTrue(AiArtifactJsonCodec.readLegacy(raw) is io.codecks.data.persistence.PersistenceRead.Corrupt)
     }
 }

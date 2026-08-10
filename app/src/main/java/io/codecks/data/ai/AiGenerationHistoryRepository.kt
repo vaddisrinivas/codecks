@@ -12,6 +12,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import io.codecks.data.persistence.BoundedPayload
+import io.codecks.data.persistence.PersistenceRead
+import io.codecks.data.persistence.valueForMutation
 
 private val Context.aiGenerationHistoryDataStore by preferencesDataStore(name = "ai_generation_history")
 private val AI_GENERATION_HISTORY_V2 = stringPreferencesKey("history_v2")
@@ -27,13 +30,14 @@ class DefaultAiGenerationHistoryRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) : AiGenerationHistoryRepository {
     override val records: Flow<List<AiGenerationRecord>> = context.aiGenerationHistoryDataStore.data.map { preferences ->
-        preferences[AI_GENERATION_HISTORY_V2]?.let(GenerationHistoryStorageCodec::decryptOrDecode) ?: emptyList()
+        GenerationHistoryStorageCodec.read(preferences[AI_GENERATION_HISTORY_V2]).valueOrEmpty()
     }
 
     override suspend fun save(record: AiGenerationRecord) {
         context.aiGenerationHistoryDataStore.edit { preferences ->
-            val current = preferences[AI_GENERATION_HISTORY_V2]?.let(GenerationHistoryStorageCodec::decryptOrDecode).orEmpty()
-            preferences[AI_GENERATION_HISTORY_V2] = GenerationHistoryStorageCodec.encrypt(
+            val current = GenerationHistoryStorageCodec.read(preferences[AI_GENERATION_HISTORY_V2])
+                .valueForMutation("AI history") { emptyList() }
+            preferences[AI_GENERATION_HISTORY_V2] = GenerationHistoryStorageCodec.encryptBounded(
                 AiGenerationHistoryJsonCodec.encode((listOf(record) + current.filterNot { it.id == record.id }).take(MAX_RECORDS)),
             )
         }
@@ -51,13 +55,26 @@ class DefaultAiGenerationHistoryRepository @Inject constructor(
 private object GenerationHistoryStorageCodec {
     private const val PROVIDER_ID = "ai_generation_history_v2"
 
-    fun encrypt(raw: String): String = EncryptedApiKeyCodec(PROVIDER_ID).encrypt(raw)
+    private const val MAX_PLAINTEXT_BYTES = 512 * 1024
+    private const val MAX_STORED_BYTES = 768 * 1024
 
-    fun decryptOrDecode(value: String): List<AiGenerationRecord> {
-        val raw = runCatching { EncryptedApiKeyCodec(PROVIDER_ID).decrypt(value) }.getOrDefault(value)
-        return AiGenerationHistoryJsonCodec.decode(raw)
-    }
+    fun encryptBounded(raw: String): String = BoundedPayload.utf8(
+        EncryptedApiKeyCodec(PROVIDER_ID).encrypt(BoundedPayload.utf8(raw, MAX_PLAINTEXT_BYTES)),
+        MAX_STORED_BYTES,
+    )
+
+    fun read(value: String?): PersistenceRead<List<AiGenerationRecord>> = BoundedPayload.decodeEncryptedOrLegacy(
+        stored = value,
+        maxStoredBytes = MAX_STORED_BYTES,
+        maxPlaintextBytes = MAX_PLAINTEXT_BYTES,
+        isLegacyPlaintext = { it.trimStart().startsWith("{") },
+        decrypt = EncryptedApiKeyCodec(PROVIDER_ID)::decrypt,
+        decode = AiGenerationHistoryJsonCodec::decodeStrict,
+    )
 }
+
+private fun PersistenceRead<List<AiGenerationRecord>>.valueOrEmpty(): List<AiGenerationRecord> =
+    (this as? PersistenceRead.Value)?.value.orEmpty()
 
 internal object AiGenerationHistoryJsonCodec {
     private const val SCHEMA_VERSION = 2
@@ -69,9 +86,17 @@ internal object AiGenerationHistoryJsonCodec {
         )
 
     fun decode(raw: String): List<AiGenerationRecord> =
-        runCatching { parseJsonObject(raw).array("items") }
+        runCatching { decodeStrict(raw) }
             .getOrDefault(emptyList())
-            .mapNotNull(::parseRecord)
+
+    fun decodeStrict(raw: String): List<AiGenerationRecord> {
+        val root = parseJsonObject(raw)
+        require(root.strictInt("schemaVersion") == SCHEMA_VERSION) { "Unsupported history schema" }
+        require(root.has("items")) { "Missing history items" }
+        val items = root.array("items")
+        require(items.size <= 120) { "Too many history items" }
+        return items.map(::parseRecord)
+    }
 
     private fun recordToMap(record: AiGenerationRecord): Map<String, Any?> =
         mapOf(
@@ -88,28 +113,23 @@ internal object AiGenerationHistoryJsonCodec {
             "createdAtMillis" to record.createdAtMillis,
         )
 
-    private fun parseRecord(value: JsonValue): AiGenerationRecord? =
-        runCatching {
-            val item = value.asObject()
-            val id = item.optString("id")?.takeIf(String::isNotBlank) ?: return@runCatching null
-            AiGenerationRecord(
+    private fun parseRecord(value: JsonValue): AiGenerationRecord {
+        val item = value.asObject()
+        val id = requireNotNull(item.optString("id")?.takeIf(String::isNotBlank))
+        val validationErrors = item.strictArrayOrEmpty("validationErrors")
+            .map { requireNotNull((it as? JsonValue.Str)?.value) }
+        return AiGenerationRecord(
                 id = id,
-                providerId = item.optString("providerId").orEmpty(),
-                providerLabel = item.optString("providerLabel").orEmpty(),
-                modelId = item.optString("modelId").orEmpty(),
-                modelLabel = item.optString("modelLabel").orEmpty(),
-                draftKind = item.optString("draftKind").orEmpty().toDraftKind(),
-                status = item.optString("status").orEmpty().toGenerationStatus(),
-                message = item.optString("message").orEmpty(),
-                validationErrors = item.array("validationErrors").mapNotNull { (it as? JsonValue.Str)?.value },
-                artifactId = item.optString("artifactId")?.ifBlank { null },
-                createdAtMillis = item.long("createdAtMillis", System.currentTimeMillis()),
+                providerId = item.strictStringOr("providerId", ""),
+                providerLabel = item.strictStringOr("providerLabel", ""),
+                modelId = item.strictStringOr("modelId", ""),
+                modelLabel = item.strictStringOr("modelLabel", ""),
+                draftKind = DraftKind.entries.single { it.name == item.string("draftKind") },
+                status = AiGenerationStatus.entries.single { it.name == item.string("status") },
+                message = item.strictStringOr("message", ""),
+                validationErrors = validationErrors,
+                artifactId = item.strictOptionalString("artifactId")?.ifBlank { null },
+                createdAtMillis = item.strictLongOr("createdAtMillis", -1L).also { require(it >= 0L) },
             )
-        }.getOrNull()
+    }
 }
-
-private fun String.toDraftKind(): DraftKind =
-    DraftKind.entries.firstOrNull { it.name == this } ?: DraftKind.Action
-
-private fun String.toGenerationStatus(): AiGenerationStatus =
-    AiGenerationStatus.entries.firstOrNull { it.name == this } ?: AiGenerationStatus.Failed

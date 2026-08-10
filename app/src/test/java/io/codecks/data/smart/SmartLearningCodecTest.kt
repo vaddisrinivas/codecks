@@ -11,6 +11,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import io.codecks.data.persistence.PersistenceRead
+import io.codecks.data.persistence.valueForMutation
 
 class SmartLearningCodecTest {
     @Test
@@ -233,7 +235,7 @@ class SmartLearningCodecTest {
     }
 
     @Test
-    fun corruptPayloadSkipsUnknownSurfaceRecords() {
+    fun corruptPayloadRejectsAllRecordsWhenOneSurfaceIsUnknown() {
         val encoded = """
             {"schemaVersion":2,"events":[
               {"candidateId":"a","actionId":"a","appKey":"chrome","surface":"Unknown","type":"Success","coarseHourBucket":12,"atMillis":1},
@@ -243,8 +245,10 @@ class SmartLearningCodecTest {
 
         val decoded = SmartLearningCodec.decode(encoded)
 
-        assertEquals(1, decoded.size)
-        assertEquals("b", decoded.first().candidateId)
+        assertTrue(decoded.isEmpty())
+        val typed = SmartLearningCodec.read(encoded)
+        assertTrue(typed is PersistenceRead.Corrupt)
+        assertTrue(runCatching { typed.valueForMutation("smart") { emptyList() } }.isFailure)
     }
 
     @Test
