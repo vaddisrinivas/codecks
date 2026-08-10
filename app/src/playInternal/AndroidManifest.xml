@@ -19,6 +19,13 @@
             android:name="io.codecks.ui.designsystem.M09ADesignTestActivity"
             android:exported="false"
             android:theme="@style/Theme.Codecks" />
+        <activity
+            android:name="io.codecks.internalquality.M11DexProxyActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:resizeableActivity="true"
+            android:theme="@style/Theme.Codecks" />
         <activity-alias
             android:name="io.codecks.internalcommercial.labui.CommercialLabLauncher"
             android:enabled="true"

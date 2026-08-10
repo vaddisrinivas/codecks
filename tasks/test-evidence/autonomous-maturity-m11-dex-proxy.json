@@ -1,0 +1,88 @@
+{
+  "schema": "codecks.autonomous-maturity.m11-dex-proxy.v1",
+  "milestone": "M11",
+  "status": "PASS",
+  "scope": "EMULATOR_PROXY_ONLY",
+  "artifacts": [
+    {
+      "path": "tasks/test-evidence/m11/runtime/TEST-pixel6Api35-playInternalRelease-initial.xml",
+      "sha256": "f4a81df456fb3f2f29f39076d0b5ee6cda4edcd8f8f289febd1d8fa6401fc3c3",
+      "timestamp": "2026-08-10T23:06:27",
+      "passedMethods": [
+        "managedWindow1280x720",
+        "managedWindow1920x1080"
+      ],
+      "failedMethods": [
+        "freeformWindow1280x720",
+        "freeformWindow1920x1080",
+        "secondaryDisplay1280x720",
+        "secondaryDisplay1920x1080"
+      ],
+      "tests": 6,
+      "failures": 4,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "path": "tasks/test-evidence/m11/runtime/TEST-pixel6Api35-playInternalRelease-corrected.xml",
+      "sha256": "51fdc149239b12514d74533cc3396a828cde6633e529a8df2be9e80a33812a9e",
+      "timestamp": "2026-08-10T23:10:05",
+      "passedMethods": [
+        "freeformWindow1280x720",
+        "freeformWindow1920x1080",
+        "secondaryDisplay1280x720",
+        "secondaryDisplay1920x1080"
+      ],
+      "failedMethods": [],
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "profiles": [
+    {
+      "resolution": "1280x720",
+      "status": "PASS",
+      "checks": [
+        "managed_window",
+        "freeform_window_ui_proxy",
+        "secondary_display_presentation_proxy",
+        "rotation",
+        "mouse",
+        "keyboard",
+        "focus",
+        "window_restore",
+        "cold_activity_restart_proxy"
+      ]
+    },
+    {
+      "resolution": "1920x1080",
+      "status": "PASS",
+      "checks": [
+        "managed_window",
+        "freeform_window_ui_proxy",
+        "secondary_display_presentation_proxy",
+        "rotation",
+        "mouse",
+        "keyboard",
+        "focus",
+        "window_restore",
+        "cold_activity_restart_proxy"
+      ]
+    }
+  ],
+  "external": [
+    {
+      "id": "samsung_dex_physical",
+      "status": "NOT_RUN",
+      "reason": "No physical Samsung device or vendor DeX environment was used; emulator proxies cannot prove Samsung window-manager behavior."
+    }
+  ],
+  "limitations": [
+    "Dialog sizing is a freeform-window UI proxy; it does not prove Android or Samsung task freeform mode.",
+    "Overlay-display Presentation proves a secondary-display context proxy, not task-host movement on Samsung DeX.",
+    "Activity recreation and cold activity restart are process/window restoration proxies, not low-memory process death.",
+    "Mouse and keyboard events are emulator-injected into an internal-only probe activity."
+  ]
+}
