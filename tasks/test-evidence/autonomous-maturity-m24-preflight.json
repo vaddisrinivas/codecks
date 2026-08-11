@@ -1,0 +1,241 @@
+{
+  "schema": "codecks.autonomous-maturity.m24-preflight.v1",
+  "milestone": "M24",
+  "evidenceLevel": "PREFLIGHT_ONLY",
+  "verdict": "NO_GO",
+  "generatedAtUtc": "2026-08-11T05:46:10.830923Z",
+  "sourceCommit": "a5d0cc09d47179d30227369802932f29f1d82a18",
+  "sources": [
+    {
+      "path": ".github/workflows/release.yml",
+      "sha256": "07e18f4ab4c6164f0602b1d0de636d63e30ca31f7481d132c69ae7891c5ecf90"
+    },
+    {
+      "path": "app/build.gradle.kts",
+      "sha256": "a457c7b5718d7a80fdbe4028ef2289a9ea7323e7065b3bb06a02d9f99b429263"
+    },
+    {
+      "path": "docs/release/PHYSICAL_SSH_RELEASE_GATE.md",
+      "sha256": "07186644cb93a6d4e593e4bec05d271a579e5889b5339aff027f17ffb3b19ab6"
+    },
+    {
+      "path": "docs/release/production-state.json",
+      "sha256": "4cca496cff13a5b063bb4144bd2ec3a308fde1051aa7571eea44e42d64b0c0a8"
+    },
+    {
+      "path": "scripts/physical_release_ssh_smoke.sh",
+      "sha256": "03439881e619f71082dce2fc003524a9c8785e8871ff9d4bc37ea404e5c79e74"
+    },
+    {
+      "path": "scripts/verify_release_no_shrink.sh",
+      "sha256": "6fdf7ab044267c38e73777f2b74c2d39ffe883becc1ba0937f6711f5fddd193b"
+    },
+    {
+      "path": "tasks/AUTONOMOUS_MATURITY_PLAN.md",
+      "sha256": "19e5d19c157b7671e20c9f53d44d7043744ece4ab7a113eec5e357db1adf6967"
+    },
+    {
+      "path": "tasks/test-evidence/autonomous-maturity-m00-baseline.json",
+      "sha256": "60bdc910187cf3d21a8b726c7ced375cc47a3370c05049aed750e60c660d3c4c"
+    },
+    {
+      "path": "tasks/test-evidence/autonomous-maturity-m20-rollback-rehearsal.json",
+      "sha256": "b6690f51d02995ea9d9dabe7e98144e2c10f301dc4f068d0997c7de37596e5ac"
+    },
+    {
+      "path": "tools/evidence/collect_m20_rollback_rehearsal.py",
+      "sha256": "aeee48e892c9e1d49c36f40f843141f27c50cfc262adebf706694c24d3e6030a"
+    },
+    {
+      "path": "tools/evidence/validate_m20_rollback_rehearsal.py",
+      "sha256": "aee6d75733c97d13c9f37a2325df77d5ee8db7f7bbf3b574c4b67871c009e976"
+    },
+    {
+      "path": "tools/evidence/collect_m24_release_preflight.py",
+      "sha256": "0d7b844be5cc4a99573ce7dac90438ee7c301cad2ceed889deaa7582b01be7db"
+    },
+    {
+      "path": "tools/evidence/validate_m24_release_preflight.py",
+      "sha256": "26cab30d6dd5a7b015011c8fe867a9956f7f35cd9451db1d5cf8fc207de286b5"
+    },
+    {
+      "path": "tools/evidence/test_m24_release_preflight.py",
+      "sha256": "3dea5c2f8ed1b2620aff91f19a3d51071fdb211295efb1f9d6e2f497e1489ec6"
+    },
+    {
+      "path": "tools/evidence/schemas/autonomous-maturity-m24-preflight-v1.schema.json",
+      "sha256": "1a5aaa3c833a23212f755012851770837891da0c52cca28b343fede9cf287c04"
+    }
+  ],
+  "connectedDevice": {
+    "status": "NOT_RUN",
+    "physicalDeviceCount": 0,
+    "emulatorCount": 2,
+    "unknownDeviceCount": 0,
+    "deviceIdSha256": null,
+    "manufacturer": null,
+    "model": null,
+    "androidSdk": null,
+    "package": null,
+    "versionCode": null,
+    "versionName": null,
+    "installer": null,
+    "installedApkSha256": null,
+    "signerSha256": null
+  },
+  "publishedBaseline": {
+    "status": "PASS",
+    "tag": "v0.1.37",
+    "package": "app.codecks",
+    "versionCode": 37,
+    "versionName": "0.1.37",
+    "apkSha256": "8c8eca1b3e4b0f56a2128185c42a062687011e68a9d3fd16fe24851616baa9f2",
+    "signerSha256": "07a642e758f394b6aeaecfe35c64ca84d891ca4e6de4b6cc010702c0e52e2df6",
+    "checksumVerified": true,
+    "privateSigningMaterialInspected": false
+  },
+  "m20Closure": {
+    "status": "COMPLETE",
+    "integrationCommit": "a5d0cc09d47179d30227369802932f29f1d82a18",
+    "receiptSourceCommit": "a899c24ac10d2f393ac5ba41d7a47830f6a96f09",
+    "receiptPath": "tasks/test-evidence/autonomous-maturity-m20-rollback-rehearsal.json",
+    "receiptSha256": "b6690f51d02995ea9d9dabe7e98144e2c10f301dc4f068d0997c7de37596e5ac",
+    "receiptDigest": "fdc322bf8f926ac4b2339f714d23a330a16815a715adfcee981f8146ae88088b",
+    "collectorPath": "tools/evidence/collect_m20_rollback_rehearsal.py",
+    "collectorSha256": "aeee48e892c9e1d49c36f40f843141f27c50cfc262adebf706694c24d3e6030a",
+    "validatorPath": "tools/evidence/validate_m20_rollback_rehearsal.py",
+    "validatorSha256": "aee6d75733c97d13c9f37a2325df77d5ee8db7f7bbf3b574c4b67871c009e976"
+  },
+  "candidate": {
+    "status": "DEFERRED",
+    "reason": "CANDIDATE_NOT_BUILT",
+    "buildWorkflow": ".github/workflows/release.yml",
+    "expectedArtifactPath": "release-candidate/codecks-release.apk",
+    "expectedPackage": "app.codecks",
+    "sourceSha": null,
+    "versionCode": null,
+    "apkSha256": null,
+    "signerSha256": null
+  },
+  "dependencies": [
+    {
+      "milestone": "M20",
+      "status": "COMPLETE"
+    },
+    {
+      "milestone": "M21",
+      "status": "DEFERRED"
+    },
+    {
+      "milestone": "M23",
+      "status": "DEFERRED"
+    }
+  ],
+  "gates": [
+    {
+      "id": "source.canonical_clean_sha",
+      "status": "PASS",
+      "code": "exact_source_sha"
+    },
+    {
+      "id": "phone.single_physical_connected",
+      "status": "NOT_RUN",
+      "code": "phone_unavailable"
+    },
+    {
+      "id": "phone.installed_package_identity",
+      "status": "NOT_RUN",
+      "code": "phone_unavailable"
+    },
+    {
+      "id": "phone.installed_version",
+      "status": "NOT_RUN",
+      "code": "phone_unavailable"
+    },
+    {
+      "id": "phone.installed_signer",
+      "status": "NOT_RUN",
+      "code": "phone_unavailable"
+    },
+    {
+      "id": "public.checksum",
+      "status": "PASS",
+      "code": "checksum_verified"
+    },
+    {
+      "id": "public.signer_baseline",
+      "status": "PASS",
+      "code": "signer_baseline_verified"
+    },
+    {
+      "id": "candidate.available",
+      "status": "DEFERRED",
+      "code": "candidate_not_built"
+    },
+    {
+      "id": "candidate.source_and_checksum_bound",
+      "status": "DEFERRED",
+      "code": "candidate_not_built"
+    },
+    {
+      "id": "candidate.package_and_version_monotonic",
+      "status": "DEFERRED",
+      "code": "candidate_not_built"
+    },
+    {
+      "id": "candidate.signer_matches_installed",
+      "status": "DEFERRED",
+      "code": "candidate_not_built"
+    },
+    {
+      "id": "candidate.unshrunk",
+      "status": "DEFERRED",
+      "code": "candidate_not_built"
+    },
+    {
+      "id": "candidate.exact_tests",
+      "status": "DEFERRED",
+      "code": "candidate_not_built"
+    },
+    {
+      "id": "update.data_preserving_authorized",
+      "status": "DEFERRED",
+      "code": "explicit_execution_not_authorized"
+    }
+  ],
+  "safeInPlaceUpdate": {
+    "authorizedNow": false,
+    "requiredOrder": [
+      "one_authorized_physical_phone",
+      "read_installed_app.codecks_identity_version_signer",
+      "bind_exact_candidate_source_and_checksum",
+      "require_candidate_package_app.codecks",
+      "require_candidate_version_greater_than_installed",
+      "require_candidate_signer_equal_to_installed_signer",
+      "require_candidate_minification_and_resource_shrinking_disabled",
+      "require_exact_candidate_managed_and_release_tests",
+      "capture_redacted_pre_update_data_and_ssh_hid_state",
+      "obtain_explicit_install_authorization",
+      "adb_install_r_no_streaming_only",
+      "verify_post_update_version_and_preserved_data",
+      "verify_post_update_ssh_and_hid_without_instrumentation"
+    ],
+    "forbidden": [
+      "UNINSTALL_PROTECTED_PACKAGE",
+      "CLEAR_PROTECTED_PACKAGE_DATA",
+      "DOWNGRADE_PROTECTED_PACKAGE",
+      "DIFFERENT_SIGNER",
+      "PHYSICAL_INSTRUMENTATION"
+    ]
+  },
+  "privacy": {
+    "rawDeviceSerialRecorded": false,
+    "privateKeyInspected": false,
+    "credentialRecorded": false,
+    "appDataRead": false
+  },
+  "blockers": [
+    "PHYSICAL_PHONE_NOT_CONNECTED",
+    "CANDIDATE_NOT_BUILT"
+  ]
+}

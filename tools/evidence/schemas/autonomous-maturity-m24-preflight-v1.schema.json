@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codecks.dev/schemas/autonomous-maturity-m24-preflight-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "milestone", "evidenceLevel", "verdict", "generatedAtUtc", "sourceCommit", "sources", "connectedDevice", "publishedBaseline", "m20Closure", "candidate", "dependencies", "gates", "safeInPlaceUpdate", "privacy", "blockers"],
+  "properties": {
+    "schema": {"const": "codecks.autonomous-maturity.m24-preflight.v1"},
+    "milestone": {"const": "M24"},
+    "evidenceLevel": {"const": "PREFLIGHT_ONLY"},
+    "verdict": {"const": "NO_GO"},
+    "generatedAtUtc": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"},
+    "sourceCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sources": {
+      "type": "array", "minItems": 15, "maxItems": 15,
+      "items": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}
+    },
+    "connectedDevice": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "physicalDeviceCount", "emulatorCount", "unknownDeviceCount", "deviceIdSha256", "manufacturer", "model", "androidSdk", "package", "versionCode", "versionName", "installer", "installedApkSha256", "signerSha256"],
+      "properties": {
+        "status": {"enum": ["PASS", "NOT_RUN", "BLOCKED"]},
+        "physicalDeviceCount": {"type": "integer", "minimum": 0},
+        "emulatorCount": {"type": "integer", "minimum": 0},
+        "unknownDeviceCount": {"type": "integer", "minimum": 0},
+        "deviceIdSha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "manufacturer": {"type": ["string", "null"]}, "model": {"type": ["string", "null"]},
+        "androidSdk": {"type": ["integer", "null"]}, "package": {"type": ["string", "null"]},
+        "versionCode": {"type": ["integer", "null"]}, "versionName": {"type": ["string", "null"]},
+        "installer": {"type": ["string", "null"]},
+        "installedApkSha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "signerSha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "publishedBaseline": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "tag", "package", "versionCode", "versionName", "apkSha256", "signerSha256", "checksumVerified", "privateSigningMaterialInspected"],
+      "properties": {
+        "status": {"const": "PASS"}, "tag": {"const": "v0.1.37"}, "package": {"const": "app.codecks"},
+        "versionCode": {"const": 37}, "versionName": {"const": "0.1.37"},
+        "apkSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "signerSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "checksumVerified": {"const": true}, "privateSigningMaterialInspected": {"const": false}
+      }
+    },
+    "m20Closure": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "integrationCommit", "receiptSourceCommit", "receiptPath", "receiptSha256", "receiptDigest", "collectorPath", "collectorSha256", "validatorPath", "validatorSha256"],
+      "properties": {
+        "status": {"const": "COMPLETE"},
+        "integrationCommit": {"const": "a5d0cc09d47179d30227369802932f29f1d82a18"},
+        "receiptSourceCommit": {"const": "a899c24ac10d2f393ac5ba41d7a47830f6a96f09"},
+        "receiptPath": {"const": "tasks/test-evidence/autonomous-maturity-m20-rollback-rehearsal.json"},
+        "receiptSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "receiptDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "collectorPath": {"const": "tools/evidence/collect_m20_rollback_rehearsal.py"},
+        "collectorSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "validatorPath": {"const": "tools/evidence/validate_m20_rollback_rehearsal.py"},
+        "validatorSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "candidate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "reason", "buildWorkflow", "expectedArtifactPath", "expectedPackage", "sourceSha", "versionCode", "apkSha256", "signerSha256"],
+      "properties": {
+        "status": {"const": "DEFERRED"}, "reason": {"const": "CANDIDATE_NOT_BUILT"},
+        "buildWorkflow": {"const": ".github/workflows/release.yml"},
+        "expectedArtifactPath": {"const": "release-candidate/codecks-release.apk"},
+        "expectedPackage": {"const": "app.codecks"},
+        "sourceSha": {"type": "null"}, "versionCode": {"type": "null"},
+        "apkSha256": {"type": "null"}, "signerSha256": {"type": "null"}
+      }
+    },
+    "dependencies": {
+      "type": "array", "minItems": 3, "maxItems": 3,
+      "items": {"type": "object", "additionalProperties": false, "required": ["milestone", "status"], "properties": {"milestone": {"enum": ["M20", "M21", "M23"]}, "status": {"enum": ["COMPLETE", "DEFERRED"]}}}
+    },
+    "gates": {
+      "type": "array", "minItems": 14, "maxItems": 14,
+      "items": {"type": "object", "additionalProperties": false, "required": ["id", "status", "code"], "properties": {"id": {"type": "string", "minLength": 1}, "status": {"enum": ["PASS", "NOT_RUN", "DEFERRED"]}, "code": {"type": "string", "minLength": 1}}}
+    },
+    "safeInPlaceUpdate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["authorizedNow", "requiredOrder", "forbidden"],
+      "properties": {
+        "authorizedNow": {"const": false},
+        "requiredOrder": {"type": "array", "minItems": 13, "maxItems": 13, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "forbidden": {"type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true, "items": {"enum": ["UNINSTALL_PROTECTED_PACKAGE", "CLEAR_PROTECTED_PACKAGE_DATA", "DOWNGRADE_PROTECTED_PACKAGE", "DIFFERENT_SIGNER", "PHYSICAL_INSTRUMENTATION"]}}
+      }
+    },
+    "privacy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["rawDeviceSerialRecorded", "privateKeyInspected", "credentialRecorded", "appDataRead"],
+      "properties": {"rawDeviceSerialRecorded": {"const": false}, "privateKeyInspected": {"const": false}, "credentialRecorded": {"const": false}, "appDataRead": {"const": false}}
+    },
+    "blockers": {"type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true, "items": {"enum": ["PHYSICAL_PHONE_NOT_CONNECTED", "PHYSICAL_PHONE_FINAL_UPDATE_NOT_AUTHORIZED", "CANDIDATE_NOT_BUILT"]}}
+  }
+}
