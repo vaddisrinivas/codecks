@@ -60,6 +60,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
@@ -452,6 +453,14 @@ fun DeckFilterPill(
         ),
         modifier = modifier
             .heightIn(min = CodecksDesignTokens.Size.minTouchTarget)
+            .semantics {
+                this.selected = selected
+                stateDescription = when {
+                    !enabled -> "Disabled"
+                    selected -> "Selected"
+                    else -> "Not selected"
+                }
+            }
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
     ) {
         Row(
@@ -516,6 +525,9 @@ fun DeckActionButton(
                 if (!enabled) {
                     disabled()
                     stateDescription = "Disabled"
+                } else if (selected) {
+                    this.selected = true
+                    stateDescription = "Selected"
                 }
             }
             .clickable(

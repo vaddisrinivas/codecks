@@ -36,6 +36,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -134,6 +137,7 @@ internal fun CodecksHelperPanel(
     onSearch: (String) -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("Codecks") }
+    val largeText = LocalDensity.current.fontScale >= 2f
     val colors = codecksSemanticColorTokens()
     val connectRepair = state.repairs.firstOrNull { it == ConnectionRepair.RetryNow }
     val setupRepair = state.repairs.firstOrNull {
@@ -162,19 +166,14 @@ internal fun CodecksHelperPanel(
                     color = colors.contentMuted,
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Grid.standardGap), modifier = Modifier.fillMaxWidth()) {
-                DeckFilterPill(
-                    label = state.statusLabel,
-                    selected = state.canRunActions,
-                    onClick = {},
-                    modifier = Modifier.heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
-                )
-                DeckFilterPill(
-                    label = if (state.discoveredCount == 1) "1 nearby" else "${state.discoveredCount} nearby",
-                    selected = state.discoveredCount > 0,
-                    onClick = {},
-                    modifier = Modifier.heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
-                )
+            if (largeText) {
+                Column(verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Grid.standardGap)) {
+                    HelperStatusBadges(state)
+                }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Grid.standardGap), modifier = Modifier.fillMaxWidth()) {
+                    HelperStatusBadges(state)
+                }
             }
             state.pairedDisplayName?.let { name ->
                 Text(
@@ -183,7 +182,22 @@ internal fun CodecksHelperPanel(
                     color = colors.contentMuted,
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Grid.standardGap), modifier = Modifier.fillMaxWidth()) {
+            if (largeText) Column(verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Grid.standardGap)) {
+                DeckActionButton(
+                    label = if (state.statusLabel == "Connecting…") "Connecting…" else connectRepair?.label ?: "Connect helper",
+                    onClick = onConnect,
+                    enabled = state.canConnect && connectRepair != null,
+                    icon = Icons.Outlined.Link,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
+                )
+                DeckActionButton(
+                    label = setupRepair?.label ?: if (state.hasPairing) "Pairing JSON" else "Open setup",
+                    onClick = onOpenSetup,
+                    enabled = true,
+                    icon = Icons.Outlined.Terminal,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
+                )
+            } else Row(horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Grid.standardGap), modifier = Modifier.fillMaxWidth()) {
                 DeckActionButton(
                     label = if (state.statusLabel == "Connecting…") "Connecting…" else connectRepair?.label ?: "Connect helper",
                     onClick = onConnect,
@@ -217,6 +231,36 @@ internal fun CodecksHelperPanel(
             )
         }
     }
+}
+
+@Composable
+private fun HelperStatusBadge(label: String, state: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        shape = MaterialTheme.shapes.large,
+        modifier = Modifier
+            .heightIn(min = CodecksDesignTokens.Size.minTouchTarget)
+            .semantics(mergeDescendants = true) { stateDescription = state },
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(horizontal = CodecksDesignTokens.Spacing.lg, vertical = CodecksDesignTokens.Spacing.sm),
+        )
+    }
+}
+
+@Composable
+private fun HelperStatusBadges(state: CodecksHelperUiState) {
+    HelperStatusBadge(
+        label = state.statusLabel,
+        state = if (state.canRunActions) "Ready" else state.statusLabel,
+    )
+    HelperStatusBadge(
+        label = if (state.discoveredCount == 1) "1 nearby" else "${state.discoveredCount} nearby",
+        state = if (state.discoveredCount > 0) "Helper discovered" else "No nearby helper",
+    )
 }
 
 @Composable

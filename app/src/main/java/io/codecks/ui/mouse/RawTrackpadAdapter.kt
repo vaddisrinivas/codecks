@@ -3,10 +3,12 @@ package io.codecks.ui.mouse
 import android.content.Context
 import android.content.res.Configuration
 import android.os.SystemClock
+import android.os.Bundle
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
+import android.view.accessibility.AccessibilityNodeInfo
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,7 +23,10 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import io.codecks.HidCommand
+import io.codecks.R
 import kotlin.math.abs
 import kotlinx.coroutines.delay
 import io.codecks.core.trackpad.TrackpadRailSide
@@ -70,6 +75,8 @@ internal fun RawTrackpadTouchLayer(
     onTelemetry: (TrackpadTelemetrySample) -> Unit,
     onOpenDeckGesture: () -> Unit,
     onOpenControlsGesture: () -> Unit = {},
+    exposeDeckAccessibilityAction: Boolean = true,
+    exposeControlsAccessibilityAction: Boolean = true,
     onActivity: () -> Unit,
     stylusEnabled: Boolean,
     onTrace: (PointerTracePoint) -> Unit,
@@ -114,6 +121,8 @@ internal fun RawTrackpadTouchLayer(
             view.onTelemetry = onTelemetry
             view.onOpenDeckGesture = onOpenDeckGesture
             view.onOpenControlsGesture = onOpenControlsGesture
+            view.exposeDeckAccessibilityAction = exposeDeckAccessibilityAction
+            view.exposeControlsAccessibilityAction = exposeControlsAccessibilityAction
             view.onActivity = onActivity
             view.stylusEnabled = stylusEnabled
             view.onTrace = onTrace
@@ -132,6 +141,12 @@ internal class RawTrackpadView(context: Context) : View(context) {
         set(value) {
             if (field == value) return
             field = value
+            isEnabled = value
+            isClickable = value
+            isLongClickable = value
+            ViewCompat.setStateDescription(this, if (value) "Ready" else "Unavailable")
+            invalidate()
+            sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
             if (!value) {
                 cancelTapDragSequence()
                 cancelPendingMultiTap(invokeSingle = false)
@@ -169,6 +184,8 @@ internal class RawTrackpadView(context: Context) : View(context) {
     var onTelemetry: (TrackpadTelemetrySample) -> Unit = {}
     var onOpenDeckGesture: () -> Unit = {}
     var onOpenControlsGesture: () -> Unit = {}
+    var exposeDeckAccessibilityAction: Boolean = true
+    var exposeControlsAccessibilityAction: Boolean = true
     var onActivity: () -> Unit = {}
     var stylusEnabled: Boolean = true
     var onTrace: (PointerTracePoint) -> Unit = {}
@@ -288,9 +305,49 @@ internal class RawTrackpadView(context: Context) : View(context) {
     }
 
     override fun performLongClick(): Boolean {
-        super.performLongClick()
-        if (enabledForInput) onRightClick()
-        return enabledForInput
+        if (!enabledForInput) return false
+        onRightClick()
+        sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_LONG_CLICKED)
+        return true
+    }
+
+    override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
+        super.onInitializeAccessibilityNodeInfo(info)
+        info.isEnabled = enabledForInput
+        info.isClickable = enabledForInput
+        info.isLongClickable = enabledForInput
+        AccessibilityNodeInfoCompat.wrap(info).stateDescription =
+            if (enabledForInput) "Ready" else "Unavailable"
+        if (!enabledForInput) return
+        info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD)
+        info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_BACKWARD)
+        if (exposeDeckAccessibilityAction) {
+            info.addAction(AccessibilityNodeInfo.AccessibilityAction(ACTION_OPEN_DECK, "Open Deck"))
+        }
+        if (exposeControlsAccessibilityAction) {
+            info.addAction(AccessibilityNodeInfo.AccessibilityAction(ACTION_OPEN_CONTROLS, "Open Trackpad controls"))
+        }
+    }
+
+    override fun performAccessibilityAction(action: Int, arguments: Bundle?): Boolean = when {
+        !enabledForInput -> super.performAccessibilityAction(action, arguments)
+        action == AccessibilityNodeInfo.ACTION_SCROLL_FORWARD -> {
+            onScroll(0f, ACCESSIBILITY_SCROLL_DELTA)
+            true
+        }
+        action == AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD -> {
+            onScroll(0f, -ACCESSIBILITY_SCROLL_DELTA)
+            true
+        }
+        action == ACTION_OPEN_DECK && exposeDeckAccessibilityAction -> {
+            onOpenDeckGesture()
+            true
+        }
+        action == ACTION_OPEN_CONTROLS && exposeControlsAccessibilityAction -> {
+            onOpenControlsGesture()
+            true
+        }
+        else -> super.performAccessibilityAction(action, arguments)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -849,6 +906,9 @@ internal class RawTrackpadView(context: Context) : View(context) {
         const val SCROLL_ZONE_DEADZONE_PX = 1.5f
         const val SCROLL_ZONE_DIVISOR = 5.5f
         const val SCROLL_ZONE_HAPTIC_STEP_PX = 64f
+        const val ACCESSIBILITY_SCROLL_DELTA = 48f
+        val ACTION_OPEN_DECK = R.id.accessibility_action_open_deck
+        val ACTION_OPEN_CONTROLS = R.id.accessibility_action_open_trackpad_controls
     }
 
     private fun cancelPendingTap() {

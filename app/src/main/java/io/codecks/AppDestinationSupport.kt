@@ -32,6 +32,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
@@ -92,7 +95,11 @@ internal fun CelebrationOverlay(label: String, onDone: () -> Unit) {
             contentColor = colors.content,
             shape = MaterialTheme.shapes.extraLarge,
             tonalElevation = CodecksDesignTokens.Elevation.medium,
-            modifier = Modifier.align(Alignment.Center),
+            modifier = Modifier
+                .align(Alignment.Center)
+                .semantics(mergeDescendants = true) {
+                    liveRegion = LiveRegionMode.Polite
+                },
         ) {
             Text(label.take(24), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(CodecksDesignTokens.Spacing.xxl))
         }

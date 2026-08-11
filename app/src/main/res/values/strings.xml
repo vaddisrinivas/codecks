@@ -1,6 +1,7 @@
 <resources>
     <string name="widget_trackpad_title">Trackpad</string>
     <string name="widget_trackpad_detail">Open pointer surface</string>
+    <string name="widget_trackpad_action">Open Codecks Trackpad</string>
     <string name="app_name">Codecks</string>
     <string name="asset_statements" translatable="false">[]</string>
     <string name="tile_label">Codecks</string>

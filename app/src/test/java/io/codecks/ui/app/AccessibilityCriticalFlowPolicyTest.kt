@@ -42,6 +42,53 @@ class AccessibilityCriticalFlowPolicyTest {
         assertTrue(source.contains("accessibilityTraversalOrder(1f)"))
     }
 
+    @Test
+    fun keyboardComposerHasPersistentLabelLiveDeliveryStatusAndTwoHundredPercentReflow() {
+        val source = source("ui/keyboard/KeyboardScreen.kt")
+
+        assertTrue(source.contains("label = { Text(\"Text to type on Mac\") }"))
+        assertTrue(source.contains("liveRegion = LiveRegionMode.Polite"))
+        assertTrue(source.contains("LocalDensity.current.fontScale >= 2f"))
+        assertTrue(source.contains("if (largeText)"))
+        assertTrue(source.contains("heightIn(min = CodecksDesignTokens.Size.actionMinHeight)"))
+    }
+
+    @Test
+    fun trackpadExposesTalkBackEquivalentsWithoutLeakingRestrictedLockscreenActions() {
+        val adapter = source("ui/mouse/RawTrackpadAdapter.kt")
+        val lockscreen = source("ui/mouse/lockscreen/LockscreenTrackpadScreen.kt")
+
+        assertTrue(adapter.contains("AccessibilityAction(ACTION_OPEN_DECK, \"Open Deck\")"))
+        assertTrue(adapter.contains("AccessibilityAction(ACTION_OPEN_CONTROLS, \"Open Trackpad controls\")"))
+        assertTrue(adapter.contains("ACTION_SCROLL_FORWARD"))
+        assertTrue(adapter.contains("ViewCompat.setStateDescription"))
+        assertTrue(adapter.contains("AccessibilityNodeInfoCompat.wrap(info).stateDescription"))
+        assertTrue(lockscreen.contains("exposeDeckAccessibilityAction = false"))
+        assertTrue(lockscreen.contains("exposeControlsAccessibilityAction = false"))
+    }
+
+    @Test
+    fun lockscreenHelperOverlayAndWidgetUseNonInteractiveStatusAndNamedSurfaces() {
+        val lockscreen = source("ui/mouse/lockscreen/LockscreenTrackpadScreen.kt")
+        val firstRun = source("ui/mouse/TrackpadHostScreen.kt")
+        val helper = source("ui/settings/SettingsConnectionSections.kt")
+        val overlay = source("AppDestinationSupport.kt")
+        val widget = File("src/main/res/layout/trackpad_widget.xml").readText()
+        val widgetInfo = File("src/main/res/xml/trackpad_widget_info.xml").readText()
+
+        assertTrue(lockscreen.contains("verticalScroll(rememberScrollState())"))
+        assertTrue(lockscreen.contains("accessibilityTraversalOrder(6f)"))
+        assertTrue(firstRun.contains("LocalDensity.current.fontScale >= 2f"))
+        assertTrue(firstRun.contains("Modifier.verticalScroll(rememberScrollState())"))
+        assertTrue(helper.contains("private fun HelperStatusBadge"))
+        assertTrue(helper.contains("stateDescription = label"))
+        assertTrue(overlay.contains("liveRegion = LiveRegionMode.Polite"))
+        assertTrue(widget.contains("android:contentDescription=\"@string/widget_trackpad_action\""))
+        assertTrue(widget.contains("android:importantForAccessibility=\"noHideDescendants\""))
+        assertTrue(widgetInfo.contains("android:minWidth=\"180dp\""))
+        assertTrue(widgetInfo.contains("android:minHeight=\"96dp\""))
+    }
+
     private fun source(relative: String): String =
         File("src/main/java/io/codecks/$relative").readText()
 }

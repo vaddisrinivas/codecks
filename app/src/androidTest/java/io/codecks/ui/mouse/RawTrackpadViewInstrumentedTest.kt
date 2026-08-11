@@ -3,6 +3,7 @@ package io.codecks.ui.mouse
 import android.content.Intent
 import android.os.SystemClock
 import android.view.MotionEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import io.codecks.MainActivity
@@ -14,6 +15,50 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class RawTrackpadViewInstrumentedTest {
+    @Test
+    fun talkBackActionsExposeClickRightClickScrollDeckAndControlsWithoutTouchGestures() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val events = mutableListOf<String>()
+
+        instrumentation.runOnMainSync {
+            val view = RawTrackpadView(instrumentation.targetContext).apply {
+                onLeftClick = { events += "left" }
+                onRightClick = { events += "right" }
+                onScroll = { _, vertical -> events += "scroll:${vertical.toInt()}" }
+                onOpenDeckGesture = { events += "deck" }
+                onOpenControlsGesture = { events += "controls" }
+            }
+            val info = AccessibilityNodeInfo.obtain()
+            view.onInitializeAccessibilityNodeInfo(info)
+            val labeled = info.actionList.associateBy { it.label?.toString() }
+            assertTrue(info.isClickable)
+            assertTrue(info.isLongClickable)
+            assertTrue(view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_CLICK, null))
+            assertTrue(view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_LONG_CLICK, null))
+            assertTrue(view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD, null))
+            assertTrue(view.performAccessibilityAction(requireNotNull(labeled["Open Deck"]).id, null))
+            assertTrue(view.performAccessibilityAction(requireNotNull(labeled["Open Trackpad controls"]).id, null))
+            info.recycle()
+        }
+
+        assertEquals(listOf("left", "right", "scroll:48", "deck", "controls"), events)
+    }
+
+    @Test
+    fun unavailableTrackpadRemainsDescribedButRemovesActions() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.runOnMainSync {
+            val view = RawTrackpadView(instrumentation.targetContext).apply { enabledForInput = false }
+            val info = AccessibilityNodeInfo.obtain()
+            view.onInitializeAccessibilityNodeInfo(info)
+            assertFalse(info.isEnabled)
+            assertFalse(info.isClickable)
+            assertFalse(info.actionList.any { it.id == AccessibilityNodeInfo.ACTION_SCROLL_FORWARD })
+            assertTrue(view.contentDescription.toString().startsWith("Trackpad."))
+            info.recycle()
+        }
+    }
+
     @Test
     fun tapThenMove_dispatchesPressMoveReleaseForWhiteboardDrag() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()

@@ -5,6 +5,7 @@
     <dimen name="codecks_space_xs">4dp</dimen>
     <dimen name="codecks_space_sm">8dp</dimen>
     <dimen name="codecks_space_page">16dp</dimen>
+    <dimen name="codecks_layout_weight_width">0dp</dimen>
     <dimen name="codecks_widget_icon_size">40dp</dimen>
     <dimen name="codecks_widget_title_text">18sp</dimen>
     <dimen name="codecks_widget_detail_text">12sp</dimen>

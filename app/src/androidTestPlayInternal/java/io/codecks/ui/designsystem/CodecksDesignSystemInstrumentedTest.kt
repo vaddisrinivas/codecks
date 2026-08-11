@@ -2,6 +2,7 @@ package io.codecks.ui.designsystem
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.size
@@ -23,13 +24,17 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Density
@@ -40,6 +45,7 @@ import android.widget.RemoteViews
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import io.codecks.CelebrationOverlay
+import io.codecks.HidState
 import io.codecks.R
 import io.codecks.core.design.CodecksDesignTokens
 import io.codecks.core.trackpad.LockscreenControlState
@@ -48,6 +54,8 @@ import io.codecks.core.trackpad.TrackpadEntryOrigin
 import io.codecks.core.trackpad.TrackpadSettings
 import io.codecks.ui.mouse.lockscreen.LockscreenTrackpadScreen
 import io.codecks.ui.mouse.lockscreen.LockscreenTrackpadUiState
+import io.codecks.ui.mouse.TrackpadHostScreen
+import io.codecks.ui.keyboard.KeyboardScreen
 import io.codecks.ui.theme.CodecksTheme
 import io.codecks.ui.theme.CodecksThemeMode
 import io.codecks.ui.theme.CodecksThemeSettings
@@ -93,6 +101,71 @@ class CodecksDesignSystemInstrumentedTest {
         rule.onNodeWithText("Close").assertIsDisplayed().assertHeightIsAtLeast(48.dp)
         rule.onNodeWithText("Unlock for full Codecks").assertIsDisplayed().assertHeightIsAtLeast(48.dp)
         rule.onNodeWithText("Unlock to connect").assertIsDisplayed()
+    }
+
+    @Test
+    fun keyboardComposerKeepsNamedFullWidthActionsAtTwoHundredPercentText() {
+        rule.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(density = 1f, fontScale = 2f)) {
+                CodecksTheme {
+                    Box(Modifier.size(width = 412.dp, height = 915.dp)) {
+                        KeyboardScreen(
+                            state = HidState(isConnected = true),
+                            text = "Hello",
+                            contentPadding = PaddingValues(0.dp),
+                            permissionGranted = true,
+                            sendStatus = "Ready to send",
+                            onRequestPermission = {},
+                            onStart = {},
+                            onRefreshHosts = {},
+                            onConnect = {},
+                            onTextChange = {},
+                            onTypeText = {},
+                            onClearText = {},
+                            onCommand = {},
+                            showHostHeader = false,
+                        )
+                    }
+                }
+            }
+        }
+
+        rule.onNodeWithText("Text to type on Mac").assertExists()
+        listOf("Send + Enter", "Clear", "⌘ Enter").forEach { label ->
+            rule.onNodeWithText(label).assertHeightIsAtLeast(48.dp)
+        }
+        rule.onAllNodesWithText("Enter")[0].assertHeightIsAtLeast(48.dp)
+        assertEquals(
+            LiveRegionMode.Polite,
+            rule.onNodeWithText("Ready to send").fetchSemanticsNode().config[SemanticsProperties.LiveRegion],
+        )
+    }
+
+    @Test
+    fun firstRunTrackpadSetupRemainsScrollableAtTwoHundredPercentText() {
+        rule.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(density = 1f, fontScale = 2f)) {
+                CodecksTheme {
+                    Box(Modifier.size(width = 360.dp, height = 640.dp)) {
+                        TrackpadHostScreen(
+                            contentPadding = PaddingValues(0.dp),
+                            hidState = HidState(),
+                            bluetoothPermissionGranted = false,
+                            onRequestBluetoothPermission = {},
+                            onStartHid = {},
+                            onRefreshHosts = {},
+                            onConnectHost = {},
+                            onConnection = {},
+                            onFullscreen = {},
+                            content = {},
+                        )
+                    }
+                }
+            }
+        }
+
+        rule.onNodeWithText("Allow Bluetooth").assertHeightIsAtLeast(48.dp)
+        rule.onNodeWithText("Allow Bluetooth first").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -146,6 +219,7 @@ class CodecksDesignSystemInstrumentedTest {
             .assertIsFocused()
         rule.onNodeWithText("Codecks helper").assertIsDisplayed()
         rule.onNodeWithText("Desk Mac").assertIsDisplayed()
+        assertTrue(!rule.onNodeWithText("Connected").fetchSemanticsNode().config.contains(SemanticsActions.OnClick))
         val first = rule.onNodeWithTag("rtl-first").fetchSemanticsNode().boundsInRoot
         val second = rule.onNodeWithTag("rtl-second").fetchSemanticsNode().boundsInRoot
         assertTrue("RTL must place the first logical child on the right", first.left > second.left)
@@ -242,6 +316,10 @@ class CodecksDesignSystemInstrumentedTest {
         }
 
         rule.onNodeWithText("Built successfully").assertIsDisplayed()
+        assertEquals(
+            LiveRegionMode.Polite,
+            rule.onNodeWithText("Built successfully").fetchSemanticsNode().config[SemanticsProperties.LiveRegion],
+        )
         val resolvedPrimary = rule.onNodeWithTag("custom-primary").captureToImage().toPixelMap()[8, 8]
         assertEquals(custom[ThemeColorRole.Primary].value, resolvedPrimary.toArgb().toLong() and 0xffffffffL)
         rule.onNodeWithTag("overlay-root").captureToImage().also { image ->
@@ -254,7 +332,11 @@ class CodecksDesignSystemInstrumentedTest {
     fun widgetInitialLayoutInflatesWithTokenOwnedFallbacks() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val view = RemoteViews(context.packageName, R.layout.trackpad_widget).apply(context, null)
-        assert(view.findViewById<android.view.View>(R.id.trackpad_widget_root) != null)
+        val root = requireNotNull(view.findViewById<android.view.View>(R.id.trackpad_widget_root))
+        val icon = requireNotNull(view.findViewById<android.view.View>(R.id.trackpad_widget_icon))
+        assertEquals(context.getString(R.string.widget_trackpad_action), root.contentDescription)
+        assertTrue(root.isFocusable)
+        assertEquals(android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO, icon.importantForAccessibility)
         assert(context.resources.getColor(R.color.codecks_widget_canvas_fallback, context.theme) != 0)
     }
 
