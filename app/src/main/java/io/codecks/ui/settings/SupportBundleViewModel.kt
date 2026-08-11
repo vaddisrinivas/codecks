@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import io.codecks.data.privacy.SupportBundleBuilder
 import io.codecks.data.privacy.SupportBundleTempFilePolicy
 import io.codecks.domain.privacy.SupportBundleSnapshot
+import io.codecks.domain.privacy.SupportBatteryState
 import java.io.File
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.Dispatchers
@@ -27,9 +28,14 @@ enum class SupportBundleFailure {
 sealed interface SupportBundleUiState {
     data object Idle : SupportBundleUiState
     data class Preview(
-        val includedSections: List<String> = listOf("Manifest", "Health", "Typed events", "Settings"),
+        val summary: SupportBundlePreviewSummary? = null,
+        val includedSections: List<String> = listOf(
+            "Build manifest", "Redacted health", "Typed events", "Bounded operation receipts",
+            "Permission and battery policy", "Settings categories",
+        ),
         val prohibitedDataStatement: String =
-            "Never includes messages, clipboard text, commands, logs, prompts, paths, hosts, or device identifiers.",
+            "Never includes credentials, hosts, usernames, fingerprints, clipboard text, commands, raw logs, " +
+                "prompts, responses, tokens, account or purchase identifiers, paths, or device serials.",
     ) : SupportBundleUiState
     data object Generating : SupportBundleUiState
     data class Ready(val file: File) : SupportBundleUiState
@@ -41,6 +47,15 @@ sealed interface SupportBundleUiState {
     data class Failure(val kind: SupportBundleFailure) : SupportBundleUiState
 }
 
+data class SupportBundlePreviewSummary(
+    val build: String,
+    val connection: String,
+    val hid: String,
+    val bluetoothPermission: String,
+    val notificationPermission: String,
+    val batteryPolicy: String,
+)
+
 class SupportBundleViewModel(
     private val tempFiles: SupportBundleTempFilePolicy,
     private val nowEpochMs: () -> Long = System::currentTimeMillis,
@@ -50,6 +65,7 @@ class SupportBundleViewModel(
     val state: StateFlow<SupportBundleUiState> = _state.asStateFlow()
     private var generationJob: Job? = null
     private var pendingFile: File? = null
+    private var previewSnapshot: SupportBundleSnapshot? = null
     private val initializationJob = viewModelScope.launch(backgroundContext) {
         tempFiles.cleanupExpired(nowEpochMs())
         val recovered = tempFiles.pendingFiles().firstOrNull()
@@ -61,12 +77,13 @@ class SupportBundleViewModel(
         }
     }
 
-    fun preview() {
+    fun preview(snapshot: SupportBundleSnapshot? = null) {
         if (_state.value is SupportBundleUiState.Generating) return
-        _state.value = SupportBundleUiState.Preview()
+        previewSnapshot = snapshot
+        _state.value = SupportBundleUiState.Preview(snapshot?.toPreviewSummary())
     }
 
-    fun generate(snapshot: SupportBundleSnapshot) {
+    fun generate(snapshot: SupportBundleSnapshot? = null) {
         if ((_state.value as? SupportBundleUiState.Failure)?.kind ==
             SupportBundleFailure.SHARE_PICKER_UNAVAILABLE
         ) {
@@ -78,6 +95,11 @@ class SupportBundleViewModel(
         if (_state.value !is SupportBundleUiState.Preview &&
             _state.value !is SupportBundleUiState.Failure
         ) return
+        val selectedSnapshot = previewSnapshot ?: snapshot
+        if (selectedSnapshot == null) {
+            _state.value = SupportBundleUiState.Failure(SupportBundleFailure.BUILD_FAILED)
+            return
+        }
         _state.value = SupportBundleUiState.Generating
         generationJob?.cancel()
         generationJob = viewModelScope.launch {
@@ -87,7 +109,7 @@ class SupportBundleViewModel(
                 return@launch
             }
             val archive = try {
-                withContext(backgroundContext) { SupportBundleBuilder.build(snapshot) }
+                withContext(backgroundContext) { SupportBundleBuilder.build(selectedSnapshot) }
             } catch (error: Throwable) {
                 error.rethrowIfCancellationOrFatal()
                 _state.value = SupportBundleUiState.Failure(SupportBundleFailure.BUILD_FAILED)
@@ -117,6 +139,7 @@ class SupportBundleViewModel(
         generationJob = null
         val file = (_state.value as? SupportBundleUiState.Ready)?.file ?: pendingFile
         if (file == null) {
+            previewSnapshot = null
             _state.value = SupportBundleUiState.Idle
         } else {
             deletePending()
@@ -187,6 +210,19 @@ class SupportBundleViewModel(
         }
     }
 }
+
+private fun SupportBundleSnapshot.toPreviewSummary(): SupportBundlePreviewSummary = SupportBundlePreviewSummary(
+    build = "${manifest.appVersionCode} · ${if (manifest.debugBuild) "debug" else "release"}",
+    connection = health.connection.name.lowercase().replaceFirstChar(Char::uppercase),
+    hid = health.hid.name.lowercase().replaceFirstChar(Char::uppercase),
+    bluetoothPermission = runtime.bluetoothPermission.name.lowercase().replaceFirstChar(Char::uppercase),
+    notificationPermission = runtime.notificationPermission.name.lowercase().replaceFirstChar(Char::uppercase),
+    batteryPolicy = buildString {
+        append(if (runtime.batterySaver == SupportBatteryState.ACTIVE) "Saver active" else "Saver inactive")
+        if (runtime.backgroundRestricted) append(" · background restricted")
+        if (runtime.batteryOptimizationExempt) append(" · optimization exempt")
+    },
+)
 
 private fun Throwable.rethrowIfCancellationOrFatal() {
     when (this) {

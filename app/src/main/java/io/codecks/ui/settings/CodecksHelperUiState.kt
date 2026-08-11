@@ -2,6 +2,7 @@ package io.codecks.ui.settings
 
 import io.codecks.ui.connection.UnifiedConnectionPresentation
 import io.codecks.ui.connection.ConnectionRepair
+import io.codecks.ui.connection.ConnectionSupportCode
 
 enum class CodecksHelperConnectionKind {
     Idle,
@@ -17,7 +18,7 @@ data class CodecksHelperUiState(
     val discoveredCount: Int = 0,
     val canConnect: Boolean = false,
     val canRunActions: Boolean = false,
-    val supportCode: String? = null,
+    val supportCode: ConnectionSupportCode? = null,
     val repairs: List<ConnectionRepair> = emptyList(),
 ) {
     val hasPairing: Boolean = pairedDisplayName != null

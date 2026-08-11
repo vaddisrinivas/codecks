@@ -824,10 +824,8 @@ internal fun CodecksApp(
                                 aiPlacementSlot = null
                                 navigate(AiBuilderRoute)
                             },
-                            onDebugBundle = supportBundleViewModel::preview,
-                            supportBundleState = supportBundleState,
-                            onGenerateSupportBundle = {
-                                supportBundleViewModel.generate(
+                            onDebugBundle = {
+                                supportBundleViewModel.preview(
                                     createSupportBundleSnapshot(
                                         context = appContext,
                                         homeState = homeState,
@@ -838,6 +836,10 @@ internal fun CodecksApp(
                                         clipboardSettings = clipboardSettings,
                                     ),
                                 )
+                            },
+                            supportBundleState = supportBundleState,
+                            onGenerateSupportBundle = {
+                                supportBundleViewModel.generate()
                             },
                             onCancelSupportBundle = supportBundleViewModel::cancel,
                             onRetrySupportBundleShare = supportBundleViewModel::retryShare,
@@ -858,7 +860,7 @@ internal fun CodecksApp(
                                 scope.launch { trackpadSettingsRepository.update(transform) }
                             },
                             localOnlyV1 = localOnlyV1,
-                            debugBundleEnabled = BuildConfig.DEBUG,
+                            debugBundleEnabled = true,
                             appVersionLabel = "Version ${BuildConfig.VERSION_NAME}",
                             updateState = updateState,
                             onCheckForUpdate = updateViewModel::checkForUpdate,

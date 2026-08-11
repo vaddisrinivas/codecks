@@ -164,7 +164,7 @@ internal fun CodecksHelperPanel(
             )
             state.supportCode?.let {
                 Text(
-                    "Support code $it",
+                    "Support code ${it.value}",
                     style = MaterialTheme.typography.labelSmall,
                     color = colors.contentMuted,
                 )
@@ -555,7 +555,7 @@ internal fun MacConnectionSettingsPanel(
                     detail = buildString {
                         append(diagnostic.detail)
                         diagnostic.repairActions.firstOrNull()?.let { append(" Next: ${it.label}") }
-                        diagnostic.supportCode?.let { append(" Support code $it.") }
+                        append(" Support code ${diagnostic.supportCode.value}.")
                     },
                     kind = AccessibleStatusKind.Error,
                     announceChanges = true,

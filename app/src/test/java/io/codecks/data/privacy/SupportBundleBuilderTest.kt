@@ -8,6 +8,9 @@ import io.codecks.domain.privacy.SupportBundleSnapshot
 import io.codecks.domain.privacy.SupportConnectionHealth
 import io.codecks.domain.privacy.SupportHidHealth
 import io.codecks.domain.privacy.SupportIntervalBucket
+import io.codecks.domain.privacy.SupportBatteryState
+import io.codecks.domain.privacy.SupportBundleRuntime
+import io.codecks.domain.privacy.SupportPermissionState
 import io.codecks.domain.privacy.SupportSpeedBucket
 import java.io.ByteArrayInputStream
 import java.util.zip.ZipInputStream
@@ -62,7 +65,7 @@ class SupportBundleBuilderTest {
         val archiveText = entries.values.joinToString("\n")
 
         assertEquals(
-            setOf("manifest.json", "health.json", "events.json", "settings.json"),
+            setOf("manifest.json", "health.json", "events.json", "receipts.json", "runtime.json", "settings.json"),
             entries.keys,
         )
         canaries.forEach { canary ->
@@ -93,6 +96,14 @@ class SupportBundleBuilderTest {
                 activityFailureCount = 0,
             ),
             events = events,
+            receipts = events.toSupportReceipts(),
+            runtime = SupportBundleRuntime(
+                bluetoothPermission = SupportPermissionState.GRANTED,
+                notificationPermission = SupportPermissionState.MISSING,
+                batterySaver = SupportBatteryState.INACTIVE,
+                backgroundRestricted = false,
+                batteryOptimizationExempt = false,
+            ),
             settings = SupportBundleSettings(
                 pointerSpeed = SupportSpeedBucket.MEDIUM,
                 scrollRailEnabled = true,

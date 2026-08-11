@@ -5,6 +5,8 @@ import android.app.ActivityManager
 import android.app.PendingIntent
 import android.os.Bundle
 import android.os.Build
+import android.os.PowerManager
+import android.content.pm.PackageManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
@@ -47,6 +49,7 @@ import io.codecks.data.BackupInputTooLargeException
 import io.codecks.data.PendingBackupRecovery
 import io.codecks.data.PendingBackupRecoveryException
 import io.codecks.data.privacy.DiagnosticEventStore
+import io.codecks.data.privacy.toSupportReceipts
 import io.codecks.data.context.NotificationPreview
 import io.codecks.domain.clipboard.ClipboardSyncMode
 import io.codecks.ui.connection.isReady
@@ -68,6 +71,9 @@ import io.codecks.domain.privacy.SupportBundleSnapshot
 import io.codecks.domain.privacy.SupportConnectionHealth
 import io.codecks.domain.privacy.SupportHidHealth
 import io.codecks.domain.privacy.SupportIntervalBucket
+import io.codecks.domain.privacy.SupportBatteryState
+import io.codecks.domain.privacy.SupportBundleRuntime
+import io.codecks.domain.privacy.SupportPermissionState
 import io.codecks.domain.privacy.SupportSpeedBucket
 import io.codecks.BuildConfig
 import kotlinx.coroutines.delay
@@ -182,6 +188,15 @@ internal fun createSupportBundleSnapshot(
     val createdAt = System.currentTimeMillis()
     val config = connectionState.config
     val eventStore = DiagnosticEventStore(context)
+    val events = eventStore.events()
+    val powerManager = context.getSystemService(PowerManager::class.java)
+    val activityManager = context.getSystemService(ActivityManager::class.java)
+    fun permissionState(permission: String, required: Boolean = true): SupportPermissionState = when {
+        !required -> SupportPermissionState.NOT_REQUIRED
+        androidx.core.content.ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED ->
+            SupportPermissionState.GRANTED
+        else -> SupportPermissionState.MISSING
+    }
     return SupportBundleSnapshot(
         manifest = SupportBundleManifest(
             appVersionCode = BuildConfig.VERSION_CODE,
@@ -213,7 +228,25 @@ internal fun createSupportBundleSnapshot(
             activityCount = homeState.activity.size,
             activityFailureCount = homeState.activity.count { !it.succeeded },
         ),
-        events = eventStore.events(),
+        events = events,
+        receipts = events.toSupportReceipts(),
+        runtime = SupportBundleRuntime(
+            bluetoothPermission = permissionState(
+                Manifest.permission.BLUETOOTH_CONNECT,
+                required = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
+            ),
+            notificationPermission = permissionState(
+                Manifest.permission.POST_NOTIFICATIONS,
+                required = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
+            ),
+            batterySaver = if (powerManager?.isPowerSaveMode == true) {
+                SupportBatteryState.ACTIVE
+            } else {
+                SupportBatteryState.INACTIVE
+            },
+            backgroundRestricted = activityManager?.isBackgroundRestricted == true,
+            batteryOptimizationExempt = powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true,
+        ),
         settings = SupportBundleSettings(
             pointerSpeed = when {
                 trackpadSettings.pointerSpeed < 0.75f -> SupportSpeedBucket.LOW

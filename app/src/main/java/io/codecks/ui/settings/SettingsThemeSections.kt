@@ -261,14 +261,14 @@ internal fun SetupChecklist(
     Column(verticalArrangement = Arrangement.spacedBy(0.dp), modifier = Modifier.fillMaxWidth()) {
         SetupRow(
             title = "Mac control channel",
-            summary = "${macPresentation.detail} Support code ${macPresentation.supportCode}.",
+            summary = "${macPresentation.detail} Support code ${macPresentation.supportCode.value}.",
             ready = macReady,
             statusLabel = connectionHealth.statusLabel(),
             onClick = onConnection,
         )
         SetupRow(
             title = "Trackpad Mac",
-            summary = "${hidPresentation.detail} Support code ${hidPresentation.supportCode}.",
+            summary = "${hidPresentation.detail} Support code ${hidPresentation.supportCode.value}.",
             ready = hidHealth.canSendInput,
             statusLabel = hidHealth.statusLabel(),
             onClick = onBluetooth,
@@ -403,7 +403,7 @@ internal fun notificationPrivacySummary(settings: NotificationPrivacySettings): 
 
 private fun bluetoothSummary(state: HidState, permissionGranted: Boolean): String =
     state.hidHealth(permissionGranted).toUnifiedConnectionPresentation().let {
-        "${it.detail} Support code ${it.supportCode}."
+        "${it.detail} Support code ${it.supportCode.value}."
     }
 
 internal fun ClipboardSyncSettings.summary(): String = when (mode) {

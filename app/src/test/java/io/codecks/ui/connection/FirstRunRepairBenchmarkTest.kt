@@ -215,7 +215,7 @@ private class FakeJourneyRuntime(private val profile: CleanProfile) {
         record(
             JourneyEventKind.StateShown, stateId, repair, ready,
             if (ready) profile.scenario.intendedFeature else null,
-            presentation.title, presentation.detail, presentation.supportCode, "connection-help",
+            presentation.title, presentation.detail, presentation.supportCode.value, "connection-help",
         )
     }
 

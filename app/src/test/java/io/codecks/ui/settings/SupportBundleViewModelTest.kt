@@ -9,6 +9,9 @@ import io.codecks.domain.privacy.SupportBundleSnapshot
 import io.codecks.domain.privacy.SupportConnectionHealth
 import io.codecks.domain.privacy.SupportHidHealth
 import io.codecks.domain.privacy.SupportIntervalBucket
+import io.codecks.domain.privacy.SupportBatteryState
+import io.codecks.domain.privacy.SupportBundleRuntime
+import io.codecks.domain.privacy.SupportPermissionState
 import io.codecks.domain.privacy.SupportSpeedBucket
 import kotlin.io.path.createTempDirectory
 import kotlinx.coroutines.Dispatchers
@@ -75,6 +78,28 @@ class SupportBundleViewModelTest {
 
             val ready = viewModel.state.value as SupportBundleUiState.Ready
             assertTrue(ready.file.isFile)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun previewShowsTypedHealthPermissionAndBatterySummary() = runTest(dispatcher) {
+        val root = createTempDirectory("support-summary-").toFile()
+        try {
+            val viewModel = SupportBundleViewModel(
+                SupportBundleTempFilePolicy(root),
+                nowEpochMs = { 2_500L },
+                backgroundContext = dispatcher,
+            )
+            viewModel.preview(snapshot())
+
+            val preview = viewModel.state.value as SupportBundleUiState.Preview
+            val summary = requireNotNull(preview.summary)
+            assertTrue(summary.build == "1 · debug")
+            assertTrue(summary.connection == "Unconfigured")
+            assertTrue(summary.bluetoothPermission == "Missing")
+            assertTrue(summary.batteryPolicy == "Saver inactive")
         } finally {
             root.deleteRecursively()
         }
@@ -289,6 +314,14 @@ class SupportBundleViewModelTest {
             activityFailureCount = 0,
         ),
         events = emptyList(),
+        receipts = emptyList(),
+        runtime = SupportBundleRuntime(
+            bluetoothPermission = SupportPermissionState.MISSING,
+            notificationPermission = SupportPermissionState.NOT_REQUIRED,
+            batterySaver = SupportBatteryState.INACTIVE,
+            backgroundRestricted = false,
+            batteryOptimizationExempt = false,
+        ),
         settings = SupportBundleSettings(
             pointerSpeed = SupportSpeedBucket.MEDIUM,
             scrollRailEnabled = false,

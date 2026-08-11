@@ -11,7 +11,7 @@ data class ConnectionDiagnostic(
     val attempt: Int = 0,
     val retryInSeconds: Int = 0,
     val repairActions: List<ConnectionRepair> = emptyList(),
-    val supportCode: String,
+    val supportCode: ConnectionSupportCode,
 )
 
 fun presentConnectionDiagnostic(

@@ -19,6 +19,7 @@ import io.codecks.shared.protocol.ReactiveHelperRequest
 import io.codecks.ui.settings.CodecksHelperConnectionKind
 import io.codecks.ui.settings.CodecksHelperUiState
 import io.codecks.ui.settings.codecksHelperUiState
+import io.codecks.ui.connection.ConnectionSupportCode
 import io.codecks.ui.connection.toUnifiedConnectionPresentation
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
@@ -73,7 +74,7 @@ internal fun rememberHelperRuntime(
             snackbarHostState.showSnackbar(
                 result.fold(
                     onSuccess = { "Codecks helper paired: ${it.displayName}" },
-                    onFailure = { "Helper pairing failed (CX-HLP-FAIL)" },
+                    onFailure = { "Helper pairing failed (${ConnectionSupportCode.HelperFailed.value})" },
                 ),
             )
         }
@@ -91,7 +92,7 @@ internal fun rememberHelperRuntime(
         snackbarHostState.showSnackbar(
             result.fold(
                 onSuccess = { "Codecks helper paired: ${it.displayName}" },
-                onFailure = { "Helper pairing failed (CX-HLP-FAIL)" },
+                onFailure = { "Helper pairing failed (${ConnectionSupportCode.HelperFailed.value})" },
             ),
         )
         onPendingPairingConsumed()
@@ -169,7 +170,7 @@ internal fun rememberHelperRuntime(
                             is ReactiveHelperSessionStatus.Connecting -> "Codecks helper connecting"
                             is ReactiveHelperSessionStatus.Failed -> {
                                 val diagnostic = result.toUnifiedConnectionPresentation()
-                                "${diagnostic.title} (${diagnostic.supportCode})"
+                                "${diagnostic.title} (${diagnostic.supportCode.value})"
                             }
                             ReactiveHelperSessionStatus.Idle -> "Codecks helper idle"
                         },

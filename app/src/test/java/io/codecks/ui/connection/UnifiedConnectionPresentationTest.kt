@@ -19,7 +19,7 @@ class UnifiedConnectionPresentationTest {
 
         assertEquals(ConnectionPresentationState.PermissionRequired, result.state)
         assertEquals(listOf(ConnectionRepair.RequestPermission), result.repairs)
-        assertEquals("CX-HID-PERM", result.supportCode)
+        assertEquals(ConnectionSupportCode.HidPermission, result.supportCode)
         assertFalse(result.detail.contains("01:23"))
     }
 
@@ -38,10 +38,10 @@ class UnifiedConnectionPresentationTest {
 
         assertEquals(ConnectionPresentationState.AuthenticationFailed, auth.state)
         assertEquals(ConnectionRepair.ReenterCredentials, auth.repairs.single())
-        assertEquals("CX-SSH-AUTH", auth.supportCode)
+        assertEquals(ConnectionSupportCode.SshAuthentication, auth.supportCode)
         assertEquals(ConnectionPresentationState.IdentityMismatch, hostKey.state)
         assertEquals(ConnectionRepair.ReviewIdentity, hostKey.repairs.single())
-        assertEquals("CX-SSH-HOSTKEY", hostKey.supportCode)
+        assertEquals(ConnectionSupportCode.SshHostKey, hostKey.supportCode)
         assertFalse(auth.detail.contains("hunter2"))
         assertFalse(hostKey.detail.contains("SHA256"))
     }
@@ -74,9 +74,9 @@ class UnifiedConnectionPresentationTest {
             .toUnifiedConnectionPresentation()
 
         assertEquals(ConnectionPresentationState.IdentityMismatch, identity.state)
-        assertEquals("CX-HLP-IDENTITY", identity.supportCode)
+        assertEquals(ConnectionSupportCode.HelperIdentity, identity.supportCode)
         assertEquals(ConnectionPresentationState.Failed, unknown.state)
-        assertEquals("CX-HLP-FAIL", unknown.supportCode)
+        assertEquals(ConnectionSupportCode.HelperFailed, unknown.supportCode)
         assertFalse(unknown.detail.contains("secret-host-user-token"))
     }
 
@@ -108,10 +108,10 @@ class UnifiedConnectionPresentationTest {
         )
 
         presentations.forEach {
-            assertTrue(it.supportCode.startsWith("CX-"))
+            assertTrue(it.supportCode.value.startsWith("CX-"))
             assertFalse(it.title.contains(supplied))
             assertFalse(it.detail.contains(supplied))
-            assertFalse(it.supportCode.contains(supplied))
+            assertFalse(it.supportCode.value.contains(supplied))
         }
     }
 
@@ -143,7 +143,7 @@ class UnifiedConnectionPresentationTest {
         val secret = "host private.local user owner fingerprint SHA256:secret unexpected"
         val diagnostic = ConnectionUiState(error = secret).connectionDiagnostic()
 
-        assertEquals("CX-SSH-HOSTKEY", diagnostic.supportCode)
+        assertEquals(ConnectionSupportCode.SshHostKey, diagnostic.supportCode)
         assertFalse(diagnostic.title.contains(secret))
         assertFalse(diagnostic.detail.contains(secret))
         assertEquals(listOf(ConnectionRepair.ReviewIdentity), diagnostic.repairActions)

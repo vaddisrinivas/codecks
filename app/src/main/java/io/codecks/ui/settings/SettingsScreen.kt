@@ -156,7 +156,7 @@ fun SettingsScreen(
     onTrackpadSettingsChange: ((TrackpadSettings) -> TrackpadSettings) -> Unit = {},
     modifier: Modifier = Modifier,
     localOnlyV1: Boolean = false,
-    debugBundleEnabled: Boolean = false,
+    debugBundleEnabled: Boolean = true,
     developerOptionsEnabled: Boolean = false,
     appVersionLabel: String = "Version",
     updateState: UpdateSettingsState = UpdateSettingsState.Idle,
@@ -215,7 +215,7 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.Outlined.Link,
                         title = "Mac actions",
-                        summary = "Deck, clipboard, and Rules over a secure connection. ${macConnectionPresentation.detail} Support code ${macConnectionPresentation.supportCode}.",
+                        summary = "Deck, clipboard, and Rules over a secure connection. ${macConnectionPresentation.detail} Support code ${macConnectionPresentation.supportCode.value}.",
                         value = connectionHealth.statusLabel(),
                         onClick = { macConnectionOpen = !macConnectionOpen },
                     )
@@ -232,7 +232,7 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.Outlined.Mouse,
                         title = "Mac input",
-                        summary = "Trackpad and Text over Bluetooth. ${hidConnectionPresentation.detail} Support code ${hidConnectionPresentation.supportCode}.",
+                        summary = "Trackpad and Text over Bluetooth. ${hidConnectionPresentation.detail} Support code ${hidConnectionPresentation.supportCode.value}.",
                         value = hidHealth.statusLabel(),
                         onClick = onBluetooth,
                     )
@@ -481,12 +481,12 @@ fun SettingsScreen(
                             title = if (supportBundleState is SupportBundleUiState.PendingRetained) {
                                 "Pending support bundle"
                             } else {
-                                "Create support bundle"
+                                "Create redacted support bundle"
                             },
                             summary = if (supportBundleState is SupportBundleUiState.PendingRetained) {
                                 "Retained on this device. Tap to retry sharing; delete from the dialog."
                             } else {
-                                "Preview exactly what is included, then use Android’s share picker"
+                                "Health, permissions, battery policy, and bounded operation receipts"
                             },
                             onClick = if (supportBundleState is SupportBundleUiState.PendingRetained) {
                                 onRetrySupportBundleShare

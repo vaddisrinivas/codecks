@@ -107,7 +107,7 @@ fun HidHostHeader(
     val statusText = when {
         state.isConnected -> "Connected"
         canConnectSelected -> "Tap to connect"
-        else -> "${presentation.statusLabel} · ${presentation.detail} · ${presentation.supportCode}"
+        else -> "${presentation.statusLabel} · ${presentation.detail} · ${presentation.supportCode.value}"
     }
     val action: (@Composable () -> Unit)? = when (presentation.repairs.firstOrNull()) {
         ConnectionRepair.RequestPermission -> {

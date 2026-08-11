@@ -185,14 +185,14 @@ private fun ClipboardStatusSummary(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = modifier) {
         AccessibleStatus(
             stateDescription = presentation.statusLabel,
-            detail = "${presentation.detail} Support code ${presentation.supportCode}.",
+            detail = "${presentation.detail} Support code ${presentation.supportCode.value}.",
             kind = if (attention) AccessibleStatusKind.Error else if (state.isRunning) {
                 AccessibleStatusKind.Busy
             } else {
                 AccessibleStatusKind.Success
             },
             announceChanges = !state.isRunning,
-            announcementKey = "${presentation.state}:${presentation.supportCode}",
+            announcementKey = "${presentation.state}:${presentation.supportCode.value}",
             modifier = Modifier.accessibilityTraversalOrder(0f),
         )
         val repair = presentation.repairs.firstOrNull { it == ConnectionRepair.RetryNow }
