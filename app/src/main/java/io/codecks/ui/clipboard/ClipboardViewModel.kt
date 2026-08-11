@@ -1,6 +1,4 @@
 package io.codecks.ui.clipboard
-import android.content.ClipData
-import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
 import android.app.KeyguardManager
@@ -8,7 +6,6 @@ import android.content.BroadcastReceiver
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
-import android.os.PersistableBundle
 import android.os.PowerManager
 import android.os.SystemClock
 import androidx.lifecycle.ViewModel
@@ -537,11 +534,7 @@ class ClipboardViewModel @Inject constructor(
         }
     private suspend fun writePhoneClipboard(text: String, status: String = "Synced from Mac"): Result<String> {
         val risk = ClipboardContentGuard.riskFor(text)
-        val clip = ClipData.newPlainText("Codecks", text).apply {
-            description.extras = PersistableBundle().apply {
-                putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, risk != null)
-            }
-        }
+        val clip = ClipboardClipFactory.synchronizedPlainText(text)
         return runResult { clipboardManager.setPrimaryClip(clip); Result.success("ok") }
             .onSuccess {
                 val observation = syncEngine.observe(ClipboardEndpoint.Phone, text, phoneSource, nowMillis())

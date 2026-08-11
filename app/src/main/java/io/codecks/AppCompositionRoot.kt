@@ -82,6 +82,7 @@ import io.codecks.ui.ai.AiWorkspaceMode
 import io.codecks.ui.ai.AiProviderSettingsRoute
 import io.codecks.ui.clipboard.ClipboardScreen
 import io.codecks.ui.clipboard.ClipboardViewModel
+import io.codecks.ui.clipboard.openClipboardBatterySaverSettings
 import io.codecks.ui.editor.DeckEditorScreen
 import io.codecks.ui.home.HomeScreen
 import io.codecks.ui.home.HomeViewModel
@@ -678,6 +679,9 @@ internal fun CodecksApp(
                             onStartSession = clipboardViewModel::startClipboardSession,
                             onStopSession = clipboardViewModel::stopClipboardSession,
                             onForegroundVisibleChange = clipboardViewModel::setAppForegroundVisible,
+                            onOpenBatterySaverSettings = {
+                                openClipboardBatterySaverSettings(appContext)
+                            },
                             onRetrySharedText = { clipboardViewModel.retrySharedText(onSharedTextConsumed) },
                             onDiscardSharedText = { clipboardViewModel.discardSharedText(onSharedTextConsumed) },
                         )

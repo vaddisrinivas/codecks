@@ -57,6 +57,7 @@ fun ClipboardScreen(
     onStartSession: () -> Unit,
     onStopSession: () -> Unit,
     onForegroundVisibleChange: (Boolean) -> Unit,
+    onOpenBatterySaverSettings: () -> Unit,
     onRetrySharedText: () -> Unit = {},
     onDiscardSharedText: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -85,6 +86,9 @@ fun ClipboardScreen(
                 )
             }
         }
+        state.lastSyncReceipt?.let { receipt ->
+            item { ClipboardManualReceiptPanel(receipt = receipt) }
+        }
         item {
             ClipboardSessionPanel(
                 state = state,
@@ -99,6 +103,7 @@ fun ClipboardScreen(
             ClipboardSyncPolicyPanel(
                 state = state,
                 onModeVisible = state.liveSyncVisible,
+                onOpenBatterySaverSettings = onOpenBatterySaverSettings,
             )
         }
         item {
@@ -116,9 +121,6 @@ fun ClipboardScreen(
                 onModeChange = onModeChange,
                 onIntervalChange = onIntervalChange,
             )
-        }
-        state.lastSyncReceipt?.let { receipt ->
-            item { ClipboardManualReceiptPanel(receipt = receipt) }
         }
         if (state.history.isNotEmpty()) {
             item { ClipboardHistoryPanel(state) }
@@ -362,7 +364,11 @@ private fun ClipboardPreviewCard(
 }
 
 @Composable
-private fun ClipboardSyncPolicyPanel(state: ClipboardUiState, onModeVisible: Boolean) {
+private fun ClipboardSyncPolicyPanel(
+    state: ClipboardUiState,
+    onModeVisible: Boolean,
+    onOpenBatterySaverSettings: () -> Unit,
+) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
         shape = MaterialTheme.shapes.medium,
@@ -417,6 +423,18 @@ private fun ClipboardSyncPolicyPanel(state: ClipboardUiState, onModeVisible: Boo
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
+            }
+            if (state.batterySaverActive) {
+                DeckActionButton(
+                    label = "Open Battery Saver settings",
+                    onClick = onOpenBatterySaverSettings,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                )
+                Text(
+                    text = "No battery exemption is required. Codecks only checks the phone clipboard while this screen is visible and unlocked.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

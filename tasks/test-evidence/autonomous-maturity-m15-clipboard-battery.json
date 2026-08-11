@@ -1,0 +1,243 @@
+{
+  "schema": "codecks.autonomous-maturity.m15-clipboard-battery.v1",
+  "milestone": "M15",
+  "status": "PASS",
+  "scope": "CPU_SOURCE_BOUND_WITH_UNBOUND_MANAGED_PROXY",
+  "generatedAtUtc": "2026-08-11T01:06:45.031889Z",
+  "sourceCommit": "364f3e3980dd77f86ea93781bf77c85224ce9249",
+  "sources": [
+    {
+      "path": "app/src/main/java/io/codecks/AppCompositionRoot.kt",
+      "sha256": "0a564c8af4334bbeb7a9f2ea31069ccd41c9d0fe75f4563cad71e7ba0fa5dbf2"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/clipboard/ClipboardLastSyncStore.kt",
+      "sha256": "72d8fa2ea82e9ec68e526ef073f1737ba453b15f3c1fb409079c6d61c79b326b"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/clipboard/ClipboardBatteryPolicy.kt",
+      "sha256": "9e026b617a05e6140a30a7ec91bcfd74eec59c34833c665f43124c71b58d1227"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/clipboard/ClipboardReceipt.kt",
+      "sha256": "128ccafe54473a73e5e8aae610aaa65ec5be3a9ae58482c04be45a64f4ad3532"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/clipboard/ClipboardSessionState.kt",
+      "sha256": "d67e8d92bd5c0a1be77abf201e57faa0200e3a1581da52f7484065b1dd35c0f8"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/clipboard/ClipboardSyncEngine.kt",
+      "sha256": "a844e0fefd42dbeb3bc913bd20c16a8667a081616d22689900ee95e693321142"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/clipboard/ClipboardBatterySettings.kt",
+      "sha256": "ebeb191466c350eb69cfc03c53b0344d941918ef5ac74652c1833c35714c569f"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/clipboard/ClipboardClipFactory.kt",
+      "sha256": "dacd60c7c99d6e8ab23ba8d841b124a8b2024eab6fe5c937ba287a7964a8fdef"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/clipboard/ClipboardScreen.kt",
+      "sha256": "9043e5dea8873a20f0fafe6296dff34b479f31775685e6e90bb37186856321cf"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/clipboard/ClipboardStateAndPolicies.kt",
+      "sha256": "e60bf6513ef5dbdd394a7e24be5dc617545b98e35f4acaf8d0fe37bf730c90ff"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/clipboard/ClipboardViewModel.kt",
+      "sha256": "3ceaad79db07cf4cf1641d1fd265c865f5aebc77d264c3b845b2520a9f5ca549"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/clipboard/M15ClipboardCharacterizationTest.kt",
+      "sha256": "8e0659428b6f629893cf68b295e929a20d00e87bef1687977a6dc7fb0cb35580"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/clipboard/ClipboardStatusPolicyTest.kt",
+      "sha256": "201d762a71e6b846a9f8604d790c801ea81c218a6e2fc7918bbb4fb9202b106f"
+    },
+    {
+      "path": "app/src/androidTest/java/io/codecks/ui/clipboard/M15ClipboardPrivacyInstrumentedTest.kt",
+      "sha256": "9c1936a66e00141fc7e720ba19604c4e83935b2b9868d0f650d402df0e36a10e"
+    },
+    {
+      "path": "tools/evidence/collect_m15_clipboard_battery.py",
+      "sha256": "39cbf30be7e53c0b0df93ecf4308bc03de699efcb37485c06fa6e83bc8c18326"
+    },
+    {
+      "path": "tools/evidence/validate_m15_clipboard_battery.py",
+      "sha256": "12c9e614d4319afabe780965d06729e613fc06ef7f6dffc6783b1002406a53a1"
+    },
+    {
+      "path": "tools/evidence/test_m15_clipboard_battery.py",
+      "sha256": "94c2eae310d319d78c7edbdb45d4e99768e580cf39c292ea45c220cb6aed001d"
+    },
+    {
+      "path": "tools/evidence/schemas/autonomous-maturity-m15-clipboard-battery-v1.schema.json",
+      "sha256": "d373cf555307160ed9ce5ace821d77a946b3adc8a3f7d17a499b7900ec74c806"
+    }
+  ],
+  "unitResult": {
+    "path": "tasks/test-evidence/m15-clipboard-battery-cpu.xml",
+    "sha256": "1a4b2d1c093775591968fea99b66185f2e04da95b877b3b4682ad6aaab21f992",
+    "timestamp": "2026-08-11T01:06:19.262Z",
+    "className": "io.codecks.ui.clipboard.M15ClipboardCharacterizationTest",
+    "methods": [
+      "batterySaverStopsAutomaticPollingWithoutChangingSessionAuthority",
+      "clipboardImplementationHasNoWorkerWakeLockOrBackgroundService",
+      "duplicateAndSelfEchoDoNotCreateSyncLoop",
+      "largePayloadIsRepresentedByHashNotClipboardContent",
+      "lastSyncReceiptPersistsOnlyClosedMetadata",
+      "ordinarySynchronizedTextRequestsHiddenSystemPreview",
+      "processRecreationDoesNotRestoreClipboardReadAuthority",
+      "retryBackoffIsBounded",
+      "simultaneousDifferentEditsProduceConflictInsteadOfLastWriterWin",
+      "visibleUnlockedSessionIsTheOnlyAutomaticReadAuthority"
+    ],
+    "tests": 10,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "managedResult": {
+    "artifactKind": "SANITIZED_JUNIT_METADATA",
+    "executedBinaryBinding": "NOT_INCLUDED",
+    "path": "tasks/test-evidence/m15-clipboard-battery-managed.xml",
+    "sha256": "eddfcecf4c0314185b1daf3469fd303af53be8fbdd13a0f9f33267c523b92b50",
+    "timestamp": "2026-08-11T00:44:23",
+    "className": "io.codecks.ui.clipboard.M15ClipboardPrivacyInstrumentedTest",
+    "methods": [
+      "ordinarySynchronizedClipCarriesSensitivePreviewFlag",
+      "synchronizedClipDescriptionUsesGenericLabel"
+    ],
+    "device": "pixel6Api35",
+    "flavor": "playInternal",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "lanes": [
+    {
+      "id": "cpu.visible_session_boundary",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "cpu.battery_saver_policy",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "cpu.duplicate_self_echo",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "cpu.conflict_ordering",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "cpu.large_payload_privacy",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "cpu.last_sync_receipt_privacy",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "cpu.system_preview_policy",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "cpu.bounded_backoff",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "cpu.process_recreation",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "cpu.no_background_worker_wakelock",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "emulator.sensitive_clip_flag",
+      "status": "PASS",
+      "evidence": "MANAGED_EMULATOR_PROXY",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "emulator.foreground_background",
+      "status": "NOT_RUN",
+      "evidence": "RUNTIME_OR_EXTERNAL",
+      "code": "held_or_unavailable"
+    },
+    {
+      "id": "emulator.screen_off_on_lock",
+      "status": "NOT_RUN",
+      "evidence": "RUNTIME_OR_EXTERNAL",
+      "code": "held_or_unavailable"
+    },
+    {
+      "id": "emulator.battery_restrictions",
+      "status": "NOT_RUN",
+      "evidence": "RUNTIME_OR_EXTERNAL",
+      "code": "held_or_unavailable"
+    },
+    {
+      "id": "current_mac.sleep_wake_reconnect",
+      "status": "NOT_RUN",
+      "evidence": "RUNTIME_OR_EXTERNAL",
+      "code": "held_or_unavailable"
+    },
+    {
+      "id": "physical.samsung_clipboard_toast",
+      "status": "NOT_RUN",
+      "evidence": "RUNTIME_OR_EXTERNAL",
+      "code": "held_or_unavailable"
+    },
+    {
+      "id": "physical.battery_characterization",
+      "status": "NOT_RUN",
+      "evidence": "RUNTIME_OR_EXTERNAL",
+      "code": "held_or_unavailable"
+    }
+  ],
+  "privacy": {
+    "clipboardContentRecorded": false,
+    "processOutputRecorded": false,
+    "hostIdentityRecorded": false,
+    "credentialRecorded": false
+  },
+  "summary": {
+    "pass": 11,
+    "fail": 0,
+    "notRun": 6
+  },
+  "limitations": [
+    "CPU tests prove deterministic policy and source wiring, not Android lifecycle behavior.",
+    "Managed API-35 JUnit metadata records the standard sensitive-flag check; APK and executed-binary digests are not bound.",
+    "Foreground/background, screen lock, battery restriction, Samsung toast, and physical battery lanes remain NOT_RUN.",
+    "Mac sleep/wake and reconnect were not changed or exercised in this implementation phase."
+  ]
+}

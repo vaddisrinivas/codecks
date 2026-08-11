@@ -79,6 +79,26 @@ internal fun clipboardAutomaticPollingEligible(
         connectionReady &&
         ClipboardBatteryPolicy.automaticPollingAllowed(phase, batterySaverActive)
 
+/**
+ * Clipboard text arriving from another device is always private to the user.
+ *
+ * Android 13+ and Samsung clipboard surfaces may render a clipboard preview after an app writes
+ * a clip. Mark every synchronized write sensitive, not only strings matched by the heuristic
+ * content guard. The guard still controls whether automatic transfer is allowed.
+ */
+internal fun clipboardSystemPreviewMustBeHidden(): Boolean = true
+
+internal const val LEGACY_CLIP_DESCRIPTION_IS_SENSITIVE = "android.content.extra.IS_SENSITIVE"
+
+/**
+ * `ClipDescription.EXTRA_IS_SENSITIVE` was added in API 33. Never resolve that field on older
+ * Android releases; they use the documented literal compatibility key.
+ */
+internal fun clipboardSensitiveExtrasKey(
+    sdkInt: Int,
+    api33Key: () -> String,
+): String = if (sdkInt >= 33) api33Key() else LEGACY_CLIP_DESCRIPTION_IS_SENSITIVE
+
 internal fun clipboardDiagnosticResult(result: ClipboardTerminalResult): DiagnosticResultCode = when (result) {
     ClipboardTerminalResult.VerifiedSuccess -> DiagnosticResultCode.SUCCEEDED
     ClipboardTerminalResult.AppliedUnverified -> DiagnosticResultCode.RETRYABLE
