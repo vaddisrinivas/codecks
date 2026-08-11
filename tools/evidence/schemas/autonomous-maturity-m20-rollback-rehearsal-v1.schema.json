@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codecks.autonomous-maturity.m20-rollback-rehearsal.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "milestone", "status", "scope", "sourceCommit", "sources", "unitResult", "drill", "lanes", "safety", "summary", "validatorCases", "limitations", "receiptDigest"],
+  "properties": {
+    "schema": {"const": "codecks.autonomous-maturity.m20-rollback-rehearsal.v1"},
+    "milestone": {"const": "M20"},
+    "status": {"const": "PASS"},
+    "scope": {"const": "CPU_FAKE_SOURCE_BOUND"},
+    "sourceCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sources": {
+      "type": "array", "minItems": 9, "maxItems": 9,
+      "items": {"$ref": "#/$defs/digestBinding"}
+    },
+    "unitResult": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256", "className", "methods", "tests", "failures", "errors", "skipped"],
+      "properties": {
+        "path": {"const": "tasks/test-evidence/m20/runtime/TEST-M20RollbackIncidentRehearsalTest.xml"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "className": {"const": "io.codecks.data.persistence.M20RollbackIncidentRehearsalTest"},
+        "methods": {"type": "array", "minItems": 7, "maxItems": 7, "uniqueItems": true, "items": {"type": "string", "minLength": 3, "maxLength": 100}},
+        "tests": {"const": 7}, "failures": {"const": 0}, "errors": {"const": 0}, "skipped": {"const": 0}
+      }
+    },
+    "drill": {
+      "type": "object", "additionalProperties": false,
+      "required": ["startedAtUtc", "completedAtUtc", "recoveryMillis", "scenarioCount", "failureInjectionCount", "controlCount", "outcomes", "followUpActions"],
+      "properties": {
+        "startedAtUtc": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z$"},
+        "completedAtUtc": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z$"},
+        "recoveryMillis": {"type": "integer", "minimum": 0, "maximum": 600000},
+        "scenarioCount": {"const": 29},
+        "failureInjectionCount": {"const": 27},
+        "controlCount": {"const": 2},
+        "outcomes": {
+          "type": "array", "minItems": 29, "maxItems": 29,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["scenario", "result"],
+            "properties": {
+              "scenario": {"type": "string", "pattern": "^[a-z0-9_]{3,64}$"},
+              "result": {"type": "string", "pattern": "^[A-Z0-9_]{3,64}$"}
+            }
+          }
+        },
+        "followUpActions": {"type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z0-9_]{3,64}$"}}
+      }
+    },
+    "lanes": {
+      "type": "array", "minItems": 12, "maxItems": 12,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "status", "evidence"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{2,63}$"},
+          "status": {"enum": ["PASS", "NOT_RUN"]},
+          "evidence": {"enum": ["CPU_UNIT", "EXTERNAL"]}
+        }
+      }
+    },
+    "safety": {
+      "type": "object", "additionalProperties": false,
+      "required": ["protectedPackageTouched", "olderApkInstalled", "physicalDeviceTouched", "productionSigningMaterialAccessed", "destructiveLiveMigrationRun"],
+      "properties": {
+        "protectedPackageTouched": {"const": false},
+        "olderApkInstalled": {"const": false},
+        "physicalDeviceTouched": {"const": false},
+        "productionSigningMaterialAccessed": {"const": false},
+        "destructiveLiveMigrationRun": {"const": false}
+      }
+    },
+    "summary": {
+      "type": "object", "additionalProperties": false, "required": ["pass", "fail", "notRun"],
+      "properties": {"pass": {"const": 7}, "fail": {"const": 0}, "notRun": {"const": 5}}
+    },
+    "validatorCases": {
+      "type": "object", "additionalProperties": false, "required": ["positive", "negative"],
+      "properties": {"positive": {"const": 1}, "negative": {"const": 19}}
+    },
+    "limitations": {"type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true, "items": {"type": "string", "minLength": 12, "maxLength": 180}},
+    "receiptDigest": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "digestBinding": {
+      "type": "object", "additionalProperties": false, "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^(app|docs|scripts|tools)/[A-Za-z0-9_./-]+$", "minLength": 5, "maxLength": 180},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}
