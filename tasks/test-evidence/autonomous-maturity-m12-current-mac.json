@@ -1,0 +1,209 @@
+{
+  "schemaVersion": "m12.current-mac.v1",
+  "generatedAtUtc": "2026-08-11T00:04:51Z",
+  "sourceCommit": "b4562b5b9a770da0ea0f47a66b61ef799463adb2",
+  "bindings": {
+    "evidenceParent": "tasks/AUTONOMOUS_MATURITY_PLAN.md#m12-current-mac-automation-matrix",
+    "evidenceParentSha256": "30e98d7fc0a317ad272b4a21b06295bc93877e1aad87c43d62eeef06ba0fe275",
+    "harnessSha256": "7730051fffe47c354dfe7ed6c4fe8e93a5f710cc0972d331233da0cfeaaebc86",
+    "schemaSha256": "3e45480cdeca7694903b94b5c5bf2e9d1af913e68ebe9efe51fc8265d8731a09"
+  },
+  "environment": {
+    "platform": "macOS",
+    "architecture": "arm64",
+    "macosVersion": "26.5.2",
+    "evidenceScope": "CURRENT_MAC_ONLY"
+  },
+  "safety": {
+    "sleepStateChanged": false,
+    "serviceRestarted": false,
+    "accountChanged": false,
+    "authorizationChanged": false,
+    "keyMaterialChanged": false,
+    "hidStateChanged": false,
+    "clipboardContentRecorded": false
+  },
+  "lanes": [
+    {
+      "id": "platform.current",
+      "status": "PASS",
+      "evidence": "LIVE_CURRENT_MAC",
+      "code": "platform_identified",
+      "durationMs": 23
+    },
+    {
+      "id": "ssh.tcp",
+      "status": "PASS",
+      "evidence": "LIVE_CURRENT_MAC",
+      "code": "ssh_tcp_reachable",
+      "durationMs": 6
+    },
+    {
+      "id": "ssh.read_only_command",
+      "status": "NOT_RUN",
+      "evidence": "LIVE_CURRENT_MAC",
+      "code": "ssh_auth_or_trust_unavailable",
+      "durationMs": 139
+    },
+    {
+      "id": "ssh.bounded_command",
+      "status": "NOT_RUN",
+      "evidence": "LIVE_CURRENT_MAC",
+      "code": "ssh_auth_or_trust_unavailable",
+      "durationMs": 139
+    },
+    {
+      "id": "helper.config_health",
+      "status": "PASS",
+      "evidence": "LIVE_CURRENT_MAC",
+      "code": "helper_config_valid",
+      "durationMs": 21
+    },
+    {
+      "id": "helper.launchd_health",
+      "status": "PASS",
+      "evidence": "LIVE_CURRENT_MAC",
+      "code": "helper_service_running",
+      "durationMs": 17
+    },
+    {
+      "id": "helper.tcp",
+      "status": "PASS",
+      "evidence": "LIVE_CURRENT_MAC",
+      "code": "helper_tcp_reachable",
+      "durationMs": 1
+    },
+    {
+      "id": "clipboard.read_only_bridge",
+      "status": "PASS",
+      "evidence": "READ_ONLY_PROXY",
+      "code": "clipboard_read_discarded",
+      "durationMs": 25
+    },
+    {
+      "id": "power.read_only_proxy",
+      "status": "PASS",
+      "evidence": "READ_ONLY_PROXY",
+      "code": "power_state_queried",
+      "durationMs": 50
+    },
+    {
+      "id": "failure.network_refused",
+      "status": "PASS",
+      "evidence": "INJECTED_FAILURE",
+      "code": "network_failure_classified",
+      "durationMs": 0
+    },
+    {
+      "id": "failure.timeout",
+      "status": "PASS",
+      "evidence": "INJECTED_FAILURE",
+      "code": "timeout_classified",
+      "durationMs": 59
+    },
+    {
+      "id": "failure.output_bound",
+      "status": "PASS",
+      "evidence": "INJECTED_FAILURE",
+      "code": "output_truncated",
+      "durationMs": 41
+    },
+    {
+      "id": "failure.auth_denied",
+      "status": "PASS",
+      "evidence": "INJECTED_FAILURE",
+      "code": "auth_denial_classified",
+      "durationMs": 122
+    },
+    {
+      "id": "failure.host_key_mismatch",
+      "status": "PASS",
+      "evidence": "INJECTED_FAILURE",
+      "code": "host_key_mismatch_classified",
+      "durationMs": 126
+    },
+    {
+      "id": "failure.tool_missing",
+      "status": "PASS",
+      "evidence": "INJECTED_FAILURE",
+      "code": "tool_missing_classified",
+      "durationMs": 7
+    },
+    {
+      "id": "failure.backoff",
+      "status": "PASS",
+      "evidence": "INJECTED_FAILURE",
+      "code": "backoff_bounded",
+      "durationMs": 0
+    },
+    {
+      "id": "mutation.sleep_wake",
+      "status": "NOT_RUN",
+      "evidence": "READ_ONLY_PROXY",
+      "code": "primary_mac_mutation_not_approved",
+      "durationMs": 0
+    },
+    {
+      "id": "mutation.helper_restart",
+      "status": "NOT_RUN",
+      "evidence": "READ_ONLY_PROXY",
+      "code": "primary_service_mutation_not_approved",
+      "durationMs": 0
+    },
+    {
+      "id": "mutation.account",
+      "status": "NOT_RUN",
+      "evidence": "READ_ONLY_PROXY",
+      "code": "account_mutation_not_approved",
+      "durationMs": 0
+    },
+    {
+      "id": "mutation.host_key",
+      "status": "NOT_RUN",
+      "evidence": "READ_ONLY_PROXY",
+      "code": "host_key_mutation_not_approved",
+      "durationMs": 0
+    },
+    {
+      "id": "mutation.permissions",
+      "status": "NOT_RUN",
+      "evidence": "READ_ONLY_PROXY",
+      "code": "permission_mutation_not_approved",
+      "durationMs": 0
+    },
+    {
+      "id": "external.intel",
+      "status": "NOT_RUN",
+      "evidence": "EXTERNAL",
+      "code": "intel_hardware_unavailable",
+      "durationMs": 0
+    },
+    {
+      "id": "external.other_macos",
+      "status": "NOT_RUN",
+      "evidence": "EXTERNAL",
+      "code": "additional_macos_unavailable",
+      "durationMs": 0
+    },
+    {
+      "id": "external.physical_dex",
+      "status": "NOT_RUN",
+      "evidence": "EXTERNAL",
+      "code": "physical_dex_external",
+      "durationMs": 0
+    },
+    {
+      "id": "external.physical_hid",
+      "status": "NOT_RUN",
+      "evidence": "EXTERNAL",
+      "code": "physical_hid_external",
+      "durationMs": 0
+    }
+  ],
+  "summary": {
+    "result": "PASS_WITH_NOT_RUN",
+    "pass": 14,
+    "fail": 0,
+    "notRun": 11
+  }
+}
