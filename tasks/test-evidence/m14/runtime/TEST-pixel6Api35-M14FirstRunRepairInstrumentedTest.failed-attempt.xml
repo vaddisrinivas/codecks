@@ -1,0 +1,51 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="4" failures="1" errors="0" skipped="0" time="255.528" timestamp="2026-08-11T01:07:44" hostname="localhost">
+  <testsuite name="io.codecks.ui.settings.M14FirstRunRepairInstrumentedTest" tests="4" failures="1" errors="0" skipped="0" time="255.214" timestamp="2026-08-11T01:07:44" hostname="localhost">
+    <properties>
+      <property name="device" value="pixel6Api35" />
+      <property name="flavor" value="playInternal" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="authFailureOpensAndFocusesCredentialEditor" classname="io.codecks.ui.settings.M14FirstRunRepairInstrumentedTest" time="43.865" />
+    <testcase name="sleepingMacRetryInvokesTestCallback" classname="io.codecks.ui.settings.M14FirstRunRepairInstrumentedTest" time="36.955" />
+    <testcase name="directResetTrustRequiresConfirmation" classname="io.codecks.ui.settings.M14FirstRunRepairInstrumentedTest" time="101.119">
+      <failure>androidx.compose.ui.test.junit4.android.ComposeNotIdleException: Idling resource timed out: possibly due to compose being busy.
+IdlingResourceRegistry has the following idling resources registered:
+- [busy] androidx.compose.ui.test.ComposeIdlingResource&#64;4f2596b
+All registered idling resources: Compose-Espresso link
+at androidx.compose.ui.test.EspressoLink_androidKt.rethrowWithMoreInfo(EspressoLink.android.kt:133)
+at androidx.compose.ui.test.EspressoLink_androidKt.runEspressoOnIdle(EspressoLink.android.kt:106)
+at androidx.compose.ui.test.EspressoLink.runUntilIdle(EspressoLink.android.kt:82)
+at androidx.compose.ui.test.AndroidComposeUiTestEnvironment.waitForIdle(ComposeUiTest.android.kt:709)
+at androidx.compose.ui.test.AndroidComposeUiTestEnvironment.access$waitForIdle(ComposeUiTest.android.kt:474)
+at androidx.compose.ui.test.AndroidComposeUiTestEnvironment$AndroidComposeUiTestImpl.waitForIdle(ComposeUiTest.android.kt:845)
+at androidx.compose.ui.test.AndroidComposeUiTestEnvironment$AndroidComposeUiTestImpl.runOnIdle(ComposeUiTest.android.kt:839)
+at androidx.compose.ui.test.junit4.AndroidComposeTestRule.runOnIdle(AndroidComposeTestRule.android.kt:475)
+at io.codecks.ui.settings.M14FirstRunRepairInstrumentedTest.directResetTrustRequiresConfirmation(M14FirstRunRepairInstrumentedTest.kt:55)
+... 66 trimmed
+Caused by: androidx.test.espresso.IdlingResourceTimeoutException: Wait for [Compose-Espresso link] to become idle timed out
+at androidx.test.espresso.IdlingPolicy.handleTimeout(IdlingPolicy.java:63)
+at androidx.test.espresso.base.UiControllerImpl$5.resourcesHaveTimedOut(UiControllerImpl.java:421)
+at androidx.test.espresso.base.IdlingResourceRegistry$Dispatcher.handleTimeout(IdlingResourceRegistry.java:536)
+at androidx.test.espresso.base.IdlingResourceRegistry$Dispatcher.handleMessage(IdlingResourceRegistry.java:469)
+at android.os.Handler.dispatchMessage(Handler.java:103)
+at androidx.test.espresso.base.TestLooperManagerCompat.execute(TestLooperManagerCompat.java:121)
+at androidx.test.espresso.base.Interrogator.loopAndInterrogate(Interrogator.java:128)
+at androidx.test.espresso.base.UiControllerImpl.loopUntil(UiControllerImpl.java:513)
+at androidx.test.espresso.base.UiControllerImpl.loopMainThreadUntilIdle(UiControllerImpl.java:434)
+at androidx.test.espresso.Espresso.lambda$onIdle$2(Espresso.java:340)
+at androidx.test.espresso.Espresso$$ExternalSyntheticLambda1.call(D8$$SyntheticClass:0)
+at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+at android.os.Handler.handleCallback(Handler.java:959)
+at android.os.Handler.dispatchMessage(Handler.java:100)
+at android.os.Looper.loopOnce(Looper.java:232)
+at android.os.Looper.loop(Looper.java:317)
+at android.app.ActivityThread.main(ActivityThread.java:8705)
+at java.lang.reflect.Method.invoke(Native Method)
+at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)
+at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)
+</failure>
+    </testcase>
+    <testcase name="changedIdentityRepairInvokesResetTrustCallback" classname="io.codecks.ui.settings.M14FirstRunRepairInstrumentedTest" time="73.275" />
+  </testsuite>
+</testsuites>

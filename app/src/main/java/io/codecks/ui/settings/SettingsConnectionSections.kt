@@ -21,11 +21,13 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.KeyboardType
@@ -308,11 +311,19 @@ internal fun MacConnectionSettingsPanel(
     }
     var advancedOpen by rememberSaveable { mutableStateOf(false) }
     var reactiveHelperPairingJson by rememberSaveable { mutableStateOf("") }
+    var identityReviewOpen by rememberSaveable { mutableStateOf(false) }
     val blockingDiagnostic = state.error?.let { state.connectionDiagnostic() }
+    val credentialRepairRequired = blockingDiagnostic?.repairActions?.contains(
+        ConnectionRepair.ReenterCredentials,
+    ) == true
     val failureFocusRequester = remember { FocusRequester() }
+    val credentialFocusRequester = remember { FocusRequester() }
     val failureKey = blockingDiagnostic?.let { it.issueCode?.name ?: it.state.name }
     LaunchedEffect(failureKey) {
-        if (failureKey != null) failureFocusRequester.requestFocus()
+        if (failureKey != null && !credentialRepairRequired) failureFocusRequester.requestFocus()
+    }
+    LaunchedEffect(credentialRepairRequired) {
+        if (credentialRepairRequired) credentialFocusRequester.requestFocus()
     }
     CodecksPanel(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -434,7 +445,7 @@ internal fun MacConnectionSettingsPanel(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            if (step == MacPairingStep.Authorize) {
+            if (step == MacPairingStep.Authorize || credentialRepairRequired) {
                 OutlinedTextField(
                     value = state.password,
                     onValueChange = onPasswordChange,
@@ -443,7 +454,10 @@ internal fun MacConnectionSettingsPanel(
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(credentialFocusRequester)
+                        .testTag("mac-credential-repair-editor"),
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                     DeckActionButton(
@@ -516,7 +530,7 @@ internal fun MacConnectionSettingsPanel(
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                     DeckActionButton(
                         label = "Reset trust",
-                        onClick = onResetTrust,
+                        onClick = { identityReviewOpen = true },
                         enabled = idle,
                         modifier = Modifier.weight(1f).heightIn(min = 52.dp),
                     )
@@ -549,8 +563,51 @@ internal fun MacConnectionSettingsPanel(
                         .focusRequester(failureFocusRequester)
                         .focusable(),
                 )
+                diagnostic.repairActions.firstOrNull()?.let { repair ->
+                    when (repair) {
+                        ConnectionRepair.RetryNow -> DeckActionButton(
+                            label = repair.label,
+                            onClick = onTest,
+                            enabled = idle,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("mac-repair-retry"),
+                        )
+                        ConnectionRepair.ReviewIdentity -> DeckActionButton(
+                            label = repair.label,
+                            onClick = { identityReviewOpen = true },
+                            enabled = idle,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("mac-repair-identity"),
+                        )
+                        ConnectionRepair.ReenterCredentials -> Unit // Password editor is opened and focused above.
+                        ConnectionRepair.OpenConnectionSetup -> Unit // This panel is the setup destination.
+                        else -> Unit
+                    }
+                }
             }
         }
+    }
+    if (identityReviewOpen) {
+        AlertDialog(
+            onDismissRequest = { identityReviewOpen = false },
+            title = { Text("Review changed Mac identity") },
+            text = {
+                Text("Reset trust only after confirming this is the same Mac. Codecks will require the new fingerprint before reconnecting.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        identityReviewOpen = false
+                        onResetTrust()
+                    },
+                    modifier = Modifier.testTag("mac-repair-identity-confirm"),
+                ) { Text("Reset trust and review") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { identityReviewOpen = false },
+                    modifier = Modifier.testTag("mac-repair-identity-cancel"),
+                ) { Text("Cancel") }
+            },
+        )
     }
 }
 

@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="1" failures="0" errors="0" skipped="0" time="72.676" timestamp="2026-08-11T01:12:00" hostname="localhost">
+  <testsuite name="io.codecks.ui.settings.M14FirstRunRepairInstrumentedTest" tests="1" failures="0" errors="0" skipped="0" time="72.399" timestamp="2026-08-11T01:12:00" hostname="localhost">
+    <properties>
+      <property name="device" value="pixel6Api35" />
+      <property name="flavor" value="playInternal" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="directResetTrustRequiresConfirmation" classname="io.codecks.ui.settings.M14FirstRunRepairInstrumentedTest" time="72.399" />
+  </testsuite>
+</testsuites>
