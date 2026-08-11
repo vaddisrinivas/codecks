@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import copy
 import json
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -26,6 +28,7 @@ from m12_current_mac_lib import (  # noqa: E402
     validate_privacy,
     validate_receipt,
     validate_schema_instance,
+    validate_source_commit,
     write_receipt,
 )
 
@@ -205,6 +208,34 @@ class M12CurrentMacTest(unittest.TestCase):
             mutate(receipt)
             with self.assertRaises(ValueError):
                 validate_receipt(receipt, repo_root=SCRIPTS.parent)
+
+    def test_source_commit_must_exist_and_be_ancestor(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            env = {**os.environ, "GIT_AUTHOR_NAME": "M12 Test", "GIT_AUTHOR_EMAIL": "m12@example.invalid", "GIT_COMMITTER_NAME": "M12 Test", "GIT_COMMITTER_EMAIL": "m12@example.invalid"}
+
+            def git(*args: str) -> str:
+                return subprocess.run(
+                    ["/usr/bin/git", *args], cwd=root, env=env, check=True,
+                    capture_output=True, text=True,
+                ).stdout.strip()
+
+            git("init", "-q")
+            (root / "marker").write_text("ancestor\n", encoding="utf-8")
+            git("add", "marker")
+            git("commit", "-q", "-m", "ancestor")
+            ancestor = git("rev-parse", "HEAD")
+            validate_source_commit(root, ancestor)
+
+            tree = git("write-tree")
+            nonancestor = subprocess.run(
+                ["/usr/bin/git", "commit-tree", tree, "-m", "nonancestor"],
+                cwd=root, env=env, check=True, capture_output=True, text=True,
+            ).stdout.strip()
+            with self.assertRaisesRegex(ValueError, "not an ancestor"):
+                validate_source_commit(root, nonancestor)
+            with self.assertRaisesRegex(ValueError, "missing"):
+                validate_source_commit(root, "f" * 40)
 
     def test_invalid_generation_time_fails_closed(self) -> None:
         receipt = valid_receipt()

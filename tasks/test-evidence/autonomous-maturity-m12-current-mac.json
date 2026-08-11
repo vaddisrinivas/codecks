@@ -5,7 +5,7 @@
   "bindings": {
     "evidenceParent": "tasks/AUTONOMOUS_MATURITY_PLAN.md#m12-current-mac-automation-matrix",
     "evidenceParentSha256": "30e98d7fc0a317ad272b4a21b06295bc93877e1aad87c43d62eeef06ba0fe275",
-    "harnessSha256": "7730051fffe47c354dfe7ed6c4fe8e93a5f710cc0972d331233da0cfeaaebc86",
+    "harnessSha256": "d6847d19e8e3ab83bdfb49fbaa3e16762307c26ce41c90cc535625642ecd8fa7",
     "schemaSha256": "3e45480cdeca7694903b94b5c5bf2e9d1af913e68ebe9efe51fc8265d8731a09"
   },
   "environment": {

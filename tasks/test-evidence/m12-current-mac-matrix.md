@@ -31,6 +31,11 @@ timeout/output, authentication with no accepted method, a temporary synthetic
 public host key (no private key generated), nonexistent tool, and deterministic
 bounded backoff.
 
+`sourceCommit` identifies the evidence baseline and must remain an ancestor of
+the verifying checkout. Exact harness, schema, verifier, and plan bytes are
+bound separately by SHA-256 digests so later integration commits cannot detach
+the receipt from the code that produced it.
+
 Command stdout and stderr are drained concurrently. At most 64 KiB per stream
 is retained in memory; excess bytes are discarded and marked truncated. The
 receipt contains only typed status/code/duration fields and rejects private

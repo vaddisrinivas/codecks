@@ -507,6 +507,27 @@ def safe_source_commit(repo_root: Path) -> str:
     return value
 
 
+def validate_source_commit(repo_root: Path, source_commit: str) -> None:
+    if not re.fullmatch(r"[0-9a-f]{40}", source_commit):
+        raise ValueError("invalid source commit")
+    exists = run_bounded(
+        ["/usr/bin/git", "cat-file", "-e", f"{source_commit}^{{commit}}"],
+        timeout_seconds=2,
+        max_output_bytes=128,
+        cwd=repo_root,
+    )
+    if exists.return_code != 0 or exists.timed_out:
+        raise ValueError("source commit is missing")
+    ancestor = run_bounded(
+        ["/usr/bin/git", "merge-base", "--is-ancestor", source_commit, "HEAD"],
+        timeout_seconds=2,
+        max_output_bytes=128,
+        cwd=repo_root,
+    )
+    if ancestor.return_code != 0 or ancestor.timed_out:
+        raise ValueError("source commit is not an ancestor of HEAD")
+
+
 def collect_current_mac(repo_root: Path, home: Path) -> dict:
     lanes: list[dict] = []
     architecture = platform.machine().lower()
@@ -671,8 +692,8 @@ def validate_receipt(receipt: dict, *, repo_root: Path | None = None) -> None:
         raise ValueError("receipt top-level schema mismatch")
     if not re.fullmatch(r"[0-9a-f]{40}", receipt.get("sourceCommit", "")):
         raise ValueError("invalid source commit")
-    if repo_root is not None and receipt["sourceCommit"] != safe_source_commit(repo_root):
-        raise ValueError("source commit binding mismatch")
+    if repo_root is not None:
+        validate_source_commit(repo_root, receipt["sourceCommit"])
     generated = receipt.get("generatedAtUtc")
     if not isinstance(generated, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", generated):
         raise ValueError("invalid generation time")
