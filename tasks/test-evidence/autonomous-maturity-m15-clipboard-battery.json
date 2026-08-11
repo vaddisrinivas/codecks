@@ -68,11 +68,11 @@
     },
     {
       "path": "tools/evidence/validate_m15_clipboard_battery.py",
-      "sha256": "12c9e614d4319afabe780965d06729e613fc06ef7f6dffc6783b1002406a53a1"
+      "sha256": "8007cbd4b4f0c8e9ec28adba23876baea0f1e88e8d2e2ae7ec7e4dde173329ba"
     },
     {
       "path": "tools/evidence/test_m15_clipboard_battery.py",
-      "sha256": "94c2eae310d319d78c7edbdb45d4e99768e580cf39c292ea45c220cb6aed001d"
+      "sha256": "44bcbd6b7f8152bcf39cb26af451dc0b080b652ab6ec908ad02b802ae984a39e"
     },
     {
       "path": "tools/evidence/schemas/autonomous-maturity-m15-clipboard-battery-v1.schema.json",

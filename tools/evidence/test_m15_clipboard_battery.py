@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -10,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from validate_m15_clipboard_battery import RECEIPT, validate
+from validate_m15_clipboard_battery import RECEIPT, ROOT, validate
 
 
 class M15EvidenceTest(unittest.TestCase):
@@ -36,9 +37,56 @@ class M15EvidenceTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "source digest"):
             validate(path)
 
-    def test_wrong_commit_is_rejected(self) -> None:
+    def test_missing_commit_is_rejected(self) -> None:
         path = self.mutated_receipt(lambda data: data.update({"sourceCommit": "0" * 40}))
-        with self.assertRaisesRegex(ValueError, "source commit"):
+        with self.assertRaisesRegex(ValueError, "source commit object is missing"):
+            validate(path)
+
+    def test_annotated_tag_object_is_rejected_without_peeling(self) -> None:
+        refs = subprocess.run(
+            ["git", "for-each-ref", "refs/tags", "--format=%(objecttype) %(objectname)"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+        annotated_tags = [line.split()[1] for line in refs if line.startswith("tag ")]
+        self.assertTrue(annotated_tags, "test fixture requires one real annotated tag object")
+        tag_object = annotated_tags[0]
+        object_type = subprocess.run(
+            ["git", "cat-file", "-t", tag_object],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        self.assertEqual(object_type, "tag")
+        path = self.mutated_receipt(lambda data: data.update({"sourceCommit": tag_object}))
+        with self.assertRaisesRegex(ValueError, "source commit object type is not commit"):
+            validate(path)
+
+    def test_real_nonancestor_commit_is_rejected(self) -> None:
+        commits = subprocess.run(
+            ["git", "rev-list", "--all", "--not", "HEAD"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+        self.assertTrue(commits, "test fixture requires one real nonancestor commit")
+        nonancestor = commits[0]
+        subprocess.run(
+            ["git", "cat-file", "-e", f"{nonancestor}^{{commit}}"],
+            cwd=ROOT,
+            check=True,
+        )
+        ancestry = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", nonancestor, "HEAD"],
+            cwd=ROOT,
+        )
+        self.assertEqual(ancestry.returncode, 1)
+        path = self.mutated_receipt(lambda data: data.update({"sourceCommit": nonancestor}))
+        with self.assertRaisesRegex(ValueError, "source commit is not an ancestor"):
             validate(path)
 
     def test_runtime_lane_cannot_be_promoted(self) -> None:

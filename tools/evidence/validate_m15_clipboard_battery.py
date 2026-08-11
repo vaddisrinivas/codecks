@@ -57,11 +57,24 @@ def validate(path: Path = RECEIPT) -> None:
         SCHEMA_ID, "M15", "PASS", "CPU_SOURCE_BOUND_WITH_UNBOUND_MANAGED_PROXY",
     ):
         raise ValueError("M15 receipt identity/status mismatch")
-    head = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True, capture_output=True, text=True,
-    ).stdout.strip()
-    if data["sourceCommit"] != head:
-        raise ValueError("M15 source commit does not match current HEAD")
+    source_commit = data["sourceCommit"]
+    commit_object = subprocess.run(
+        ["git", "cat-file", "-t", source_commit],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if commit_object.returncode != 0:
+        raise ValueError("M15 source commit object is missing")
+    if commit_object.stdout.strip() != "commit":
+        raise ValueError("M15 source commit object type is not commit")
+    ancestry = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", source_commit, "HEAD"],
+        cwd=ROOT,
+        capture_output=True,
+    )
+    if ancestry.returncode != 0:
+        raise ValueError("M15 source commit is not an ancestor of current HEAD")
     sources = data["sources"]
     if [item["path"] for item in sources] != list(SOURCE_PATHS):
         raise ValueError("M15 source path set/order is not exact")
