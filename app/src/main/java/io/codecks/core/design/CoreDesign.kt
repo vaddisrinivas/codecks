@@ -51,10 +51,15 @@ object CodecksDesignTokens {
 
         object HomeDeck {
             val suggestionRowHeight = 104.dp
+            val suggestionRowHeightLargeText = 232.dp
             val suggestionCardHeight = 96.dp
+            val suggestionCardHeightLargeText = 224.dp
             val suggestionCardWidth = 92.dp
+            val suggestionCardWidthLargeText = 116.dp
             val suggestionMinWidth = 220.dp
             val suggestionMaxWidth = 280.dp
+            val suggestionMinWidthLargeText = 292.dp
+            val suggestionMaxWidthLargeText = 340.dp
             val landscapeTemplateWidth = 204.dp
             val landscapeCustomWidth = 184.dp
             val adaptiveCell = 116.dp

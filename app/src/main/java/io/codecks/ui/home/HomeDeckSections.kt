@@ -47,6 +47,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import io.codecks.core.design.CodecksDesignTokens
@@ -80,17 +84,28 @@ internal fun SmartSuggestionRow(
     modifier: Modifier = Modifier,
 ) {
     if (suggestions.isEmpty()) return
+    val largeText = LocalDensity.current.fontScale >= 2f
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.sm),
         contentPadding = PaddingValues(vertical = CodecksDesignTokens.Spacing.xs),
-        modifier = modifier.height(CodecksDesignTokens.Size.HomeDeck.suggestionRowHeight),
+        modifier = modifier.height(
+            if (largeText) CodecksDesignTokens.Size.HomeDeck.suggestionRowHeightLargeText
+            else CodecksDesignTokens.Size.HomeDeck.suggestionRowHeight,
+        ),
     ) {
         item {
             Column(
                 verticalArrangement = Arrangement.Center,
                 modifier = Modifier
-                    .height(CodecksDesignTokens.Size.HomeDeck.suggestionCardHeight)
-                    .width(CodecksDesignTokens.Size.HomeDeck.suggestionCardWidth),
+                    .height(
+                        if (largeText) CodecksDesignTokens.Size.HomeDeck.suggestionCardHeightLargeText
+                        else CodecksDesignTokens.Size.HomeDeck.suggestionCardHeight,
+                    )
+                    .width(
+                        if (largeText) CodecksDesignTokens.Size.HomeDeck.suggestionCardWidthLargeText
+                        else CodecksDesignTokens.Size.HomeDeck.suggestionCardWidth,
+                    )
+                    .semantics { heading() },
             ) {
                 Text(
                     text = "Suggested",
@@ -114,7 +129,10 @@ internal fun SmartSuggestionRow(
                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 shape = MaterialTheme.shapes.large,
                 border = BorderStroke(CodecksDesignTokens.Stroke.hairline, MaterialTheme.colorScheme.outline.copy(alpha = CodecksDesignTokens.Opacity.low)),
-                modifier = Modifier.widthIn(min = CodecksDesignTokens.Size.HomeDeck.suggestionMinWidth, max = CodecksDesignTokens.Size.HomeDeck.suggestionMaxWidth),
+                modifier = Modifier.widthIn(
+                    min = if (largeText) CodecksDesignTokens.Size.HomeDeck.suggestionMinWidthLargeText else CodecksDesignTokens.Size.HomeDeck.suggestionMinWidth,
+                    max = if (largeText) CodecksDesignTokens.Size.HomeDeck.suggestionMaxWidthLargeText else CodecksDesignTokens.Size.HomeDeck.suggestionMaxWidth,
+                ).testTag("smart-suggestion-${suggestion.candidateId}"),
             ) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.xxs),
@@ -124,14 +142,16 @@ internal fun SmartSuggestionRow(
                         text = "${suggestion.confidence}: ${suggestion.action.label}",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
+                        maxLines = if (largeText) 2 else 1,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.testTag("smart-suggestion-title-${suggestion.candidateId}"),
                     )
                     Text(
                         text = suggestion.reason,
                         style = MaterialTheme.typography.labelSmall,
-                        maxLines = 1,
+                        maxLines = if (largeText) 3 else 1,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.testTag("smart-suggestion-reason-${suggestion.candidateId}"),
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
                         TextButton(

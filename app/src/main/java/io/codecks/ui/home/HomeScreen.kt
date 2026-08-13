@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
@@ -46,10 +48,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.codecks.domain.ActionStatus
+import io.codecks.core.design.CodecksDesignTokens
 import io.codecks.domain.DeckAction
 import io.codecks.domain.deck.DeckLayout
 import io.codecks.ui.home.smart.SmartDeckSuggestionUi
@@ -427,7 +431,7 @@ private fun CodecksKeybedDeck(
     deckStyle: CodecksDeckStyle,
     modifier: Modifier = Modifier,
 ) {
-    val rows = remember(slots) { packHomeDeckRows(slots, columns = 4) }
+    val largeText = LocalDensity.current.fontScale >= 2f
     val connectionReady = connectionHealth.isReady
     val deckCanvasColor = MaterialTheme.colorScheme.background
     val deckTextColor = MaterialTheme.colorScheme.onBackground
@@ -438,13 +442,21 @@ private fun CodecksKeybedDeck(
             .fillMaxSize()
             .background(deckCanvasColor)
     ) {
+        val deckColumns = if (largeText && maxWidth < 600.dp) 2 else 4
+        val rows = remember(slots, deckColumns) { packHomeDeckRows(slots, columns = deckColumns) }
         val framePadding = when {
             maxWidth >= 900.dp -> 14.dp
             maxWidth >= 600.dp -> 10.dp
             else -> 4.dp
         }
-        val headerHeight = if (maxHeight < 640.dp) 36.dp else 42.dp
-        val suggestionHeight = if (smartSuggestions.isNotEmpty()) 104.dp else 0.dp
+        val headerHeight = when {
+            largeText -> 144.dp
+            maxHeight < 640.dp -> 36.dp
+            else -> 42.dp
+        }
+        val suggestionHeight = if (smartSuggestions.isNotEmpty()) {
+            if (largeText) CodecksDesignTokens.Size.HomeDeck.suggestionRowHeightLargeText else 104.dp
+        } else 0.dp
         val gapX = when {
             maxWidth >= 900.dp -> 12.dp
             maxWidth >= 600.dp -> 10.dp
@@ -452,7 +464,7 @@ private fun CodecksKeybedDeck(
         }
         val usableWidth = (maxWidth - framePadding * 2f).coerceAtLeast(280.dp)
         val usableHeight = (maxHeight - framePadding * 2f - headerHeight - suggestionHeight - 8.dp).coerceAtLeast(280.dp)
-        val keyWidth = ((usableWidth - gapX * 3f) / 4f).coerceAtLeast(68.dp)
+        val keyWidth = ((usableWidth - gapX * (deckColumns - 1).toFloat()) / deckColumns.toFloat()).coerceAtLeast(68.dp)
         val gapY = when {
             maxHeight >= 900.dp -> 12.dp
             maxHeight >= 640.dp -> 8.dp
@@ -460,8 +472,8 @@ private fun CodecksKeybedDeck(
         }
         val rowCount = rows.size.coerceAtLeast(1)
         val keyHeight = ((usableHeight - gapY * (rowCount - 1).toFloat()) / rowCount.toFloat()).coerceAtLeast(52.dp)
-        val keybedWidth = keyWidth * 4f + gapX * 3f
-        val showKeyLabels = keyHeight >= 76.dp
+        val keybedWidth = keyWidth * deckColumns.toFloat() + gapX * (deckColumns - 1).toFloat()
+        val showKeyLabels = largeText || keyHeight >= 76.dp
         val statusText = when {
             !connectionReady -> connectionHealth.title
             activeApp.isNullOrBlank() -> "Mac connected"
@@ -476,12 +488,67 @@ private fun CodecksKeybedDeck(
                 .fillMaxSize()
                 .padding(framePadding),
         ) {
-            Row(
+            val headerModifier = Modifier
+                .width(keybedWidth)
+                .height(headerHeight)
+            if (largeText) Column(
+                verticalArrangement = Arrangement.Center,
+                modifier = headerModifier,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = deckTextColor)
+                    }
+                    IconButton(onClick = onOpenPalette) {
+                        Icon(Icons.Outlined.Search, contentDescription = "Command palette", tint = deckTextColor)
+                    }
+                    Text(
+                        text = activeDeckLabel,
+                        color = deckTextColor,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        modifier = Modifier.weight(1f).testTag("home-deck-title"),
+                    )
+                    Box {
+                        IconButton(onClick = { deckMenuExpanded = true }) {
+                            Icon(Icons.Outlined.MoreVert, contentDescription = "Deck options", tint = deckTextColor)
+                        }
+                        DropdownMenu(
+                            expanded = deckMenuExpanded,
+                            onDismissRequest = { deckMenuExpanded = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(if (customizationMode) "Done customizing" else "Customize on Deck") },
+                                onClick = {
+                                    deckMenuExpanded = false
+                                    onCustomizationModeChange(!customizationMode)
+                                },
+                            )
+                        }
+                    }
+                }
+                Surface(
+                    onClick = onOpenConnection,
+                    color = connectionTone.copy(alpha = if (connectionReady) 0.18f else 0.12f),
+                    contentColor = connectionTone,
+                    shape = MaterialTheme.shapes.large,
+                    border = BorderStroke(1.dp, connectionTone.copy(alpha = 0.42f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = CodecksDesignTokens.Size.minTouchTarget)
+                        .testTag("home-connection-status"),
+                ) {
+                    Text(
+                        text = "$statusText • ${connectionHealth.deckLabel()}",
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp).testTag("home-deck-subtitle"),
+                    )
+                }
+            } else Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .width(keybedWidth)
-                    .height(headerHeight),
+                modifier = headerModifier,
             ) {
                 IconButton(onClick = onOpenSettings) {
                     Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = deckTextColor)
@@ -565,7 +632,9 @@ private fun CodecksKeybedDeck(
             )
             Column(
                 verticalArrangement = Arrangement.spacedBy(gapY),
-                modifier = Modifier.width(keybedWidth),
+                modifier = Modifier
+                    .width(keybedWidth)
+                    .then(if (largeText) Modifier.weight(1f).verticalScroll(rememberScrollState()) else Modifier),
             ) {
                 rows.forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(gapX)) {
@@ -603,7 +672,10 @@ private fun CodecksKeybedDeck(
                                 onLongClick = if (openSlot) null else ({ onOpenOptions(slot) }),
                                 modifier = Modifier
                                     .width(keyWidth * slot.columnSpan.toFloat() + gapX * (slot.columnSpan - 1).toFloat())
-                                    .heightIn(min = keyHeight, max = keyHeight)
+                                    .then(
+                                        if (largeText) Modifier.heightIn(min = 112.dp)
+                                        else Modifier.heightIn(min = keyHeight, max = keyHeight),
+                                    )
                                     .testTag("deck-action-${action.id}"),
                             )
                         }

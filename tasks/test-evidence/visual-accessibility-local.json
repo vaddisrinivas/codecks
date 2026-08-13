@@ -1,0 +1,81 @@
+{
+  "schema": "codecks.visual-accessibility.local.v1",
+  "scope": "LOCAL_DIRTY_WORKTREE_EMULATOR_ONLY",
+  "baseCommit": "5e0bc8fd6d3831bbd70cc310104e46d3b4cdb825",
+  "dirtyDiffSha256": "89a10b4622585a985f59976fc90fdda16c958b09f945db619f29fef49ef08efa",
+  "sources": [
+    {
+      "path": "app/src/main/java/io/codecks/core/design/CoreDesign.kt",
+      "sha256": "b20e20ec05ce75f154967f735c0246bbda65b1be8fb29fc42d41a6d3a28abefe"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/app/CodecksAppShell.kt",
+      "sha256": "030a1ba07755d5858be8b7448492d419085dda8eaef95769886dacf8eade0c7f"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/editor/DeckBlankButtonComposer.kt",
+      "sha256": "95ee01cde11d361f0c0e4e96935648fbdd4f8a3fcbe9df7024970f023e244c91"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/home/HomeDeckSections.kt",
+      "sha256": "805dcc90eb2f8fe05897936d143570bc38a17a2f4b853b35f16d63eb3a37c245"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/home/HomeScreen.kt",
+      "sha256": "8d2b09774e7dbfae13134a25718c6868412407f160fe9bdfc4adab0220bb11ac"
+    },
+    {
+      "path": "app/src/androidTestPlayInternal/java/io/codecks/ui/designsystem/CodecksDesignSystemInstrumentedTest.kt",
+      "sha256": "e2125a4c61e4bb4292949e5fc2244306d146671adab3b0d1dda4782afcbcb861"
+    },
+    {
+      "path": "tools/evidence/visual_accessibility_receipt.py",
+      "sha256": "82379def1f67fa24806a937e3862d4daefcc279ebf41c59fe23ef1493a18ec1e"
+    },
+    {
+      "path": "tools/evidence/test_visual_accessibility_receipt.py",
+      "sha256": "caad66ac9ac97c66a648e042f04e2eddfb13cad5e3a6f41bb33a5415339a7449"
+    }
+  ],
+  "device": {
+    "name": "pixel6Api35",
+    "api": 35,
+    "kind": "EMULATOR",
+    "flavor": "playInternal",
+    "project": ":app"
+  },
+  "result": {
+    "tests": 13,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "xmlPath": "app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/TEST-pixel6Api35-_app-playInternal.xml",
+    "xmlSha256": "51ffca36df361f48ac35c802c1ef9113b7268e47c18528442d2588af0c052ff5"
+  },
+  "artifacts": [
+    {
+      "kind": "app",
+      "path": "app/build/outputs/apk/playInternal/release/app-playInternal-release.apk",
+      "sha256": "ce80936ac33bcd8858ed6389b1928845c5b8b6b68a31cbd76d26307b211dc865"
+    },
+    {
+      "kind": "test",
+      "path": "app/build/outputs/apk/androidTest/playInternal/release/app-playInternal-release-androidTest.apk",
+      "sha256": "5e048e7c8a66aa41841cb61c6b9624efffb3712fe4ca6c1bb41575c63d7b30b8"
+    }
+  ],
+  "claims": [
+    "compact_200_percent_home",
+    "normal_font_four_columns",
+    "compact_200_percent_navigation",
+    "smart_suggestion_reflow",
+    "color_swatch_semantics"
+  ],
+  "excluded": [
+    "physical_phone",
+    "production_package",
+    "tablet_full_matrix",
+    "release_candidate",
+    "commit_bound_proof"
+  ]
+}

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
@@ -20,6 +21,9 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertWidthIsAtLeast
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -67,6 +71,17 @@ import io.codecks.ui.theme.ThemePresetId
 import io.codecks.ui.theme.ThemeContrast
 import io.codecks.ui.settings.CodecksHelperPanel
 import io.codecks.ui.settings.CodecksHelperUiState
+import io.codecks.ui.editor.ColorSwatch
+import io.codecks.ui.home.SmartSuggestionRow
+import io.codecks.ui.home.smart.SmartDeckSuggestionUi
+import io.codecks.domain.ActionIcon
+import io.codecks.domain.ActionKind
+import io.codecks.domain.DeckAction
+import io.codecks.domain.deck.DeckLayout
+import io.codecks.navigation.HomeRoute
+import io.codecks.ui.app.CodecksAppShell
+import io.codecks.ui.home.HomeScreen
+import io.codecks.ui.home.HomeUiState
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import org.junit.Rule
@@ -76,6 +91,160 @@ import org.junit.Assert.assertTrue
 
 class CodecksDesignSystemInstrumentedTest {
     @get:Rule val rule = createAndroidComposeRule<M09ADesignTestActivity>()
+
+    @Test
+    fun blankColorSwatchHasTokenSizedRadioSemantics() {
+        rule.setContent {
+            CodecksTheme {
+                ColorSwatch("#7CFFC4", selected = true, onClick = {})
+            }
+        }
+
+        rule.onNodeWithTag("blank-color-#7CFFC4")
+            .assertHeightIsAtLeast(CodecksDesignTokens.Size.minTouchTarget)
+            .assertWidthIsAtLeast(CodecksDesignTokens.Size.minTouchTarget)
+            .assertIsSelected()
+    }
+
+    @Test
+    fun smartSuggestionReflowsWithoutTruncatingMeaningAtTwoHundredPercentText() {
+        val suggestion = SmartDeckSuggestionUi(
+            candidateId = "large-text",
+            action = DeckAction(
+                id = "open_developer_workspace",
+                label = "Open developer workspace",
+                kind = ActionKind.Local,
+                icon = ActionIcon.Apps,
+                route = "home",
+            ),
+            reason = "Frequently used while the development tools are active",
+            confidence = "Very likely",
+        )
+        rule.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(density = 1f, fontScale = 2f)) {
+                CodecksTheme(mode = CodecksThemeMode.Dark) {
+                    Box(Modifier.size(width = 412.dp, height = 300.dp)) {
+                        SmartSuggestionRow(
+                            suggestions = listOf(suggestion),
+                            runPending = false,
+                            onRun = {}, onPin = {}, onHide = {}, onWhy = {},
+                            onSuppressForContext = {}, onNeverForAction = {},
+                        )
+                    }
+                }
+            }
+        }
+
+        rule.onNodeWithTag("smart-suggestion-large-text").assertHeightIsAtLeast(200.dp)
+        rule.onNodeWithTag("smart-suggestion-title-large-text").assertIsDisplayed()
+        rule.onNodeWithTag("smart-suggestion-reason-large-text").assertIsDisplayed()
+        rule.onNodeWithText("Run").assertHeightIsAtLeast(CodecksDesignTokens.Size.minTouchTarget)
+        rule.onNodeWithText("Pin").assertHeightIsAtLeast(CodecksDesignTokens.Size.minTouchTarget)
+    }
+
+    @Test
+    fun compactHomeReflowsHeaderAndDeckToTwoColumnsAtTwoHundredPercentText() {
+        val actions = (1..8).map { index ->
+            DeckAction(
+                id = "long_action_$index",
+                label = "Long control label $index",
+                kind = ActionKind.Local,
+                icon = ActionIcon.Apps,
+                route = "home",
+            )
+        }
+        rule.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(density = 1f, fontScale = 2f)) {
+                CodecksTheme(mode = CodecksThemeMode.Dark) {
+                    Box(Modifier.size(width = 412.dp, height = 915.dp).testTag("compact-home-200")) {
+                        HomeScreen(
+                            state = HomeUiState(
+                                actions = actions,
+                                deckLayout = DeckLayout.fromActions(actions),
+                                allActions = actions,
+                                connectionReady = true,
+                            ),
+                            contentPadding = PaddingValues(0.dp),
+                            onAction = {},
+                        )
+                    }
+                }
+            }
+        }
+
+        val first = rule.onNodeWithTag("deck-action-long_action_1").fetchSemanticsNode().boundsInRoot
+        val second = rule.onNodeWithTag("deck-action-long_action_2").fetchSemanticsNode().boundsInRoot
+        val third = rule.onNodeWithTag("deck-action-long_action_3").fetchSemanticsNode().boundsInRoot
+        assertEquals(first.top, second.top, 1f)
+        assertTrue("Third action must begin the second row at 200%", third.top > first.bottom)
+        val title = rule.onNodeWithTag("home-deck-title", useUnmergedTree = true).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val subtitle = rule.onNodeWithTag("home-deck-subtitle", useUnmergedTree = true).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val status = rule.onNodeWithTag("home-connection-status").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val root = rule.onNodeWithTag("compact-home-200").fetchSemanticsNode().boundsInRoot
+        assertTrue("Header title and subtitle must not overlap", title.bottom <= subtitle.top)
+        assertTrue("Header content must remain inside capture", title.top >= root.top && subtitle.bottom <= root.bottom)
+        assertTrue("Header and deck must not overlap", status.bottom <= first.top)
+        rule.onNodeWithTag("deck-action-long_action_1").assertHeightIsAtLeast(112.dp)
+        rule.onNodeWithText("Long control label 1", substring = false, useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithTag("compact-home-200").captureToImage().also { image ->
+            assertTrue(image.width > 0 && image.height > image.width)
+        }
+    }
+
+    @Test
+    fun normalFontCompactHomePreservesFourColumnDeck() {
+        val actions = (1..4).map { index ->
+            DeckAction("normal_$index", "Control $index", ActionKind.Local, ActionIcon.Apps, route = "home")
+        }
+        rule.setContent {
+            CodecksTheme {
+                Box(Modifier.size(width = 412.dp, height = 915.dp)) {
+                    HomeScreen(
+                        state = HomeUiState(
+                            actions = actions,
+                            deckLayout = DeckLayout.fromActions(actions),
+                            allActions = actions,
+                        ),
+                        contentPadding = PaddingValues(0.dp),
+                        onAction = {},
+                    )
+                }
+            }
+        }
+
+        val tops = actions.map { rule.onNodeWithTag("deck-action-${it.id}").fetchSemanticsNode().boundsInRoot.top }
+        assertTrue("Normal compact layout must retain four columns", tops.all { kotlin.math.abs(it - tops.first()) < 1f })
+    }
+
+    @Test
+    fun compactBottomNavigationKeepsFullAccessibleNamesAtTwoHundredPercentText() {
+        rule.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(density = 1f, fontScale = 2f)) {
+                CodecksTheme(mode = CodecksThemeMode.Dark) {
+                    Box(Modifier.size(width = 412.dp, height = 915.dp).testTag("compact-shell-200")) {
+                        CodecksAppShell(
+                            snackbarHostState = SnackbarHostState(),
+                            currentRoute = HomeRoute,
+                            backStackSize = 1,
+                            fullscreen = false,
+                            onBack = {},
+                            onDestinationSelected = {},
+                            onOpenSettings = {},
+                            onRequestFullscreen = {},
+                            onExitFullscreen = {},
+                        ) { }
+                    }
+                }
+            }
+        }
+
+        listOf("Deck", "Trackpad", "Keyboard", "Clipboard", "More").forEach { label ->
+            rule.onNodeWithContentDescription(label).assertIsDisplayed()
+        }
+        rule.onNodeWithTag("compact-shell-200").captureToImage().also { image ->
+            assertTrue(image.width > 0 && image.height > image.width)
+        }
+    }
 
     @Test
     fun lockscreenCriticalActionsRemainVisibleAndTouchableAtTwoHundredPercentText() {

@@ -187,6 +187,7 @@ private fun CodecksBottomBar(
     destinations: List<ShellDestination>,
     onDestinationSelected: (NavKey) -> Unit,
 ) {
+    val largeText = LocalDensity.current.fontScale >= 2f
     var moreOpen by rememberSaveable { mutableStateOf(false) }
     val pinned = destinations.filter { it.clearsBackStack }
         .ifEmpty { destinations.take(4) }
@@ -203,18 +204,18 @@ private fun CodecksBottomBar(
             NavigationBarItem(
                 selected = currentRoute == destination.route,
                 onClick = { onDestinationSelected(destination.route) },
-                icon = { Icon(destination.icon, contentDescription = null) },
-                label = {
+                icon = { Icon(destination.icon, contentDescription = if (largeText) destination.label else null) },
+                label = if (largeText) null else {{
                     Text(destination.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                },
+                }},
                 modifier = Modifier.testTag(destination.testTag),
             )
         }
         NavigationBarItem(
             selected = moreSelected,
             onClick = { moreOpen = true },
-            icon = { Icon(Icons.Outlined.MoreHoriz, contentDescription = null) },
-            label = { Text("More") },
+            icon = { Icon(Icons.Outlined.MoreHoriz, contentDescription = if (largeText) "More" else null) },
+            label = if (largeText) null else {{ Text("More") }},
         )
     }
     if (moreOpen) {
