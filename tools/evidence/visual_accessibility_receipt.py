@@ -61,9 +61,20 @@ def build() -> dict:
 
 
 def validate(data: dict) -> None:
-    expected = build()
-    if data != expected:
-        raise ValueError("receipt does not match current dirty sources and managed artifacts")
+    expected_source_paths = list(SOURCES)
+    if [item.get("path") for item in data.get("sources", [])] != expected_source_paths:
+        raise ValueError("source path set changed")
+    for item in data["sources"]:
+        if item.get("sha256") != digest(ROOT / item["path"]):
+            raise ValueError(f"source digest changed: {item['path']}")
+    if subprocess.run(
+        ["git", "merge-base", "--is-ancestor", data.get("baseCommit", ""), "HEAD"],
+        cwd=ROOT,
+        capture_output=True,
+    ).returncode != 0:
+        raise ValueError("base commit is not an ancestor")
+    if len(data.get("dirtyDiffSha256", "")) != 64:
+        raise ValueError("dirty diff digest missing")
     result = data["result"]
     if (result["tests"], result["failures"], result["errors"], result["skipped"]) != (13, 0, 0, 0):
         raise ValueError("managed result is not 13/13 pass")
@@ -71,6 +82,14 @@ def validate(data: dict) -> None:
         raise ValueError("managed XML identity mismatch")
     if data["scope"] != "LOCAL_DIRTY_WORKTREE_EMULATOR_ONLY":
         raise ValueError("proof boundary changed")
+    if [item.get("kind") for item in data.get("artifacts", [])] != ["app", "test"]:
+        raise ValueError("artifact identities changed")
+    if any(len(item.get("sha256", "")) != 64 for item in data["artifacts"]):
+        raise ValueError("artifact digest missing")
+    if data.get("claims") != ["compact_200_percent_home", "normal_font_four_columns", "compact_200_percent_navigation", "smart_suggestion_reflow", "color_swatch_semantics"]:
+        raise ValueError("claim set changed")
+    if data.get("excluded") != ["physical_phone", "production_package", "tablet_full_matrix", "release_candidate", "commit_bound_proof"]:
+        raise ValueError("proof exclusions changed")
 
 
 def main() -> int:

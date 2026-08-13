@@ -30,7 +30,7 @@
     },
     {
       "path": "tools/evidence/visual_accessibility_receipt.py",
-      "sha256": "82379def1f67fa24806a937e3862d4daefcc279ebf41c59fe23ef1493a18ec1e"
+      "sha256": "42290e98dfc839f7571a15741f8021de47095419a45e8464cf40f704a6c3673f"
     },
     {
       "path": "tools/evidence/test_visual_accessibility_receipt.py",
