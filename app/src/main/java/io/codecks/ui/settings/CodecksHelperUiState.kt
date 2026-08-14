@@ -14,12 +14,14 @@ enum class CodecksHelperConnectionKind {
 data class CodecksHelperUiState(
     val pairedDisplayName: String? = null,
     val statusLabel: String = "Not paired",
-    val statusDetail: String = "Install Codecks Mac helper, then import its pairing JSON.",
+    val statusDetail: String = "Install Codecks Mac helper, then scan its pairing QR code.",
     val discoveredCount: Int = 0,
     val canConnect: Boolean = false,
     val canRunActions: Boolean = false,
     val supportCode: ConnectionSupportCode? = null,
     val repairs: List<ConnectionRepair> = emptyList(),
+    val pairingCode: String? = null,
+    val pairingMacName: String? = null,
 ) {
     val hasPairing: Boolean = pairedDisplayName != null
 }
@@ -37,7 +39,7 @@ fun codecksHelperUiState(
         cleanName == null -> CodecksHelperUiState(
             pairedDisplayName = null,
             statusLabel = "Not paired",
-            statusDetail = "Install Codecks Mac helper, then import its pairing JSON.",
+            statusDetail = "Install Codecks Mac helper, then scan its pairing QR code.",
             discoveredCount = discoveredCount,
             canConnect = false,
             canRunActions = false,

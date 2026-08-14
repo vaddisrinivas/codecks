@@ -6,16 +6,18 @@ helper_root="$(cd "$script_dir/.." && pwd)"
 support_dir="${HOME:?}/Library/Application Support/CodecksMacHelper"
 log_dir="${HOME:?}/Library/Logs/CodecksMacHelper"
 agents_dir="${HOME:?}/Library/LaunchAgents"
-binary_path="$support_dir/codecks-mac-helper"
+app_path="$support_dir/Codecks Mac Helper.app"
+binary_path="$app_path/Contents/MacOS/Codecks Mac Helper"
+cli_path="$support_dir/codecks-mac-helper"
 config_path="$support_dir/helper.json"
 plist_path="$agents_dir/app.codecks.mac-helper.plist"
 template_path="$helper_root/launchd/app.codecks.mac-helper.plist.template"
 
 mkdir -p "$support_dir" "$log_dir" "$agents_dir"
 
-swift build --package-path "$helper_root" -c release
-cp "$helper_root/.build/release/codecks-mac-helper" "$binary_path"
-chmod 755 "$binary_path"
+"$helper_root/scripts/build-local-app.sh" "$support_dir"
+cp "$app_path/Contents/MacOS/codecks-mac-helper" "$cli_path"
+chmod 755 "$cli_path"
 
 if [[ ! -f "$config_path" ]]; then
   secret_hex="$(python3 - <<'PY'

@@ -3,9 +3,33 @@ import Network
 
 public protocol ReactiveFrameHandling {
     func handleFrame(_ frame: Data, nowMillis: Int64) throws -> Data
+    func acceptedAuthentication(frame: Data, response: Data) -> Bool
 }
 
-extension ReactiveFramedTransportService: ReactiveFrameHandling {}
+public extension ReactiveFrameHandling {
+    func acceptedAuthentication(frame: Data, response: Data) -> Bool { false }
+}
+
+extension ReactiveFramedTransportService: ReactiveFrameHandling {
+    public func acceptedAuthentication(frame: Data, response: Data) -> Bool {
+        guard
+            let input = try? ReactiveFrameCodec.decode(frame),
+            (try? route(input)) == .proof,
+            let output = try? ReactiveFrameCodec.decode(response),
+            let result = try? JSONDecoder().decode(ReactiveAuthResult.self, from: output)
+        else { return false }
+        return result.accepted
+    }
+}
+
+public enum ReactiveTcpConnectionPolicy {
+    public static let maximumConnections = 16
+    public static let unauthenticatedReadDeadlineMillis = 5_000
+
+    public static func admits(activeConnections: Int) -> Bool {
+        activeConnections >= 0 && activeConnections < maximumConnections
+    }
+}
 
 public final class ReactiveTcpHelperServer: @unchecked Sendable {
     private let port: UInt16
@@ -50,6 +74,10 @@ public final class ReactiveTcpHelperServer: @unchecked Sendable {
     }
 
     private func accept(_ connection: NWConnection) {
+        guard ReactiveTcpConnectionPolicy.admits(activeConnections: connections.count) else {
+            connection.cancel()
+            return
+        }
         let box = NWConnectionBox(connection)
         connections.insert(box)
         connection.stateUpdateHandler = { [weak self, weak box] state in
@@ -61,10 +89,24 @@ public final class ReactiveTcpHelperServer: @unchecked Sendable {
             }
         }
         connection.start(queue: queue)
-        receiveHeader(on: connection)
+        armUnauthenticatedDeadline(for: box)
+        receiveHeader(on: box)
     }
 
-    private func receiveHeader(on connection: NWConnection) {
+    private func armUnauthenticatedDeadline(for box: NWConnectionBox) {
+        box.deadline?.cancel()
+        guard !box.authenticated else { return }
+        let deadline = DispatchWorkItem { [weak self, weak box] in
+            guard let self, let box, self.connections.contains(box), !box.authenticated else { return }
+            box.connection.cancel()
+            self.connections.remove(box)
+        }
+        box.deadline = deadline
+        queue.asyncAfter(deadline: .now() + .milliseconds(ReactiveTcpConnectionPolicy.unauthenticatedReadDeadlineMillis), execute: deadline)
+    }
+
+    private func receiveHeader(on box: NWConnectionBox) {
+        let connection = box.connection
         connection.receive(minimumIncompleteLength: 4, maximumLength: 4) { [weak self, weak connection] data, _, isComplete, error in
             guard let self, let connection else { return }
             guard error == nil, !isComplete, let data, data.count == 4 else {
@@ -76,11 +118,13 @@ public final class ReactiveTcpHelperServer: @unchecked Sendable {
                 connection.cancel()
                 return
             }
-            receivePayload(header: data, length: Int(length), on: connection)
+            self.armUnauthenticatedDeadline(for: box)
+            receivePayload(header: data, length: Int(length), on: box)
         }
     }
 
-    private func receivePayload(header: Data, length: Int, on connection: NWConnection) {
+    private func receivePayload(header: Data, length: Int, on box: NWConnectionBox) {
+        let connection = box.connection
         connection.receive(minimumIncompleteLength: length, maximumLength: length) { [weak self, weak connection] data, _, isComplete, error in
             guard let self, let connection else { return }
             guard error == nil, !isComplete, let data, data.count == length else {
@@ -92,12 +136,18 @@ public final class ReactiveTcpHelperServer: @unchecked Sendable {
             frame.append(data)
             do {
                 let response = try handler.handleFrame(frame, nowMillis: nowMillis())
+                if handler.acceptedAuthentication(frame: frame, response: response) {
+                    box.authenticated = true
+                    box.deadline?.cancel()
+                    box.deadline = nil
+                }
                 connection.send(content: response, completion: .contentProcessed { [weak self, weak connection] error in
-                    guard let self, let connection, error == nil else {
+                    guard let self, connection != nil, error == nil else {
                         connection?.cancel()
                         return
                     }
-                    self.receiveHeader(on: connection)
+                    self.armUnauthenticatedDeadline(for: box)
+                    self.receiveHeader(on: box)
                 })
             } catch {
                 connection.cancel()
@@ -108,6 +158,8 @@ public final class ReactiveTcpHelperServer: @unchecked Sendable {
 
 private final class NWConnectionBox: Hashable, @unchecked Sendable {
     let connection: NWConnection
+    var authenticated = false
+    var deadline: DispatchWorkItem?
 
     init(_ connection: NWConnection) {
         self.connection = connection

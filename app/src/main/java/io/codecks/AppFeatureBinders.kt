@@ -13,6 +13,7 @@ import io.codecks.data.ActionRepository
 import io.codecks.data.CodecksBackupRepository
 import io.codecks.data.ConnectionRepository
 import io.codecks.data.reactive.helper.ReactiveHelperPairingImporter
+import io.codecks.data.reactive.helper.ReactiveHelperPairingV2Client
 import io.codecks.data.reactive.LiveMacStateRepository
 import io.codecks.data.reactive.state.ConnectionRepositorySshMacStateSource
 import io.codecks.data.reactive.state.StateFlowReactiveHelperClientMacStateSource
@@ -26,6 +27,8 @@ import io.codecks.platform.helper.ReactiveHelperIdentityStore
 import io.codecks.platform.helper.ReactiveHelperSecretStore
 import io.codecks.platform.helper.ReactiveHelperSessionManager
 import io.codecks.platform.helper.TcpReactiveHelperTransportFactory
+import java.security.MessageDigest
+import java.util.Base64
 
 internal data class CoreFeatureBindings(
     val hidRepository: HidRepository,
@@ -54,15 +57,21 @@ internal class OptionalFeatureBinders(
             .getString(context.contentResolver, Settings.Secure.ANDROID_ID)
             .orEmpty()
             .ifBlank { "unknown" }
+        val transportFactory = TcpReactiveHelperTransportFactory()
+        val pairingDeviceId = Base64.getUrlEncoder().withoutPadding().encodeToString(
+            MessageDigest.getInstance("SHA-256").digest("codecks-helper:$androidId".encodeToByteArray()).copyOf(16),
+        )
         return HelperFeatureBinding(
             discovery = helperDiscovery.get(),
             identityStore = identityStore,
             pairingImporter = helperPairingImporter.get(),
+            pairingClient = ReactiveHelperPairingV2Client(transportFactory),
+            pairingDeviceId = pairingDeviceId,
             sessionManager = ReactiveHelperSessionManager(
                 identityStore = identityStore,
                 secretStore = secretStore,
-                transportFactory = TcpReactiveHelperTransportFactory(),
-                deviceId = "android-$androidId",
+                transportFactory = transportFactory,
+                deviceId = pairingDeviceId,
             ),
         )
     }
@@ -101,6 +110,8 @@ internal data class HelperFeatureBinding(
     val discovery: ReactiveHelperDiscovery,
     val identityStore: ReactiveHelperIdentityStore,
     val pairingImporter: ReactiveHelperPairingImporter,
+    val pairingClient: ReactiveHelperPairingV2Client,
+    val pairingDeviceId: String,
     val sessionManager: ReactiveHelperSessionManager,
 )
 

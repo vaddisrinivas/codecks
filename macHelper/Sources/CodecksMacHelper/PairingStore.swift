@@ -1,6 +1,7 @@
 import Foundation
 
 public protocol PairingStore {
+    func all() throws -> [ReactivePairingRecord]
     func load(deviceId: String) throws -> ReactivePairingRecord?
     func save(_ record: ReactivePairingRecord) throws
     func revoke(deviceId: String, atMillis: Int64) throws
@@ -14,6 +15,18 @@ public final class FilePairingStore: PairingStore {
     public init(root: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("CodecksMacHelper", isDirectory: true)) {
         self.root = root
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    }
+
+    public func all() throws -> [ReactivePairingRecord] {
+        guard FileManager.default.fileExists(atPath: root.path) else { return [] }
+        let urls = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
+            .filter { $0.lastPathComponent.hasSuffix(".pairing.json") }
+        guard urls.count <= 64 else { throw ReactiveValidationError("pairing record limit exceeded") }
+        return try urls.map { url in
+            let record = try decoder.decode(ReactivePairingRecord.self, from: Data(contentsOf: url))
+            try record.validate()
+            return record
+        }.sorted { $0.createdAtMillis < $1.createdAtMillis }
     }
 
     public func load(deviceId: String) throws -> ReactivePairingRecord? {
@@ -51,6 +64,8 @@ public final class InMemoryPairingStore: PairingStore {
             self.records[record.deviceId] = record
         }
     }
+
+    public func all() throws -> [ReactivePairingRecord] { Array(records.values) }
 
     public func load(deviceId: String) throws -> ReactivePairingRecord? {
         records[deviceId]

@@ -45,13 +45,19 @@ struct HelperSetupView: View {
                 }
                 StatusSection(model: model)
                 PermissionsSection(model: model)
-                LegacySection(snapshot: model.snapshot)
+                PairingSection(model: model)
                 TroubleshootingSection(model: model)
             }
             .padding(28)
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear { model.refresh() }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                model.refreshPairingConfirmation()
+            }
+        }
     }
 }
 
@@ -120,19 +126,51 @@ private struct PermissionsSection: View {
     }
 }
 
-private struct LegacySection: View {
-    let snapshot: HelperSystemSnapshot
+private struct PairingSection: View {
+    @ObservedObject var model: HelperAppModel
 
     var body: some View {
         SetupSection(title: "Pairing", symbol: "iphone.and.arrow.forward") {
-            if snapshot.legacyPairing == .globalSharedSecret {
+            if model.snapshot.legacyPairing == .globalSharedSecret {
                 Label("Legacy pairing detected", systemImage: "exclamationmark.shield")
                     .font(.headline).foregroundStyle(.orange)
                 Text("This installation uses one shared secret for every phone. Keep existing setups only while migration is in progress. Do not share the config file or use it to pair a new phone.")
                     .foregroundStyle(.secondary)
-            } else {
-                Text("New phone pairing is not available in this build. The helper will add a safer per-phone pairing flow before consumer release.")
-                    .foregroundStyle(.secondary)
+            }
+            Text("Pairing authentication protects integrity but does not encrypt the local TCP connection.")
+                .foregroundStyle(.secondary)
+            Button("Create pairing QR code") { model.createPairingOffer() }
+                .controlSize(.large).frame(minHeight: 44)
+            if let payload = model.pairingDeepLink, let image = PairingQRCode.image(payload: payload) {
+                Image(nsImage: image).interpolation(.none).resizable().frame(width: 224, height: 224)
+                    .accessibilityLabel("Codecks pairing QR code")
+            }
+            if let code = model.pairingCode {
+                Text("Compare this code on both screens").font(.headline)
+                Text(code).font(.system(.largeTitle, design: .monospaced).bold())
+                    .accessibilityLabel("Pairing code \(code)")
+                HStack {
+                    Button("Codes match") { model.confirmPairingCode() }.controlSize(.large).frame(minHeight: 44)
+                    Button("Cancel pairing") { model.cancelPairing() }.controlSize(.large).frame(minHeight: 44)
+                }
+            }
+            if !model.pairedDevices.isEmpty {
+                Text("Paired phones").font(.headline)
+                ForEach(model.pairedDevices, id: \.deviceId) { record in
+                    ViewThatFits(in: .horizontal) {
+                        HStack {
+                            Text("Phone • \(record.deviceId.suffix(4))")
+                            Spacer()
+                            Button("Revoke access") { model.revoke(deviceId: record.deviceId) }
+                                .controlSize(.large).frame(minHeight: 44)
+                        }
+                        VStack(alignment: .leading) {
+                            Text("Phone • \(record.deviceId.suffix(4))")
+                            Button("Revoke access") { model.revoke(deviceId: record.deviceId) }
+                                .controlSize(.large).frame(minHeight: 44)
+                        }
+                    }
+                }
             }
         }
     }

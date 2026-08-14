@@ -781,7 +781,6 @@ internal fun CodecksApp(
                                 scope.launch { settingsConnectionSetupController.useSavedPassword() }
                             },
                             onConnectionTest = connectionViewModel::test,
-                            onReactiveHelperPairingImport = helperRuntime.importPairing,
                             onOpenMacHelper = {
                                 appContext.startActivity(
                                     Intent(
@@ -793,6 +792,8 @@ internal fun CodecksApp(
                             codecksHelperState = helperRuntime.uiState,
                             onCodecksHelperConnect = helperRuntime.connect,
                             onCodecksHelperSearch = helperRuntime.runSpotlight,
+                            onCodecksHelperConfirmPairing = helperRuntime.confirmPairing,
+                            onCodecksHelperCancelPairing = helperRuntime.cancelPairing,
                             onNotificationAccess = {
                                 appContext.startActivity(
                                     Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)

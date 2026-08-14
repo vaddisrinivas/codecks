@@ -64,6 +64,68 @@ final class ReactiveMacHelperTests: XCTestCase {
         )
     }
 
+    func testUnknownLegacyEnrollmentIsDisabledAndUnknownCredentialKindDenied() throws {
+        let empty = ReactiveSessionCoordinator(macId: "mac-fixture", helperIdentity: identity, pairingStore: InMemoryPairingStore())
+        XCTAssertThrowsError(try empty.handleHello(ReactiveHello(deviceId: "phone-fixture", clientNonce: "nonce", clientTimeMillis: 1), nowMillis: 1))
+
+        let unknown = ReactivePairingRecord(
+            deviceId: "phone-fixture", helperIdentity: identity, credentialId: "future-kind",
+            createdAtMillis: 1, lastUsedAtMillis: 1
+        )
+        let coordinator = ReactiveSessionCoordinator(macId: "mac-fixture", helperIdentity: identity, pairingStore: InMemoryPairingStore(records: [unknown]))
+        let hello = ReactiveHello(deviceId: "phone-fixture", clientNonce: "nonce", clientTimeMillis: 1)
+        let challenge = try coordinator.handleHello(hello, nowMillis: 1)
+        let auth = ReactiveAuthenticator(secret: secret)
+        let result = try coordinator.handleProof(
+            ReactiveProof(sessionId: challenge.sessionId, proof: auth.hmacHex(clientProofTranscript(hello: hello, challenge: challenge)), pinAcknowledgement: auth.hmacHex(pinAcknowledgementTranscript(challenge: challenge))),
+            secret: secret,
+            nowMillis: 2
+        )
+        XCTAssertFalse(result.accepted)
+    }
+
+    func testKnownLegacyCredentialRemainsCompatible() throws {
+        let known = ReactivePairingRecord(
+            deviceId: "phone-fixture", helperIdentity: identity, credentialId: "hmac-local-pairing",
+            createdAtMillis: 1, lastUsedAtMillis: 1
+        )
+        let coordinator = ReactiveSessionCoordinator(
+            macId: "mac-fixture", helperIdentity: identity,
+            pairingStore: InMemoryPairingStore(records: [known])
+        )
+        XCTAssertTrue(try authenticate(coordinator).accepted)
+    }
+
+    func testControllerRevokeEvictsActiveSession() throws {
+        let record = ReactivePairingRecord(
+            deviceId: "phone-fixture", helperIdentity: identity, credentialId: "hmac-local-pairing",
+            createdAtMillis: 1, lastUsedAtMillis: 1
+        )
+        let records = InMemoryPairingStore(records: [record])
+        let coordinator = ReactiveSessionCoordinator(macId: "mac-fixture", helperIdentity: identity, pairingStore: records)
+        let session = try authenticate(coordinator)
+        let controller = PairingV2Controller(
+            credentials: InMemoryPairingCredentialStore(), records: records, helperIdentity: identity,
+            invalidateSessions: coordinator.evictSessions(deviceId:)
+        )
+        try controller.revoke(deviceId: "phone-fixture", atMillis: 1_500)
+        let response = try coordinator.handleRequest(
+            signedRequest(sessionId: session.sessionId, sequence: 1, requestId: "after-revoke", bodyJson: #"{"type":"basic_state"}"#),
+            nowMillis: 2_000
+        )
+        XCTAssertEqual(response.status, .denied)
+        XCTAssertEqual(response.code, ReactiveErrorCode.authenticationRequired.rawValue)
+        XCTAssertEqual(try records.load(deviceId: "phone-fixture")?.revokedAtMillis, 1_500)
+    }
+
+    func testConnectionPolicyCapsAndBoundsUnauthenticatedCleanup() {
+        XCTAssertTrue(ReactiveTcpConnectionPolicy.admits(activeConnections: 15))
+        XCTAssertFalse(ReactiveTcpConnectionPolicy.admits(activeConnections: 16))
+        XCTAssertFalse(ReactiveTcpConnectionPolicy.admits(activeConnections: 17))
+        XCTAssertEqual(ReactiveTcpConnectionPolicy.maximumConnections, 16)
+        XCTAssertEqual(ReactiveTcpConnectionPolicy.unauthenticatedReadDeadlineMillis, 5_000)
+    }
+
     func testUnsupportedActionDenied() throws {
         let coordinator = makeCoordinator()
         let session = try authenticate(coordinator)
@@ -83,6 +145,7 @@ final class ReactiveMacHelperTests: XCTestCase {
             macId: "mac-fixture",
             helperIdentity: identity,
             pairingStore: InMemoryPairingStore(),
+            allowUnknownLegacyEnrollment: true,
             actionHandlers: [
                 "apple_shortcuts.run": ClosureReactiveHelperActionHandler { request, _ in
                     XCTAssertEqual(request.arguments["shortcutName"], "Daily Standup")
@@ -144,6 +207,7 @@ final class ReactiveMacHelperTests: XCTestCase {
             macId: "mac-fixture",
             helperIdentity: identity,
             pairingStore: InMemoryPairingStore(),
+            allowUnknownLegacyEnrollment: true,
             actionHandlers: [
                 "apple_shortcuts.run": ClosureReactiveHelperActionHandler { request, _ in
                     XCTAssertEqual(request.operationId, "op-transport")
@@ -221,7 +285,7 @@ final class ReactiveMacHelperTests: XCTestCase {
         XCTAssertEqual(config.helperIdentity.helperId, "helper-runtime")
         XCTAssertEqual(config.sharedSecret.count, 32)
 
-        let coordinator = config.makeCoordinator(pairingStore: InMemoryPairingStore())
+        let coordinator = config.makeCoordinator(pairingStore: InMemoryPairingStore(), allowUnknownLegacyEnrollment: true)
         let challenge = try coordinator.handleHello(
             ReactiveHello(deviceId: "phone-runtime", clientNonce: "nonce-runtime", clientTimeMillis: 1_000),
             nowMillis: 1_000
@@ -242,7 +306,8 @@ final class ReactiveMacHelperTests: XCTestCase {
         ReactiveSessionCoordinator(
             macId: "mac-fixture",
             helperIdentity: identity,
-            pairingStore: InMemoryPairingStore()
+            pairingStore: InMemoryPairingStore(),
+            allowUnknownLegacyEnrollment: true
         )
     }
 

@@ -219,7 +219,7 @@ public enum ListenerOwnerParser {
             .filter { $0.first == "c" }
             .map { String($0.dropFirst()) }
         guard !commands.isEmpty else { return .unreachable }
-        return commands.allSatisfy { $0 == "codecks-mac-helper" } ? .verified : .wrongOwner
+        return commands.allSatisfy { $0 == "codecks-mac-helper" || $0 == "Codecks Mac Helper" } ? .verified : .wrongOwner
     }
 }
 

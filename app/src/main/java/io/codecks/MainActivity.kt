@@ -152,13 +152,22 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun acceptIntent(intent: Intent?) {
-        if (RouteRegistry.publicDeepLinkRoute(intent?.dataString, RouteBuildExposure.PUBLIC) == SettingsRoute) {
-            val pairingPrefix = requireNotNull(RouteRegistry.descriptor(SettingsRoute)).publicDeepLinks.single()
-            reactiveHelperPairingJsonFromUri(intent?.dataString, pairingPrefix)?.let { payload ->
-                pendingReactiveHelperPairingJson = payload
-                destinationRequest = RouteRegistry.requestAlias(SettingsRoute)
-                return
+        val dataString = intent?.dataString
+        val pairingPrefix = requireNotNull(RouteRegistry.descriptor(SettingsRoute)).publicDeepLinks.single()
+        val pairingAttempt = dataString?.substringBefore('?')?.substringBefore('#') == pairingPrefix
+        if (pairingAttempt) {
+            // Bootstrap material must not remain reachable through Activity.intent, even when
+            // malformed or rejected. Keep only this bounded local copy for synchronous parsing.
+            setIntent(Intent(Intent.ACTION_MAIN).setPackage(packageName))
+            if (RouteRegistry.publicDeepLinkRoute(dataString, RouteBuildExposure.PUBLIC) == SettingsRoute) {
+                reactiveHelperPairingJsonFromUri(dataString, pairingPrefix)?.let { payload ->
+                    pendingReactiveHelperPairingJson = payload
+                    destinationRequest = RouteRegistry.requestAlias(SettingsRoute)
+                    return
+                }
             }
+            destinationRequest = RouteRegistry.requestAlias(SettingsRoute)
+            return
         }
         destinationRequest = resolveDestinationRequest(
             action = intent?.action,

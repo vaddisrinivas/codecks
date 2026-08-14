@@ -15,6 +15,9 @@ import io.codecks.domain.smart.SmartMacId
 import io.codecks.platform.helper.ReactiveHelperEndpoint
 import io.codecks.platform.helper.ReactiveHelperSessionStatus
 import io.codecks.platform.helper.StoredReactiveHelperIdentity
+import io.codecks.data.reactive.helper.PendingReactiveHelperPairing
+import java.security.SecureRandom
+import java.util.Base64
 import io.codecks.shared.protocol.ReactiveHelperRequest
 import io.codecks.ui.settings.CodecksHelperConnectionKind
 import io.codecks.ui.settings.CodecksHelperUiState
@@ -31,7 +34,9 @@ import kotlinx.coroutines.withContext
 internal data class HelperRuntime(
     val binding: HelperFeatureBinding?,
     val uiState: CodecksHelperUiState,
-    val importPairing: (String) -> Unit,
+    val pendingPairing: PendingReactiveHelperPairing?,
+    val confirmPairing: () -> Unit,
+    val cancelPairing: () -> Unit,
     val connect: () -> Unit,
     val runSpotlight: (String) -> Unit,
 )
@@ -57,6 +62,7 @@ internal fun rememberHelperRuntime(
         bindings.optional.bindForStartup(helperRequired) { appContext }
     }
     var identities by remember { mutableStateOf<List<StoredReactiveHelperIdentity>>(emptyList()) }
+    var pendingPairing by remember { mutableStateOf<PendingReactiveHelperPairing?>(null) }
 
     fun refreshIdentities() {
         val identityStore = binding?.identityStore ?: return
@@ -65,15 +71,29 @@ internal fun rememberHelperRuntime(
         }
     }
 
-    val importPairing: (String) -> Unit = { payload ->
+    fun startPairing(payload: String) {
         scope.launch {
             val result = withContext(Dispatchers.IO) {
-                runCatching { requireNotNull(binding).pairingImporter.importJson(payload) }
+                runCatching {
+                    val active = requireNotNull(binding)
+                    val nonceBytes = ByteArray(16).also(SecureRandom()::nextBytes)
+                    val prepared = active.pairingImporter.prepareV2(
+                        payload, active.pairingDeviceId,
+                        Base64.getUrlEncoder().withoutPadding().encodeToString(nonceBytes),
+                    )
+                    try {
+                        active.pairingClient.begin(prepared)
+                        prepared
+                    } catch (failure: Throwable) {
+                        prepared.zeroize()
+                        throw failure
+                    }
+                }
             }
-            if (result.isSuccess) refreshIdentities()
+            result.onSuccess { pendingPairing?.zeroize(); pendingPairing = it }
             snackbarHostState.showSnackbar(
                 result.fold(
-                    onSuccess = { "Codecks helper paired: ${it.displayName}" },
+                    onSuccess = { "Compare the pairing code on both screens" },
                     onFailure = { "Helper pairing failed (${ConnectionSupportCode.HelperFailed.value})" },
                 ),
             )
@@ -86,15 +106,8 @@ internal fun rememberHelperRuntime(
     }
     LaunchedEffect(pendingPairingJson, binding) {
         val payload = pendingPairingJson ?: return@LaunchedEffect
-        val pairingImporter = binding?.pairingImporter ?: return@LaunchedEffect
-        val result = withContext(Dispatchers.IO) { runCatching { pairingImporter.importJson(payload) } }
-        if (result.isSuccess) refreshIdentities()
-        snackbarHostState.showSnackbar(
-            result.fold(
-                onSuccess = { "Codecks helper paired: ${it.displayName}" },
-                onFailure = { "Helper pairing failed (${ConnectionSupportCode.HelperFailed.value})" },
-            ),
-        )
+        if (binding == null) return@LaunchedEffect
+        startPairing(payload)
         onPendingPairingConsumed()
     }
 
@@ -152,7 +165,7 @@ internal fun rememberHelperRuntime(
         discoveredCount = discoveredHelpers.size,
         hasSavedEndpoint = hasSavedEndpoint,
         presentation = helperPresentation,
-    )
+    ).copy(pairingCode = pendingPairing?.matchingCode, pairingMacName = pendingPairing?.offer?.displayName)
     val connect: () -> Unit = {
         scope.launch {
             val helperEndpoint = endpoint()
@@ -218,11 +231,35 @@ internal fun rememberHelperRuntime(
             )
         }
     }
+    val confirmPairing: () -> Unit = confirm@{
+        val value = pendingPairing ?: return@confirm
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val active = requireNotNull(binding)
+                    val acceptance = active.pairingClient.finish(value)
+                    active.pairingImporter.commitConfirmed(value, acceptance)
+                }
+            }
+            result.onSuccess { pendingPairing = null; refreshIdentities() }
+            snackbarHostState.showSnackbar(result.fold(
+                onSuccess = { "Codecks helper paired: ${it.displayName}" },
+                onFailure = { "Pairing confirmation failed (${ConnectionSupportCode.HelperFailed.value})" },
+            ))
+        }
+    }
+    val cancelPairing: () -> Unit = { pendingPairing?.zeroize(); pendingPairing = null }
+    DisposableEffect(pendingPairing) {
+        val captured = pendingPairing
+        onDispose { captured?.zeroize() }
+    }
 
     return HelperRuntime(
         binding = binding,
         uiState = uiState,
-        importPairing = importPairing,
+        pendingPairing = pendingPairing,
+        confirmPairing = confirmPairing,
+        cancelPairing = cancelPairing,
         connect = connect,
         runSpotlight = runSpotlight,
     )

@@ -14,10 +14,13 @@ cleanup() { rm -rf "$staging_root" "$backup_path"; }
 trap cleanup EXIT
 
 swift build --package-path "$helper_root" -c release --product "Codecks Mac Helper"
+swift build --package-path "$helper_root" -c release --product "codecks-mac-helper"
 mkdir -p "$contents/MacOS" "$contents/Resources"
 cp "$helper_root/.build/release/Codecks Mac Helper" "$contents/MacOS/Codecks Mac Helper"
+cp "$helper_root/.build/release/codecks-mac-helper" "$contents/MacOS/codecks-mac-helper"
 cp "$helper_root/Resources/Info.plist" "$contents/Info.plist"
 chmod 755 "$contents/MacOS/Codecks Mac Helper"
+chmod 755 "$contents/MacOS/codecks-mac-helper"
 
 rm -rf "$backup_path"
 if [[ -e "$app_path" ]]; then

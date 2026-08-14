@@ -113,11 +113,12 @@ fun SettingsScreen(
     onConnectionSavePassword: () -> Unit = {},
     onConnectionUseSavedPassword: () -> Unit = {},
     onConnectionTest: () -> Unit = {},
-    onReactiveHelperPairingImport: (String) -> Unit = {},
     onOpenMacHelper: () -> Unit = {},
     codecksHelperState: CodecksHelperUiState = CodecksHelperUiState(),
     onCodecksHelperConnect: () -> Unit = {},
     onCodecksHelperSearch: (String) -> Unit = {},
+    onCodecksHelperConfirmPairing: () -> Unit = {},
+    onCodecksHelperCancelPairing: () -> Unit = {},
     onNotificationAccess: () -> Unit,
     onNotificationPrivacyChange: ((NotificationPrivacySettings) -> NotificationPrivacySettings) -> Unit = {},
     onAutomations: () -> Unit,
@@ -226,6 +227,8 @@ fun SettingsScreen(
                         onConnect = onCodecksHelperConnect,
                         onOpenSetup = { macConnectionOpen = true },
                         onSearch = onCodecksHelperSearch,
+                        onConfirmPairing = onCodecksHelperConfirmPairing,
+                        onCancelPairing = onCodecksHelperCancelPairing,
                     )
                 }
                 item {
@@ -257,7 +260,6 @@ fun SettingsScreen(
                             onSavePassword = onConnectionSavePassword,
                             onUseSavedPassword = onConnectionUseSavedPassword,
                             onTest = onConnectionTest,
-                            onReactiveHelperPairingImport = onReactiveHelperPairingImport,
                             onOpenMacHelper = onOpenMacHelper,
                         )
                     }

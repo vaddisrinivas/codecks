@@ -138,6 +138,8 @@ internal fun CodecksHelperPanel(
     onConnect: () -> Unit,
     onOpenSetup: () -> Unit,
     onSearch: (String) -> Unit,
+    onConfirmPairing: () -> Unit,
+    onCancelPairing: () -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("Codecks") }
     val largeText = LocalDensity.current.fontScale >= 2f
@@ -185,6 +187,20 @@ internal fun CodecksHelperPanel(
                     color = colors.contentMuted,
                 )
             }
+            state.pairingCode?.let { code ->
+                AccessibleStatus(
+                    stateDescription = "Pairing confirmation required",
+                    detail = "Compare $code with ${state.pairingMacName ?: "your Mac"}. Confirm only if both codes match.",
+                    kind = AccessibleStatusKind.Information,
+                    announceChanges = true,
+                )
+                Text(code, style = MaterialTheme.typography.headlineMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Grid.standardGap), modifier = Modifier.fillMaxWidth()) {
+                    DeckActionButton("Codes match", onConfirmPairing, modifier = Modifier.weight(1f).heightIn(min = CodecksDesignTokens.Size.minTouchTarget))
+                    DeckActionButton("Cancel pairing", onCancelPairing, modifier = Modifier.weight(1f).heightIn(min = CodecksDesignTokens.Size.minTouchTarget))
+                }
+                Text("Pairing authentication protects integrity but does not encrypt this local TCP connection.", style = MaterialTheme.typography.bodySmall, color = colors.contentMuted)
+            }
             if (largeText) Column(verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Grid.standardGap)) {
                 DeckActionButton(
                     label = if (state.statusLabel == "Connecting…") "Connecting…" else connectRepair?.label ?: "Connect helper",
@@ -194,7 +210,7 @@ internal fun CodecksHelperPanel(
                     modifier = Modifier.fillMaxWidth().heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
                 )
                 DeckActionButton(
-                    label = setupRepair?.label ?: if (state.hasPairing) "Pairing JSON" else "Open setup",
+                    label = setupRepair?.label ?: if (state.hasPairing) "Pairing details" else "Open setup",
                     onClick = onOpenSetup,
                     enabled = true,
                     icon = Icons.Outlined.Terminal,
@@ -209,7 +225,7 @@ internal fun CodecksHelperPanel(
                     modifier = Modifier.weight(1f).heightIn(min = CodecksDesignTokens.Size.minTouchTarget),
                 )
                 DeckActionButton(
-                    label = setupRepair?.label ?: if (state.hasPairing) "Pairing JSON" else "Open setup",
+                    label = setupRepair?.label ?: if (state.hasPairing) "Pairing details" else "Open setup",
                     onClick = onOpenSetup,
                     enabled = true,
                     icon = Icons.Outlined.Terminal,
@@ -285,7 +301,6 @@ internal fun MacConnectionSettingsPanel(
     onSavePassword: () -> Unit,
     onUseSavedPassword: () -> Unit,
     onTest: () -> Unit,
-    onReactiveHelperPairingImport: (String) -> Unit,
     onOpenMacHelper: () -> Unit,
 ) {
     val parsedPort = state.port.toIntOrNull()
@@ -310,7 +325,6 @@ internal fun MacConnectionSettingsPanel(
         -> MacPairingStep.Done
     }
     var advancedOpen by rememberSaveable { mutableStateOf(false) }
-    var reactiveHelperPairingJson by rememberSaveable { mutableStateOf("") }
     var identityReviewOpen by rememberSaveable { mutableStateOf(false) }
     val blockingDiagnostic = state.error?.let { state.connectionDiagnostic() }
     val credentialRepairRequired = blockingDiagnostic?.repairActions?.contains(
@@ -494,24 +508,6 @@ internal fun MacConnectionSettingsPanel(
                     title = "Open GitHub helper page",
                     summary = "Browser-only fallback with copyable JS snippets. Use this only if in-app SSH pairing gets stuck.",
                     onClick = onOpenMacHelper,
-                )
-                OutlinedTextField(
-                    value = reactiveHelperPairingJson,
-                    onValueChange = { reactiveHelperPairingJson = it },
-                    label = { Text("Codecks helper pairing JSON") },
-                    supportingText = { Text("Paste output from: codecks-mac-helper print-pairing-json") },
-                    minLines = 2,
-                    maxLines = 5,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                DeckActionButton(
-                    label = "Import helper pairing",
-                    onClick = {
-                        onReactiveHelperPairingImport(reactiveHelperPairingJson)
-                        reactiveHelperPairingJson = ""
-                    },
-                    enabled = reactiveHelperPairingJson.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                     DeckActionButton(
