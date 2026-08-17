@@ -37,27 +37,26 @@ ANDROID_HOME="$ANDROID_SDK_ROOT" ./gradlew --no-daemon \
 
 PACKAGE_XML_LIST="$(find "$IMAGE_ROOT" -mindepth 2 -maxdepth 2 -name package.xml -print 2>/dev/null || true)"
 PACKAGE_XML_COUNT="$(printf '%s\n' "$PACKAGE_XML_LIST" | awk 'NF { count += 1 } END { print count + 0 }')"
-RECEIPT="$REPO_ROOT/app/build/outputs/m10-image-api-${API}-${SHAPE}.txt"
-mkdir -p "$(dirname "$RECEIPT")"
-if [[ "$PACKAGE_XML_COUNT" == 1 ]]; then
-  PACKAGE_XML="$PACKAGE_XML_LIST"
-  if command -v sha256sum >/dev/null 2>&1; then
-    PACKAGE_DIGEST="$(sha256sum "$PACKAGE_XML" | awk '{print $1}')"
-  else
-    PACKAGE_DIGEST="$(shasum -a 256 "$PACKAGE_XML" | awk '{print $1}')"
-  fi
-  {
-    echo "status=PASS"
-    echo "evidence=AUTONOMOUS_PROXY"
-    echo "api=$API"
-    echo "shape=$SHAPE"
-    echo "system_image_source=aosp"
-    echo "package_path=${PACKAGE_XML#"$ANDROID_SDK_ROOT/"}"
-    echo "package_xml_sha256=$PACKAGE_DIGEST"
-  } > "$RECEIPT"
-else
-  echo "status=FAIL reason=installed_image_receipt_count_${PACKAGE_XML_COUNT} api=$API shape=$SHAPE" > "$RECEIPT"
+RECEIPT="$REPO_ROOT/app/build/outputs/m10-managed-api-${API}-${SHAPE}.json"
+if [[ "$PACKAGE_XML_COUNT" != 1 ]]; then
   echo "M10 failed: expected exactly one installed AOSP package receipt under $IMAGE_ROOT" >&2
   exit 5
 fi
-echo "M10 image receipt: $RECEIPT"
+PACKAGE_XML="$PACKAGE_XML_LIST"
+DEVICE_NAME="m10${PROFILE}Api${API}"
+RESULT_DIR="$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/debug/flavors/oss/$DEVICE_NAME"
+TARGET_APK="$REPO_ROOT/app/build/outputs/apk/oss/debug/app-oss-debug.apk"
+TEST_APK="$REPO_ROOT/app/build/outputs/apk/androidTest/oss/debug/app-oss-debug-androidTest.apk"
+python3 "$REPO_ROOT/tools/evidence/m10_managed_receipt.py" \
+  --root "$REPO_ROOT" \
+  --sdk "$ANDROID_SDK_ROOT" \
+  --api "$API" \
+  --shape "$SHAPE" \
+  --task "$TASK" \
+  --result-dir "$RESULT_DIR" \
+  --target-apk "$TARGET_APK" \
+  --test-apk "$TEST_APK" \
+  --image-package "$PACKAGE_XML" \
+  --output "$RECEIPT"
+python3 "$REPO_ROOT/tools/evidence/m10_managed_receipt.py" \
+  --root "$REPO_ROOT" --sdk "$ANDROID_SDK_ROOT" --verify "$RECEIPT"

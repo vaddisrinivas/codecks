@@ -71,6 +71,6 @@ jobs:
             app/build/reports/androidTests
             app/build/outputs/androidTest-results
             app/build/outputs/managed_device_android_test_additional_output
-            app/build/outputs/m10-image-api-*.txt
+            app/build/outputs/m10-managed-api-*.json
           if-no-files-found: ignore
           retention-days: 14

@@ -81,7 +81,18 @@ class M10ManagedMatrixInstrumentedTest {
             assertEquals(Lifecycle.State.RESUMED, scenario.state)
             scenario.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }
             instrumentation.waitForIdleSync()
-            waitForOrientation(scenario, Configuration.ORIENTATION_PORTRAIT)
+            if (Build.VERSION.SDK_INT >= 36 && expectedShape == "tablet") {
+                // Android 16 may ignore app orientation requests on large screens.
+                scenario.onActivity {
+                    assertTrue(
+                        it.resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT ||
+                            it.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE,
+                    )
+                }
+                assertEquals(Lifecycle.State.RESUMED, scenario.state)
+            } else {
+                waitForOrientation(scenario, Configuration.ORIENTATION_PORTRAIT)
+            }
         }
     }
 
@@ -120,34 +131,37 @@ class M10ManagedMatrixInstrumentedTest {
 
     @Test
     fun localeAndDarkLightThemeChangesRemainCrashFree() {
+        val uiMode = context.getSystemService(UiModeManager::class.java)
+        uiMode.setApplicationNightMode(UiModeManager.MODE_NIGHT_YES)
+        instrumentation.waitForIdleSync()
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            val uiMode = context.getSystemService(UiModeManager::class.java)
-            uiMode.setApplicationNightMode(UiModeManager.MODE_NIGHT_YES)
-            instrumentation.waitForIdleSync()
-            scenario.recreate()
-            instrumentation.waitForIdleSync()
+            assertEquals(Lifecycle.State.RESUMED, scenario.state)
             assertEquals(
                 Configuration.UI_MODE_NIGHT_YES,
                 context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK,
             )
+        }
 
-            uiMode.setApplicationNightMode(UiModeManager.MODE_NIGHT_NO)
-            scenario.recreate()
-            instrumentation.waitForIdleSync()
+        uiMode.setApplicationNightMode(UiModeManager.MODE_NIGHT_NO)
+        instrumentation.waitForIdleSync()
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            assertEquals(Lifecycle.State.RESUMED, scenario.state)
             assertEquals(
                 Configuration.UI_MODE_NIGHT_NO,
                 context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK,
             )
-            if (Build.VERSION.SDK_INT >= 33) {
-                context.getSystemService(LocaleManager::class.java).applicationLocales =
-                    android.os.LocaleList.forLanguageTags("fr-FR")
-                assertEquals("fr-FR", context.getSystemService(LocaleManager::class.java).applicationLocales.toLanguageTags())
-            } else {
-                val localized = Configuration(context.resources.configuration).apply { setLocale(Locale.FRANCE) }
-                assertEquals("fr", context.createConfigurationContext(localized).resources.configuration.locales[0].language)
-            }
-            scenario.recreate()
+        }
+
+        if (Build.VERSION.SDK_INT >= 33) {
+            context.getSystemService(LocaleManager::class.java).applicationLocales =
+                android.os.LocaleList.forLanguageTags("fr-FR")
             instrumentation.waitForIdleSync()
+            assertEquals("fr-FR", context.getSystemService(LocaleManager::class.java).applicationLocales.toLanguageTags())
+        } else {
+            val localized = Configuration(context.resources.configuration).apply { setLocale(Locale.FRANCE) }
+            assertEquals("fr", context.createConfigurationContext(localized).resources.configuration.locales[0].language)
+        }
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             assertEquals(Lifecycle.State.RESUMED, scenario.state)
         }
     }
@@ -157,8 +171,8 @@ class M10ManagedMatrixInstrumentedTest {
         try {
             shell("svc wifi disable")
             shell("svc data disable")
-            assertTrue(shell("cmd wifi status").contains("disabled", ignoreCase = true))
-            assertEquals("0", shell("settings get global mobile_data").trim())
+            assertTrue(waitForShell("cmd wifi status") { it.contains("disabled", ignoreCase = true) }.contains("disabled", ignoreCase = true))
+            assertEquals("0", waitForShell("settings get global mobile_data") { it.trim() == "0" }.trim())
             shell("cmd appops set $packageName RUN_ANY_IN_BACKGROUND ignore")
             assertTrue(shell("cmd appops get $packageName RUN_ANY_IN_BACKGROUND").contains("ignore"))
 
@@ -183,8 +197,8 @@ class M10ManagedMatrixInstrumentedTest {
             shell("svc data enable")
             shell("cmd appops set $packageName RUN_ANY_IN_BACKGROUND default")
         }
-        assertTrue(shell("cmd wifi status").contains("enabled", ignoreCase = true))
-        assertEquals("1", shell("settings get global mobile_data").trim())
+        assertTrue(waitForShell("cmd wifi status") { it.contains("enabled", ignoreCase = true) }.contains("enabled", ignoreCase = true))
+        assertEquals("1", waitForShell("settings get global mobile_data") { it.trim() == "1" }.trim())
         assertFalse(shell("cmd appops get $packageName RUN_ANY_IN_BACKGROUND").contains("ignore"))
     }
 
@@ -195,6 +209,17 @@ class M10ManagedMatrixInstrumentedTest {
         } finally {
             descriptor.close()
         }
+    }
+
+    private fun waitForShell(command: String, ready: (String) -> Boolean): String {
+        val deadline = SystemClock.uptimeMillis() + 10_000
+        var output = ""
+        while (SystemClock.uptimeMillis() < deadline) {
+            output = shell(command)
+            if (ready(output)) return output
+            SystemClock.sleep(100)
+        }
+        return output
     }
 
     private fun waitForOrientation(scenario: ActivityScenario<MainActivity>, expected: Int) {

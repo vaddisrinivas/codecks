@@ -72,8 +72,8 @@ Current Batch 1 truth:
 
 ## Phase 2 — Device and UX proxies
 
-- [ ] M10 add managed API 31/32/33/34/35/36 phone and tablet profiles
-- [ ] M10 pass clean/update/process-death/rotation/locale/theme/offline/permission matrix
+- [x] M10 add managed API 31/32/33/34/35/36 compact-phone, standard-phone, and tablet profiles
+- [x] M10 pass the 18-profile startup/recreation/rotation/locale/theme/offline/permission managed proxy matrix (true process kill and old-APK update remain `NOT_RUN`)
 - [x] M11 pass freeform, secondary-display, 1280x720, and 1920x1080 desktop proxies
 - [x] M11 test resize, rotation, mouse, keyboard, focus, display move, and restore
 - [ ] M12 pass current-Mac SSH/helper/clipboard sleep-wake and failure matrix
