@@ -36,7 +36,7 @@ Codecks support bundles contain categories and stable codes, never endpoint name
 
 | Code | Meaning | Repair |
 |---|---|---|
-| `CX-HLP-SETUP` | Helper pairing is missing | Import pairing from the Codecks Mac helper. |
+| `CX-HLP-SETUP` | Helper pairing is missing | In the Mac helper, create a pairing QR code. Scan it with the phone's system Camera, then confirm that the six-digit codes match on both screens. |
 | `CX-HLP-IDLE` | The paired helper is disconnected | Open the helper and reconnect. |
 | `CX-HLP-NO-ENDPOINT` | The helper endpoint is unavailable | Open Codecks helper on the Mac. |
 | `CX-HLP-CONNECT` | The helper is connecting | Wait for authentication to finish. |

@@ -21,82 +21,93 @@
   },
   "claims": {
     "corpusManifestValid": true,
-    "deterministicPipelineEvaluated": false,
-    "generatedOutputPolicyEvaluatedByUnitGate": false,
+    "deterministicPipelineEvaluated": true,
+    "generatedOutputPolicyEvaluatedByUnitGate": true,
     "providerQualityEvaluated": false
   },
   "combinedMetrics": {
     "actionableFailure": {
-      "passed": null,
-      "status": "NOT_RUN",
+      "passed": 48,
+      "rate": 1.0,
+      "status": "PASS",
       "threshold": 1.0,
-      "total": null
+      "total": 48
     },
     "artifactCodecRoundTrip": {
-      "passed": null,
-      "status": "NOT_RUN",
+      "passed": 72,
+      "rate": 1.0,
+      "status": "PASS",
       "threshold": 1.0,
-      "total": null
+      "total": 72
     },
     "artifactConversion": {
-      "passed": null,
-      "status": "NOT_RUN",
+      "passed": 72,
+      "rate": 1.0,
+      "status": "PASS",
       "threshold": 1.0,
-      "total": null
+      "total": 72
     },
     "bypassActionable": {
-      "passed": null,
-      "status": "NOT_RUN",
+      "passed": 19,
+      "rate": 1.0,
+      "status": "PASS",
       "threshold": 1.0,
-      "total": null
+      "total": 19
     },
     "caseOutcome": {
-      "passed": null,
-      "status": "NOT_RUN",
+      "passed": 120,
+      "rate": 1.0,
+      "status": "PASS",
       "threshold": 1.0,
-      "total": null
+      "total": 120
     },
     "disabledAutomation": {
-      "passed": null,
-      "status": "NOT_RUN",
+      "passed": 24,
+      "rate": 1.0,
+      "status": "PASS",
       "threshold": 1.0,
-      "total": null
+      "total": 24
     },
     "parserConformance": {
-      "passed": null,
-      "status": "NOT_RUN",
+      "passed": 112,
+      "rate": 1.0,
+      "status": "PASS",
       "threshold": 0.99,
-      "total": null
+      "total": 112
     },
     "policyBypass": {
-      "passed": null,
-      "status": "NOT_RUN",
-      "threshold": 0.0,
-      "total": null
+      "attempts": 19,
+      "bypasses": 0,
+      "maximumAllowed": 0,
+      "status": "PASS"
     },
     "refineOnce": {
-      "passed": null,
-      "status": "NOT_RUN",
+      "passed": 8,
+      "rate": 1.0,
+      "status": "PASS",
       "threshold": 1.0,
-      "total": null
+      "total": 8
     },
     "regenerate": {
-      "passed": null,
-      "status": "NOT_RUN",
+      "passed": 8,
+      "rate": 1.0,
+      "status": "PASS",
       "threshold": 1.0,
-      "total": null
+      "total": 8
     },
     "reviewMetadata": {
-      "passed": null,
-      "status": "NOT_RUN",
+      "passed": 72,
+      "rate": 1.0,
+      "status": "PASS",
       "threshold": 1.0,
-      "total": null
+      "total": 72
     },
     "safeSemanticValidity": {
-      "passed": null,
-      "status": "NOT_RUN",
+      "passed": 120,
+      "rate": 1.0,
+      "status": "PASS",
       "threshold": 0.95,
-      "total": null
+      "total": 120
     }
   },
   "corpus": {
@@ -136,7 +147,7 @@
     }
   ],
   "mode": "offline_deterministic",
-  "overallStatus": "NOT_RUN",
+  "overallStatus": "PASS",
   "providerCalls": false,
   "requiredUnitGates": [
     "io.codecks.domain.ai.AiCreatorV2EvalCorpusTest",
@@ -154,5 +165,113 @@
     "io.codecks.domain.automation.AutomationExecutionPlanTest"
   ],
   "schemaVersion": 2,
-  "unitGateReceipt": null
+  "unitGateReceipt": {
+    "bypassResultsSha256": "710666b394c1aabeeec3c4cb54490a8a3647ef4c31bad04302198a32d26327df",
+    "bypassSha256": "833f4e13b91e5174e0c43ae7f756a72e3b7638b533fa599fb191124789659d2d",
+    "caseResultsSha256": "23888fa34e4343d7492ada33d2ba3ed483d4d05fff1127b0d56b330da46c72a8",
+    "combinedMetrics": {
+      "actionableFailure": {
+        "passed": 48,
+        "rate": 1.0,
+        "status": "PASS",
+        "threshold": 1.0,
+        "total": 48
+      },
+      "artifactCodecRoundTrip": {
+        "passed": 72,
+        "rate": 1.0,
+        "status": "PASS",
+        "threshold": 1.0,
+        "total": 72
+      },
+      "artifactConversion": {
+        "passed": 72,
+        "rate": 1.0,
+        "status": "PASS",
+        "threshold": 1.0,
+        "total": 72
+      },
+      "bypassActionable": {
+        "passed": 19,
+        "rate": 1.0,
+        "status": "PASS",
+        "threshold": 1.0,
+        "total": 19
+      },
+      "caseOutcome": {
+        "passed": 120,
+        "rate": 1.0,
+        "status": "PASS",
+        "threshold": 1.0,
+        "total": 120
+      },
+      "disabledAutomation": {
+        "passed": 24,
+        "rate": 1.0,
+        "status": "PASS",
+        "threshold": 1.0,
+        "total": 24
+      },
+      "parserConformance": {
+        "passed": 112,
+        "rate": 1.0,
+        "status": "PASS",
+        "threshold": 0.99,
+        "total": 112
+      },
+      "policyBypass": {
+        "attempts": 19,
+        "bypasses": 0,
+        "maximumAllowed": 0,
+        "status": "PASS"
+      },
+      "refineOnce": {
+        "passed": 8,
+        "rate": 1.0,
+        "status": "PASS",
+        "threshold": 1.0,
+        "total": 8
+      },
+      "regenerate": {
+        "passed": 8,
+        "rate": 1.0,
+        "status": "PASS",
+        "threshold": 1.0,
+        "total": 8
+      },
+      "reviewMetadata": {
+        "passed": 72,
+        "rate": 1.0,
+        "status": "PASS",
+        "threshold": 1.0,
+        "total": 72
+      },
+      "safeSemanticValidity": {
+        "passed": 120,
+        "rate": 1.0,
+        "status": "PASS",
+        "threshold": 0.95,
+        "total": 120
+      }
+    },
+    "corpusSha256": "50184226d85c5a8930d775c233f2a6821a08b29dac54f6430b34dc65bb39595a",
+    "coverageSha256": "20bf96a4c82c4e6b7757c48c5ae9f28552e9fa60e7ae2dbc560619bd77d31196",
+    "passedUnitGates": [
+      "io.codecks.domain.ai.AiCreatorV2EvalCorpusTest",
+      "io.codecks.domain.ai.AiCreatorM17BenchmarkTest",
+      "io.codecks.domain.ai.AiCreatorV2AdversarialTest",
+      "io.codecks.domain.ai.AiBuilderV2RepairTest",
+      "io.codecks.core.actions.AiGeneratedContentPlannerTest",
+      "io.codecks.core.actions.AiDraftConvertersTest",
+      "io.codecks.core.actions.ActionRunnerTest",
+      "io.codecks.data.ai.AiArtifactJsonCodecTest",
+      "io.codecks.data.ai.AiProviderContractTest",
+      "io.codecks.data.RawCommandPolicyTest",
+      "io.codecks.domain.ai.MacVisualEffectCatalogTest",
+      "io.codecks.domain.ai.StructuredDraftParserV2Test",
+      "io.codecks.domain.automation.AutomationExecutionPlanTest"
+    ],
+    "schemaVersion": 2,
+    "sourceSha256": "135c83eae8be02520723c4b521d87a0c9e92cdc938106df44116017e7b7493bd"
+  }
 }

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="PairingV2ProtocolTest[jvm]" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-08-17T22:12:27.004Z" hostname="svaddi-home.local" time="0.039">
+  <properties/>
+  <testcase name="transcriptIsUtf8ByteLengthCanonical[jvm]" classname="io.codecks.shared.protocol.PairingV2ProtocolTest" time="0.033"/>
+  <testcase name="entropyTokenIsAsciiCanonical[jvm]" classname="io.codecks.shared.protocol.PairingV2ProtocolTest" time="0.004"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

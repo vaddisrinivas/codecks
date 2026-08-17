@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -16,6 +17,13 @@ REQUIRED = {
 def physical_lines(path: Path, start: int = 1, end: int | None = None) -> int:
     lines = path.read_text().splitlines()
     return len(lines[start - 1:end])
+
+
+def committed_physical_lines(root: Path, commit: str, path: str, start: int, end: int) -> int:
+    result = subprocess.run(
+        ["git", "show", f"{commit}:{path}"], cwd=root, check=True, capture_output=True, text=True,
+    )
+    return len(result.stdout.splitlines()[start - 1:end])
 
 
 def main() -> int:
@@ -37,13 +45,15 @@ def main() -> int:
     assert candidates["colorpicker-compose"]["proof"]["talkback"] == "NOT_RUN"
     assert candidates["compose-icons-additional-modules"]["loc"]["net_new_lines"] > 0
     root = path.resolve().parents[3]
-    assert physical_lines(root / "app/src/main/java/io/codecks/data/RunHistoryRepository.kt", 1, 120) == 120
+    base = receipt["base_commit"]
+    assert subprocess.run(["git", "merge-base", "--is-ancestor", base, "HEAD"], cwd=root).returncode == 0
+    assert committed_physical_lines(root, base, "app/src/main/java/io/codecks/data/RunHistoryRepository.kt", 1, 120) == 120
     assert physical_lines(root / "spikes/dependency-replacements/src/main/kotlin/io/codecks/spikes/RoomAutomationHistorySpike.kt") == 53
     assert physical_lines(root / "spikes/dependency-replacements/src/test/kotlin/io/codecks/spikes/RoomAutomationHistorySpikeTest.kt") == 28
-    assert physical_lines(root / "app/src/main/java/io/codecks/data/automation/AutomationExecutionCoordinator.kt", 200, 222) == 23
+    assert committed_physical_lines(root, base, "app/src/main/java/io/codecks/data/automation/AutomationExecutionCoordinator.kt", 200, 222) == 23
     assert physical_lines(root / "spikes/dependency-replacements/src/main/kotlin/io/codecks/spikes/KStateMachineLifecycleSpike.kt") == 52
     assert physical_lines(root / "spikes/dependency-replacements/src/test/kotlin/io/codecks/spikes/KStateMachineLifecycleSpikeTest.kt") == 41
-    assert physical_lines(root / "app/src/main/java/io/codecks/ui/settings/SettingsScreen.kt", 1408, 1433) == 26
+    assert committed_physical_lines(root, base, "app/src/main/java/io/codecks/ui/settings/SettingsScreen.kt", 1408, 1433) == 26
     assert physical_lines(root / "spikes/dependency-replacements/src/main/kotlin/io/codecks/spikes/UiDependencySpike.kt", 26, 51) == 26
     assert physical_lines(root / "spikes/dependency-replacements/src/main/kotlin/io/codecks/spikes/UiDependencySpike.kt", 53, 65) + physical_lines(root / "spikes/dependency-replacements/src/main/kotlin/io/codecks/spikes/UiDependencySpike.kt", 78, 86) == 22
     assert physical_lines(root / "spikes/dependency-replacements/src/main/kotlin/io/codecks/spikes/UiDependencySpike.kt", 67, 76) == 10

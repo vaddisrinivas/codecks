@@ -80,20 +80,29 @@ features:
 Do not describe these as generally available without naming the experimental
 flag and validating the exact build.
 
-## Infrastructure, not a user feature
+## Infrastructure, not a public-release feature
 
-v0.1.37 includes a Kotlin Multiplatform shared module, typed authenticated
-protocol models, an Android Mac-helper client/session, a native Swift Mac helper
-runtime, launchd installer scaffold, helper pairing JSON import/deep link/manual
-import, and buildable iOS framework targets. These are experimental Reactive
-infrastructure, not a polished end-user Mac-helper setup flow or iOS app.
+Post-v0.1.37 working source includes a Kotlin Multiplatform shared module, typed
+authenticated protocol models, an Android Mac-helper client/session, a native
+Swift menu-bar helper, a launchd installer scaffold, and buildable iOS framework
+targets. Phase B replaces normal manual JSON setup with a 120-second, one-use QR
+offer, a per-phone HKDF/HMAC credential, and matching-code confirmation on both
+screens. The system Camera/deep link enters the Android flow; Codecks does not
+embed a third-party scanner. Legacy JSON export is restricted to the explicit
+`--unsafe-legacy` CLI recovery flag.
+
+These are experimental Reactive foundations, not `v0.1.37` shipped behavior or
+an admitted helper release. Authentication protects integrity but does not
+encrypt the local TCP payload. App-private Keychain storage is fail-closed until
+the helper has the required real signing entitlement.
 
 ## Deferred
 
-Not shipped:
+Not shipped or not admitted:
 
-- polished first-run helper pairing UX and QR pairing;
-- live phone-to-Mac helper validation across real devices;
+- signed/notarized Mac-helper distribution and live entitlement/Keychain proof;
+- live phone-to-Mac helper pairing validation across real devices;
+- moderated consumer first-run pairing success evidence;
 - production DeskDock auto-launch confidence tuning;
 - production Shortcuts, SFTP, brightness, and Accessibility UX surfaces;
 - complete iOS application.

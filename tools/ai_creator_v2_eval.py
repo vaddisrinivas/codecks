@@ -345,10 +345,15 @@ def report_contract(
     coverage: dict[str, list[int]],
     coverage_hash: str,
     run_gates: bool = False,
+    receipt_override: dict[str, object] | None = None,
 ) -> dict[str, object]:
     required_gates = REQUIRED_UNIT_GATES
     bypass_hash = canonical_hash(bypass_rows)
-    receipt = run_unit_gates(run_gates, corpus_hash, bypass_hash, coverage_hash, coverage, required_gates)
+    receipt = (
+        run_unit_gates(True, corpus_hash, bypass_hash, coverage_hash, coverage, required_gates)
+        if run_gates
+        else receipt_override
+    )
     evaluated = receipt is not None
     metric_thresholds = {
         "caseOutcome": 1.0,
@@ -473,7 +478,11 @@ def write_report(contract: dict[str, object], report_path: Path, json_path: Path
         "- Unit gates listed below are requirements, not proven executions, unless `unitGateReceipt` is non-null in the JSON report.",
         f"- SHA-bound unit-gate receipt supplied: {'yes' if contract['unitGateReceipt'] else 'no'}.",
         f"- Combined deterministic verdict: `{contract['overallStatus']}`.",
-        "- Missing or stale execution proof leaves every combined metric `NOT_RUN`; static fixtures never imply execution.",
+        (
+            "- Current SHA-bound execution proof makes the combined deterministic metrics eligible for `PASS`/`FAIL`."
+            if contract["unitGateReceipt"]
+            else "- Missing or stale execution proof leaves every combined metric `NOT_RUN`; static fixtures never imply execution."
+        ),
         "",
         "## Combined Metrics",
         "",
@@ -569,6 +578,16 @@ def main() -> None:
         }
         if current != required:
             raise SystemExit(f"{args.receipt}: stale or invalid")
+        if not args.run_unit_gates:
+            contract = report_contract(
+                counts,
+                canonical_hash(rows),
+                bypass_rows,
+                coverage_version,
+                coverage,
+                coverage_hash,
+                receipt_override=current,
+            )
     markdown_before = REPORT.read_text(encoding="utf-8") if REPORT.exists() else None
     json_before = JSON_REPORT.read_text(encoding="utf-8") if JSON_REPORT.exists() else None
     if args.write_report:

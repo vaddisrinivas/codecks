@@ -19,24 +19,24 @@ Coverage manifest SHA-256: `20bf96a4c82c4e6b7757c48c5ae9f28552e9fa60e7ae2dbc5606
 - Corpus has required 40/40/40 prompt split and versioned, exhaustive category assignments.
 - Corpus files have the recorded hashes and required case counts.
 - Unit gates listed below are requirements, not proven executions, unless `unitGateReceipt` is non-null in the JSON report.
-- SHA-bound unit-gate receipt supplied: no.
-- Combined deterministic verdict: `NOT_RUN`.
-- Missing or stale execution proof leaves every combined metric `NOT_RUN`; static fixtures never imply execution.
+- SHA-bound unit-gate receipt supplied: yes.
+- Combined deterministic verdict: `PASS`.
+- Current SHA-bound execution proof makes the combined deterministic metrics eligible for `PASS`/`FAIL`.
 
 ## Combined Metrics
 
-- caseOutcome: `NOT_RUN` (not executed)
-- parserConformance: `NOT_RUN` (not executed)
-- safeSemanticValidity: `NOT_RUN` (not executed)
-- artifactConversion: `NOT_RUN` (not executed)
-- artifactCodecRoundTrip: `NOT_RUN` (not executed)
-- reviewMetadata: `NOT_RUN` (not executed)
-- disabledAutomation: `NOT_RUN` (not executed)
-- refineOnce: `NOT_RUN` (not executed)
-- regenerate: `NOT_RUN` (not executed)
-- actionableFailure: `NOT_RUN` (not executed)
-- policyBypass: `NOT_RUN` (not executed)
-- bypassActionable: `NOT_RUN` (not executed)
+- actionableFailure: `PASS` (48/48)
+- artifactCodecRoundTrip: `PASS` (72/72)
+- artifactConversion: `PASS` (72/72)
+- bypassActionable: `PASS` (19/19)
+- caseOutcome: `PASS` (120/120)
+- disabledAutomation: `PASS` (24/24)
+- parserConformance: `PASS` (112/112)
+- policyBypass: `PASS` (bypasses=0/19)
+- refineOnce: `PASS` (8/8)
+- regenerate: `PASS` (8/8)
+- reviewMetadata: `PASS` (72/72)
+- safeSemanticValidity: `PASS` (120/120)
 
 ## Live Providers
 

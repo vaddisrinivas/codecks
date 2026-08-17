@@ -19,11 +19,14 @@ separate staged rollout.
 The machine-checked release truth is
 [`production-state.json`](production-state.json). The commercial plan
 supersedes the prior implementation schedule, not the released behavior or its
-evidence. Deferred Reactive work remains separate:
-native Mac helper completion, pinned helper pairing, full helper transport and
+evidence. Post-release working source now contains the native Mac helper shell
+and Phase B 120-second, one-use QR pairing with per-phone credentials and
+matching-code confirmation. This is source/unit evidence, not `v0.1.37` or
+release admission. A signed helper artifact, app entitlement/Keychain probe,
+real Mac-to-phone pairing, consumer-scale first run, full helper transport and
 unified live Mac state, provider/receipt/undo completion, full iOS, DeskDock,
 Shortcuts, Spotlight/SFTP, brightness, Accessibility discovery, and complete
-cross-platform validation.
+cross-platform validation remain separate gates.
 
 ## Production-dark execution contract
 
