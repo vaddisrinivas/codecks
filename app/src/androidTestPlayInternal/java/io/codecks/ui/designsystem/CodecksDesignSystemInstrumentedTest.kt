@@ -376,6 +376,8 @@ class CodecksDesignSystemInstrumentedTest {
                             onConnect = {},
                             onOpenSetup = {},
                             onSearch = {},
+                            onConfirmPairing = {},
+                            onCancelPairing = {},
                         )
                     }
                 }

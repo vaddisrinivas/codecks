@@ -87,7 +87,7 @@ class M14FirstRunRepairInstrumentedTest {
                         onSelectHost = {}, onScan = {}, onScanLocalNetwork = {}, onVerifyHostKey = {},
                         onConfirmHostKey = {}, onAuthorize = {}, onRotateKey = {}, onResetTrust = onResetTrust,
                         onRemoveTarget = {}, onSavePassword = {}, onUseSavedPassword = {}, onTest = onTest,
-                        onReactiveHelperPairingImport = {}, onOpenMacHelper = {},
+                        onOpenMacHelper = {},
                     )
                 }
             }

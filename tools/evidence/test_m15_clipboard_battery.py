@@ -148,11 +148,11 @@ class M15EvidenceTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "prohibited receipt value"):
                     validate(path)
 
-    def test_managed_scope_cannot_claim_binary_binding(self) -> None:
-        def mutation(data):
-            data["managedResult"]["executedBinaryBinding"] = "APK_DIGESTS_BOUND"
-        path = self.mutated_receipt(mutation)
-        with self.assertRaises(ValueError):
+    def test_managed_binary_digest_cannot_be_replaced(self) -> None:
+        path = self.mutated_receipt(
+            lambda data: data["managedResult"]["targetArtifact"].update({"sha256": "0" * 64})
+        )
+        with self.assertRaisesRegex(ValueError, "targetArtifact binding"):
             validate(path)
 
 

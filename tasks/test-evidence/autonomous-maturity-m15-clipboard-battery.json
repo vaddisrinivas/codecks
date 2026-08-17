@@ -2,13 +2,13 @@
   "schema": "codecks.autonomous-maturity.m15-clipboard-battery.v1",
   "milestone": "M15",
   "status": "PASS",
-  "scope": "CPU_SOURCE_BOUND_WITH_UNBOUND_MANAGED_PROXY",
-  "generatedAtUtc": "2026-08-11T01:06:45.031889Z",
-  "sourceCommit": "364f3e3980dd77f86ea93781bf77c85224ce9249",
+  "scope": "CPU_AND_MANAGED_SOURCE_ARTIFACT_BOUND",
+  "generatedAtUtc": "2026-08-17T23:08:09.696304Z",
+  "sourceCommit": "5757c7195e7fa1c39b1c12bcf01a0947d0e64c38",
   "sources": [
     {
       "path": "app/src/main/java/io/codecks/AppCompositionRoot.kt",
-      "sha256": "0a564c8af4334bbeb7a9f2ea31069ccd41c9d0fe75f4563cad71e7ba0fa5dbf2"
+      "sha256": "2459acc6a1ebca31f8a1beb3b282535e9432fbc25801a31bd412b48f81bb8619"
     },
     {
       "path": "app/src/main/java/io/codecks/data/clipboard/ClipboardLastSyncStore.kt",
@@ -40,7 +40,7 @@
     },
     {
       "path": "app/src/main/java/io/codecks/ui/clipboard/ClipboardScreen.kt",
-      "sha256": "9043e5dea8873a20f0fafe6296dff34b479f31775685e6e90bb37186856321cf"
+      "sha256": "76eeb5f9018d4f418e51cbf5d994c8cb725e70c8d7b7b40c9bfd3dcb10fae6fb"
     },
     {
       "path": "app/src/main/java/io/codecks/ui/clipboard/ClipboardStateAndPolicies.kt",
@@ -64,25 +64,25 @@
     },
     {
       "path": "tools/evidence/collect_m15_clipboard_battery.py",
-      "sha256": "39cbf30be7e53c0b0df93ecf4308bc03de699efcb37485c06fa6e83bc8c18326"
+      "sha256": "7a5d06a333387cdaa538a30a26c80ce6e836cb4f6ec55d5f643383e9dc627f34"
     },
     {
       "path": "tools/evidence/validate_m15_clipboard_battery.py",
-      "sha256": "8007cbd4b4f0c8e9ec28adba23876baea0f1e88e8d2e2ae7ec7e4dde173329ba"
+      "sha256": "a272b37a555ae25591a1ff4e6cb7d43da0db91a40a4176969ddba6608a6f0be5"
     },
     {
       "path": "tools/evidence/test_m15_clipboard_battery.py",
-      "sha256": "44bcbd6b7f8152bcf39cb26af451dc0b080b652ab6ec908ad02b802ae984a39e"
+      "sha256": "a2303f83a01c4739f0b141374ac0c77e6dfa5c14822007e3da6a086938e35840"
     },
     {
       "path": "tools/evidence/schemas/autonomous-maturity-m15-clipboard-battery-v1.schema.json",
-      "sha256": "d373cf555307160ed9ce5ace821d77a946b3adc8a3f7d17a499b7900ec74c806"
+      "sha256": "5e40c67474dd0b3840f20fc30ad346870aae1e9475fa56b2e3894fb9575197ba"
     }
   ],
   "unitResult": {
     "path": "tasks/test-evidence/m15-clipboard-battery-cpu.xml",
-    "sha256": "1a4b2d1c093775591968fea99b66185f2e04da95b877b3b4682ad6aaab21f992",
-    "timestamp": "2026-08-11T01:06:19.262Z",
+    "sha256": "2b55add07b4e91501480639be30b52b961636e2596935f0c48be8edea5a3c4a8",
+    "timestamp": "2026-08-17T23:04:03.325Z",
     "className": "io.codecks.ui.clipboard.M15ClipboardCharacterizationTest",
     "methods": [
       "batterySaverStopsAutomaticPollingWithoutChangingSessionAuthority",
@@ -103,10 +103,10 @@
   },
   "managedResult": {
     "artifactKind": "SANITIZED_JUNIT_METADATA",
-    "executedBinaryBinding": "NOT_INCLUDED",
+    "executedBinaryBinding": "APK_DIGESTS_BOUND",
     "path": "tasks/test-evidence/m15-clipboard-battery-managed.xml",
-    "sha256": "eddfcecf4c0314185b1daf3469fd303af53be8fbdd13a0f9f33267c523b92b50",
-    "timestamp": "2026-08-11T00:44:23",
+    "sha256": "043d4b20ba1a61730b35301a4188d57c486a9abbcca2abb6a0fc3be5b88f680c",
+    "timestamp": "2026-08-17T23:07:45",
     "className": "io.codecks.ui.clipboard.M15ClipboardPrivacyInstrumentedTest",
     "methods": [
       "ordinarySynchronizedClipCarriesSensitivePreviewFlag",
@@ -117,7 +117,17 @@
     "tests": 2,
     "failures": 0,
     "errors": 0,
-    "skipped": 0
+    "skipped": 0,
+    "targetArtifact": {
+      "path": "app/build/outputs/apk/playInternal/release/app-playInternal-release.apk",
+      "applicationId": "app.codecks.internal",
+      "sha256": "ee519555e484e2b2918e03641efd82ecff861211e82d45ddbf38c3afdd1475ec"
+    },
+    "testArtifact": {
+      "path": "app/build/outputs/apk/androidTest/playInternal/release/app-playInternal-release-androidTest.apk",
+      "applicationId": "app.codecks.internal.test",
+      "sha256": "850b03c1f53c184501371cb6ee7c40cc5a21d50f84cfe228d28280ef873300c1"
+    }
   },
   "lanes": [
     {
@@ -236,7 +246,7 @@
   },
   "limitations": [
     "CPU tests prove deterministic policy and source wiring, not Android lifecycle behavior.",
-    "Managed API-35 JUnit metadata records the standard sensitive-flag check; APK and executed-binary digests are not bound.",
+    "Managed API-35 metadata and exact APK digests bind the sensitive-flag proxy; this is not physical-device proof.",
     "Foreground/background, screen lock, battery restriction, Samsung toast, and physical battery lanes remain NOT_RUN.",
     "Mac sleep/wake and reconnect were not changed or exercised in this implementation phase."
   ]

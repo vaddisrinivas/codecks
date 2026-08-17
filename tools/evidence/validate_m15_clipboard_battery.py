@@ -54,7 +54,7 @@ def validate(path: Path = RECEIPT) -> None:
     if set(data) != expected_keys:
         raise ValueError("M15 receipt keys are not closed")
     if (data["schema"], data["milestone"], data["status"], data["scope"]) != (
-        SCHEMA_ID, "M15", "PASS", "CPU_SOURCE_BOUND_WITH_UNBOUND_MANAGED_PROXY",
+        SCHEMA_ID, "M15", "PASS", "CPU_AND_MANAGED_SOURCE_ARTIFACT_BOUND",
     ):
         raise ValueError("M15 receipt identity/status mismatch")
     source_commit = data["sourceCommit"]
@@ -92,7 +92,7 @@ def validate(path: Path = RECEIPT) -> None:
         raise ValueError("M15 unit result claims do not match XML")
     managed = data["managedResult"]
     if (managed["artifactKind"], managed["executedBinaryBinding"]) != (
-        "SANITIZED_JUNIT_METADATA", "NOT_INCLUDED",
+        "SANITIZED_JUNIT_METADATA", "APK_DIGESTS_BOUND",
     ):
         raise ValueError("M15 managed evidence scope overclaims binary binding")
     if managed["className"] != MANAGED_TEST_CLASS or set(managed["methods"]) != EXPECTED_MANAGED_METHODS:
@@ -105,6 +105,16 @@ def validate(path: Path = RECEIPT) -> None:
     managed_timestamp, managed_methods = parse_managed_result(managed_path)
     if managed_timestamp != managed["timestamp"] or managed_methods != managed["methods"]:
         raise ValueError("M15 managed result claims do not match XML")
+    for name, application_id in (
+        ("targetArtifact", "app.codecks.internal"),
+        ("testArtifact", "app.codecks.internal.test"),
+    ):
+        artifact = managed[name]
+        if set(artifact) != {"path", "applicationId", "sha256"}:
+            raise ValueError(f"M15 {name} keys are not closed")
+        artifact_path = safe_path(artifact["path"])
+        if artifact["applicationId"] != application_id or sha256(artifact_path) != artifact["sha256"]:
+            raise ValueError(f"M15 {name} binding mismatch")
     expected_lanes = list(PASS_LANES) + [MANAGED_PASS_LANE] + list(NOT_RUN_LANES)
     if [lane["id"] for lane in data["lanes"]] != expected_lanes:
         raise ValueError("M15 lane identity/order is not exact")

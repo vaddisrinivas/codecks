@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import os
 import subprocess
 import xml.etree.ElementTree as ET
 
@@ -89,6 +90,14 @@ def safe_path(value: str) -> Path:
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def apk_application_id(apk: Path) -> str:
+    analyzer = Path(os.environ["ANDROID_HOME"]) / "cmdline-tools/latest/bin/apkanalyzer"
+    return subprocess.run(
+        [str(analyzer), "manifest", "application-id", str(apk)],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
 
 
 def parse_cpu_result(path: Path) -> tuple[str, list[str]]:
@@ -191,12 +200,25 @@ def sanitized_managed_result(raw_path: Path, output_path: Path) -> tuple[str, li
     return timestamp, methods
 
 
-def collect(raw_result: str, sanitized_output: str, raw_managed_result: str, sanitized_managed_output: str) -> dict:
+def collect(
+    raw_result: str,
+    sanitized_output: str,
+    raw_managed_result: str,
+    sanitized_managed_output: str,
+    target_apk: str,
+    test_apk: str,
+) -> dict:
     raw_path = safe_path(raw_result)
     result_path = safe_path(sanitized_output)
     timestamp, methods = sanitized_result(raw_path, result_path)
     managed_path = safe_path(sanitized_managed_output)
     managed_timestamp, managed_methods = sanitized_managed_result(safe_path(raw_managed_result), managed_path)
+    target_path = safe_path(target_apk)
+    test_path = safe_path(test_apk)
+    target_id = apk_application_id(target_path)
+    test_id = apk_application_id(test_path)
+    if (target_id, test_id) != ("app.codecks.internal", "app.codecks.internal.test"):
+        raise ValueError(f"M15 artifact identity mismatch: {target_id}, {test_id}")
     source_commit = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True, capture_output=True, text=True,
     ).stdout.strip()
@@ -217,7 +239,7 @@ def collect(raw_result: str, sanitized_output: str, raw_managed_result: str, san
         "schema": SCHEMA_ID,
         "milestone": "M15",
         "status": "PASS",
-        "scope": "CPU_SOURCE_BOUND_WITH_UNBOUND_MANAGED_PROXY",
+        "scope": "CPU_AND_MANAGED_SOURCE_ARTIFACT_BOUND",
         "generatedAtUtc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "sourceCommit": source_commit,
         "sources": sources,
@@ -234,7 +256,7 @@ def collect(raw_result: str, sanitized_output: str, raw_managed_result: str, san
         },
         "managedResult": {
             "artifactKind": "SANITIZED_JUNIT_METADATA",
-            "executedBinaryBinding": "NOT_INCLUDED",
+            "executedBinaryBinding": "APK_DIGESTS_BOUND",
             "path": sanitized_managed_output,
             "sha256": sha256(managed_path),
             "timestamp": managed_timestamp,
@@ -246,6 +268,12 @@ def collect(raw_result: str, sanitized_output: str, raw_managed_result: str, san
             "failures": 0,
             "errors": 0,
             "skipped": 0,
+            "targetArtifact": {
+                "path": target_apk, "applicationId": target_id, "sha256": sha256(target_path),
+            },
+            "testArtifact": {
+                "path": test_apk, "applicationId": test_id, "sha256": sha256(test_path),
+            },
         },
         "lanes": lanes,
         "privacy": {
@@ -257,7 +285,7 @@ def collect(raw_result: str, sanitized_output: str, raw_managed_result: str, san
         "summary": {"pass": len(PASS_LANES) + 1, "fail": 0, "notRun": len(NOT_RUN_LANES)},
         "limitations": [
             "CPU tests prove deterministic policy and source wiring, not Android lifecycle behavior.",
-            "Managed API-35 JUnit metadata records the standard sensitive-flag check; APK and executed-binary digests are not bound.",
+            "Managed API-35 metadata and exact APK digests bind the sensitive-flag proxy; this is not physical-device proof.",
             "Foreground/background, screen lock, battery restriction, Samsung toast, and physical battery lanes remain NOT_RUN.",
             "Mac sleep/wake and reconnect were not changed or exercised in this implementation phase.",
         ],
@@ -270,10 +298,15 @@ def main() -> int:
     parser.add_argument("--sanitized-result", required=True)
     parser.add_argument("--managed-result", required=True)
     parser.add_argument("--sanitized-managed-result", required=True)
+    parser.add_argument("--target-apk", required=True)
+    parser.add_argument("--test-apk", required=True)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
     try:
-        payload = collect(args.result, args.sanitized_result, args.managed_result, args.sanitized_managed_result)
+        payload = collect(
+            args.result, args.sanitized_result, args.managed_result, args.sanitized_managed_result,
+            args.target_apk, args.test_apk,
+        )
         output = safe_path(args.output)
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
