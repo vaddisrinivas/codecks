@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "status", "sourceCommit", "sources", "validations", "m20DisposableSigner", "lanes", "limitations", "receiptDigest"],
+  "properties": {
+    "schema": {"const": "codecks.autonomous-maturity.local-closure.v1"},
+    "status": {"const": "PASS_WITH_NOT_RUN"},
+    "sourceCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sources": {"type": "array", "minItems": 8, "items": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}},
+    "validations": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"type": "object", "additionalProperties": false, "required": ["id", "command", "expectedOutput", "stdoutSha256", "stderrSha256"], "properties": {"id": {"type": "string"}, "command": {"type": "array", "minItems": 2, "items": {"type": "string"}}, "expectedOutput": {"type": "string"}, "stdoutSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "stderrSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}},
+    "m20DisposableSigner": {"type": "object", "additionalProperties": false, "required": ["sameKeyAccepted", "differentKeyRejected", "sameSignerCertificateSha256", "differentSignerCertificateSha256", "publicArtifacts", "apksigner", "privateMaterialPersisted", "productionKeyAccessed", "protectedPackageTouched"], "properties": {"sameKeyAccepted": {"const": true}, "differentKeyRejected": {"const": true}, "sameSignerCertificateSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "differentSignerCertificateSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "publicArtifacts": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"type": "object", "additionalProperties": false, "required": ["name", "sizeBytes", "sha256"], "properties": {"name": {"type": "string"}, "sizeBytes": {"type": "integer", "minimum": 1, "maximum": 131072}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}}, "apksigner": {"type": "object", "additionalProperties": false, "required": ["buildToolsVersion", "sdkRelativePath", "reportedVersion", "sha256"], "properties": {"buildToolsVersion": {"const": "36.0.0"}, "sdkRelativePath": {"const": "build-tools/36.0.0/apksigner"}, "reportedVersion": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}, "privateMaterialPersisted": {"const": false}, "productionKeyAccessed": {"const": false}, "protectedPackageTouched": {"const": false}}},
+    "lanes": {"type": "array", "minItems": 12, "maxItems": 12, "items": {"type": "object", "additionalProperties": false, "required": ["id", "status", "evidence", "code"], "properties": {"id": {"type": "string"}, "status": {"enum": ["PASS", "NOT_RUN"]}, "evidence": {"enum": ["STATIC_AND_CPU", "EXACT_SOURCE", "RUNTIME", "CPU_AND_DEVICE", "CURRENT_MAC_READ_ONLY", "EXTERNAL", "CPU_AND_MANAGED_PROXY", "DISPOSABLE_LOCAL"]}, "code": {"type": "string"}}}},
+    "limitations": {"type": "array", "minItems": 3, "items": {"type": "string"}},
+    "receiptDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

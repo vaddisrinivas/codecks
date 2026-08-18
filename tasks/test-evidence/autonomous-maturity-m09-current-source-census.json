@@ -1,6 +1,6 @@
 {
   "schema": "codecks.autonomous-maturity.m09-current-source-census.v1",
-  "sourceCommit": "e945caf86b7bd30e35c836463364cbf8f102a0ff",
+  "sourceCommit": "6ca6bb3d962ded531443da41c8c13ec32c0cfbb2",
   "baseline": {
     "commit": "d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
     "inventorySha256": "fa4afa40ec297bdc29be2e823118f1349ea7242c0136d1217581ca3494a8f312",
@@ -43,35 +43,35 @@
     }
   },
   "method": {
-    "scope": "tracked *.kt, *.java, and *.swift files from git ls-files",
+    "scope": "tracked and untracked non-ignored *.kt, *.java, and *.swift workspace files from git ls-files --cached --others --exclude-standard",
     "lineDefinition": "Python str.splitlines physical lines; blank and comment lines included",
     "classification": "path/source-set rules from the M00 inventory generator; M09 owner rules are versioned here"
   },
   "targetPublicProductionLines": 50000,
   "summary": {
-    "fileCount": 634,
-    "physicalLines": 105331,
+    "fileCount": 640,
+    "physicalLines": 106210,
     "byCategory": {
       "build_definition": 27,
       "companion": 5270,
       "debug_only": 5,
-      "internal_lab": 2642,
+      "internal_lab": 3398,
       "other_source_set": 276,
-      "public_production": 60267,
-      "tests": 36844
+      "public_production": 60270,
+      "tests": 36964
     },
     "bySourceSet": {
       "android_androidTest": 1125,
       "android_androidTestDebug": 719,
       "android_androidTestPlay": 462,
-      "android_androidTestPlayInternal": 1088,
+      "android_androidTestPlayInternal": 1187,
       "android_debug": 5,
-      "android_main": 60075,
-      "android_play_internal": 2642,
+      "android_main": 60078,
+      "android_play_internal": 3398,
       "android_play_production_dark": 192,
       "android_test": 28701,
       "android_testPlay": 243,
-      "android_testPlayInternal": 1791,
+      "android_testPlayInternal": 1812,
       "backend_main": 868,
       "backend_test": 721,
       "mac_helper": 3126,
@@ -83,15 +83,15 @@
     },
     "byLanguage": {
       "Java": 918,
-      "Kotlin": 100043,
+      "Kotlin": 100922,
       "Swift": 4370
     }
   },
   "publicProduction": {
-    "physicalLines": 60267,
-    "excessLines": 10267,
+    "physicalLines": 60270,
+    "excessLines": 10270,
     "featureOwnerLines": {
-      "app_shell": 5198,
+      "app_shell": 5201,
       "commercial/ads": 11,
       "commercial/auth": 74,
       "commercial/billing": 27,
@@ -436,6 +436,15 @@
       "sha256": "e3d1cffe85b385de4e751f5285daa5de4e9e04d4bbad4f82eae3d4530a5acbbb"
     },
     {
+      "path": "app/src/androidTestPlayInternal/java/io/codecks/internalquality/m16/M16ProfileIsolationInstrumentedTest.kt",
+      "category": "tests",
+      "sourceSet": "android_androidTestPlayInternal",
+      "featureOwner": "internalquality/m16",
+      "language": "Kotlin",
+      "physicalLines": 99,
+      "sha256": "6942dad9449d92da8089bd14eeb57622d3dd13446f7e029c23df73dc52bf50b1"
+    },
+    {
       "path": "app/src/androidTestPlayInternal/java/io/codecks/ui/designsystem/CodecksDesignSystemInstrumentedTest.kt",
       "category": "tests",
       "sourceSet": "android_androidTestPlayInternal",
@@ -558,8 +567,8 @@
       "sourceSet": "android_main",
       "featureOwner": "app_shell",
       "language": "Kotlin",
-      "physicalLines": 26,
-      "sha256": "2dee2c50c16cf27494ac268e3f08fc422ff42c3bb732afeb9261fe14ccadf622"
+      "physicalLines": 29,
+      "sha256": "0559aa0b495310faf113b78119745f55606dbf3aae63594d7988e9737ee82964"
     },
     {
       "path": "app/src/main/java/io/codecks/HidContracts.kt",
@@ -3388,6 +3397,42 @@
       "sha256": "a2faaf7448bd0cbd63eba8b89ebb1b5713e6fab2d49f202d956e1cdc44a28e22"
     },
     {
+      "path": "app/src/playInternal/java/io/codecks/internalquality/m16/M16EvidenceProvider.kt",
+      "category": "internal_lab",
+      "sourceSet": "android_play_internal",
+      "featureOwner": "internalquality/m16",
+      "language": "Kotlin",
+      "physicalLines": 32,
+      "sha256": "e62ca3920d7cd1534fd45f617b9e07dbba6179ee0f9c843da3f733f9c9a04846"
+    },
+    {
+      "path": "app/src/playInternal/java/io/codecks/internalquality/m16/M16FailureEvidenceActivity.kt",
+      "category": "internal_lab",
+      "sourceSet": "android_play_internal",
+      "featureOwner": "internalquality/m16",
+      "language": "Kotlin",
+      "physicalLines": 33,
+      "sha256": "d8bfd632b5dc07f3f996d99d868b0c7651b0435f622325479e8d825af7815f80"
+    },
+    {
+      "path": "app/src/playInternal/java/io/codecks/internalquality/m16/M16ProductSessions.kt",
+      "category": "internal_lab",
+      "sourceSet": "android_play_internal",
+      "featureOwner": "internalquality/m16",
+      "language": "Kotlin",
+      "physicalLines": 104,
+      "sha256": "49524ed27d46102dd51f07a84e18589b556fe972644cc93b8e7ce5f368ee254c"
+    },
+    {
+      "path": "app/src/playInternal/java/io/codecks/internalquality/m16/M16ProfileServices.kt",
+      "category": "internal_lab",
+      "sourceSet": "android_play_internal",
+      "featureOwner": "internalquality/m16",
+      "language": "Kotlin",
+      "physicalLines": 587,
+      "sha256": "0d4d2daceb22e70a843fe6ab47f6a8284f38effbd411527d5c878433cadbfacd"
+    },
+    {
       "path": "app/src/playInternal/java/io/codecks/ui/designsystem/M09ADesignTestActivity.kt",
       "category": "internal_lab",
       "sourceSet": "android_play_internal",
@@ -5494,6 +5539,15 @@
       "sha256": "a1dcce57633d4ad7eb5de9fb91f4e5ac5c922bdb766a2716943dd622dbaed8bb"
     },
     {
+      "path": "app/src/testPlayInternal/java/io/codecks/internalquality/m16/M16IdentityTest.kt",
+      "category": "tests",
+      "sourceSet": "android_testPlayInternal",
+      "featureOwner": "internalquality/m16",
+      "language": "Kotlin",
+      "physicalLines": 21,
+      "sha256": "5d30746674c2ffd089cb11eb2bf888c6518f339d36d4e466858afd75d5beca2e"
+    },
+    {
       "path": "backend/src/main/kotlin/io/codecks/backend/contracts/Accounts.kt",
       "category": "companion",
       "sourceSet": "backend_main",
@@ -5962,5 +6016,5 @@
       "sha256": "47c8b36b8cbb9b1ba2cb3aff618e714db52314bfa722accebfc4f89f859dbce7"
     }
   ],
-  "receiptDigest": "b9ffb2cbeab65d48594c4ffab50333fd2fd829b31edfb3f48bff5755dbbe691b"
+  "receiptDigest": "3719bcb9cec104b68e037610f5d082ed6ccfe8bf7ac137932231eed1f5b58885"
 }

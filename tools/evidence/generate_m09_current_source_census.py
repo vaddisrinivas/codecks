@@ -24,7 +24,7 @@ BASELINE = ROOT / "tasks/test-evidence/autonomous-maturity-source-inventory.json
 BASELINE_COMMIT = "d1f1788f03fe59bb0dceb5822e9f5b19194090fd"
 TARGET = 50_000
 METHOD = {
-    "scope": "tracked *.kt, *.java, and *.swift files from git ls-files",
+    "scope": "tracked and untracked non-ignored *.kt, *.java, and *.swift workspace files from git ls-files --cached --others --exclude-standard",
     "lineDefinition": "Python str.splitlines physical lines; blank and comment lines included",
     "classification": "path/source-set rules from the M00 inventory generator; M09 owner rules are versioned here",
 }

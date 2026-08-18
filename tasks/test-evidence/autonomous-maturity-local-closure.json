@@ -1,0 +1,362 @@
+{
+  "schema": "codecks.autonomous-maturity.local-closure.v1",
+  "status": "PASS_WITH_NOT_RUN",
+  "sourceCommit": "6ca6bb3d962ded531443da41c8c13ec32c0cfbb2",
+  "sources": [
+    {
+      "path": "tasks/AUTONOMOUS_MATURITY_TODO.md",
+      "sha256": "38edf590ededf8a114557844550566243b457da747ce85a543f6b78777c272ef"
+    },
+    {
+      "path": "docs/architecture/M09_LOCAL_METRICS.md",
+      "sha256": "384c1dbf0d87716d5881c24462c64f2284f9293b7cad2795e0f19588cd0f4467"
+    },
+    {
+      "path": "tasks/test-evidence/autonomous-maturity-m09-current-source-census.json",
+      "sha256": "7e7b71d5657d9af2625416e03832af334c1974d19f28e05cec8b7eabc326c581"
+    },
+    {
+      "path": "tools/evidence/generate_m09_current_source_census.py",
+      "sha256": "ba0c7bd9b4d7bd7068dcc5bd5dcdf31add2f7521ae3f863939b62563570af704"
+    },
+    {
+      "path": "tools/evidence/generate_autonomous_maturity_source_inventory.py",
+      "sha256": "a0decf336fa10ebd365515d53738e134bc9c01d29fafc36291abad22d9fea9eb"
+    },
+    {
+      "path": "tools/evidence/rehearse_m20_disposable_signer.py",
+      "sha256": "e96a0bbe6ba63d1d65840e146e7bd52423f632d70c317060c5f7389315a47158"
+    },
+    {
+      "path": "tools/evidence/test_rehearse_m20_disposable_signer.py",
+      "sha256": "a6eb430b967e100629acd9159034c52fa00f8f028a545daf646da446f3718915"
+    },
+    {
+      "path": "tools/evidence/collect_maturity_local_closure.py",
+      "sha256": "9973ab51f52ca2d77c97b131a2188592b59be763a1c955875524222a3c1a9f5e"
+    },
+    {
+      "path": "tools/evidence/schemas/autonomous-maturity-local-closure-v1.schema.json",
+      "sha256": "d70c5f55ce2988eb33db79549f534478885290fc7400915fbd92ac508d708a11"
+    },
+    {
+      "path": "tools/evidence/validate_maturity_local_closure.py",
+      "sha256": "00f0917ee9da18552bd578afd35c18f61cef36b57700b8ba5acff863896014f0"
+    },
+    {
+      "path": "tools/evidence/test_validate_maturity_local_closure.py",
+      "sha256": "09409f754eed63c2d9f8693de83f28ab4ac4116a453babb2a6696533962863d5"
+    },
+    {
+      "path": "tools/evidence/validate_m02a_dependency_spikes.py",
+      "sha256": "af6145bc40597791a69adf71b263504234c25bf2fb4eebb62040e6aae98cf8a4"
+    },
+    {
+      "path": "tasks/test-evidence/m02a/dependency-spike-results.json",
+      "sha256": "b3ca036562792a5295ea0ff7dbf9a13782ae8927475db4c0c506566a6e4bb481"
+    },
+    {
+      "path": "tools/evidence/validate_m09_current_source_census.py",
+      "sha256": "eb198a2fac332fd9f177090159b70bf319a2d8694e7bde13b587e2cd09a1fdba"
+    },
+    {
+      "path": "scripts/verify_m12_current_mac_receipt.py",
+      "sha256": "b507bb145240de0b905c372d6c3109685b400eaf7e27e0aaca8638e0fbcf7130"
+    },
+    {
+      "path": "scripts/m12_current_mac_lib.py",
+      "sha256": "5c24029691b8182faa94b68d3410bf30f75bc2c5afc4456a9e74cb1b04674470"
+    },
+    {
+      "path": "tasks/test-evidence/autonomous-maturity-m12-current-mac.json",
+      "sha256": "c9b8946d408e31dd396eaa65dce700b597e4ca82cfd49f65f7f30dc816a47db2"
+    },
+    {
+      "path": "tools/evidence/validate_m14_first_run.py",
+      "sha256": "732c9029542b646a04825230c5daed68578a0b1b3bd8e8b6a00e9857e19d1881"
+    },
+    {
+      "path": "tools/evidence/collect_m14_first_run.py",
+      "sha256": "250769279fc009eb424302473ee19f3cc26933557466d27cf39f6b68720239ab"
+    },
+    {
+      "path": "tools/evidence/managed_execution_binding.py",
+      "sha256": "a297048fc75861c4e896aa2c8deb1932d4197fab331808f440c835241123e837"
+    },
+    {
+      "path": "tasks/test-evidence/autonomous-maturity-m14-first-run.json",
+      "sha256": "0c827b1cce1a5b0f5a44c2b560ff1ef51189bd9d99b91ab50c420112c29d9c3e"
+    },
+    {
+      "path": "tools/evidence/validate_m15_clipboard_battery.py",
+      "sha256": "ee47231386edc5295f557c2349f9d23b26a13f786ff0c13c1bf2329eac11d9ec"
+    },
+    {
+      "path": "tools/evidence/collect_m15_clipboard_battery.py",
+      "sha256": "f9c2182a4ed8f520cc92998c247e75e71665585384d3f5d57d3f29f98b8d495a"
+    },
+    {
+      "path": "tools/evidence/validate_autonomous_maturity_evidence.py",
+      "sha256": "c1cf1eb4a7f0742d933d8e0c2c0a89d527b2aa646b4feba4290a1f5ed4007716"
+    },
+    {
+      "path": "tools/evidence/schemas/autonomous-maturity-m15-clipboard-battery-v1.schema.json",
+      "sha256": "917e2955140aeab2d2e2e703ddae0a2b80244ad13d261818a66e7bfc22d70461"
+    },
+    {
+      "path": "tasks/test-evidence/autonomous-maturity-m15-clipboard-battery.json",
+      "sha256": "88ab5bf191604ea01c52c1d3c54ffb32e4c572f49673dda2a55122ac2eb1cf65"
+    },
+    {
+      "path": "tools/evidence/validate_m20_rollback_rehearsal.py",
+      "sha256": "aee6d75733c97d13c9f37a2325df77d5ee8db7f7bbf3b574c4b67871c009e976"
+    },
+    {
+      "path": "tools/evidence/collect_m20_rollback_rehearsal.py",
+      "sha256": "aeee48e892c9e1d49c36f40f843141f27c50cfc262adebf706694c24d3e6030a"
+    },
+    {
+      "path": "tools/evidence/schemas/autonomous-maturity-m20-rollback-rehearsal-v1.schema.json",
+      "sha256": "a6206cffae29b8471c4053e3f2c680194664643ba540163e5b81be3e22ab7150"
+    },
+    {
+      "path": "tasks/test-evidence/autonomous-maturity-m20-rollback-rehearsal.json",
+      "sha256": "b6690f51d02995ea9d9dabe7e98144e2c10f301dc4f068d0997c7de37596e5ac"
+    },
+    {
+      "path": "tasks/test-evidence/m20-disposable-signer/same-key-a.apk",
+      "sha256": "30a01d1f2ff65233ff0632b3e0615d6afe67717972fd5a66eef176c2ab585e3e"
+    },
+    {
+      "path": "tasks/test-evidence/m20-disposable-signer/same-key-b.apk",
+      "sha256": "30a01d1f2ff65233ff0632b3e0615d6afe67717972fd5a66eef176c2ab585e3e"
+    },
+    {
+      "path": "tasks/test-evidence/m20-disposable-signer/different-key.apk",
+      "sha256": "601a587f836405fb6f31986479f2887b52fccbcce57ca0e9d0e9882317952d6e"
+    },
+    {
+      "path": "tasks/test-evidence/m20-disposable-signer/same-key-a.cert.txt",
+      "sha256": "e7a9409cab66928b5302b66b160dc3c4e5ba03f50462a9e6a1f12a6beeb4cea1"
+    },
+    {
+      "path": "tasks/test-evidence/m20-disposable-signer/same-key-b.cert.txt",
+      "sha256": "e7a9409cab66928b5302b66b160dc3c4e5ba03f50462a9e6a1f12a6beeb4cea1"
+    },
+    {
+      "path": "tasks/test-evidence/m20-disposable-signer/different-key.cert.txt",
+      "sha256": "aff260d380b33b47152c58d822e4d5462bb1a7891b290ce5c671aada06964346"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/theme/CodecksTheme.kt",
+      "sha256": "60a8f02f134242fb82242aaee8e46a891324e1f2fe95410ec35303945cf4f489"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/mouse/lockscreen/LockscreenTrackpadActivity.kt",
+      "sha256": "8345be21b451226fe2618c268c93020fadd678f58e7330d166faecbe51e693c4"
+    },
+    {
+      "path": "macHelper/Sources/CodecksMacHelperApp/HelperViews.swift",
+      "sha256": "6b1279c99f863973bd772777b6eea78465d7c7fb4df4e05faf816a52d6e9fa83"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/widget/TrackpadWidgetProvider.kt",
+      "sha256": "10208e42c299c86ab9e2b85378754da2c940745e3f7a2b1a18a46d72911177f1"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/theme/ThemeUiPolicy.kt",
+      "sha256": "800dbdb492d61fbd4dc13719aee8d6182ec6567d1907e0478ad1a7d5598c49d6"
+    }
+  ],
+  "validations": [
+    {
+      "id": "m02a",
+      "command": [
+        "python3",
+        "tools/evidence/validate_m02a_dependency_spikes.py"
+      ],
+      "expectedOutput": "all decisions explicit",
+      "stdoutSha256": "13888e34f47049ab03e164cb65617f0a20bc9d85489a9c52f558d09afa5f59fa",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "m09",
+      "command": [
+        "python3",
+        "tools/evidence/validate_m09_current_source_census.py"
+      ],
+      "expectedOutput": "PASS: M09 current census",
+      "stdoutSha256": "846513bcfe5fffd1b8dfb7268a2a2d3f015ea029c9d7c25fe663cdd346ce0ae7",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "m12",
+      "command": [
+        "python3",
+        "scripts/verify_m12_current_mac_receipt.py",
+        "tasks/test-evidence/autonomous-maturity-m12-current-mac.json"
+      ],
+      "expectedOutput": "pass=14 fail=0 not_run=11",
+      "stdoutSha256": "503db190b973618f35a79e54c4ec2cb1321da8ae4b77b87de15bbe00a9ca24f7",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "m14",
+      "command": [
+        "python3",
+        "tools/evidence/validate_m14_first_run.py",
+        "tasks/test-evidence/autonomous-maturity-m14-first-run.json"
+      ],
+      "expectedOutput": "human pairing NOT_RUN",
+      "stdoutSha256": "cfd0a4a274fe4a369b75431ab6a04b31f40ec8570ad835dd3ed8648d768523da",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "m15",
+      "command": [
+        "python3",
+        "tools/evidence/validate_m15_clipboard_battery.py"
+      ],
+      "expectedOutput": "6 runtime/external lanes remain NOT_RUN",
+      "stdoutSha256": "3eef3a775e272a582f0109466485e10a8d6b107663471076b90d16e0fc113927",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "m20_rollback",
+      "command": [
+        "python3",
+        "tools/evidence/validate_m20_rollback_rehearsal.py"
+      ],
+      "expectedOutput": "5 external lanes remain NOT_RUN",
+      "stdoutSha256": "fb90a4b7434f923de9853f0c9d03b011c3d54de82306a227ff55b66cd3b8e868",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "m20DisposableSigner": {
+    "sameKeyAccepted": true,
+    "differentKeyRejected": true,
+    "sameSignerCertificateSha256": "e4dcc0497622138a2f628244fafe39c1d1adbe98b762fb630a943d31ba6cb58f",
+    "differentSignerCertificateSha256": "49e853f699d1a76bb0a1215061d23d9feb4daf30dcc2400d691976df61a3c9bb",
+    "publicArtifacts": [
+      {
+        "name": "same-key-a.apk",
+        "sizeBytes": 2120,
+        "sha256": "30a01d1f2ff65233ff0632b3e0615d6afe67717972fd5a66eef176c2ab585e3e"
+      },
+      {
+        "name": "same-key-b.apk",
+        "sizeBytes": 2120,
+        "sha256": "30a01d1f2ff65233ff0632b3e0615d6afe67717972fd5a66eef176c2ab585e3e"
+      },
+      {
+        "name": "different-key.apk",
+        "sizeBytes": 2117,
+        "sha256": "601a587f836405fb6f31986479f2887b52fccbcce57ca0e9d0e9882317952d6e"
+      },
+      {
+        "name": "same-key-a.cert.txt",
+        "sizeBytes": 334,
+        "sha256": "e7a9409cab66928b5302b66b160dc3c4e5ba03f50462a9e6a1f12a6beeb4cea1"
+      },
+      {
+        "name": "same-key-b.cert.txt",
+        "sizeBytes": 334,
+        "sha256": "e7a9409cab66928b5302b66b160dc3c4e5ba03f50462a9e6a1f12a6beeb4cea1"
+      },
+      {
+        "name": "different-key.cert.txt",
+        "sizeBytes": 334,
+        "sha256": "aff260d380b33b47152c58d822e4d5462bb1a7891b290ce5c671aada06964346"
+      }
+    ],
+    "apksigner": {
+      "buildToolsVersion": "36.0.0",
+      "sdkRelativePath": "build-tools/36.0.0/apksigner",
+      "reportedVersion": "0.9",
+      "sha256": "b47549e373b895ce6ca620d0c7887e674d9615ffa837a86ac601dcfd04adb0f0"
+    },
+    "privateMaterialPersisted": false,
+    "productionKeyAccessed": false,
+    "protectedPackageTouched": false
+  },
+  "lanes": [
+    {
+      "id": "m02a.rejected_decisions",
+      "status": "PASS",
+      "evidence": "STATIC_AND_CPU",
+      "code": "five_candidates_rejected"
+    },
+    {
+      "id": "m09.source_metrics",
+      "status": "PASS",
+      "evidence": "EXACT_SOURCE",
+      "code": "metrics_published"
+    },
+    {
+      "id": "m09.runtime_metrics",
+      "status": "NOT_RUN",
+      "evidence": "RUNTIME",
+      "code": "no_current_candidate_or_device_run"
+    },
+    {
+      "id": "m09a.platform_semantics",
+      "status": "PASS",
+      "evidence": "EXACT_SOURCE",
+      "code": "platform_semantic_split"
+    },
+    {
+      "id": "m09d.current_lifecycle",
+      "status": "NOT_RUN",
+      "evidence": "CPU_AND_DEVICE",
+      "code": "host_resource_stop"
+    },
+    {
+      "id": "m12.non_mutating_local",
+      "status": "PASS",
+      "evidence": "CURRENT_MAC_READ_ONLY",
+      "code": "14_pass_0_fail"
+    },
+    {
+      "id": "m12.mutation_and_external",
+      "status": "NOT_RUN",
+      "evidence": "EXTERNAL",
+      "code": "11_lanes_held"
+    },
+    {
+      "id": "m14.moderated_human",
+      "status": "NOT_RUN",
+      "evidence": "EXTERNAL",
+      "code": "human_evidence_required"
+    },
+    {
+      "id": "m15.path_stable_proxy",
+      "status": "PASS",
+      "evidence": "CPU_AND_MANAGED_PROXY",
+      "code": "receipt_valid"
+    },
+    {
+      "id": "m15.runtime_and_physical",
+      "status": "NOT_RUN",
+      "evidence": "EXTERNAL",
+      "code": "six_lanes_held"
+    },
+    {
+      "id": "m20.disposable_signer",
+      "status": "PASS",
+      "evidence": "DISPOSABLE_LOCAL",
+      "code": "same_accept_different_reject"
+    },
+    {
+      "id": "m20.real_key_and_update",
+      "status": "NOT_RUN",
+      "evidence": "EXTERNAL",
+      "code": "real_key_and_phone_unavailable"
+    }
+  ],
+  "limitations": [
+    "No physical device, protected app, private signing key, release candidate, live provider, human, or publication evidence.",
+    "M09D current execution stopped under host resource pressure and remains NOT_RUN.",
+    "M16, M21, and M23 are outside this receipt."
+  ],
+  "receiptDigest": "b05f20eb0d1634dd99bbe62f63839489122eb28bd41009114c992ad06f055b7e"
+}

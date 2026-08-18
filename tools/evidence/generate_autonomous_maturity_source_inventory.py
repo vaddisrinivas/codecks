@@ -92,6 +92,7 @@ def atomic_write(root: Path, output: Path, payload: bytes) -> None:
         raise ValueError(f"output path escapes repository: {output}") from exc
     parent, name = open_parent(root, relative)
     temporary = f".{name}.{os.getpid()}.tmp"
+    created = False
     try:
         try:
             current = os.stat(name, dir_fd=parent, follow_symlinks=False)
@@ -105,6 +106,7 @@ def atomic_write(root: Path, output: Path, payload: bytes) -> None:
             0o600,
             dir_fd=parent,
         )
+        created = True
         try:
             view = memoryview(payload)
             while view:
@@ -116,10 +118,11 @@ def atomic_write(root: Path, output: Path, payload: bytes) -> None:
         os.replace(temporary, name, src_dir_fd=parent, dst_dir_fd=parent)
         os.fsync(parent)
     finally:
-        try:
-            os.unlink(temporary, dir_fd=parent)
-        except FileNotFoundError:
-            pass
+        if created:
+            try:
+                os.unlink(temporary, dir_fd=parent)
+            except FileNotFoundError:
+                pass
         os.close(parent)
 
 

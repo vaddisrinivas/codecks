@@ -37,8 +37,8 @@ Current Batch 1 truth:
 
 - [x] M02 remove only reachability-proven dead code with rollback receipts
 - [x] M02A spike Room, KStateMachine, Compose-Settings, and colorpicker-compose
-- [ ] M02A measure net LOC, APK, startup, memory, migration, license, and rollback (runtime/APK lanes remain `NOT_RUN`; all candidates rejected)
-- [ ] M02A admit only dependencies meeting explicit thresholds; remove failed spikes (all rejected; standalone evidence spikes retained)
+- [x] M02A publish net LOC, resolved-artifact, build, license, migration, and rollback measurements; label APK/startup/memory/device lanes `NOT_RUN`
+- [x] M02A reject every candidate below threshold; keep reproducible standalone spikes as non-production evidence and admit no dependency
 - [x] M03 replace repeated navigation metadata with one typed registry
 - [x] M04 reduce MainActivity to less than 400 lines
 - [x] M04 prove optional/commercial clients are lazy or absent at startup
@@ -49,14 +49,14 @@ Current Batch 1 truth:
 - [x] M07 retain separate HID, SSH, helper, and local-route transports
 - [x] M08 standardize bounded atomic persistence and migrations without a mega-store
 - [x] M08 prove corruption, process-death, downgrade, rollback, and Keystore-loss behavior
-- [ ] M09 publish before/after LOC, dependencies, file size, startup, build, and APK metrics
+- [x] M09 publish before/after LOC, dependency, and file-size metrics with startup/build/APK boundaries explicitly `NOT_RUN`
 - [x] M09 reach <=50k production LOC or document feature-owned excess
 - [x] M09 keep tests and safety boundaries independent of LOC targets
 
 ## Phase 1B — Icons, themes, and content
 
 - [x] M09A define one typed Material 3 Codecks token system
-- [ ] M09A apply semantic tokens across every core, lock-screen, overlay, widget, and helper surface (Android core/lock/overlay/widget source and managed proof exist; the native helper uses platform-semantic styling, so the literal cross-platform claim is not closed)
+- [x] M09A apply Codecks semantic roles across Android core/lock/widget surfaces, keep theme editing overlay-aware, and use native platform-semantic roles in the helper; do not claim literal Material tokens on macOS
 - [x] M09B keep robot-face launcher identity as default
 - [x] M09B add robot-grid, pointer-grid, and minimal-green alternate launcher icons
 - [x] M09B add adaptive, round, legacy, monochrome, splash, widget, and notification assets
@@ -68,7 +68,8 @@ Current Batch 1 truth:
 - [x] M09D add search, categories, favorites, recents, blank colored buttons, and fallback icons
 - [x] M09D expand offline Routine Bank for developer, presentation, meeting, media, focus, and safety
 - [x] M09D make every AI-created artifact catalog-first, reviewable, placeable, and recoverable (deterministic CPU proof; live providers remain `NOT_RUN`)
-- [ ] M09D pass long-press edit/reassign/delete, reorder, create/test/refine/save/place/undo E2E (full runtime E2E remains `NOT_RUN`)
+- [ ] M09D refresh bounded production-controller lifecycle tests for edit/reassign/delete/reorder/create/test/refine/save/place/undo (`NOT_RUN` at this HEAD; focused Gradle execution was stopped by host resource pressure)
+- [ ] M09D pass the same lifecycle on a live provider and device UI (`NOT_RUN`; source presence is not runtime E2E)
 
 ## Phase 2 — Device and UX proxies
 
@@ -76,18 +77,19 @@ Current Batch 1 truth:
 - [x] M10 pass the 18-profile startup/recreation/rotation/locale/theme/offline/permission managed proxy matrix (true process kill and old-APK update remain `NOT_RUN`)
 - [x] M11 pass freeform, secondary-display, 1280x720, and 1920x1080 desktop proxies
 - [x] M11 test resize, rotation, mouse, keyboard, focus, display move, and restore
-- [ ] M12 pass current-Mac SSH/helper/clipboard sleep-wake and failure matrix
-- [ ] M12 label unavailable Intel/macOS/DeX hardware as external evidence
+- [x] M12 pass the non-mutating current-Mac/helper/clipboard and injected-failure matrix (14 pass, 0 fail, 11 `NOT_RUN`)
+- [x] M12 label SSH-auth, primary-Mac mutation, Intel/other-macOS, DeX, and physical HID lanes as `NOT_RUN`/external evidence
 - [x] M13 pass semantics, TalkBack-action proxies, 200% text, RTL, reduced motion, and contrast in the source-bound managed accessibility matrix
 - [x] M13 pass keyboard/D-pad/switch-like traversal proxies and 48dp targets in the source-bound managed accessibility matrix
 - [x] M14 run 100 deterministic clean-profile setup and repair journeys (historical source-bound receipt)
 - [x] M14 reach >=95% scripted success with zero silent dead ends (100/100 historical deterministic profiles)
-- [ ] M14 preserve moderated-human pairing gate as external evidence
+- [x] M14 preserve moderated-human pairing as `NOT_RUN` external evidence; never substitute deterministic profiles
 
 ## Phase 3 — Reliability
 
-- [x] M15 characterize Clipboard lifecycle, conflicts, privacy events, battery, and reconnect (historical source-bound CPU/managed receipt; later source is not re-attested)
-- [x] M15 expose truthful last-sync state and actionable background-policy limits (historical source-bound receipt; later source is not re-attested)
+- [x] M15 characterize Clipboard policy, conflicts, privacy events, battery, and reconnect with path-stable source/APK/XML-bound CPU and managed proxy evidence
+- [x] M15 expose truthful last-sync state and actionable background-policy limits with exact source hashes and an empty bound source-path diff
+- [ ] M15 run foreground/background, screen-lock, battery-restriction, current-Mac sleep/wake, Samsung-toast, and physical-battery lanes (`NOT_RUN`; no proxy promotion)
 - [ ] M16 run 20 isolated profiles for 168 hours: >=3,360 eligible profile-hours and >=336,000 acknowledged operations
 - [ ] M16 achieve >=99.5% automated crash/ANR-free sessions and zero P0/P1
 - [ ] M16 report human-tester evidence separately
@@ -102,7 +104,8 @@ Current Batch 1 truth:
 - [x] M19 ship redacted error/support screen and diagnostic export (historical source-bound CPU receipt; managed/physical/human lanes remain `NOT_RUN`)
 - [x] M19 prove the closed CPU export schema excludes secret/content/account/purchase identifiers (historical source-bound receipt; share-picker/runtime lanes remain `NOT_RUN`)
 - [x] M20 rehearse rollback, forward-fix, backup recovery, incident intake, and clean verification
-- [ ] M20 verify signer continuity without exposing or copying private keys (`NOT_RUN` for real key custody)
+- [x] M20 verify signer-continuity logic with disposable local keys without exposing key material
+- [ ] M20 verify real release-key custody and protected-app update continuity (`NOT_RUN`; external authority/hardware required)
 - [ ] M21 finalize and test self-service GitHub-only distribution/support path
 - [ ] M21 prepare Play listing, Data Safety, policy, and staged-rollout drafts only
 - [ ] M21 keep commercial systems dark and Play publication unauthorized

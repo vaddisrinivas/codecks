@@ -1,0 +1,4 @@
+Signer #1 certificate DN: CN=Codecks Disposable Signer, OU=Local Test, O=Codecks, C=US
+Signer #1 certificate SHA-256 digest: 49e853f699d1a76bb0a1215061d23d9feb4daf30dcc2400d691976df61a3c9bb
+Signer #1 certificate SHA-1 digest: cd1771d8731c036172863c6855996332e0fa05e4
+Signer #1 certificate MD5 digest: 6b96ccdc1a684e8146b68fbfb6eaaa07
