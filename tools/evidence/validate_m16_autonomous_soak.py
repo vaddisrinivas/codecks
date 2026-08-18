@@ -121,7 +121,15 @@ def validate(receipt_path: Path, repo: Path) -> None:
             or not re.fullmatch(r"[0-9a-f]{32}",runtime["runIdentity"])
             or set(runtime["emulatorPids"])!={f"m16Soak0{i}Api35" for i in range(1,5)}
             or set(runtime["emulatorPids"].values())!={item["qemu"]["pid"] for item in devices}
-            or set(runtime["defaultAdbAudit"])!={"sanitizedNonM16EmulatorCount"}): raise ValueError("runtime_binding")
+            or set(runtime["defaultAdbAudit"])!={"status","sanitizedNonM16EmulatorCount","authorizedAvds","serverPid","serverCmdlineSha256"}): raise ValueError("runtime_binding")
+    audit=runtime["defaultAdbAudit"]
+    if audit["status"]=="absent":
+        if audit!={"status":"absent","sanitizedNonM16EmulatorCount":0,"authorizedAvds":[],"serverPid":0,"serverCmdlineSha256":"0"*64}: raise ValueError("default_audit_absent")
+    elif audit["status"]=="present":
+        if (audit["sanitizedNonM16EmulatorCount"]!=len(audit["authorizedAvds"]) or audit["serverPid"]<=0
+                or not re.fullmatch(r"[0-9a-f]{64}",audit["serverCmdlineSha256"])
+                or {item.get("avd") for item in audit["authorizedAvds"]}-{"Utopia_GL_1","Utopia_GL_2"}): raise ValueError("default_audit_present")
+    else: raise ValueError("default_audit_status")
     dependencies = receipt["dependencies"]
     if [item.get("milestone") for item in dependencies] != list(MILESTONES): raise ValueError("dependency_order")
     for item in dependencies:

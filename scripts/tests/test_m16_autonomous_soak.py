@@ -16,12 +16,55 @@ class M16HostTests(unittest.TestCase):
     def test_isolated_adb_namespace_and_default_audit_fail_closed(self):
         self.assertEqual(m16.adb_command(m16.ADB_SERVER_PORT,"devices"),["adb","-P","5039","devices"])
         self.assertEqual(m16.adb_command(m16.DEFAULT_ADB_SERVER_PORT,"devices"),["adb","-P","5037","devices"])
-        physical=mock.Mock(returncode=0,stdout="List of devices attached\nphone-1\tdevice\n")
-        with mock.patch.object(m16.subprocess,"run",return_value=physical),self.assertRaises(m16.SafetyStop): m16.audit_default_adb()
+        with mock.patch.object(m16,"listener_pids",return_value=set()),mock.patch.object(m16.subprocess,"run") as run:
+            self.assertEqual(m16.audit_default_adb()["status"],"absent"); run.assert_not_called()
+        offline=mock.Mock(returncode=0,stdout="List of devices attached\nemulator-5554\toffline\n")
+        with mock.patch.object(m16,"listener_pids",return_value={250}),mock.patch.object(m16,"process_command",return_value="adb server"), \
+             mock.patch.object(m16.subprocess,"run",return_value=offline),self.assertRaises(m16.SafetyStop): m16.audit_default_adb()
         devices=mock.Mock(returncode=0,stdout="List of devices attached\nemulator-5554\tdevice\n")
-        qemu=mock.Mock(returncode=0,stdout="1\n")
-        with mock.patch.object(m16.subprocess,"run",side_effect=[devices,qemu]):
-            self.assertEqual(m16.audit_default_adb(),{"sanitizedNonM16EmulatorCount":1})
+        qemu=mock.Mock(returncode=0,stdout="1\n"); unknown=mock.Mock(returncode=0,stdout="Unknown_AVD\n")
+        with mock.patch.object(m16,"listener_pids",return_value={250}),mock.patch.object(m16,"process_command",return_value="adb server"), \
+             mock.patch.object(m16.subprocess,"run",side_effect=[devices,qemu,unknown]),self.assertRaises(m16.SafetyStop): m16.audit_default_adb()
+        known=mock.Mock(returncode=0,stdout="Utopia_GL_1\n")
+        processes=mock.Mock(returncode=0,stdout="30880 qemu-system -avd Utopia_GL_1 -port 5554\n")
+        with mock.patch.object(m16,"listener_pids",return_value={250}),mock.patch.object(m16,"process_command",return_value="adb server") as command, \
+             mock.patch.object(m16.subprocess,"run",side_effect=[devices,qemu,known,processes]) as run:
+            audit=m16.audit_default_adb()
+        self.assertEqual(audit["authorizedAvds"][0]["avd"],"Utopia_GL_1")
+        sent=" ".join(str(call.args[0]) for call in run.call_args_list)
+        for forbidden in ("install","uninstall","kill","force-stop","pm clear"): self.assertNotIn(forbidden,sent)
+
+    def test_collision_partial_launch_and_unowned_cleanup_fail_closed(self):
+        args=mock.Mock(run_dir="/tmp/m16-collision")
+        with mock.patch.object(m16,"require_capacity"),mock.patch.object(m16,"audit_default_adb",return_value={}), \
+             mock.patch.object(m16,"listener_pids",return_value={999}),mock.patch.object(m16,"acquire_owner") as acquire, \
+             self.assertRaises(m16.SafetyStop): m16.launch(args)
+        acquire.assert_not_called()
+        state={"runToken":"1"*32,"emulatorPids":{avd:100+i for i,avd in enumerate(m16.AVDS)},
+               "devices":{avd:f"emulator-{port}" for avd,port in zip(m16.AVDS,m16.EMULATOR_PORTS)},"isolatedAdb":{"owned":True}}
+        with mock.patch.object(m16,"require_owner"),mock.patch.object(m16,"adb_server_binding",return_value={"owned":True}), \
+             mock.patch.object(m16,"process_command",return_value="unrelated qemu"),mock.patch.object(m16,"adb_result") as send, \
+             self.assertRaises(m16.SafetyStop): m16.stop_owned_emulators(Path("/tmp/run"),state)
+        send.assert_not_called()
+
+    def test_partial_launch_releases_owner_and_only_owned_cleanup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            args=mock.Mock(run_dir=directory); process=mock.Mock(pid=1111)
+            blank=mock.Mock(returncode=0,stdout="List of devices attached\n")
+            with mock.patch.object(m16,"require_capacity"),mock.patch.object(m16,"audit_default_adb",return_value={}), \
+                 mock.patch.object(m16,"listener_pids",return_value=set()),mock.patch.object(m16,"adb_server_binding",return_value={"serverPid":9}), \
+                 mock.patch.object(m16.subprocess,"run",return_value=blank),mock.patch.object(m16,"managed_avd_config"), \
+                 mock.patch.object(m16.Path,"is_file",return_value=True),mock.patch.object(m16.subprocess,"Popen",side_effect=[process,OSError("partial")]), \
+                 mock.patch.object(m16.secrets,"token_hex",return_value="1"*32),mock.patch.object(m16,"process_command",return_value="m16Soak01Api35 qemu.codecks.m16_run_token="+"1"*32), \
+                 mock.patch.object(m16,"acquire_owner"),mock.patch.object(m16,"release_owner") as release, \
+                 mock.patch.object(m16,"stop_owned_adb_server") as stop_server, self.assertRaises(OSError): m16.launch(args)
+            stop_server.assert_called_once(); release.assert_called_once()
+
+    def test_stale_server_binding_never_sends_kill(self):
+        binding={"port":5039,"endpoint":"tcp:127.0.0.1:5039","serverPid":9,"cmdlineSha256":"a"*64}
+        with mock.patch.object(m16,"adb_server_binding",return_value={**binding,"serverPid":10}), \
+             mock.patch.object(m16.subprocess,"run") as run, self.assertRaises(m16.SafetyStop): m16.stop_owned_adb_server(binding)
+        run.assert_not_called()
     def test_requires_exact_four_distinct_emulators(self):
         values = [f"m16Soak0{i}Api35=emulator-{5552 + i * 2}" for i in range(1, 5)]
         self.assertEqual(len(m16.parse_devices(values)), 4)
