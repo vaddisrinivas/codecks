@@ -1,6 +1,5 @@
 package io.codecks.internalquality
 
-import android.app.Dialog
 import android.app.Presentation
 import android.content.Context
 import android.hardware.display.DisplayManager
@@ -12,18 +11,31 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.TextView
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import io.codecks.ui.mouse.RawTrackpadView
 import java.io.FileInputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class M11DexProxyInstrumentedTest {
+    @get:Rule val compose = createEmptyComposeRule()
+
     @Test fun managedWindow1280x720() = managedWindowProfile(1280, 720)
     @Test fun managedWindow1920x1080() = managedWindowProfile(1920, 1080)
     @Test fun freeformWindow1280x720() = freeformWindowUiProxy(1280, 720)
@@ -38,14 +50,23 @@ class M11DexProxyInstrumentedTest {
                 scenario.onActivity { activity ->
                     activity.resetDurableMarker()
                     assertWindow(activity, width, height)
+                    activity.probeView.requestFocus()
                     assertTrue(activity.probeView.hasFocus())
                     sendMouseAndKeyboard(activity)
+                }
+                waitUntil {
+                    var delivered = false
+                    scenario.onActivity { delivered = it.pointerEvents == 1 && it.keyboardEvents == 1 }
+                    delivered
+                }
+                scenario.onActivity { activity ->
                     assertEquals(1, activity.pointerEvents)
                     assertEquals(1, activity.keyboardEvents)
                     assertEquals(1, activity.windowMarker)
                     assertEquals(1, activity.durableMarker)
                     durableBefore = activity.durableMarker
                 }
+                assertProductSurfaces(scenario)
                 scenario.recreate()
                 scenario.onActivity { activity ->
                     assertWindow(activity, width, height)
@@ -63,24 +84,24 @@ class M11DexProxyInstrumentedTest {
         }
     }
 
-    // Dialog sizing exercises bounded window UI only; it does not prove OS task freeform mode.
+    // Exact product dialog exercised at both display profiles; OS task freeform remains NOT_RUN.
     private fun freeformWindowUiProxy(width: Int, height: Int) {
         withDisplay(width, height) {
             ActivityScenario.launch(M11DexProxyActivity::class.java).use { scenario ->
-                scenario.onActivity { activity ->
-                    val dialog = Dialog(activity)
-                    val marker = TextView(activity).apply { text = "$width x $height freeform-window UI proxy" }
-                    dialog.setContentView(marker)
-                    dialog.window?.setLayout(width, height)
-                    dialog.show()
-                    dialog.window?.setLayout(width, height)
-                    val attributes = requireNotNull(dialog.window).attributes
-                    assertEquals(width, attributes.width)
-                    assertEquals(height, attributes.height)
-                    assertTrue(dialog.isShowing)
-                    assertTrue(marker.parent != null)
-                    dialog.dismiss()
-                }
+                waitForSurfaces(scenario)
+                scenario.onActivity { it.openProductDialog() }
+                compose.onNodeWithText("Support bundle").assertIsDisplayed()
+                compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Preview ready"))
+                    .assertIsDisplayed()
+                compose.onNodeWithText("Redacted health", substring = true).assertIsDisplayed()
+                compose.onNodeWithText("Bounded operation receipts", substring = true).assertIsDisplayed()
+                compose.onNodeWithText("Never includes credentials", substring = true).assertIsDisplayed()
+                val bounds = compose.onNodeWithText("Support bundle").fetchSemanticsNode().boundsInRoot
+                assertTrue(bounds.width in 1f..width.toFloat())
+                assertTrue(bounds.height in 1f..height.toFloat())
+                compose.onNodeWithContentDescription("Generate support bundle")
+                    .assertHasClickAction().performClick()
+                scenario.onActivity { assertEquals(1, it.dialogEvents) }
             }
         }
     }
@@ -116,21 +137,43 @@ class M11DexProxyInstrumentedTest {
 
     private fun sendMouseAndKeyboard(activity: M11DexProxyActivity) {
         val now = android.os.SystemClock.uptimeMillis()
-        val down = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, 10f, 10f, 0).apply {
-            source = InputDevice.SOURCE_MOUSE
-        }
-        val up = MotionEvent.obtain(now, now + 1, MotionEvent.ACTION_UP, 10f, 10f, 0).apply {
-            source = InputDevice.SOURCE_MOUSE
-        }
+        val x = activity.probeView.width / 2f
+        val y = activity.probeView.height / 2f
+        val down = mouseEvent(now, now, MotionEvent.ACTION_DOWN, MotionEvent.BUTTON_PRIMARY, x, y)
+        val up = mouseEvent(now, now + 1, MotionEvent.ACTION_UP, 0, x, y)
         try {
-            activity.dispatchTouchEvent(down)
-            activity.dispatchTouchEvent(up)
+            assertTrue(activity.probeView.dispatchTouchEvent(down))
+            assertTrue(activity.probeView.dispatchTouchEvent(up))
             activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
             activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
         } finally {
             down.recycle()
             up.recycle()
         }
+    }
+
+    private fun mouseEvent(
+        downTime: Long,
+        eventTime: Long,
+        action: Int,
+        buttons: Int,
+        x: Float,
+        y: Float,
+    ): MotionEvent {
+        val properties = arrayOf(MotionEvent.PointerProperties().apply {
+            id = 0
+            toolType = MotionEvent.TOOL_TYPE_MOUSE
+        })
+        val coordinates = arrayOf(MotionEvent.PointerCoords().apply {
+            this.x = x
+            this.y = y
+            pressure = 1f
+            size = 1f
+        })
+        return MotionEvent.obtain(
+            downTime, eventTime, action, 1, properties, coordinates,
+            0, buttons, 1f, 1f, 0, 0, InputDevice.SOURCE_MOUSE, 0,
+        )
     }
 
     private fun rotateAndAssertSwap(scenario: ActivityScenario<M11DexProxyActivity>, width: Int, height: Int) {
@@ -160,6 +203,29 @@ class M11DexProxyInstrumentedTest {
         assertEquals(width, bounds.width())
         assertEquals(height, bounds.height())
         assertTrue(activity.window.decorView.isAttachedToWindow)
+    }
+
+    private fun assertProductSurfaces(scenario: ActivityScenario<M11DexProxyActivity>) {
+        waitForSurfaces(scenario)
+        scenario.onActivity { activity ->
+            assertTrue(activity.probeView is RawTrackpadView)
+            assertEquals("M11 Trackpad surface", activity.probeView.contentDescription)
+        }
+        compose.onNodeWithTag("m11-deck-action").assertHasClickAction().performClick()
+        compose.onNodeWithTag("destination-trackpad").assertHasClickAction().performClick()
+        scenario.onActivity { activity ->
+            assertEquals(1, activity.deckEvents)
+            assertEquals(1, activity.navigationEvents)
+            assertEquals(io.codecks.navigation.MouseRoute, activity.selectedRoute)
+        }
+    }
+
+    private fun waitForSurfaces(scenario: ActivityScenario<M11DexProxyActivity>) {
+        waitUntil {
+            var ready = false
+            scenario.onActivity { ready = it.productSurfacesReady }
+            ready
+        }
     }
 
     private fun withDisplay(width: Int, height: Int, block: () -> Unit) {

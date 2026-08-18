@@ -46,6 +46,15 @@ class M19EvidenceTest(unittest.TestCase):
         stale = hashlib.sha256(b"stale source artifact").hexdigest()
         self.assert_rejected(lambda data: data["sources"][0].update({"sha256": stale}), "source digest")
 
+    def test_managed_source_diff_digest_rejected(self) -> None:
+        def mutate(data):
+            data["managedResult"]["sourceDiffSha256"] = "0" * 64
+            data["receiptDigest"] = canonical_digest(data)
+        self.assert_rejected(
+            mutate,
+            "binding mismatch",
+        )
+
     def test_missing_commit_rejected(self) -> None:
         self.assert_rejected(lambda data: data.update({"sourceCommit": "0" * 40}), "commit object")
 
@@ -133,6 +142,21 @@ class M19EvidenceTest(unittest.TestCase):
         self.addCleanup(probe.unlink, missing_ok=True)
         with self.assertRaisesRegex(ValueError, "raw production support-code literal"):
             validate()
+
+    def test_managed_source_target_test_xml_and_device_mutations_fail_closed(self) -> None:
+        mutations = (
+            lambda data: data["managedResult"]["sources"][0].update({"sha256": "0" * 64}),
+            lambda data: data["managedResult"]["targetApk"].update({"sha256": "0" * 64}),
+            lambda data: data["managedResult"]["testApk"].update({"sha256": "0" * 64}),
+            lambda data: data["managedResult"]["result"].update({"sha256": "0" * 64}),
+            lambda data: data["managedResult"]["device"]["properties"].update({"device": "physical"}),
+        )
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                def sealed(data, change=mutation):
+                    change(data)
+                    data["receiptDigest"] = canonical_digest(data)
+                self.assert_rejected(sealed, "binding mismatch")
 
 
 if __name__ == "__main__":

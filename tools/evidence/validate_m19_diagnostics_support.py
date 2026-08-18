@@ -8,6 +8,8 @@ import subprocess
 
 from collect_m19_diagnostics_support import (
     EXPECTED_METHODS,
+    MANAGED_CLASS,
+    MANAGED_METHODS,
     NOT_RUN_LANES,
     PASS_LANES,
     ROOT,
@@ -21,6 +23,7 @@ from collect_m19_diagnostics_support import (
     safe_path,
     sha256,
 )
+from managed_execution_binding import validate_binding
 from validate_autonomous_maturity_evidence import validate_schema_node
 
 RECEIPT = ROOT / "tasks/test-evidence/autonomous-maturity-m19-diagnostics-support.json"
@@ -84,13 +87,13 @@ def validate(path: Path = RECEIPT) -> None:
     validate_schema_node(data, schema, schema, "m19")
     expected_keys = {
         "schema", "milestone", "status", "scope", "sourceCommit", "sources", "unitResult", "lanes",
-        "privacy", "summary", "limitations", "receiptDigest",
+        "managedResult", "privacy", "summary", "limitations", "receiptDigest",
         "validatorCases",
     }
     if set(data) != expected_keys:
         raise ValueError("M19 receipt keys are not closed")
     if (data["schema"], data["milestone"], data["status"], data["scope"]) != (
-        SCHEMA_ID, "M19", "PASS", "CPU_SOURCE_BOUND",
+        SCHEMA_ID, "M19", "PASS", "CPU_AND_MANAGED_SOURCE_ARTIFACT_BOUND",
     ):
         raise ValueError("M19 identity/status mismatch")
     commit = data["sourceCommit"]
@@ -116,12 +119,12 @@ def validate(path: Path = RECEIPT) -> None:
         raise ValueError("M19 unit result digest mismatch")
     if parse_result(result_path) != result["methods"]:
         raise ValueError("M19 unit result claims mismatch")
-    expected_lanes = list(PASS_LANES) + list(NOT_RUN_LANES)
+    expected_lanes = list(PASS_LANES) + ["managed.support_surface_ui"] + list(NOT_RUN_LANES)
     if [lane["id"] for lane in data["lanes"]] != expected_lanes:
         raise ValueError("M19 lane identity/order mismatch")
     for lane in data["lanes"]:
-        expected = "PASS" if lane["id"] in PASS_LANES else "NOT_RUN"
-        evidence = "CPU_UNIT" if expected == "PASS" else "EXTERNAL"
+        expected = "PASS" if lane["id"] in PASS_LANES or lane["id"] == "managed.support_surface_ui" else "NOT_RUN"
+        evidence = "MANAGED_EMULATOR_PROXY" if lane["id"] == "managed.support_surface_ui" else ("CPU_UNIT" if expected == "PASS" else "EXTERNAL")
         if (lane["status"], lane["evidence"]) != (expected, evidence):
             raise ValueError(f"M19 lane claim mismatch: {lane['id']}")
     if data["privacy"] != {
@@ -131,7 +134,7 @@ def validate(path: Path = RECEIPT) -> None:
         "commercialIdentifierRecorded": False,
     }:
         raise ValueError("M19 privacy boundary changed")
-    if data["summary"] != {"pass": 5, "fail": 0, "notRun": 3}:
+    if data["summary"] != {"pass": 6, "fail": 0, "notRun": 2}:
         raise ValueError("M19 summary mismatch")
     if data["validatorCases"] != {
         "positive": VALIDATOR_POSITIVE_CASES,
@@ -142,6 +145,13 @@ def validate(path: Path = RECEIPT) -> None:
         raise ValueError("M19 limitations mismatch")
     if canonical_digest(data) != data["receiptDigest"]:
         raise ValueError("M19 receipt digest mismatch")
+    validate_binding(
+        ROOT,
+        data["managedResult"],
+        source_paths=SOURCE_PATHS,
+        class_name=MANAGED_CLASS,
+        methods=MANAGED_METHODS,
+    )
     reject_sensitive(data)
 
 

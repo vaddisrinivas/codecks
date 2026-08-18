@@ -8,6 +8,7 @@ import json
 from argparse import ArgumentParser
 from collections import Counter
 from pathlib import Path
+import subprocess
 
 from generate_autonomous_maturity_source_inventory import (
     SOURCE_SUFFIXES,
@@ -20,7 +21,6 @@ from generate_autonomous_maturity_source_inventory import (
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "tasks/test-evidence/autonomous-maturity-m09-current-source-census.json"
 BASELINE = ROOT / "tasks/test-evidence/autonomous-maturity-source-inventory.json"
-SOURCE_COMMIT = "08c9ae50ee0a46ad1682b03c4989130ae78f2bad"
 BASELINE_COMMIT = "d1f1788f03fe59bb0dceb5822e9f5b19194090fd"
 TARGET = 50_000
 METHOD = {
@@ -59,14 +59,21 @@ def canonical_digest(data: dict) -> str:
     return hashlib.sha256(json.dumps(copy, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
-def generate(root: Path = ROOT) -> dict:
+def generate(root: Path = ROOT, source_commit: str | None = None) -> dict:
+    source_commit = source_commit or subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=root, check=True, capture_output=True, text=True,
+    ).stdout.strip()
     entries: list[dict] = []
     category_lines: Counter[str] = Counter()
     source_set_lines: Counter[str] = Counter()
     language_lines: Counter[str] = Counter()
     owner_lines: Counter[str] = Counter()
-    for relative in tracked_sources(root):
-        raw = read_source(root, relative)
+    current_paths = subprocess.run(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+        cwd=root, check=True, capture_output=True, text=True,
+    ).stdout.splitlines()
+    for relative in sorted(path for path in current_paths if Path(path).suffix in SOURCE_SUFFIXES):
+        raw = (root / relative).read_bytes()
         lines = len(raw.decode("utf-8").splitlines())
         category, source_set = classify(relative)
         owner = feature_owner(relative)
@@ -94,7 +101,7 @@ def generate(root: Path = ROOT) -> dict:
     owners = dict(sorted(owner_lines.items()))
     data = {
         "schema": "codecks.autonomous-maturity.m09-current-source-census.v1",
-        "sourceCommit": SOURCE_COMMIT,
+        "sourceCommit": source_commit,
         "baseline": {
             "commit": BASELINE_COMMIT,
             "inventorySha256": hashlib.sha256(baseline_raw).hexdigest(),

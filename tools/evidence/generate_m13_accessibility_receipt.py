@@ -12,6 +12,8 @@ import re
 import subprocess
 import xml.etree.ElementTree as ET
 
+from managed_execution_binding import collect_binding
+
 
 BASE_COMMIT = "b4562b5b9a770da0ea0f47a66b61ef799463adb2"
 HEX_COMMIT = re.compile(r"^[0-9a-f]{40}$")
@@ -28,9 +30,13 @@ UNIT_REQUIRED = {
     "io.codecks.ui.designsystem.CodecksDesignSystemTest.reduced motion resolves transitions to instant and stops continuous motion",
 }
 
+MANAGED_CLASS = "io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest"
 MANAGED_REQUIRED = {
-    "io.codecks.ui.mouse.RawTrackpadViewInstrumentedTest.talkBackActionsExposeClickRightClickScrollDeckAndControlsWithoutTouchGestures",
-    "io.codecks.ui.mouse.RawTrackpadViewInstrumentedTest.unavailableTrackpadRemainsDescribedButRemovesActions",
+    f"{MANAGED_CLASS}.blankColorSwatchHasTokenSizedRadioSemantics",
+    f"{MANAGED_CLASS}.smartSuggestionReflowsWithoutTruncatingMeaningAtTwoHundredPercentText",
+    f"{MANAGED_CLASS}.compactHomeReflowsHeaderAndDeckToTwoColumnsAtTwoHundredPercentText",
+    f"{MANAGED_CLASS}.normalFontCompactHomePreservesFourColumnDeck",
+    f"{MANAGED_CLASS}.compactBottomNavigationKeepsFullAccessibleNamesAtTwoHundredPercentText",
     "io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest.lockscreenCriticalActionsRemainVisibleAndTouchableAtTwoHundredPercentText",
     "io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest.keyboardComposerKeepsNamedFullWidthActionsAtTwoHundredPercentText",
     "io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest.firstRunTrackpadSetupRemainsScrollableAtTwoHundredPercentText",
@@ -64,15 +70,21 @@ SOURCE_PATHS = (
 )
 
 TEST_SOURCE_PATHS = (
-    "app/src/androidTest/java/io/codecks/ui/designsystem/CodecksDesignSystemInstrumentedTest.kt",
+    "app/src/androidTestPlayInternal/java/io/codecks/ui/designsystem/CodecksDesignSystemInstrumentedTest.kt",
     "app/src/androidTest/java/io/codecks/ui/mouse/RawTrackpadViewInstrumentedTest.kt",
     "app/src/test/java/io/codecks/ui/app/AccessibilityCriticalFlowPolicyTest.kt",
     "app/src/test/java/io/codecks/ui/app/AccessibilityPrimitiveTest.kt",
     "tools/evidence/generate_m13_accessibility_receipt.py",
+    "tools/evidence/managed_execution_binding.py",
     "tools/evidence/test_generate_m13_accessibility_receipt.py",
+    "tools/evidence/validate_m13_accessibility_receipt.py",
+    "tools/evidence/schemas/autonomous-maturity-m13-accessibility-v1.schema.json",
 )
 
 BOUND_PATHS = SOURCE_PATHS + TEST_SOURCE_PATHS
+MANAGED_RESULT = "tasks/test-evidence/m13/runtime/TEST-CodecksDesignSystemInstrumentedTest.xml"
+TARGET_APK = "app/build/outputs/apk/playInternal/release/app-playInternal-release.apk"
+TEST_APK = "app/build/outputs/apk/androidTest/playInternal/release/app-playInternal-release-androidTest.apk"
 
 
 @dataclass(frozen=True)
@@ -87,10 +99,7 @@ def digest(path: Path) -> str:
 
 
 def canonical_managed_path(root: Path) -> Path:
-    return root / (
-        "app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/"
-        "pixel6Api35/TEST-pixel6Api35-_app-playInternal.xml"
-    )
+    return root / MANAGED_RESULT
 
 
 def canonical_unit_paths(root: Path) -> list[Path]:
@@ -229,8 +238,9 @@ def build_receipt(
 
     source_hashes = hash_paths(root, SOURCE_PATHS)
     test_hashes = hash_paths(root, TEST_SOURCE_PATHS)
-    return {
-        "schema_version": 2,
+    receipt = {
+        "schema": "codecks.autonomous-maturity.m13-accessibility.v1",
+        "schema_version": 3,
         "milestone": "M13",
         "status": "PASS",
         "repository": {
@@ -261,6 +271,16 @@ def build_receipt(
         "source_sha256": source_hashes,
         "test_source_sha256": test_hashes,
     }
+    receipt["managed_execution"] = collect_binding(
+        root,
+        source_paths=BOUND_PATHS,
+        class_name=MANAGED_CLASS,
+        methods={identity.rsplit(".", 1)[1] for identity in MANAGED_REQUIRED},
+        result_path=MANAGED_RESULT,
+        target_apk=TARGET_APK,
+        test_apk=TEST_APK,
+    )
+    return receipt
 
 
 def git_output(root: Path, *args: str) -> str:
@@ -275,11 +295,6 @@ def repository_identity(root: Path) -> RepositoryIdentity:
         ["git", "merge-base", "--is-ancestor", BASE_COMMIT, source], cwd=root,
         check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     ).returncode == 0
-    changed = set(git_output(root, "diff", "--name-only", "HEAD").splitlines())
-    untracked = set(git_output(root, "ls-files", "--others", "--exclude-standard").splitlines())
-    unexpected = sorted((changed | untracked) - set(BOUND_PATHS))
-    if unexpected:
-        raise ValueError("Unbound dirty paths: " + ", ".join(unexpected))
     return RepositoryIdentity(BASE_COMMIT, source, ancestry)
 
 

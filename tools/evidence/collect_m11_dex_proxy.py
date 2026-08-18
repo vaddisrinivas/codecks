@@ -8,6 +8,8 @@ import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from managed_execution_binding import collect_binding
+
 ROOT = Path(__file__).resolve().parents[2]
 EXPECTED = {
     "managedWindow1280x720", "managedWindow1920x1080",
@@ -17,9 +19,23 @@ EXPECTED = {
 CLASSNAME = "io.codecks.internalquality.M11DexProxyInstrumentedTest"
 EXPECTED_PROPERTIES = {"device": "pixel6Api35", "flavor": "playInternal", "project": ":app"}
 CHECKS = [
-    "managed_window", "freeform_window_ui_proxy", "secondary_display_presentation_proxy",
-    "rotation", "mouse", "keyboard", "focus", "window_restore", "cold_activity_restart_proxy",
+    "managed_window", "actual_deck_action", "actual_trackpad_mouse_down_up",
+    "product_support_dialog", "bounded_dialog_content", "product_app_shell_navigation",
+    "secondary_display_presentation_proxy", "rotation", "keyboard", "focus",
+    "window_restore", "cold_activity_restart_proxy",
 ]
+SOURCE_PATHS = (
+    "app/src/playInternal/java/io/codecks/internalquality/M11DexProxyActivity.kt",
+    "app/src/androidTestPlayInternal/java/io/codecks/internalquality/M11DexProxyInstrumentedTest.kt",
+    "scripts/run_m11_dex_proxy.sh",
+    "tools/evidence/collect_m11_dex_proxy.py",
+    "tools/evidence/managed_execution_binding.py",
+    "tools/evidence/validate_m11_dex_proxy.py",
+    "tools/evidence/test_m11_dex_proxy.py",
+    "tools/evidence/schemas/autonomous-maturity-m11-dex-proxy-v1.schema.json",
+)
+TARGET_APK = "app/build/outputs/apk/playInternal/release/app-playInternal-release.apk"
+TEST_APK = "app/build/outputs/apk/androidTest/playInternal/release/app-playInternal-release-androidTest.apk"
 
 
 def safe_path(value: str) -> Path:
@@ -121,7 +137,7 @@ def collect(result_paths: list[str]) -> dict:
             raise ValueError("M11 rerun must exactly correct the earlier failed methods")
     else:
         raise ValueError("M11 receipt supports one clean run or one bounded corrective rerun")
-    return {
+    receipt = {
         "schema": "codecks.autonomous-maturity.m11-dex-proxy.v1",
         "milestone": "M11",
         "status": "PASS",
@@ -137,12 +153,24 @@ def collect(result_paths: list[str]) -> dict:
             "reason": "No physical Samsung device or vendor DeX environment was used; emulator proxies cannot prove Samsung window-manager behavior.",
         }],
         "limitations": [
-            "Dialog sizing is a freeform-window UI proxy; it does not prove Android or Samsung task freeform mode.",
+            "The production support dialog is bounded at both display sizes; Android and Samsung task freeform mode remain NOT_RUN.",
             "Overlay-display Presentation proves a secondary-display context proxy, not task-host movement on Samsung DeX.",
             "Activity recreation and cold activity restart are process/window restoration proxies, not low-memory process death.",
-            "Mouse and keyboard events are emulator-injected into an internal-only probe activity.",
+            "Real mouse DOWN/UP and keyboard events are emulator-injected through production input surfaces in an internal-only host.",
         ],
     }
+    if len(result_paths) != 1:
+        raise ValueError("current M11 receipt requires one exact clean run")
+    receipt["managedExecution"] = collect_binding(
+        ROOT,
+        source_paths=SOURCE_PATHS,
+        class_name=CLASSNAME,
+        methods=EXPECTED,
+        result_path=result_paths[0],
+        target_apk=TARGET_APK,
+        test_apk=TEST_APK,
+    )
+    return receipt
 
 
 def main() -> int:

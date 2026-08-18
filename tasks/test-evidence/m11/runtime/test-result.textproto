@@ -1,0 +1,357 @@
+# proto-message: google.testing.platform.proto.api.core.TestSuiteResult
+# 2026-08-18T00:13:30.530656Z:
+test_suite_meta_data {
+  scheduled_test_case_count: 6
+  device {
+    id: "emulator-5554"
+    friendly_name: "primary"
+  }
+}
+test_status: PASSED
+test_result {
+  test_case {
+    test_class: "M11DexProxyInstrumentedTest"
+    test_package: "io.codecks.internalquality"
+    test_method: "managedWindow1920x1080"
+    start_time {
+      seconds: 1787011991
+      nanos: 401000000
+    }
+    end_time {
+      seconds: 1787011996
+      nanos: 643000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/logcat-io.codecks.internalquality.M11DexProxyInstrumentedTest-managedWindow1920x1080.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/cpuinfo"
+    }
+  }
+}
+test_result {
+  test_case {
+    test_class: "M11DexProxyInstrumentedTest"
+    test_package: "io.codecks.internalquality"
+    test_method: "secondaryDisplay1280x720"
+    start_time {
+      seconds: 1787011996
+      nanos: 663000000
+    }
+    end_time {
+      seconds: 1787011999
+      nanos: 503000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/logcat-io.codecks.internalquality.M11DexProxyInstrumentedTest-secondaryDisplay1280x720.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/cpuinfo"
+    }
+  }
+}
+test_result {
+  test_case {
+    test_class: "M11DexProxyInstrumentedTest"
+    test_package: "io.codecks.internalquality"
+    test_method: "freeformWindow1920x1080"
+    start_time {
+      seconds: 1787011999
+      nanos: 504000000
+    }
+    end_time {
+      seconds: 1787012001
+      nanos: 609000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/logcat-io.codecks.internalquality.M11DexProxyInstrumentedTest-freeformWindow1920x1080.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/cpuinfo"
+    }
+  }
+}
+test_result {
+  test_case {
+    test_class: "M11DexProxyInstrumentedTest"
+    test_package: "io.codecks.internalquality"
+    test_method: "managedWindow1280x720"
+    start_time {
+      seconds: 1787012001
+      nanos: 610000000
+    }
+    end_time {
+      seconds: 1787012005
+      nanos: 498000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/logcat-io.codecks.internalquality.M11DexProxyInstrumentedTest-managedWindow1280x720.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/cpuinfo"
+    }
+  }
+}
+test_result {
+  test_case {
+    test_class: "M11DexProxyInstrumentedTest"
+    test_package: "io.codecks.internalquality"
+    test_method: "secondaryDisplay1920x1080"
+    start_time {
+      seconds: 1787012005
+      nanos: 499000000
+    }
+    end_time {
+      seconds: 1787012007
+      nanos: 821000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/logcat-io.codecks.internalquality.M11DexProxyInstrumentedTest-secondaryDisplay1920x1080.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/cpuinfo"
+    }
+  }
+}
+test_result {
+  test_case {
+    test_class: "M11DexProxyInstrumentedTest"
+    test_package: "io.codecks.internalquality"
+    test_method: "freeformWindow1280x720"
+    start_time {
+      seconds: 1787012007
+      nanos: 822000000
+    }
+    end_time {
+      seconds: 1787012010
+      nanos: 100000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/logcat-io.codecks.internalquality.M11DexProxyInstrumentedTest-freeformWindow1280x720.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/cpuinfo"
+    }
+  }
+}
+output_artifact {
+  label {
+    label: "test-results.log"
+    namespace: "com.google.testing.platform.runtime.android.driver.AndroidInstrumentationDriver"
+  }
+  source_path {
+    path: "/opt/codex-auth/worktrees/m09-m11-m13-m19-hardening/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/pixel6Api35/testlog/test-results.log"
+  }
+  type: TEST_DATA
+  mime_type: "text/plain"
+}

@@ -1,6 +1,8 @@
 import tempfile
+import json
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from generate_m13_accessibility_receipt import (
     BASE_COMMIT,
@@ -15,9 +17,18 @@ from generate_m13_accessibility_receipt import (
     canonical_managed_companions,
     canonical_unit_paths,
 )
+from validate_m13_accessibility_receipt import RECEIPT, validate
 
 
 class M13ReceiptTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.binding = patch(
+            "generate_m13_accessibility_receipt.collect_binding",
+            return_value={"strict": "fixture"},
+        )
+        self.binding.start()
+        self.addCleanup(self.binding.stop)
+
     def fixture(self) -> tuple[Path, Path, RepositoryIdentity]:
         root = Path(tempfile.mkdtemp()).resolve()
         for relative in SOURCE_PATHS + TEST_SOURCE_PATHS:
@@ -116,6 +127,24 @@ class M13ReceiptTest(unittest.TestCase):
         managed.write_text("<testsuite/>")
         with self.assertRaisesRegex(ValueError, "root type"):
             build_receipt(root, managed, "pixel6Api35", identity)
+
+    def test_bound_source_target_test_xml_and_device_mutations_fail_closed(self) -> None:
+        mutations = (
+            lambda data: data["managed_execution"]["sources"][0].update({"sha256": "0" * 64}),
+            lambda data: data["managed_execution"]["targetApk"].update({"sha256": "0" * 64}),
+            lambda data: data["managed_execution"]["testApk"].update({"sha256": "0" * 64}),
+            lambda data: data["managed_execution"]["result"].update({"sha256": "0" * 64}),
+            lambda data: data["managed_execution"]["device"]["properties"].update({"device": "physical"}),
+        )
+        for mutation in mutations:
+            data = json.loads(RECEIPT.read_text())
+            mutation(data)
+            directory = tempfile.TemporaryDirectory()
+            self.addCleanup(directory.cleanup)
+            path = Path(directory.name) / "receipt.json"
+            path.write_text(json.dumps(data))
+            with self.assertRaisesRegex(ValueError, "binding mismatch"):
+                validate(path)
 
 
 if __name__ == "__main__":

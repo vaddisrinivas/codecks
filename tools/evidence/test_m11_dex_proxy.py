@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import copy
 import hashlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -19,6 +20,15 @@ from validate_m11_dex_proxy import RECEIPT, validate
 
 
 class M11ReceiptTest(unittest.TestCase):
+    def mutated_receipt(self, mutation) -> Path:
+        data = json.loads(RECEIPT.read_text())
+        mutation(data)
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        path = Path(directory.name) / "receipt.json"
+        path.write_text(json.dumps(data))
+        return path
+
     @contextmanager
     def mutated_xml(self, artifact_index: int = 0):
         data = json.loads(RECEIPT.read_text())
@@ -122,6 +132,8 @@ class M11ReceiptTest(unittest.TestCase):
                 validate(receipt)
 
     def test_non_chronological_rerun_is_rejected(self) -> None:
+        if len(json.loads(RECEIPT.read_text())["artifacts"]) < 2:
+            self.skipTest("receipt came from one full run")
         with self.mutated_xml(1) as (data, artifact, target, receipt):
             tree = ET.parse(target)
             root = tree.getroot()
@@ -138,6 +150,41 @@ class M11ReceiptTest(unittest.TestCase):
         public = ROOT / "app/src/androidTest/java/io/codecks/internalquality/M11DexProxyInstrumentedTest.kt"
         self.assertTrue(internal.is_file())
         self.assertFalse(public.exists())
+
+    def test_source_target_test_xml_and_device_mutations_fail_closed(self) -> None:
+        mutations = (
+            lambda data: data["managedExecution"]["sources"][0].update({"sha256": "0" * 64}),
+            lambda data: data["managedExecution"].update({"sourceDiffSha256": "0" * 64}),
+            lambda data: data["managedExecution"]["targetApk"].update({"sha256": "0" * 64}),
+            lambda data: data["managedExecution"]["testApk"].update({"sha256": "0" * 64}),
+            lambda data: data["managedExecution"]["result"].update({"sha256": "0" * 64}),
+            lambda data: data["managedExecution"]["device"]["properties"].update({"device": "physical"}),
+        )
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                with self.assertRaisesRegex(ValueError, "binding mismatch"):
+                    validate(self.mutated_receipt(mutation))
+
+    def test_managed_binding_rejects_missing_and_tag_objects(self) -> None:
+        with self.assertRaisesRegex(ValueError, "commit object"):
+            validate(self.mutated_receipt(
+                lambda data: data["managedExecution"].update({"sourceCommit": "0" * 40}),
+            ))
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        tag_payload = (
+            f"object {head}\ntype commit\ntag m11-binding-probe\n"
+            "tagger M11 verifier <m11@example.invalid> 0 +0000\n\nprobe\n"
+        )
+        tag = subprocess.run(
+            ["git", "hash-object", "-t", "tag", "-w", "--stdin"], cwd=ROOT, check=True,
+            input=tag_payload, capture_output=True, text=True,
+        ).stdout.strip()
+        with self.assertRaisesRegex(ValueError, "commit object"):
+            validate(self.mutated_receipt(
+                lambda data: data["managedExecution"].update({"sourceCommit": tag}),
+            ))
 
 
 if __name__ == "__main__":

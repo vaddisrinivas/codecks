@@ -6,7 +6,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from collect_m11_dex_proxy import CHECKS, EXPECTED, ROOT, parse_result, safe_path
+from collect_m11_dex_proxy import CHECKS, CLASSNAME, EXPECTED, ROOT, SOURCE_PATHS, parse_result, safe_path
+from managed_execution_binding import validate_binding
 from validate_autonomous_maturity_evidence import validate_schema_node
 
 RECEIPT = ROOT / "tasks/test-evidence/autonomous-maturity-m11-dex-proxy.json"
@@ -17,7 +18,7 @@ def validate(path: Path = RECEIPT) -> None:
     data = json.loads(path.read_text(encoding="utf-8"))
     schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
     validate_schema_node(data, schema, schema, "m11")
-    if set(data) != {"schema", "milestone", "status", "scope", "artifacts", "profiles", "external", "limitations"}:
+    if set(data) != {"schema", "milestone", "status", "scope", "artifacts", "profiles", "external", "limitations", "managedExecution"}:
         raise ValueError("receipt keys are not closed")
     if (data["schema"], data["milestone"], data["status"], data["scope"]) != (
         "codecks.autonomous-maturity.m11-dex-proxy.v1", "M11", "PASS", "EMULATOR_PROXY_ONLY"
@@ -79,6 +80,13 @@ def validate(path: Path = RECEIPT) -> None:
         raise ValueError("Samsung DeX physical boundary must remain NOT_RUN")
     if len(data["limitations"]) < 3 or len(data["limitations"]) != len(set(data["limitations"])):
         raise ValueError("proxy limitations missing")
+    validate_binding(
+        ROOT,
+        data["managedExecution"],
+        source_paths=SOURCE_PATHS,
+        class_name=CLASSNAME,
+        methods=EXPECTED,
+    )
 
 
 def main() -> int:

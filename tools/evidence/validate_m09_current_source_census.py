@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 import subprocess
 
-from generate_m09_current_source_census import BASELINE, OUTPUT, ROOT, SOURCE_COMMIT, canonical_digest, generate
+from generate_m09_current_source_census import BASELINE, OUTPUT, ROOT, canonical_digest, generate
 from validate_autonomous_maturity_evidence import validate_schema_node
 
 SCHEMA = ROOT / "tools/evidence/schemas/autonomous-maturity-m09-current-source-census-v1.schema.json"
@@ -16,15 +16,21 @@ def validate(path: Path = OUTPUT) -> None:
     data = json.loads(path.read_text())
     schema = json.loads(SCHEMA.read_text())
     validate_schema_node(data, schema, schema, "m09-current-source-census")
-    expected = generate()
+    source_commit = data["sourceCommit"]
+    object_type = subprocess.run(
+        ["git", "cat-file", "-t", source_commit], cwd=ROOT, capture_output=True, text=True,
+    )
+    if object_type.returncode != 0 or object_type.stdout.strip() != "commit":
+        raise ValueError("M09 source commit is not a commit object")
+    if subprocess.run(["git", "merge-base", "--is-ancestor", source_commit, "HEAD"], cwd=ROOT).returncode != 0:
+        raise ValueError("M09 source commit is not an ancestor of HEAD")
+    expected = generate(source_commit=source_commit)
     if data != expected:
         raise ValueError("M09 current-source census differs from deterministic repository derivation")
     if hashlib.sha256(BASELINE.read_bytes()).hexdigest() != data["baseline"]["inventorySha256"]:
         raise ValueError("M00 baseline inventory digest mismatch")
-    if data["sourceCommit"] != SOURCE_COMMIT:
-        raise ValueError("M09 source commit mismatch")
     source_paths = subprocess.run(
-        ["git", "ls-tree", "-r", "--name-only", SOURCE_COMMIT], cwd=ROOT, check=True,
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard"], cwd=ROOT, check=True,
         capture_output=True, text=True,
     ).stdout.splitlines()
     source_path_set = set(source_paths)
@@ -33,11 +39,9 @@ def validate(path: Path = OUTPUT) -> None:
     for item in data["files"]:
         if item["path"] not in source_path_set:
             raise ValueError(f"M09 source absent from bound commit: {item['path']}")
-        blob = subprocess.run(
-            ["git", "show", f"{SOURCE_COMMIT}:{item['path']}"], cwd=ROOT, check=True, capture_output=True,
-        ).stdout
+        blob = (ROOT / item["path"]).read_bytes()
         if hashlib.sha256(blob).hexdigest() != item["sha256"]:
-            raise ValueError(f"M09 source differs from bound commit: {item['path']}")
+            raise ValueError(f"M09 source differs from bound workspace content: {item['path']}")
     production = data["publicProduction"]
     if production["excessLines"] != max(0, production["physicalLines"] - data["targetPublicProductionLines"]):
         raise ValueError("M09 excess is not derived")

@@ -8,6 +8,8 @@ from pathlib import Path
 import subprocess
 import xml.etree.ElementTree as ET
 
+from managed_execution_binding import collect_binding
+
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_ID = "codecks.autonomous-maturity.m19-diagnostics-support.v1"
 TEST_CLASS = "io.codecks.data.privacy.M19DiagnosticsSupportTest"
@@ -44,8 +46,10 @@ SOURCE_PATHS = (
     "app/src/test/java/io/codecks/ui/connection/SupportFailureInjection.kt",
     "app/src/test/java/io/codecks/data/privacy/SupportBundleBuilderTest.kt",
     "app/src/test/java/io/codecks/ui/settings/SupportBundleViewModelTest.kt",
+    "app/src/androidTestPlayInternal/java/io/codecks/ui/settings/M19SupportUiInstrumentedTest.kt",
     "docs/support/TROUBLESHOOTING.md",
     "tools/evidence/collect_m19_diagnostics_support.py",
+    "tools/evidence/managed_execution_binding.py",
     "tools/evidence/test_m19_diagnostics_support.py",
     "tools/evidence/validate_m19_diagnostics_support.py",
     "tools/evidence/schemas/autonomous-maturity-m19-diagnostics-support-v1.schema.json",
@@ -58,12 +62,20 @@ PASS_LANES = (
     "cpu.production_support_surface",
 )
 NOT_RUN_LANES = (
-    "managed.support_surface_ui",
     "physical.support_export_share",
     "human.clean_machine_diagnosis",
 )
+MANAGED_CLASS = "io.codecks.ui.settings.M19SupportUiInstrumentedTest"
+MANAGED_METHODS = {
+    "previewShowsBoundedRedactedHealthAndGeneratesWithoutOpeningChooser",
+    "failedShareExposesBoundedRetryWithoutLaunchingExternalChooser",
+    "deleteFailureExposesRepairActionWithoutSecretSurface",
+}
+MANAGED_RESULT = "tasks/test-evidence/m19/runtime/TEST-M19SupportUiInstrumentedTest.xml"
+TARGET_APK = "app/build/outputs/apk/playInternal/release/app-playInternal-release.apk"
+TEST_APK = "app/build/outputs/apk/androidTest/playInternal/release/app-playInternal-release-androidTest.apk"
 VALIDATOR_POSITIVE_CASES = 1
-VALIDATOR_NEGATIVE_CASES = 17
+VALIDATOR_NEGATIVE_CASES = 22
 
 
 def safe_path(value: str) -> Path:
@@ -135,7 +147,7 @@ def collect(raw_result: str, sanitized_output: str) -> dict:
         "schema": SCHEMA_ID,
         "milestone": "M19",
         "status": "PASS",
-        "scope": "CPU_SOURCE_BOUND",
+        "scope": "CPU_AND_MANAGED_SOURCE_ARTIFACT_BOUND",
         "sourceCommit": source_commit,
         "sources": [{"path": path, "sha256": sha256(safe_path(path))} for path in SOURCE_PATHS],
         "unitResult": {
@@ -148,9 +160,18 @@ def collect(raw_result: str, sanitized_output: str) -> dict:
             "errors": 0,
             "skipped": 0,
         },
+        "managedResult": collect_binding(
+            ROOT,
+            source_paths=SOURCE_PATHS,
+            class_name=MANAGED_CLASS,
+            methods=MANAGED_METHODS,
+            result_path=MANAGED_RESULT,
+            target_apk=TARGET_APK,
+            test_apk=TEST_APK,
+        ),
         "lanes": [
             {"id": lane, "status": "PASS", "evidence": "CPU_UNIT"} for lane in PASS_LANES
-        ] + [
+        ] + [{"id": "managed.support_surface_ui", "status": "PASS", "evidence": "MANAGED_EMULATOR_PROXY"}] + [
             {"id": lane, "status": "NOT_RUN", "evidence": "EXTERNAL"} for lane in NOT_RUN_LANES
         ],
         "privacy": {
@@ -159,10 +180,10 @@ def collect(raw_result: str, sanitized_output: str) -> dict:
             "personalIdentifierRecorded": False,
             "commercialIdentifierRecorded": False,
         },
-        "summary": {"pass": 5, "fail": 0, "notRun": 3},
+        "summary": {"pass": 6, "fail": 0, "notRun": 2},
         "validatorCases": {"positive": VALIDATOR_POSITIVE_CASES, "negative": VALIDATOR_NEGATIVE_CASES},
         "limitations": [
-            "CPU evidence does not prove Android share-picker or lifecycle behavior.",
+            "Managed UI evidence exercises support semantics without launching Android's external chooser.",
             "Physical-device export and vendor clipboard UI behavior remain external.",
             "Human clean-machine troubleshooting comprehension remains external.",
         ],

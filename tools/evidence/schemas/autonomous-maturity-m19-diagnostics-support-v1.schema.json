@@ -3,15 +3,15 @@
   "$id": "codecks.autonomous-maturity.m19-diagnostics-support.v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "milestone", "status", "scope", "sourceCommit", "sources", "unitResult", "lanes", "privacy", "summary", "validatorCases", "limitations", "receiptDigest"],
+  "required": ["schema", "milestone", "status", "scope", "sourceCommit", "sources", "unitResult", "managedResult", "lanes", "privacy", "summary", "validatorCases", "limitations", "receiptDigest"],
   "properties": {
     "schema": {"const": "codecks.autonomous-maturity.m19-diagnostics-support.v1"},
     "milestone": {"const": "M19"},
     "status": {"const": "PASS"},
-    "scope": {"const": "CPU_SOURCE_BOUND"},
+    "scope": {"const": "CPU_AND_MANAGED_SOURCE_ARTIFACT_BOUND"},
     "sourceCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
     "sources": {
-      "type": "array", "minItems": 28, "maxItems": 28,
+      "type": "array", "minItems": 30, "maxItems": 30,
       "items": {"$ref": "#/$defs/digestBinding"}
     },
     "unitResult": {
@@ -25,6 +25,18 @@
         "tests": {"const": 7}, "failures": {"const": 0}, "errors": {"const": 0}, "skipped": {"const": 0}
       }
     },
+    "managedResult": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sourceCommit", "sources", "sourceTreeSha256", "sourceDiffSha256", "result", "device", "targetApk", "testApk"],
+      "properties": {
+        "sourceCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "sources": {"type": "array", "minItems": 30, "maxItems": 30},
+        "sourceTreeSha256": {"$ref": "#/$defs/sha256"},
+        "sourceDiffSha256": {"$ref": "#/$defs/sha256"},
+        "result": {"type": "object"}, "device": {"type": "object"},
+        "targetApk": {"type": "object"}, "testApk": {"type": "object"}
+      }
+    },
     "lanes": {
       "type": "array", "minItems": 8, "maxItems": 8,
       "items": {
@@ -33,7 +45,7 @@
         "properties": {
           "id": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{2,63}$"},
           "status": {"enum": ["PASS", "NOT_RUN"]},
-          "evidence": {"enum": ["CPU_UNIT", "EXTERNAL"]}
+          "evidence": {"enum": ["CPU_UNIT", "MANAGED_EMULATOR_PROXY", "EXTERNAL"]}
         }
       }
     },
@@ -47,11 +59,11 @@
     },
     "summary": {
       "type": "object", "additionalProperties": false, "required": ["pass", "fail", "notRun"],
-      "properties": {"pass": {"const": 5}, "fail": {"const": 0}, "notRun": {"const": 3}}
+      "properties": {"pass": {"const": 6}, "fail": {"const": 0}, "notRun": {"const": 2}}
     },
     "validatorCases": {
       "type": "object", "additionalProperties": false, "required": ["positive", "negative"],
-      "properties": {"positive": {"const": 1}, "negative": {"const": 17}}
+      "properties": {"positive": {"const": 1}, "negative": {"const": 22}}
     },
     "limitations": {"type": "array", "minItems": 3, "maxItems": 3, "uniqueItems": true, "items": {"type": "string", "minLength": 12, "maxLength": 180}},
     "receiptDigest": {"$ref": "#/$defs/sha256"}

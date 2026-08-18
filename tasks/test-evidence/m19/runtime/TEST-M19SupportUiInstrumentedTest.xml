@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="3" failures="0" errors="0" skipped="0" time="6.879" timestamp="2026-08-18T00:16:59" hostname="localhost">
+  <testsuite name="io.codecks.ui.settings.M19SupportUiInstrumentedTest" tests="3" failures="0" errors="0" skipped="0" time="6.475" timestamp="2026-08-18T00:16:59" hostname="localhost">
+    <properties>
+      <property name="device" value="pixel6Api35" />
+      <property name="flavor" value="playInternal" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="failedShareExposesBoundedRetryWithoutLaunchingExternalChooser" classname="io.codecks.ui.settings.M19SupportUiInstrumentedTest" time="1.826" />
+    <testcase name="previewShowsBoundedRedactedHealthAndGeneratesWithoutOpeningChooser" classname="io.codecks.ui.settings.M19SupportUiInstrumentedTest" time="2.49" />
+    <testcase name="deleteFailureExposesRepairActionWithoutSecretSurface" classname="io.codecks.ui.settings.M19SupportUiInstrumentedTest" time="2.159" />
+  </testsuite>
+</testsuites>

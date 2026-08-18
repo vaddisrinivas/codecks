@@ -4,7 +4,7 @@
   "title": "Codecks M11 emulator-only DeX proxy receipt",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "milestone", "status", "scope", "artifacts", "profiles", "external", "limitations"],
+  "required": ["schema", "milestone", "status", "scope", "artifacts", "profiles", "external", "limitations", "managedExecution"],
   "properties": {
     "schema": {"const": "codecks.autonomous-maturity.m11-dex-proxy.v1"},
     "milestone": {"const": "M11"},
@@ -45,7 +45,7 @@
           "checks": {
             "type": "array",
             "minItems": 3,
-            "items": {"enum": ["managed_window", "freeform_window_ui_proxy", "secondary_display_presentation_proxy", "rotation", "mouse", "keyboard", "focus", "window_restore", "cold_activity_restart_proxy"]},
+            "items": {"enum": ["managed_window", "actual_deck_action", "actual_trackpad_mouse_down_up", "product_support_dialog", "bounded_dialog_content", "product_app_shell_navigation", "secondary_display_presentation_proxy", "rotation", "keyboard", "focus", "window_restore", "cold_activity_restart_proxy"]},
             "uniqueItems": true
           }
         }
@@ -65,6 +65,18 @@
         }
       }
     },
-    "limitations": {"type": "array", "minItems": 3, "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+    "limitations": {"type": "array", "minItems": 3, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "managedExecution": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sourceCommit", "sources", "sourceTreeSha256", "sourceDiffSha256", "result", "device", "targetApk", "testApk"],
+      "properties": {
+        "sourceCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "sources": {"type": "array", "minItems": 8, "maxItems": 8},
+        "sourceTreeSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "sourceDiffSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "result": {"type": "object"}, "device": {"type": "object"},
+        "targetApk": {"type": "object"}, "testApk": {"type": "object"}
+      }
+    }
   }
 }
