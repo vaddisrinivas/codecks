@@ -123,7 +123,7 @@ Current Batch 1 truth:
 
 ## Phase 5 — Verdict
 
-- [x] M24 publish the fail-closed preflight evidence matrix — current verdict `NO_GO`, not release admission
+- [x] M24 publish the fail-closed current preflight evidence matrix — M21 local complete; M16 capacity/time `NOT_RUN`; M23 `NOT_A_CANDIDATE`; phone 0; verdict `NO_GO`, not release admission — [`M24_CURRENT_PREFLIGHT.md`](../docs/release/M24_CURRENT_PREFLIGHT.md)
 - [x] M24 list exact external hardware, people, Play authority, and key-custody gaps in the preflight/deferred lanes
 - [x] M24 stop the candidate when its exact artifact and physical-phone gates are unresolved (`NO_GO`)
 - [x] M24 avoid any GA claim; no autonomously hardened release candidate exists until the deferred candidate gates pass

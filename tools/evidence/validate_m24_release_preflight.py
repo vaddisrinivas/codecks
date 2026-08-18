@@ -2,222 +2,234 @@
 from __future__ import annotations
 
 import json
+import hashlib
+from datetime import datetime, timezone
 from pathlib import Path
 import re
 import subprocess
 
 from collect_m24_release_preflight import (
-    GATE_IDS,
-    PUBLIC_APK_SHA256,
-    PUBLIC_SIGNER_SHA256,
-    ROOT,
-    SCHEMA_ID,
-    SOURCE_PATHS,
-    safe_path,
-    sha256,
+    GATE_IDS, M20_INTEGRATION_COMMIT, M21_INTEGRATION_COMMIT, OPTIONAL_ABSENT_SOURCE,
+    ROOT, SCHEMA_ID, SIGNING_NAMES,
+    SOURCE_PATHS, adb_classification, git_bytes, implementation_provenance, safe_path,
+    sha256, signing_presence,
 )
 from validate_autonomous_maturity_evidence import validate_schema_node
 
 RECEIPT = ROOT / "tasks/test-evidence/autonomous-maturity-m24-preflight.json"
-SCHEMA = ROOT / "tools/evidence/schemas/autonomous-maturity-m24-preflight-v1.schema.json"
+SCHEMA = ROOT / "tools/evidence/schemas/autonomous-maturity-m24-preflight-v2.schema.json"
 EXPECTED_ROOT_KEYS = {
-    "schema", "milestone", "evidenceLevel", "verdict", "generatedAtUtc", "sourceCommit",
-    "sources", "connectedDevice", "publishedBaseline", "m20Closure", "candidate", "dependencies", "gates",
-    "safeInPlaceUpdate", "privacy", "blockers",
+    "schema", "milestone", "evidenceLevel", "verdict", "generatedAtUtc", "sourceCommit", "provenance",
+    "sources", "adbClassification", "phone", "publishedBaseline", "m16", "m20Closure",
+    "m21Closure", "m23", "signing", "candidate", "dependencies", "gates",
+    "safeInPlaceUpdate", "privacy", "blockers", "limitations",
 }
-EXPECTED_BLOCKERS = {"PHYSICAL_PHONE_NOT_CONNECTED", "CANDIDATE_NOT_BUILT"}
-CONNECTED_DEVICE_KEYS = {
-    "status", "physicalDeviceCount", "emulatorCount", "unknownDeviceCount", "deviceIdSha256",
-    "manufacturer", "model", "androidSdk", "package", "versionCode", "versionName", "installer",
-    "installedApkSha256", "signerSha256",
-}
-REQUIRED_UPDATE_ORDER = [
-    "one_authorized_physical_phone",
-    "read_installed_app.codecks_identity_version_signer",
-    "bind_exact_candidate_source_and_checksum",
-    "require_candidate_package_app.codecks",
-    "require_candidate_version_greater_than_installed",
-    "require_candidate_signer_equal_to_installed_signer",
-    "require_candidate_minification_and_resource_shrinking_disabled",
-    "require_exact_candidate_managed_and_release_tests",
-    "capture_redacted_pre_update_data_and_ssh_hid_state",
-    "obtain_explicit_install_authorization",
-    "adb_install_r_no_streaming_only",
-    "verify_post_update_version_and_preserved_data",
-    "verify_post_update_ssh_and_hid_without_instrumentation",
-]
-REQUIRED_FORBIDDEN = [
-    "UNINSTALL_PROTECTED_PACKAGE", "CLEAR_PROTECTED_PACKAGE_DATA", "DOWNGRADE_PROTECTED_PACKAGE",
-    "DIFFERENT_SIGNER", "PHYSICAL_INSTRUMENTATION",
-]
 EXPECTED_GATES = [
-    ("source.canonical_clean_sha", "PASS", "exact_source_sha"),
-    ("phone.single_physical_connected", "NOT_RUN", "phone_unavailable"),
-    ("phone.installed_package_identity", "NOT_RUN", "phone_unavailable"),
-    ("phone.installed_version", "NOT_RUN", "phone_unavailable"),
-    ("phone.installed_signer", "NOT_RUN", "phone_unavailable"),
-    ("public.checksum", "PASS", "checksum_verified"),
-    ("public.signer_baseline", "PASS", "signer_baseline_verified"),
-    ("candidate.available", "DEFERRED", "candidate_not_built"),
-    ("candidate.source_and_checksum_bound", "DEFERRED", "candidate_not_built"),
-    ("candidate.package_and_version_monotonic", "DEFERRED", "candidate_not_built"),
-    ("candidate.signer_matches_installed", "DEFERRED", "candidate_not_built"),
-    ("candidate.unshrunk", "DEFERRED", "candidate_not_built"),
-    ("candidate.exact_tests", "DEFERRED", "candidate_not_built"),
-    ("update.data_preserving_authorized", "DEFERRED", "explicit_execution_not_authorized"),
+    (GATE_IDS[0], "PASS", "exact_head_and_sources_bound"),
+    (GATE_IDS[1], "PASS", "raw_adb_server_devices_l_only"),
+    (GATE_IDS[2], "NOT_RUN", "physical_phone_count_zero"),
+    (GATE_IDS[3], "NOT_RUN", "m16_runtime_receipt_absent"),
+    (GATE_IDS[4], "NOT_RUN", "m16_168h_not_started"),
+    (GATE_IDS[5], "PASS", "m21_local_complete"),
+    (GATE_IDS[6], "NOT_RUN", "m23_not_a_candidate"),
+    (GATE_IDS[7], "NOT_RUN", "candidate_absent"),
+    (GATE_IDS[8], "PASS", "canonical_signing_inputs_unset"),
+    (GATE_IDS[9], "NOT_RUN", "explicit_execution_not_authorized"),
 ]
-ALLOWED_KEYSETS = {
-    "publishedBaseline": {"status", "tag", "package", "versionCode", "versionName", "apkSha256", "signerSha256", "checksumVerified", "privateSigningMaterialInspected"},
-    "m20Closure": {"status", "integrationCommit", "receiptSourceCommit", "receiptPath", "receiptSha256", "receiptDigest", "collectorPath", "collectorSha256", "validatorPath", "validatorSha256"},
-    "candidate": {"status", "reason", "buildWorkflow", "expectedArtifactPath", "expectedPackage", "sourceSha", "versionCode", "apkSha256", "signerSha256"},
-    "safeInPlaceUpdate": {"authorizedNow", "requiredOrder", "forbidden"},
-    "privacy": {"rawDeviceSerialRecorded", "privateKeyInspected", "credentialRecorded", "appDataRead"},
-}
-PROHIBITED_KEYS = re.compile(r"(?:rawSerial|password|secret|privateKeyValue|credentialValue|authToken)", re.I)
+EXPECTED_BLOCKERS = [
+    "PHYSICAL_PHONE_NOT_CONNECTED", "M16_CAPACITY_NOT_RUN", "M16_168H_NOT_RUN",
+    "M23_NOT_A_CANDIDATE", "CANDIDATE_NOT_BUILT", "PRODUCTION_SIGNING_INPUTS_UNSET",
+]
+EXPECTED_LIMITATIONS = [
+    "Read-only ADB classification used one raw host:devices-l server request; no adb CLI, package query, pull, install, or instrumentation ran.",
+    "M21 local distribution/support preparation is complete; physical update and external publication remain outside this preflight.",
+    "M16 capacity execution and 168-hour evidence remain NOT_RUN; planned source capacity is not runtime proof.",
+]
+PROHIBITED_KEYS = re.compile(r"(?:^rawSerial$|password|secret|privateKeyValue|credentialValue|authToken)", re.I)
 PROHIBITED_VALUES = (
     re.compile(r"-----BEGIN [^-\r\n]*PRIVATE KEY-----", re.I),
     re.compile(r"\b(?:password|credential|secret|api[_-]?key|private[_-]?key)\s*[:=]\s*[^\s,;]+", re.I),
     re.compile(r"M24_SECRET_CANARY", re.I),
     re.compile(r"(?:^|\s)(?:adb|pm)\s+(?:uninstall|clear)(?:\s|$)", re.I),
-    re.compile(r"(?:^|\s)adb\s+install\b[^\r\n]*(?:\s-d\b|--downgrade\b)", re.I),
-    re.compile(r"\brm\s+-rf\b", re.I),
+    re.compile(r"(?:^|\s)adb\s+install\b", re.I),
 )
 
 
-def validate(path: Path = RECEIPT) -> None:
-    data = json.loads(path.read_text(encoding="utf-8"))
-    schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
-    validate_schema_node(data, schema, schema, "m24")
-    if set(data) != EXPECTED_ROOT_KEYS:
-        raise ValueError("M24 receipt keys are not closed")
-    if (data["schema"], data["milestone"], data["evidenceLevel"], data["verdict"]) != (
-        SCHEMA_ID, "M24", "PREFLIGHT_ONLY", "NO_GO",
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise ValueError(message)
+
+
+def validate_closure(value: dict, expected_status: str, integration_commit: str, implementation_commit: str) -> None:
+    require(set(value) == {
+        "status", "integrationCommit", "receiptPath", "receiptSha256", "receiptSchema",
+        "collectorPath", "collectorSha256", "validatorPath", "validatorSha256",
+    }, "closure keys changed")
+    require(value["status"] == expected_status and value["integrationCommit"] == integration_commit,
+            "closure status/integration changed")
+    for path_key, sha_key in (
+        ("receiptPath", "receiptSha256"), ("collectorPath", "collectorSha256"),
+        ("validatorPath", "validatorSha256"),
     ):
-        raise ValueError("M24 identity or verdict mismatch")
-    commit = data["sourceCommit"]
-    object_type = subprocess.run(
-        ["git", "cat-file", "-t", commit], cwd=ROOT, capture_output=True, text=True,
-    )
-    if object_type.returncode != 0 or object_type.stdout.strip() != "commit":
-        raise ValueError("M24 source commit is not a commit object")
-    if subprocess.run(
-        ["git", "merge-base", "--is-ancestor", commit, "HEAD"], cwd=ROOT, capture_output=True,
-    ).returncode != 0:
-        raise ValueError("M24 source commit is not an ancestor")
-    if [item["path"] for item in data["sources"]] != list(SOURCE_PATHS):
-        raise ValueError("M24 source path set/order mismatch")
+        require(sha256(safe_path(value[path_key])) == value[sha_key], f"closure binding changed: {path_key}")
+    require(subprocess.run(
+        ["git", "merge-base", "--is-ancestor", integration_commit, implementation_commit],
+        cwd=ROOT, capture_output=True,
+    ).returncode == 0, "closure integration is not current-source ancestor")
+
+
+def validate_receipt_commit(implementation_commit: str, root: Path = ROOT, receipt: Path = RECEIPT) -> None:
+    receipt_relative = str(receipt.relative_to(root))
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, check=True, capture_output=True, text=True).stdout.strip()
+    parent = subprocess.run(["git", "rev-parse", "HEAD^"], cwd=root, check=True, capture_output=True, text=True).stdout.strip()
+    require(parent == implementation_commit, "M24 receipt commit parent is not the implementation commit")
+    changed = subprocess.run(
+        ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"],
+        cwd=root, check=True, capture_output=True, text=True,
+    ).stdout.splitlines()
+    require(changed == [receipt_relative], "M24 receipt commit is not receipt-only")
+    blob = subprocess.run(
+        ["git", "show", f"{head}:{receipt_relative}"], cwd=root, check=True, capture_output=True,
+    ).stdout
+    require(blob == receipt.read_bytes(), "M24 receipt bytes differ from exact HEAD blob")
+    require(not subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all"], cwd=root,
+        check=True, capture_output=True, text=True,
+    ).stdout, "M24 final worktree has uncommitted drift")
+
+
+def validate(path: Path = RECEIPT, live_read_only: bool = False, require_receipt_commit: bool = True) -> None:
+    data = json.loads(path.read_text())
+    schema = json.loads(SCHEMA.read_text())
+    validate_schema_node(data, schema, schema, "m24-current")
+    require(set(data) == EXPECTED_ROOT_KEYS, "M24 receipt keys are not closed")
+    require((data["schema"], data["milestone"], data["evidenceLevel"], data["verdict"]) ==
+            (SCHEMA_ID, "M24", "PREFLIGHT_ONLY", "NO_GO"), "M24 identity/verdict changed")
+    implementation_commit = data["sourceCommit"]
+    require(re.fullmatch(r"[0-9a-f]{40}", implementation_commit) is not None,
+            "M24 sourceCommit is not an exact commit")
+    generated_at = datetime.strptime(data["generatedAtUtc"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
+    require(generated_at <= now, "M24 generatedAtUtc is in the future")
+    require((now - generated_at).total_seconds() <= 900, "M24 generatedAtUtc is older than 15 minutes")
+    require(data["provenance"] == implementation_provenance(implementation_commit),
+            "M24 implementation provenance changed")
+    if require_receipt_commit:
+        validate_receipt_commit(implementation_commit)
+
+    require([item["path"] for item in data["sources"]] == list(SOURCE_PATHS), "M24 source path order changed")
     for item in data["sources"]:
-        if sha256(safe_path(item["path"])) != item["sha256"]:
-            raise ValueError(f"M24 source digest mismatch: {item['path']}")
-    baseline = data["publishedBaseline"]
-    if baseline != {
-        "status": "PASS", "tag": "v0.1.37", "package": "app.codecks",
-        "versionCode": 37, "versionName": "0.1.37", "apkSha256": PUBLIC_APK_SHA256,
-        "signerSha256": PUBLIC_SIGNER_SHA256, "checksumVerified": True,
-        "privateSigningMaterialInspected": False,
-    }:
-        raise ValueError("M24 public signer baseline mismatch")
-    m20 = data["m20Closure"]
-    if m20 != {
-        "status": "COMPLETE",
-        "integrationCommit": "a5d0cc09d47179d30227369802932f29f1d82a18",
-        "receiptSourceCommit": "a899c24ac10d2f393ac5ba41d7a47830f6a96f09",
-        "receiptPath": "tasks/test-evidence/autonomous-maturity-m20-rollback-rehearsal.json",
-        "receiptSha256": "b6690f51d02995ea9d9dabe7e98144e2c10f301dc4f068d0997c7de37596e5ac",
-        "receiptDigest": "fdc322bf8f926ac4b2339f714d23a330a16815a715adfcee981f8146ae88088b",
-        "collectorPath": "tools/evidence/collect_m20_rollback_rehearsal.py",
-        "collectorSha256": "aeee48e892c9e1d49c36f40f843141f27c50cfc262adebf706694c24d3e6030a",
-        "validatorPath": "tools/evidence/validate_m20_rollback_rehearsal.py",
-        "validatorSha256": "aee6d75733c97d13c9f37a2325df77d5ee8db7f7bbf3b574c4b67871c009e976",
-    }:
-        raise ValueError("M24 M20 closure binding mismatch")
-    if sha256(safe_path(m20["receiptPath"])) != m20["receiptSha256"]:
-        raise ValueError("M24 M20 receipt drift")
-    if sha256(safe_path(m20["collectorPath"])) != m20["collectorSha256"]:
-        raise ValueError("M24 M20 collector drift")
-    if sha256(safe_path(m20["validatorPath"])) != m20["validatorSha256"]:
-        raise ValueError("M24 M20 validator drift")
-    if subprocess.run(
-        ["git", "merge-base", "--is-ancestor", m20["receiptSourceCommit"], m20["integrationCommit"]],
-        cwd=ROOT,
-        capture_output=True,
-    ).returncode != 0:
-        raise ValueError("M24 M20 source/commit ancestry mismatch")
-    phone = data["connectedDevice"]
-    if set(phone) != CONNECTED_DEVICE_KEYS:
-        raise ValueError("M24 connected-device keys are not closed")
-    if phone["physicalDeviceCount"] != 0 or phone["status"] != "NOT_RUN":
-        raise ValueError("M24 preflight snapshot must retain physical phone NOT_RUN")
-    required_null = {
-        "deviceIdSha256", "manufacturer", "model", "androidSdk", "package", "versionCode",
-        "versionName", "installer", "installedApkSha256", "signerSha256",
-    }
-    if any(phone[key] is not None for key in required_null):
-        raise ValueError("M24 absent phone cannot claim installed identity")
-    candidate = data["candidate"]
-    if candidate != {
-        "status": "DEFERRED", "reason": "CANDIDATE_NOT_BUILT",
-        "buildWorkflow": ".github/workflows/release.yml",
-        "expectedArtifactPath": "release-candidate/codecks-release.apk",
-        "expectedPackage": "app.codecks", "sourceSha": None, "versionCode": None,
-        "apkSha256": None, "signerSha256": None,
-    }:
-        raise ValueError("M24 candidate must remain unbuilt and deferred")
-    if data["dependencies"] != [
+        require(set(item) == {"path", "status", "sha256"}, "M24 source keys changed")
+        if item["path"] == OPTIONAL_ABSENT_SOURCE:
+            require(item == {"path": OPTIONAL_ABSENT_SOURCE, "status": "ABSENT", "sha256": None}, "M16 absent receipt binding changed")
+            require(not safe_path(OPTIONAL_ABSENT_SOURCE).exists(), "M16 receipt now exists; refresh required")
+        else:
+            blob = git_bytes(implementation_commit, item["path"])
+            require(blob is not None and item["status"] == "PRESENT" and
+                    item["sha256"] == hashlib.sha256(blob).hexdigest(),
+                    f"M24 source digest changed: {item['path']}")
+
+    adb = data["adbClassification"]
+    require(set(adb) == {
+        "status", "endpoint", "protocol", "request", "responseSha256", "devices", "physicalDeviceCount",
+        "emulatorCount", "unknownDeviceCount", "adbCliInvoked", "rawSerialRecorded", "packageQueryRun", "apkPullRun",
+    }, "ADB classification keys changed")
+    require(adb["status"] == "PASS" and adb["physicalDeviceCount"] == 0, "physical phone count must remain zero")
+    require(adb["endpoint"] == {"host": "127.0.0.1", "port": 5037} and
+            adb["protocol"] == "ADB_SERVER_HOST_PROTOCOL_V1" and adb["request"] == "host:devices-l",
+            "ADB endpoint/protocol binding changed")
+    require(re.fullmatch(r"[0-9a-f]{64}", adb["responseSha256"]) is not None, "ADB response hash invalid")
+    require(adb["unknownDeviceCount"] == 0, "unknown ADB devices invalidate zero-phone claim")
+    require(adb["adbCliInvoked"] is False and adb["rawSerialRecorded"] is False and
+            adb["packageQueryRun"] is False and adb["apkPullRun"] is False,
+            "ADB read-only boundary changed")
+    for device in adb["devices"]:
+        require(set(device) == {"serialSha256", "state", "classification", "metadata"}, "ADB device keys changed")
+        require(set(device["metadata"]) == {"product", "model", "device", "transportId"}, "ADB metadata changed")
+        require(re.fullmatch(r"[0-9a-f]{64}", device["serialSha256"]) is not None, "ADB serial hash invalid")
+        require(device["state"] == "device" and device["classification"] in {"EMULATOR", "PHYSICAL"},
+                "offline, unauthorized, or unknown ADB device invalidates zero-phone claim")
+    if live_read_only:
+        require(adb_classification() == adb, "live read-only ADB classification changed")
+    require(data["phone"] == {"status": "NOT_RUN", "physicalDeviceCount": 0, "installedIdentityStatus": "NOT_RUN"},
+            "phone NOT_RUN boundary changed")
+
+    require(data["publishedBaseline"] == {
+        "status": "PASS", "tag": "v0.1.37", "package": "app.codecks", "versionCode": 37,
+        "versionName": "0.1.37", "apkSha256": "8c8eca1b3e4b0f56a2128185c42a062687011e68a9d3fd16fe24851616baa9f2",
+        "signerSha256": "07a642e758f394b6aeaecfe35c64ca84d891ca4e6de4b6cc010702c0e52e2df6",
+    }, "published M21 baseline changed")
+
+    m16 = data["m16"]
+    require((m16["status"], m16["capacityStatus"], m16["timeStatus"], m16["receiptPresent"]) ==
+            ("NOT_RUN", "NOT_RUN", "NOT_RUN", False), "M16 NOT_RUN boundary changed")
+    require((m16["plannedAvds"], m16["plannedProfilesPerAvd"], m16["plannedProfiles"], m16["observedProfiles"]) ==
+            (4, 5, 20, 0), "M16 capacity accounting changed")
+    require((m16["requiredHours"], m16["observedHours"], m16["requiredEligibleProfileHours"],
+             m16["observedEligibleProfileHours"], m16["requiredAcknowledgedOperations"],
+             m16["observedAcknowledgedOperations"]) == (168, 0, 3360, 0, 336000, 0), "M16 time/operation accounting changed")
+    for path_key, sha_key in (("controllerPath", "controllerSha256"), ("validatorPath", "validatorSha256"), ("schemaPath", "schemaSha256")):
+        require(sha256(safe_path(m16[path_key])) == m16[sha_key], f"M16 binding changed: {path_key}")
+
+    validate_closure(data["m20Closure"], "COMPLETE", M20_INTEGRATION_COMMIT, implementation_commit)
+    validate_closure(data["m21Closure"], "LOCAL_COMPLETE", M21_INTEGRATION_COMMIT, implementation_commit)
+    require(data["m21Closure"]["receiptSchema"] == "codecks.m21.public-release-live.v2", "M21 receipt schema changed")
+    require(data["m23"] == {
+        "status": "NOT_A_CANDIDATE", "preflightPath": "docs/release/M23_LOCAL_PREFLIGHT.md",
+        "preflightSha256": sha256(safe_path("docs/release/M23_LOCAL_PREFLIGHT.md")),
+        "versionAssigned": False, "artifactAdmitted": False,
+    }, "M23 NOT_A_CANDIDATE boundary changed")
+    require(data["signing"] == {
+        "status": "UNSET", "source": "CANONICAL_AGENT_ENV_NAME_PRESENCE_ONLY",
+        "names": list(SIGNING_NAMES), "presentNames": [], "valuesRecorded": False,
+    }, "signing-input boundary changed")
+    if live_read_only:
+        require(signing_presence() == data["signing"], "canonical signing-input presence changed")
+    require(data["candidate"] == {
+        "status": "ABSENT", "reason": "M23_NOT_A_CANDIDATE",
+        "expectedArtifactPath": "release-candidate/codecks-release.apk", "artifactPresent": False,
+        "sourceSha": None, "versionCode": None, "apkSha256": None, "signerSha256": None,
+    }, "candidate absent boundary changed")
+    require(data["dependencies"] == [
+        {"milestone": "M16", "status": "NOT_RUN"},
         {"milestone": "M20", "status": "COMPLETE"},
-        {"milestone": "M21", "status": "DEFERRED"},
-        {"milestone": "M23", "status": "DEFERRED"},
-    ]:
-        raise ValueError("M24 dependency status mismatch")
-    if [tuple(gate[key] for key in ("id", "status", "code")) for gate in data["gates"]] != EXPECTED_GATES:
-        raise ValueError("M24 gate id/status/code mismatch")
-    if any(set(gate) != {"id", "status", "code"} for gate in data["gates"]):
-        raise ValueError("M24 gate keys are not closed")
-    update = data["safeInPlaceUpdate"]
-    if update["authorizedNow"] is not False:
-        raise ValueError("M24 install cannot be authorized by preflight")
-    if update["requiredOrder"] != REQUIRED_UPDATE_ORDER:
-        raise ValueError("M24 required update order changed")
-    if update["forbidden"] != REQUIRED_FORBIDDEN:
-        raise ValueError("M24 destructive stop conditions changed")
-    if set(data["blockers"]) != EXPECTED_BLOCKERS:
-        raise ValueError("M24 blocker set mismatch")
-    if data["privacy"] != {
+        {"milestone": "M21", "status": "LOCAL_COMPLETE"},
+        {"milestone": "M23", "status": "NOT_A_CANDIDATE"},
+    ], "dependency status changed")
+    require([tuple(gate[key] for key in ("id", "status", "code")) for gate in data["gates"]] == EXPECTED_GATES,
+            "gate status/code changed")
+    require(data["safeInPlaceUpdate"] == {
+        "authorizedNow": False,
+        "forbidden": ["UNINSTALL_PROTECTED_PACKAGE", "CLEAR_PROTECTED_PACKAGE_DATA", "DOWNGRADE_PROTECTED_PACKAGE", "DIFFERENT_SIGNER", "PHYSICAL_INSTRUMENTATION"],
+    }, "update safety boundary changed")
+    require(data["privacy"] == {
         "rawDeviceSerialRecorded": False, "privateKeyInspected": False,
         "credentialRecorded": False, "appDataRead": False,
-    }:
-        raise ValueError("M24 privacy boundary mismatch")
-    for key, expected in ALLOWED_KEYSETS.items():
-        if set(data[key]) != expected:
-            raise ValueError(f"M24 nested keys are not closed: {key}")
-    if any(set(item) != {"milestone", "status"} for item in data["dependencies"]):
-        raise ValueError("M24 dependency keys are not closed")
-    if any(set(item) != {"path", "sha256"} for item in data["sources"]):
-        raise ValueError("M24 source keys are not closed")
+    }, "privacy boundary changed")
+    require(data["blockers"] == EXPECTED_BLOCKERS, "M24 blocker set changed")
+    require(data["limitations"] == EXPECTED_LIMITATIONS, "M24 limitations changed")
     _reject_sensitive(data)
 
 
 def _reject_sensitive(value: object) -> None:
     if isinstance(value, dict):
         for key, child in value.items():
-            if PROHIBITED_KEYS.search(key):
-                raise ValueError("M24 prohibited sensitive key")
+            require(PROHIBITED_KEYS.search(key) is None, "M24 prohibited sensitive key")
             _reject_sensitive(child)
     elif isinstance(value, list):
         for child in value:
             _reject_sensitive(child)
     elif isinstance(value, str):
-        if any(pattern.search(value) for pattern in PROHIBITED_VALUES):
-            raise ValueError("M24 prohibited secret-like value")
+        require(not any(pattern.search(value) for pattern in PROHIBITED_VALUES), "M24 prohibited sensitive value")
 
 
 def main() -> int:
     try:
-        validate()
+        validate(live_read_only=True)
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
         print(f"FAIL: {exc}")
         return 1
-    print("NO_GO: M24 preflight is fail-closed; M20 complete, physical phone/candidate unresolved")
+    print("NO_GO: M24 current preflight; M21 local complete; M16/phone/M23/candidate blocked")
     return 0
 
 
