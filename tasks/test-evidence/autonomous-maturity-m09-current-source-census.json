@@ -1,6 +1,6 @@
 {
   "schema": "codecks.autonomous-maturity.m09-current-source-census.v1",
-  "sourceCommit": "08c9ae50ee0a46ad1682b03c4989130ae78f2bad",
+  "sourceCommit": "f11c18eb2679c776960f94329470c70c777d7370",
   "baseline": {
     "commit": "d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
     "inventorySha256": "fa4afa40ec297bdc29be2e823118f1349ea7242c0136d1217581ca3494a8f312",
@@ -49,25 +49,25 @@
   },
   "targetPublicProductionLines": 50000,
   "summary": {
-    "fileCount": 633,
-    "physicalLines": 105060,
+    "fileCount": 634,
+    "physicalLines": 105331,
     "byCategory": {
       "build_definition": 27,
       "companion": 5270,
       "debug_only": 5,
-      "internal_lab": 2553,
+      "internal_lab": 2642,
       "other_source_set": 276,
       "public_production": 60267,
-      "tests": 36662
+      "tests": 36844
     },
     "bySourceSet": {
       "android_androidTest": 1125,
-      "android_androidTestDebug": 694,
+      "android_androidTestDebug": 719,
       "android_androidTestPlay": 462,
-      "android_androidTestPlayInternal": 931,
+      "android_androidTestPlayInternal": 1088,
       "android_debug": 5,
       "android_main": 60075,
-      "android_play_internal": 2553,
+      "android_play_internal": 2642,
       "android_play_production_dark": 192,
       "android_test": 28701,
       "android_testPlay": 243,
@@ -83,7 +83,7 @@
     },
     "byLanguage": {
       "Java": 918,
-      "Kotlin": 99772,
+      "Kotlin": 100043,
       "Swift": 4370
     }
   },
@@ -369,8 +369,8 @@
       "sourceSet": "android_androidTestDebug",
       "featureOwner": "maturity",
       "language": "Kotlin",
-      "physicalLines": 210,
-      "sha256": "e0c00276eccdfd80271068bd917b862051596f4a31310d82179f0cf7f148ae0b"
+      "physicalLines": 235,
+      "sha256": "f7d2f77e633baaa617ec737c0aa3e97923e906cc1914f3b2a97b2b8d4ee35b3d"
     },
     {
       "path": "app/src/androidTestDebug/java/io/codecks/release/AccessibilityRuntimeInstrumentedTest.kt",
@@ -432,8 +432,8 @@
       "sourceSet": "android_androidTestPlayInternal",
       "featureOwner": "internalquality",
       "language": "Kotlin",
-      "physicalLines": 214,
-      "sha256": "3a0504a47e9e46deb176ef43ce659f1319beea7f8eadf7de96f25de2bc46adca"
+      "physicalLines": 280,
+      "sha256": "e3d1cffe85b385de4e751f5285daa5de4e9e04d4bbad4f82eae3d4530a5acbbb"
     },
     {
       "path": "app/src/androidTestPlayInternal/java/io/codecks/ui/designsystem/CodecksDesignSystemInstrumentedTest.kt",
@@ -441,8 +441,8 @@
       "sourceSet": "android_androidTestPlayInternal",
       "featureOwner": "ui/designsystem",
       "language": "Kotlin",
-      "physicalLines": 560,
-      "sha256": "e2125a4c61e4bb4292949e5fc2244306d146671adab3b0d1dda4782afcbcb861"
+      "physicalLines": 562,
+      "sha256": "5b416e0045999b3fb7f8fdab4eba9f0b9bc63de8d1c11614fb13afa457c0d619"
     },
     {
       "path": "app/src/androidTestPlayInternal/java/io/codecks/ui/settings/M14FirstRunRepairInstrumentedTest.kt",
@@ -451,7 +451,16 @@
       "featureOwner": "ui/settings",
       "language": "Kotlin",
       "physicalLines": 96,
-      "sha256": "6272715338c445a6930fa46ebd8f7910ea1df8b3661e33cd3e8913299326c49c"
+      "sha256": "e4259b8387f2f37566460709515349410f6d4b32ffc424c473bec37d5afc0262"
+    },
+    {
+      "path": "app/src/androidTestPlayInternal/java/io/codecks/ui/settings/M19SupportUiInstrumentedTest.kt",
+      "category": "tests",
+      "sourceSet": "android_androidTestPlayInternal",
+      "featureOwner": "ui/settings",
+      "language": "Kotlin",
+      "physicalLines": 89,
+      "sha256": "27c31b9a9159e3a9437ce97d32191574f2be26bdca6e2665afbbe575eec839e1"
     },
     {
       "path": "app/src/debug/java/io/codecks/GestureTestActivity.kt",
@@ -3375,8 +3384,8 @@
       "sourceSet": "android_play_internal",
       "featureOwner": "internalquality",
       "language": "Kotlin",
-      "physicalLines": 73,
-      "sha256": "5ebbb3851362d4e61247467f1052ebe57c339d184c037e0b97374c75a305f96f"
+      "physicalLines": 162,
+      "sha256": "a2faaf7448bd0cbd63eba8b89ebb1b5713e6fab2d49f202d956e1cdc44a28e22"
     },
     {
       "path": "app/src/playInternal/java/io/codecks/ui/designsystem/M09ADesignTestActivity.kt",
@@ -5953,5 +5962,5 @@
       "sha256": "47c8b36b8cbb9b1ba2cb3aff618e714db52314bfa722accebfc4f89f859dbce7"
     }
   ],
-  "receiptDigest": "88d8cb79f4dc5cbaaaeb669d913bae89370fa782eac2e5f3354a3f07c9737c3e"
+  "receiptDigest": "44fa56e68b5f8c864473cc79076c84180e3ea3c2b74085847a3d136c39262ca1"
 }
