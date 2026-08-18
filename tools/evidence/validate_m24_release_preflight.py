@@ -17,7 +17,7 @@ from collect_m24_release_preflight import (
 from validate_autonomous_maturity_evidence import validate_schema_node
 
 RECEIPT = ROOT / "tasks/test-evidence/autonomous-maturity-m24-preflight.json"
-SCHEMA = ROOT / "tools/evidence/schemas/autonomous-maturity-m24-preflight-v2.schema.json"
+SCHEMA = ROOT / "tools/evidence/schemas/autonomous-maturity-m24-preflight-v3.schema.json"
 EXPECTED_ROOT_KEYS = {
     "schema", "milestone", "evidenceLevel", "verdict", "generatedAtUtc", "sourceCommit", "provenance",
     "sources", "adbClassification", "phone", "publishedBaseline", "m16", "m20Closure",

@@ -101,7 +101,7 @@ class M24PreflightEvidenceTest(unittest.TestCase):
 
     def test_schema_closes_m16_limitations_and_timestamp_shape(self):
         schema = json.loads(collector.safe_path(
-            "tools/evidence/schemas/autonomous-maturity-m24-preflight-v2.schema.json"
+            "tools/evidence/schemas/autonomous-maturity-m24-preflight-v3.schema.json"
         ).read_text())
         for edit in (
             lambda data: data["m16"].update(unreviewed=True),

@@ -16,8 +16,8 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
-SCHEMA_ID = "codecks.autonomous-maturity.m24-preflight.v2"
-BASE_COMMIT = "9eb4bcd86a95440ee28c0e3191761c1c5725f5bc"
+SCHEMA_ID = "codecks.autonomous-maturity.m24-preflight.v3"
+BASE_COMMIT = "3e0e022819a1204a0a07c2db48798d0c2b890d23"
 M20_INTEGRATION_COMMIT = "a5d0cc09d47179d30227369802932f29f1d82a18"
 M21_INTEGRATION_COMMIT = "0a8f84faddbe8a1015a85f6431fd14d68b402c73"
 SIGNING_NAMES = (
@@ -45,18 +45,17 @@ SOURCE_PATHS = (
     "tools/evidence/validate_m24_release_preflight.py",
     "tools/evidence/test_m24_release_preflight.py",
     "tools/evidence/schemas/autonomous-maturity-m16-soak-v1.schema.json",
-    "tools/evidence/schemas/autonomous-maturity-m24-preflight-v2.schema.json",
+    "tools/evidence/schemas/autonomous-maturity-m24-preflight-v3.schema.json",
 )
 OPTIONAL_ABSENT_SOURCE = "tasks/test-evidence/autonomous-maturity-m16-soak.json"
 ADB_HOST = "127.0.0.1"
 ADB_PORT = 5037
 IMPLEMENTATION_PATHS = (
     "docs/release/M24_CURRENT_PREFLIGHT.md",
-    "tasks/AUTONOMOUS_MATURITY_TODO.md",
     "tools/evidence/collect_m24_release_preflight.py",
     "tools/evidence/test_m24_release_preflight.py",
     "tools/evidence/validate_m24_release_preflight.py",
-    "tools/evidence/schemas/autonomous-maturity-m24-preflight-v2.schema.json",
+    "tools/evidence/schemas/autonomous-maturity-m24-preflight-v3.schema.json",
 )
 GATE_IDS = (
     "source.current_head_bound",

@@ -1,15 +1,16 @@
 # M24 current release preflight
 
-Canonical base: `9eb4bcd86a95440ee28c0e3191761c1c5725f5bc`.
+Canonical C1 base: `3e0e022819a1204a0a07c2db48798d0c2b890d23`.
 Verdict: `NO_GO` (`PREFLIGHT_ONLY`).
 
-Receipt provenance is two-phase and fail-closed: first commit the six exact
+Receipt provenance is two-phase and fail-closed: first commit the five exact
 implementation paths; then collect and commit only the receipt in a descendant
 commit. The receipt binds the base, implementation commit, exact changed-path
 set, per-path before/after/patch hashes, and aggregate diff hash. Validation
 requires the receipt commit to be exact clean `HEAD`, its direct parent to be the
 implementation commit, its diff to contain only the receipt, and working bytes
 to equal the committed blob. Extra-path commits or uncommitted drift fail.
+The maturity TODO remains a bound source (20 total) but is not a C2 change.
 
 Current local truth:
 
