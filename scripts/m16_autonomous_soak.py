@@ -36,7 +36,10 @@ SERIAL = re.compile(r"emulator-[0-9]{4,5}")
 ADB_SERVER_PORT = 5039
 DEFAULT_ADB_SERVER_PORT = 5037
 EMULATOR_PORTS = (5580, 5582, 5584, 5586)
+M16_SERIALS = frozenset(f"emulator-{port}" for port in EMULATOR_PORTS)
 AUTHORIZED_DEFAULT_AVDS = frozenset(("Utopia_GL_1", "Utopia_GL_2"))
+AUTHORIZED_DEFAULT_SERIALS = {"Utopia_GL_1": "emulator-5554", "Utopia_GL_2": "emulator-5556"}
+SYSTEM_IMAGE = "system-images;android-35;default;arm64-v8a"
 PRIVACY = re.compile(rb"(?i)(/Users/[^\s]+|/home/[^\s]+|Bearer\s+[^\s]+|password=[^\s]+|token=[^\s]+|BEGIN [A-Z ]*PRIVATE KEY)")
 CATEGORIES = frozenset(("deck", "trackpad", "keyboard", "clipboard", "rules", "ssh_failure", "ssh_recovery", "lifecycle"))
 EVENT_TYPES = frozenset(("admitted", "ack", "window_complete", "window_ineligible", "admitted_incomplete",
@@ -129,8 +132,8 @@ def disk_free_gib(path: Path) -> float:
 
 
 def adb(serial: str, *args: str, timeout: int = 20) -> str:
-    if not SERIAL.fullmatch(serial):
-        raise SafetyStop("non_emulator_serial")
+    if serial not in M16_SERIALS:
+        raise SafetyStop("non_m16_serial")
     result = subprocess.run(
         adb_command(ADB_SERVER_PORT, "-s", serial, *args), text=True, capture_output=True, timeout=timeout, check=False,
     )
@@ -140,14 +143,14 @@ def adb(serial: str, *args: str, timeout: int = 20) -> str:
 
 
 def adb_result(serial: str, *args: str, timeout: int = 20) -> subprocess.CompletedProcess[str]:
-    if not SERIAL.fullmatch(serial):
-        raise SafetyStop("non_emulator_serial")
+    if serial not in M16_SERIALS:
+        raise SafetyStop("non_m16_serial")
     return subprocess.run(adb_command(ADB_SERVER_PORT, "-s", serial, *args), text=True, capture_output=True, timeout=timeout, check=False)
 
 
 def adb_bytes(serial: str, *args: str, timeout: int = 60) -> bytes:
-    if not SERIAL.fullmatch(serial):
-        raise SafetyStop("non_emulator_serial")
+    if serial not in M16_SERIALS:
+        raise SafetyStop("non_m16_serial")
     result = subprocess.run(adb_command(ADB_SERVER_PORT, "-s", serial, *args), capture_output=True, timeout=timeout, check=False)
     if result.returncode:
         raise SafetyStop(f"adb_binary_failed:{args[0] if args else 'unknown'}")
@@ -209,13 +212,21 @@ def git_output(repo: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
-def global_adb_guard(devices: dict[str, str]) -> None:
+def global_adb_guard(devices: dict[str, str], default_audit: dict[str, object]) -> None:
     result = subprocess.run(adb_command(ADB_SERVER_PORT, "devices"), text=True, capture_output=True, check=False)
     if result.returncode:
         raise SafetyStop("adb_devices_failed")
     rows = [line.split()[:2] for line in result.stdout.splitlines()[1:] if len(line.split()) >= 2]
-    if {row[0] for row in rows} != set(devices.values()) or any(row[1] != "device" for row in rows):
-        raise SafetyStop("global_adb_exact_four_only")
+    expected_m16 = set(devices.values())
+    if expected_m16 != M16_SERIALS:
+        raise SafetyStop("m16_serial_mapping")
+    entries=default_audit.get("authorizedAvds", [])
+    if not isinstance(entries,list) or any(not isinstance(item,dict) or item.get("serial")!=AUTHORIZED_DEFAULT_SERIALS.get(str(item.get("avd"))) for item in entries):
+        raise SafetyStop("default_adb_audit_binding")
+    allowed_extras = {str(item["serial"]) for item in entries}
+    actual={row[0] for row in rows}
+    if not expected_m16.issubset(actual) or not (actual-expected_m16).issubset(allowed_extras) or any(row[1] != "device" for row in rows):
+        raise SafetyStop("isolated_adb_unexpected_device")
 
 
 def audit_default_adb() -> dict[str, object]:
@@ -235,13 +246,14 @@ def audit_default_adb() -> dict[str, object]:
         name_result=subprocess.run(adb_command(DEFAULT_ADB_SERVER_PORT,"-s",serial,"emu","avd","name"),text=True,capture_output=True,check=False)
         name=name_result.stdout.splitlines()[0].strip() if name_result.returncode==0 and name_result.stdout else ""
         if name not in AUTHORIZED_DEFAULT_AVDS: raise SafetyStop("default_adb_unauthorized_avd")
+        if serial != AUTHORIZED_DEFAULT_SERIALS[name]: raise SafetyStop("default_adb_avd_serial_mismatch")
         matches=[]
         for line in subprocess.run(["ps","ax","-o","pid=,command="],text=True,capture_output=True,check=True).stdout.splitlines():
             if re.search(rf"(?:-avd\s+){re.escape(name)}(?:\s|$)",line): matches.append(line.strip().split(maxsplit=1))
         if len(matches)!=1: raise SafetyStop("default_avd_host_binding")
         host_pid=int(matches[0][0]); command=matches[0][1]
         if f"-port {serial.removeprefix('emulator-')}" not in command: raise SafetyStop("default_avd_serial_binding")
-        captured.append({"avd":name,"hostPid":host_pid,"cmdlineSha256":sha256_bytes(command.encode())})
+        captured.append({"avd":name,"serial":serial,"hostPid":host_pid,"cmdlineSha256":sha256_bytes(command.encode())})
     if listener_pids(DEFAULT_ADB_SERVER_PORT)!={server_pid}: raise SafetyStop("default_adb_raced")
     return {"status":"present","sanitizedNonM16EmulatorCount":len(rows),"authorizedAvds":sorted(captured,key=lambda item:item["avd"]),
             "serverPid":server_pid,"serverCmdlineSha256":sha256_bytes(server_command.encode())}
@@ -255,19 +267,56 @@ def adb_server_binding() -> dict[str, object]:
     return {"port":ADB_SERVER_PORT,"endpoint":"tcp:127.0.0.1:5039","serverPid":pid,"cmdlineSha256":sha256_bytes(command.encode())}
 
 
-def managed_avd_config(avd: str) -> Path:
-    avd_root = Path.home() / ".android/avd/gradle-managed"
-    configs = [path for path in avd_root.glob("*.avd/config.ini") if f"AvdId={avd}" in path.read_text() or path.parent.name == f"{avd}.avd"]
-    if len(configs) != 1 or configs[0].is_symlink():
+def avd_home_for(run_dir: Path) -> Path:
+    return run_dir.resolve() / "avd-home"
+
+
+def managed_avd_config(avd_home: Path, avd: str) -> Path:
+    root = avd_home.resolve()
+    if avd not in AVDS or root.name != "avd-home" or root.is_symlink():
+        raise SafetyStop("managed_avd_home_mismatch")
+    ini = root / f"{avd}.ini"
+    config_path = root / f"{avd}.avd" / "config.ini"
+    if any(path.is_symlink() for path in (ini, config_path.parent, config_path)) or not ini.is_file() or not config_path.is_file():
         raise SafetyStop("managed_avd_config_mismatch")
-    config = configs[0].read_text()
+    ini_values = dict(line.split("=", 1) for line in ini.read_text().splitlines() if "=" in line)
+    if Path(ini_values.get("path", "")).resolve() != config_path.parent.resolve() or ini_values.get("target") != "android-35":
+        raise SafetyStop("managed_avd_metadata_mismatch")
+    config = config_path.read_text()
     if "system-images/android-35/default/arm64-v8a/" not in config.replace("\\", "/"):
         raise SafetyStop("managed_avd_not_aosp_api35_arm64")
-    return configs[0]
+    return config_path
 
 
-def qemu_host_binding(avd: str, run_token: str | None = None, expected_pid: int | None = None) -> dict[str, object]:
-    config_path = managed_avd_config(avd)
+def provision_binding(run_dir: Path) -> dict[str, object]:
+    path = run_dir / "provision.json"
+    try:
+        binding = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise SafetyStop("m16_provision_binding_missing") from error
+    if set(binding) != {"schema", "avdHome", "systemImage", "avds"} or binding["schema"] != "codecks.m16.avd-provision.v1":
+        raise SafetyStop("m16_provision_binding_shape")
+    avd_home = avd_home_for(run_dir)
+    if binding["avdHome"] != str(avd_home) or binding["systemImage"] != SYSTEM_IMAGE:
+        raise SafetyStop("m16_provision_binding_root")
+    entries = binding["avds"]
+    if not isinstance(entries, list) or any(not isinstance(item,dict) for item in entries) or [item.get("name") for item in entries] != list(AVDS):
+        raise SafetyStop("m16_provision_exact_four")
+    directories = set()
+    for item, port in zip(entries, EMULATOR_PORTS):
+        if set(item) != {"name", "port", "configPath", "configSha256"} or item["port"] != port:
+            raise SafetyStop("m16_provision_entry_shape")
+        config = managed_avd_config(avd_home, str(item["name"]))
+        if item["configPath"] != str(config) or item["configSha256"] != sha256_file(config):
+            raise SafetyStop("m16_provision_config_binding")
+        directories.add(config.parent.resolve())
+    if len(directories) != 4:
+        raise SafetyStop("m16_provision_shared_store")
+    return binding
+
+
+def qemu_host_binding(avd_home: Path, avd: str, run_token: str | None = None, expected_pid: int | None = None) -> dict[str, object]:
+    config_path = managed_avd_config(avd_home, avd)
     output = subprocess.run(["ps", "ax", "-o", "pid=,rss=,command="], text=True, capture_output=True, check=True).stdout
     matches = []
     for line in output.splitlines():
@@ -280,14 +329,17 @@ def qemu_host_binding(avd: str, run_token: str | None = None, expected_pid: int 
     pid, rss_kib, command = matches[0]
     if expected_pid is not None and pid != expected_pid: raise SafetyStop("qemu_pid_binding")
     if run_token is not None and f"qemu.codecks.m16_run_token={run_token}" not in command: raise SafetyStop("qemu_run_token_binding")
+    expected_port = EMULATOR_PORTS[AVDS.index(avd)]
+    if f"-port {expected_port}" not in command: raise SafetyStop("qemu_port_binding")
+    if "-wipe-data" in command: raise SafetyStop("qemu_wipe_forbidden")
     if "-no-window" not in command and "qemu-system" not in command and "/emulator" not in command:
         raise SafetyStop("qemu_cmdline_invalid")
     return {"pid": pid, "rssKiB": rss_kib, "cmdlineSha256": sha256_bytes(command.encode()),
-            "configSha256": sha256_file(config_path)}
+            "configPath": str(config_path), "configSha256": sha256_file(config_path)}
 
 
 def verify_device(avd: str, serial: str, target_sha256: str | None = None, test_sha256: str | None = None,
-                  run_token: str | None = None, expected_pid: int | None = None) -> dict[str, object]:
+                  run_token: str | None = None, expected_pid: int | None = None, avd_home: Path | None = None) -> dict[str, object]:
     if avd not in AVDS:
         raise SafetyStop("unexpected_avd_id")
     if adb(serial, "shell", "getprop", "ro.kernel.qemu") != "1":
@@ -343,7 +395,7 @@ def verify_device(avd: str, serial: str, target_sha256: str | None = None, test_
     return {
         "avd": avd, "serial": serial, "api": 35, "fingerprintSha256": sha256_bytes(fingerprint.encode()),
         "uid": int(uid_match.group(1)), "dataDir": data_match.group(1), "targetApkSha256": installed_sha,
-        "qemu": qemu_host_binding(avd,run_token,expected_pid), "observedWallMillis": device_wall, "observedUptimeMillis": device_uptime,
+        "qemu": qemu_host_binding(avd_home or Path("/invalid"),avd,run_token,expected_pid), "observedWallMillis": device_wall, "observedUptimeMillis": device_uptime,
     }
 
 
@@ -367,6 +419,8 @@ def parse_devices(values: list[str]) -> dict[str, str]:
         avd, separator, serial = value.partition("=")
         if not separator or avd in devices or avd not in AVDS or not SERIAL.fullmatch(serial):
             raise SafetyStop("invalid_device_mapping")
+        if serial != f"emulator-{EMULATOR_PORTS[AVDS.index(avd)]}":
+            raise SafetyStop("m16_avd_serial_substitution")
         devices[avd] = serial
     if tuple(sorted(devices)) != AVDS or len(set(devices.values())) != 4:
         raise SafetyStop("exactly_four_distinct_avds_required")
@@ -790,7 +844,9 @@ def stop_owned_emulators(run_dir: Path, state: dict[str, object]) -> None:
     for avd in AVDS:
         pid=int(pids[avd]); command=process_command(pid)
         if command and (avd not in command or token not in command): raise SafetyStop("refuse_unowned_emulator_stop")
-        if command: adb_result(str(devices[avd]),"emu","kill")
+        if command:
+            qemu_host_binding(Path(str(state.get("avdHome",""))),avd,token,pid)
+            adb_result(str(devices[avd]),"emu","kill")
     deadline=time.monotonic()+30
     while time.monotonic()<deadline and any(subprocess.run(["ps","-p",str(pid)],capture_output=True).returncode==0 for pid in pids.values()): time.sleep(1)
     if any(subprocess.run(["ps","-p",str(pid)],capture_output=True).returncode==0 for pid in pids.values()): raise SafetyStop("owned_emulator_stop_timeout")
@@ -814,7 +870,7 @@ def continuous_monitor(run_dir: Path, state: dict[str, object]) -> None:
             if time.monotonic() > deadline:
                 raise SafetyStop("monitor_wall_cap")
             require_capacity("runtime", run_dir)
-            global_adb_guard(devices)
+            global_adb_guard(devices, audit_default_adb())
             health = host_health()
             baseline = state["baselineHealth"]
             if state["mode"] == "burnin2h" and float(health["swapUsedMiB"]) > float(baseline["swapUsedMiB"]):
@@ -822,7 +878,7 @@ def continuous_monitor(run_dir: Path, state: dict[str, object]) -> None:
             qemu_rss = 0
             for binding in state["deviceBindings"]:
                 verified = verify_device(binding["avd"], binding["serial"], state["binding"]["targetApkSha256"], state["binding"]["testApkSha256"],
-                                         str(state["runToken"]),int(state["emulatorPids"][binding["avd"]]))
+                                         str(state["runToken"]),int(state["emulatorPids"][binding["avd"]]),Path(str(state["avdHome"])))
                 qemu_rss += int(verified["qemu"]["rssKiB"])
                 prior_clock = device_clocks.get(str(binding["avd"]))
                 current_clock = (int(verified["observedWallMillis"]), int(verified["observedUptimeMillis"]))
@@ -988,6 +1044,7 @@ def stop_owned_adb_server(binding: dict[str, object]) -> None:
 def launch(args: argparse.Namespace) -> None:
     run_dir=Path(args.run_dir).resolve(); run_dir.mkdir(parents=True,exist_ok=True)
     require_capacity("pre",run_dir); audit=audit_default_adb()
+    provision=provision_binding(run_dir); avd_home=Path(str(provision["avdHome"]))
     if listener_pids(ADB_SERVER_PORT): raise SafetyStop("isolated_adb_port_in_use")
     acquire_owner(run_dir)
     token=secrets.token_hex(16); pids={}; devices={}; server_binding=None
@@ -995,28 +1052,38 @@ def launch(args: argparse.Namespace) -> None:
         subprocess.run(adb_command(ADB_SERVER_PORT,"start-server"),check=True,capture_output=True)
         server_binding=adb_server_binding()
         isolated=subprocess.run(adb_command(ADB_SERVER_PORT,"devices"),text=True,capture_output=True,check=True).stdout
-        if any(line.strip() for line in isolated.splitlines()[1:]): raise SafetyStop("isolated_adb_not_empty")
+        isolated_rows=[line.split()[:2] for line in isolated.splitlines()[1:] if len(line.split())>=2]
+        allowed_extras={str(item["serial"]) for item in audit.get("authorizedAvds",[])}
+        actual_extras={row[0] for row in isolated_rows}
+        if not actual_extras.issubset(allowed_extras) or any(row[1]!="device" for row in isolated_rows):
+            raise SafetyStop("isolated_adb_prelaunch_inventory")
         emulator=Path(os.environ.get("ANDROID_HOME",str(Path.home()/"Library/Android/sdk")))/"emulator/emulator"
         if not emulator.is_file(): raise SafetyStop("emulator_binary_missing")
         for avd,port in zip(AVDS,EMULATOR_PORTS):
-            managed_avd_config(avd)
+            managed_avd_config(avd_home,avd)
             log=run_dir/f"{avd}.emulator.log"
             descriptor=os.open(log,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
             process=subprocess.Popen([str(emulator),"-avd",avd,"-port",str(port),"-no-window","-no-snapshot",
                 "-no-boot-anim","-no-audio","-gpu","swiftshader_indirect","-no-metrics","-prop",f"qemu.codecks.m16_run_token={token}"],
-                stdout=descriptor,stderr=subprocess.STDOUT,start_new_session=True,env={**os.environ,"ANDROID_ADB_SERVER_PORT":str(ADB_SERVER_PORT)})
+                stdout=descriptor,stderr=subprocess.STDOUT,start_new_session=True,
+                env={**os.environ,"ANDROID_ADB_SERVER_PORT":str(ADB_SERVER_PORT),"ANDROID_AVD_HOME":str(avd_home)})
             os.close(descriptor); pids[avd]=process.pid; devices[avd]=f"emulator-{port}"
         deadline=time.monotonic()+300
         while time.monotonic()<deadline:
             rows=subprocess.run(adb_command(ADB_SERVER_PORT,"devices"),text=True,capture_output=True,check=False).stdout
-            if all(f"{serial}\tdevice" in rows for serial in devices.values()) and len([x for x in rows.splitlines()[1:] if x.strip()])==4: break
+            try:
+                global_adb_guard(devices,audit)
+                break
+            except SafetyStop:
+                pass
             time.sleep(2)
         else: raise SafetyStop("isolated_four_boot_timeout")
         for avd,serial in devices.items():
             if adb(serial,"shell","getprop","qemu.codecks.m16_run_token")!=token: raise SafetyStop("launched_token_missing")
-            qemu_host_binding(avd,token,pids[avd])
+            qemu_host_binding(avd_home,avd,token,pids[avd])
         state={"schema":"codecks.m16.launch-state.v1","status":"launched","isolatedAdb":server_binding,
-               "runToken":token,"devices":devices,"emulatorPids":pids,"defaultAdbAudit":audit,"launchedWallMillis":int(time.time()*1000)}
+               "runToken":token,"devices":devices,"emulatorPids":pids,"defaultAdbAudit":audit,"avdHome":str(avd_home),
+               "provision":provision,"launchedWallMillis":int(time.time()*1000)}
         atomic_state(run_dir,state)
     except BaseException as error:
         cleanup=[]
@@ -1042,17 +1109,22 @@ def start(args: argparse.Namespace, resume: bool = False) -> None:
     require_owner(run_dir)
     require_capacity("pre", run_dir)
     devices = parse_devices(args.device)
-    global_adb_guard(devices)
+    launch_state=json.loads((run_dir/"state.json").read_text())
+    live_default_audit=audit_default_adb()
+    if live_default_audit!=launch_state["defaultAdbAudit"]: raise SafetyStop("default_adb_changed_before_start")
+    global_adb_guard(devices,live_default_audit)
     binding = source_and_artifact_binding(args)
     require_capacity("post", run_dir)
     health = host_health()
     duration_hours = 2 if args.mode == "burnin2h" else 168
-    launch_state=json.loads((run_dir/"state.json").read_text())
     if launch_state.get("isolatedAdb")!=adb_server_binding() or launch_state.get("devices")!=devices:
         raise SafetyStop("isolated_launch_binding")
     run_token=str(launch_state.get("runToken","")); emulator_pids=launch_state.get("emulatorPids",{})
     if not re.fullmatch(r"[0-9a-f]{32}",run_token): raise SafetyStop("run_token_invalid")
-    device_bindings = [verify_device(avd, serial, str(binding["targetApkSha256"]), str(binding["testApkSha256"]),run_token,int(emulator_pids[avd])) for avd, serial in devices.items()]
+    avd_home=Path(str(launch_state.get("avdHome","")))
+    provision_binding(run_dir)
+    device_bindings = [verify_device(avd, serial, str(binding["targetApkSha256"]), str(binding["testApkSha256"]),run_token,
+                                     int(emulator_pids[avd]),avd_home) for avd, serial in devices.items()]
     if binding["isolation"]["fingerprintSha256"] not in {item["fingerprintSha256"] for item in device_bindings}:
         raise SafetyStop("isolation_device_not_in_soak_set")
     if resume:
@@ -1070,7 +1142,7 @@ def start(args: argparse.Namespace, resume: bool = False) -> None:
             "baselineHealth": health,
             "binding": binding, "deviceBindings": device_bindings,
             "isolatedAdb":launch_state["isolatedAdb"],"runToken":run_token,"emulatorPids":emulator_pids,
-            "defaultAdbAudit":launch_state["defaultAdbAudit"],
+            "defaultAdbAudit":launch_state["defaultAdbAudit"],"avdHome":str(avd_home),
         }
     atomic_state(run_dir, state)
     append_host_event(run_dir, {"type": "controller_start", "mode": args.mode, "profiles": 20})
@@ -1099,7 +1171,7 @@ def stop(args: argparse.Namespace) -> None:
     require_owner(run_dir)
     state = json.loads((run_dir / "state.json").read_text())
     devices = parse_devices([f"{key}={value}" for key, value in state["devices"].items()])
-    global_adb_guard(devices)
+    global_adb_guard(devices,audit_default_adb())
     safe_stop_services(state)
     verify_services_stopped(state)
     stop_owned_emulators(run_dir,state)
@@ -1173,27 +1245,45 @@ def status(args: argparse.Namespace) -> None:
     if state.get("mode") == "burnin2h" and health["swapUsedMiB"] > float(baseline.get("swapUsedMiB", 0)):
         raise SafetyStop("burnin_swap_growth")
     devices = parse_devices([f"{key}={value}" for key, value in state["devices"].items()])
-    global_adb_guard(devices)
+    global_adb_guard(devices,audit_default_adb())
     for binding in state["deviceBindings"]:
         verify_device(binding["avd"], binding["serial"], state["binding"]["targetApkSha256"], state["binding"]["testApkSha256"],
-                      str(state["runToken"]),int(state["emulatorPids"][binding["avd"]]))
+                      str(state["runToken"]),int(state["emulatorPids"][binding["avd"]]),Path(str(state["avdHome"])))
     statuses = collect_worker_statuses(devices)
     print(json.dumps({"evidence": "AUTONOMOUS_PROXY", "workers": statuses}, sort_keys=True))
 
 
 def provision(args: argparse.Namespace) -> None:
-    """Provision only the four source-declared disposable GMDs; never launches the soak."""
-    repo = Path(__file__).resolve().parents[1]
-    require_capacity("pre", repo)
+    """Create four persistent, run-owned AVD stores without launching them."""
+    run_dir=Path(args.run_dir).resolve(); run_dir.mkdir(parents=True,exist_ok=True)
+    require_capacity("pre", run_dir)
     audit_default_adb()
-    build = (repo / "app/build.gradle.kts").read_text()
-    if 'create("m16Soak%02dApi35".format(index))' not in build or 'systemImageSource = "aosp"' not in build:
-        raise SafetyStop("m16_avd_source_definition_missing")
-    command = [str(repo / "gradlew"), *[f":app:{avd}Setup" for avd in AVDS], "--no-daemon"]
-    result = subprocess.run(command, cwd=repo, check=False,env={**os.environ,"ANDROID_ADB_SERVER_PORT":str(ADB_SERVER_PORT)})
-    if result.returncode:
-        raise SafetyStop("m16_avd_provision_failed")
-    require_capacity("post", repo)
+    if listener_pids(ADB_SERVER_PORT): raise SafetyStop("isolated_adb_port_in_use")
+    if (run_dir/"provision.json").exists():
+        provision_binding(run_dir)
+        require_capacity("post",run_dir)
+        return
+    avd_home=avd_home_for(run_dir)
+    if avd_home.exists() and any(avd_home.iterdir()): raise SafetyStop("m16_partial_provision_present")
+    avd_home.mkdir(mode=0o700,parents=True,exist_ok=True)
+    sdk=Path(os.environ.get("ANDROID_HOME",str(Path.home()/"Library/Android/sdk"))).resolve()
+    avdmanager=sdk/"cmdline-tools/latest/bin/avdmanager"
+    system_image=sdk/"system-images/android-35/default/arm64-v8a"
+    if not avdmanager.is_file(): raise SafetyStop("avdmanager_missing")
+    if not system_image.is_dir(): raise SafetyStop("m16_system_image_missing")
+    environment={**os.environ,"ANDROID_HOME":str(sdk),"ANDROID_SDK_ROOT":str(sdk),"ANDROID_AVD_HOME":str(avd_home)}
+    for avd in AVDS:
+        result=subprocess.run([str(avdmanager),"create","avd","--name",avd,"--package",SYSTEM_IMAGE,
+                               "--device","pixel_6"],input="no\n",text=True,capture_output=True,check=False,env=environment)
+        if result.returncode: raise SafetyStop(f"m16_avd_create_failed:{avd}")
+    entries=[]
+    for avd,port in zip(AVDS,EMULATOR_PORTS):
+        config=managed_avd_config(avd_home,avd)
+        entries.append({"name":avd,"port":port,"configPath":str(config),"configSha256":sha256_file(config)})
+    manifest={"schema":"codecks.m16.avd-provision.v1","avdHome":str(avd_home),"systemImage":SYSTEM_IMAGE,"avds":entries}
+    atomic_bytes(run_dir/"provision.json",json.dumps(manifest,sort_keys=True,separators=(",", ":")).encode())
+    provision_binding(run_dir)
+    require_capacity("post", run_dir)
 
 
 def parser() -> argparse.ArgumentParser:

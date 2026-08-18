@@ -53,12 +53,17 @@ class M16HostTests(unittest.TestCase):
             blank=mock.Mock(returncode=0,stdout="List of devices attached\n")
             with mock.patch.object(m16,"require_capacity"),mock.patch.object(m16,"audit_default_adb",return_value={}), \
                  mock.patch.object(m16,"listener_pids",return_value=set()),mock.patch.object(m16,"adb_server_binding",return_value={"serverPid":9}), \
+                 mock.patch.object(m16,"provision_binding",return_value={"avdHome":str(Path(directory)/"avd-home")}), \
                  mock.patch.object(m16.subprocess,"run",return_value=blank),mock.patch.object(m16,"managed_avd_config"), \
-                 mock.patch.object(m16.Path,"is_file",return_value=True),mock.patch.object(m16.subprocess,"Popen",side_effect=[process,OSError("partial")]), \
+                 mock.patch.object(m16.Path,"is_file",return_value=True),mock.patch.object(m16.subprocess,"Popen",side_effect=[process,OSError("partial")]) as popen, \
                  mock.patch.object(m16.secrets,"token_hex",return_value="1"*32),mock.patch.object(m16,"process_command",return_value="m16Soak01Api35 qemu.codecks.m16_run_token="+"1"*32), \
                  mock.patch.object(m16,"acquire_owner"),mock.patch.object(m16,"release_owner") as release, \
                  mock.patch.object(m16,"stop_owned_adb_server") as stop_server, self.assertRaises(OSError): m16.launch(args)
             stop_server.assert_called_once(); release.assert_called_once()
+            command=popen.call_args_list[0].args[0]; environment=popen.call_args_list[0].kwargs["env"]
+            self.assertNotIn("-wipe-data",command)
+            self.assertEqual(command[command.index("-port")+1],"5580")
+            self.assertEqual(Path(environment["ANDROID_AVD_HOME"]).resolve(),Path(directory).resolve()/"avd-home")
 
     def test_stale_server_binding_never_sends_kill(self):
         binding={"port":5039,"endpoint":"tcp:127.0.0.1:5039","serverPid":9,"cmdlineSha256":"a"*64}
@@ -66,18 +71,68 @@ class M16HostTests(unittest.TestCase):
              mock.patch.object(m16.subprocess,"run") as run, self.assertRaises(m16.SafetyStop): m16.stop_owned_adb_server(binding)
         run.assert_not_called()
     def test_requires_exact_four_distinct_emulators(self):
-        values = [f"m16Soak0{i}Api35=emulator-{5552 + i * 2}" for i in range(1, 5)]
+        values = [f"{avd}=emulator-{port}" for avd,port in zip(m16.AVDS,m16.EMULATOR_PORTS)]
         self.assertEqual(len(m16.parse_devices(values)), 4)
         for mutation in (values[:3], values + [values[0]], values[:-1] + ["m16Soak04Api35=device-1"]):
             with self.assertRaises(m16.SafetyStop):
                 m16.parse_devices(mutation)
+        with self.assertRaisesRegex(m16.SafetyStop,"substitution"):
+            m16.parse_devices([values[1].replace("m16Soak02","m16Soak01"),values[0].replace("m16Soak01","m16Soak02"),*values[2:]])
 
     def test_physical_device_and_wrong_api_fail_closed(self):
         with self.assertRaises(m16.SafetyStop):
             m16.adb("physical-1", "shell", "true")
         with mock.patch.object(m16, "adb", side_effect=["0"]):
             with self.assertRaisesRegex(m16.SafetyStop, "device_not_qemu"):
-                m16.verify_device("m16Soak01Api35", "emulator-5554")
+                m16.verify_device("m16Soak01Api35", "emulator-5580")
+
+    def test_only_exact_m16_serials_can_receive_device_commands(self):
+        with mock.patch.object(m16.subprocess,"run",return_value=mock.Mock(returncode=0,stdout="ok")) as run:
+            self.assertEqual(m16.adb("emulator-5580","shell","true"),"ok")
+        self.assertEqual(run.call_args.args[0],["adb","-P","5039","-s","emulator-5580","shell","true"])
+        for serial in ("emulator-5554","emulator-5556","physical-1","emulator-5588"):
+            with mock.patch.object(m16.subprocess,"run") as forbidden, self.assertRaisesRegex(m16.SafetyStop,"non_m16_serial"):
+                m16.adb(serial,"shell","true")
+            forbidden.assert_not_called()
+
+    def test_isolated_inventory_allows_only_baseline_utopia_plus_exact_m16(self):
+        devices={avd:f"emulator-{port}" for avd,port in zip(m16.AVDS,m16.EMULATOR_PORTS)}
+        audit={"authorizedAvds":[{"avd":"Utopia_GL_1","serial":"emulator-5554"},{"avd":"Utopia_GL_2","serial":"emulator-5556"}]}
+        lines=["List of devices attached",*(f"{serial}\tdevice" for serial in [*devices.values(),"emulator-5554","emulator-5556"])]
+        good="\n".join(lines)+"\n"
+        with mock.patch.object(m16.subprocess,"run",return_value=mock.Mock(returncode=0,stdout=good)):
+            m16.global_adb_guard(devices,audit)
+        for mutation in (good.replace("emulator-5586","emulator-5588"),good.replace("emulator-5554\tdevice","emulator-5554\toffline")):
+            with mock.patch.object(m16.subprocess,"run",return_value=mock.Mock(returncode=0,stdout=mutation)),self.assertRaises(m16.SafetyStop):
+                m16.global_adb_guard(devices,audit)
+
+    def test_provision_creates_four_distinct_persistent_run_owned_avds(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir=Path(directory)/"run"; sdk=Path(directory)/"sdk"
+            (sdk/"cmdline-tools/latest/bin").mkdir(parents=True); (sdk/"cmdline-tools/latest/bin/avdmanager").touch()
+            (sdk/"system-images/android-35/default/arm64-v8a").mkdir(parents=True)
+            calls=[]
+            def create(command,**kwargs):
+                calls.append((command,kwargs)); avd=command[command.index("--name")+1]
+                home=Path(kwargs["env"]["ANDROID_AVD_HOME"]); root=home/f"{avd}.avd"; root.mkdir(parents=True)
+                (home/f"{avd}.ini").write_text(f"path={root}\ntarget=android-35\n")
+                (root/"config.ini").write_text("image.sysdir.1=system-images/android-35/default/arm64-v8a/\n")
+                return mock.Mock(returncode=0,stdout="",stderr="")
+            args=mock.Mock(run_dir=str(run_dir))
+            with mock.patch.dict(m16.os.environ,{"ANDROID_HOME":str(sdk)}),mock.patch.object(m16,"require_capacity"), \
+                 mock.patch.object(m16,"audit_default_adb",return_value={}),mock.patch.object(m16,"listener_pids",return_value=set()), \
+                 mock.patch.object(m16.subprocess,"run",side_effect=create): m16.provision(args)
+            binding=m16.provision_binding(run_dir)
+            self.assertEqual([item["name"] for item in binding["avds"]],list(m16.AVDS))
+            self.assertEqual(len({Path(item["configPath"]).parent for item in binding["avds"]}),4)
+            self.assertTrue(all(call[1]["env"]["ANDROID_AVD_HOME"]==str(run_dir.resolve()/"avd-home") for call in calls))
+            self.assertFalse(any("--force" in call[0] or "-wipe-data" in call[0] for call in calls))
+            with mock.patch.object(m16,"require_capacity"),mock.patch.object(m16,"audit_default_adb",return_value={}), \
+                 mock.patch.object(m16,"listener_pids",return_value=set()),mock.patch.object(m16.subprocess,"run") as rerun:
+                m16.provision(args)
+            rerun.assert_not_called()
+            first=Path(binding["avds"][0]["configPath"]); first.write_text(first.read_text()+"tampered=yes\n")
+            with self.assertRaisesRegex(m16.SafetyStop,"config_binding"): m16.provision_binding(run_dir)
 
     def test_singleton_is_exclusive_and_released_only_by_owner(self):
         with tempfile.TemporaryDirectory() as directory:
