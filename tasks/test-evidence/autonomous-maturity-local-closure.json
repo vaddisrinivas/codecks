@@ -1,11 +1,11 @@
 {
   "schema": "codecks.autonomous-maturity.local-closure.v1",
   "status": "PASS_WITH_NOT_RUN",
-  "sourceCommit": "6ca6bb3d962ded531443da41c8c13ec32c0cfbb2",
+  "sourceCommit": "0a8f84faddbe8a1015a85f6431fd14d68b402c73",
   "sources": [
     {
       "path": "tasks/AUTONOMOUS_MATURITY_TODO.md",
-      "sha256": "38edf590ededf8a114557844550566243b457da747ce85a543f6b78777c272ef"
+      "sha256": "194ae98b77e074f7cad5a215f5d4ed1bdcbe6db7695b2ab417030ce4c7c245f8"
     },
     {
       "path": "docs/architecture/M09_LOCAL_METRICS.md",
@@ -358,5 +358,5 @@
     "M09D current execution stopped under host resource pressure and remains NOT_RUN.",
     "M16, M21, and M23 are outside this receipt."
   ],
-  "receiptDigest": "b05f20eb0d1634dd99bbe62f63839489122eb28bd41009114c992ad06f055b7e"
+  "receiptDigest": "fd3426833938fb1fb6e6983a02c66975ceac4f241292245e17369b29ad53ac81"
 }
