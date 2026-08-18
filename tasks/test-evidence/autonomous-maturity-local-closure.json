@@ -1,11 +1,11 @@
 {
   "schema": "codecks.autonomous-maturity.local-closure.v1",
   "status": "PASS_WITH_NOT_RUN",
-  "sourceCommit": "0a8f84faddbe8a1015a85f6431fd14d68b402c73",
+  "sourceCommit": "f3d7aee9ef8ac9e89fa70d21e972ddeb729a2d7c",
   "sources": [
     {
       "path": "tasks/AUTONOMOUS_MATURITY_TODO.md",
-      "sha256": "194ae98b77e074f7cad5a215f5d4ed1bdcbe6db7695b2ab417030ce4c7c245f8"
+      "sha256": "8963ca5dd6b5a8f9a509bdbb09d579e2dc99ac7c98b93d0581e1a1c8428eda40"
     },
     {
       "path": "docs/architecture/M09_LOCAL_METRICS.md",
@@ -125,27 +125,27 @@
     },
     {
       "path": "tasks/test-evidence/m20-disposable-signer/same-key-a.apk",
-      "sha256": "30a01d1f2ff65233ff0632b3e0615d6afe67717972fd5a66eef176c2ab585e3e"
+      "sha256": "34523cd082b7dccb133174a74dc583694a3a41274f9a854865a527c7f93497dc"
     },
     {
       "path": "tasks/test-evidence/m20-disposable-signer/same-key-b.apk",
-      "sha256": "30a01d1f2ff65233ff0632b3e0615d6afe67717972fd5a66eef176c2ab585e3e"
+      "sha256": "34523cd082b7dccb133174a74dc583694a3a41274f9a854865a527c7f93497dc"
     },
     {
       "path": "tasks/test-evidence/m20-disposable-signer/different-key.apk",
-      "sha256": "601a587f836405fb6f31986479f2887b52fccbcce57ca0e9d0e9882317952d6e"
+      "sha256": "a16090ceedca5d2738af76a0edba5388939e148cd942d556d5523272cc4c104b"
     },
     {
       "path": "tasks/test-evidence/m20-disposable-signer/same-key-a.cert.txt",
-      "sha256": "e7a9409cab66928b5302b66b160dc3c4e5ba03f50462a9e6a1f12a6beeb4cea1"
+      "sha256": "46ee7dae1ba569782f88d239927c617434c362393565b50b63c319ffc71eeab0"
     },
     {
       "path": "tasks/test-evidence/m20-disposable-signer/same-key-b.cert.txt",
-      "sha256": "e7a9409cab66928b5302b66b160dc3c4e5ba03f50462a9e6a1f12a6beeb4cea1"
+      "sha256": "46ee7dae1ba569782f88d239927c617434c362393565b50b63c319ffc71eeab0"
     },
     {
       "path": "tasks/test-evidence/m20-disposable-signer/different-key.cert.txt",
-      "sha256": "aff260d380b33b47152c58d822e4d5462bb1a7891b290ce5c671aada06964346"
+      "sha256": "dbb398b6a330a7f2b9e734deea3c734455c0af99bdd7f493680e8b09c3e74959"
     },
     {
       "path": "app/src/main/java/io/codecks/ui/theme/CodecksTheme.kt",
@@ -235,38 +235,38 @@
   "m20DisposableSigner": {
     "sameKeyAccepted": true,
     "differentKeyRejected": true,
-    "sameSignerCertificateSha256": "e4dcc0497622138a2f628244fafe39c1d1adbe98b762fb630a943d31ba6cb58f",
-    "differentSignerCertificateSha256": "49e853f699d1a76bb0a1215061d23d9feb4daf30dcc2400d691976df61a3c9bb",
+    "sameSignerCertificateSha256": "304a5865a94f7cec30278414888497a4fbf50cc5110fc13c4be2d16bc85baa88",
+    "differentSignerCertificateSha256": "da40dfb17d3a3bcf8bf8f4524ea05f23bb43bcae2faa8eda13313e547e63b5c5",
     "publicArtifacts": [
       {
         "name": "same-key-a.apk",
         "sizeBytes": 2120,
-        "sha256": "30a01d1f2ff65233ff0632b3e0615d6afe67717972fd5a66eef176c2ab585e3e"
+        "sha256": "34523cd082b7dccb133174a74dc583694a3a41274f9a854865a527c7f93497dc"
       },
       {
         "name": "same-key-b.apk",
         "sizeBytes": 2120,
-        "sha256": "30a01d1f2ff65233ff0632b3e0615d6afe67717972fd5a66eef176c2ab585e3e"
+        "sha256": "34523cd082b7dccb133174a74dc583694a3a41274f9a854865a527c7f93497dc"
       },
       {
         "name": "different-key.apk",
-        "sizeBytes": 2117,
-        "sha256": "601a587f836405fb6f31986479f2887b52fccbcce57ca0e9d0e9882317952d6e"
+        "sizeBytes": 2124,
+        "sha256": "a16090ceedca5d2738af76a0edba5388939e148cd942d556d5523272cc4c104b"
       },
       {
         "name": "same-key-a.cert.txt",
         "sizeBytes": 334,
-        "sha256": "e7a9409cab66928b5302b66b160dc3c4e5ba03f50462a9e6a1f12a6beeb4cea1"
+        "sha256": "46ee7dae1ba569782f88d239927c617434c362393565b50b63c319ffc71eeab0"
       },
       {
         "name": "same-key-b.cert.txt",
         "sizeBytes": 334,
-        "sha256": "e7a9409cab66928b5302b66b160dc3c4e5ba03f50462a9e6a1f12a6beeb4cea1"
+        "sha256": "46ee7dae1ba569782f88d239927c617434c362393565b50b63c319ffc71eeab0"
       },
       {
         "name": "different-key.cert.txt",
         "sizeBytes": 334,
-        "sha256": "aff260d380b33b47152c58d822e4d5462bb1a7891b290ce5c671aada06964346"
+        "sha256": "dbb398b6a330a7f2b9e734deea3c734455c0af99bdd7f493680e8b09c3e74959"
       }
     ],
     "apksigner": {
@@ -358,5 +358,5 @@
     "M09D current execution stopped under host resource pressure and remains NOT_RUN.",
     "M16, M21, and M23 are outside this receipt."
   ],
-  "receiptDigest": "fd3426833938fb1fb6e6983a02c66975ceac4f241292245e17369b29ad53ac81"
+  "receiptDigest": "349ed96cd6abbdfe130d06d430d1f245bef3b9346a22cd0cb701ec46098fd58e"
 }
