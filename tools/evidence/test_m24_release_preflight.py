@@ -40,31 +40,18 @@ class FakeSocket:
 class M24PreflightEvidenceTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.receipt = json.loads(RECEIPT.read_text())
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=collector.ROOT, check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        changed = subprocess.run(
+            ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", head],
+            cwd=collector.ROOT, check=True, capture_output=True, text=True,
+        ).stdout.splitlines()
+        implementation = subprocess.run(
+            ["git", "rev-parse", "HEAD^"], cwd=collector.ROOT, check=True, capture_output=True, text=True,
+        ).stdout.strip() if changed == [str(RECEIPT.relative_to(collector.ROOT))] else head
+        cls.receipt = collector.collect(implementation_commit=implementation)
         cls.receipt["generatedAtUtc"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        cls.receipt["provenance"] = {
-            "baseCommit": collector.BASE_COMMIT, "implementationCommit": collector.BASE_COMMIT,
-            "implementationPaths": [
-                {"path": path, "change": "MODIFIED", "baseSha256": "0" * 64,
-                 "implementationSha256": "1" * 64, "patchSha256": "2" * 64}
-                for path in collector.IMPLEMENTATION_PATHS
-            ],
-            "implementationDiffSha256": "3" * 64,
-            "receiptPath": "tasks/test-evidence/autonomous-maturity-m24-preflight.json",
-            "receiptCommitRequired": True,
-        }
-        adb = cls.receipt["adbClassification"]
-        for key in ("listenerPrecheck", "commands", "devicesOutputSha256"):
-            adb.pop(key, None)
-        adb.update({
-            "endpoint": {"host": "127.0.0.1", "port": 5037},
-            "protocol": "ADB_SERVER_HOST_PROTOCOL_V1", "request": "host:devices-l",
-            "responseSha256": "4" * 64, "adbCliInvoked": False,
-        })
-        cls.receipt["limitations"][0] = (
-            "Read-only ADB classification used one raw host:devices-l server request; no adb CLI, "
-            "package query, pull, install, or instrumentation ran."
-        )
 
     def mutated(self, edit) -> Path:
         value = copy.deepcopy(self.receipt)
@@ -102,9 +89,15 @@ class M24PreflightEvidenceTest(unittest.TestCase):
         subprocess.run(["git", "commit", "-qm", "receipt"], cwd=root, check=True)
         return root, implementation, receipt
 
-    def test_phase_one_refuses_collection_before_implementation_commit(self):
-        with self.assertRaisesRegex(ValueError, "commit M24 implementation before collection"):
-            collector.collect()
+    def test_collection_refuses_uncommitted_implementation_fixture(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        root = Path(directory.name)
+        subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+        (root / "uncommitted-implementation.txt").write_text("dirty\n")
+        with patch.object(collector, "ROOT", root), \
+             self.assertRaisesRegex(ValueError, "commit M24 implementation before collection"):
+            collector.require_collection_worktree_clean()
 
     def test_schema_closes_m16_limitations_and_timestamp_shape(self):
         schema = json.loads(collector.safe_path(
@@ -146,10 +139,13 @@ class M24PreflightEvidenceTest(unittest.TestCase):
             ), self.assertRaisesRegex(ValueError, "provenance changed"):
                 validate(self.mutated(edit), require_receipt_commit=False)
 
-    def test_current_uncommitted_receipt_is_not_final(self):
-        with patch("validate_m24_release_preflight.implementation_provenance",
-                   return_value=self.receipt["provenance"]), self.assertRaisesRegex(ValueError, "parent"):
-            validate(self.mutated(lambda data: None), require_receipt_commit=True)
+    def test_receipt_not_at_head_fixture_is_rejected(self):
+        root, implementation, receipt = self.receipt_repo()
+        (root / "later.txt").write_text("later\n")
+        subprocess.run(["git", "add", "later.txt"], cwd=root, check=True)
+        subprocess.run(["git", "commit", "-qm", "later"], cwd=root, check=True)
+        with self.assertRaisesRegex(ValueError, "parent"):
+            validate_receipt_commit(implementation, root, receipt)
 
     def test_receipt_commit_exact_head_parent_blob_and_diff(self):
         root, implementation, receipt = self.receipt_repo()

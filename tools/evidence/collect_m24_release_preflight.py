@@ -134,6 +134,16 @@ def implementation_provenance(implementation_commit: str) -> dict:
     }
 
 
+def require_collection_worktree_clean() -> None:
+    dirty = {
+        line[3:] for line in run("git", "status", "--porcelain", "--untracked-files=all").stdout.splitlines()
+        if len(line) >= 4
+    }
+    unexpected = sorted(dirty - {"tasks/test-evidence/autonomous-maturity-m24-preflight.json"})
+    if unexpected:
+        raise ValueError(f"commit M24 implementation before collection; dirty paths: {unexpected}")
+
+
 def classify_android_device(serial: str, metadata: dict[str, str]) -> str:
     combined = " ".join((serial, metadata.get("product", ""), metadata.get("model", ""), metadata.get("device", ""))).lower()
     markers = ("emulator-", "emulator", "android_sdk", "sdk_gphone", "gphone", "aosp_")
@@ -278,15 +288,9 @@ def closure(path: str, collector: str, validator: str, status: str, integration_
     }
 
 
-def collect() -> dict:
-    source_commit = run("git", "rev-parse", "HEAD").stdout.strip()
-    dirty = {
-        line[3:] for line in run("git", "status", "--porcelain", "--untracked-files=all").stdout.splitlines()
-        if len(line) >= 4
-    }
-    unexpected = sorted(dirty - {"tasks/test-evidence/autonomous-maturity-m24-preflight.json"})
-    if unexpected:
-        raise ValueError(f"commit M24 implementation before collection; dirty paths: {unexpected}")
+def collect(implementation_commit: str | None = None) -> dict:
+    source_commit = implementation_commit or run("git", "rev-parse", "HEAD").stdout.strip()
+    require_collection_worktree_clean()
     provenance = implementation_provenance(source_commit)
 
     adb = adb_classification()
