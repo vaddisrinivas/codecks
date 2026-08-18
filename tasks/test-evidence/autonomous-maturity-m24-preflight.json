@@ -1,87 +1,185 @@
 {
-  "schema": "codecks.autonomous-maturity.m24-preflight.v1",
+  "schema": "codecks.autonomous-maturity.m24-preflight.v2",
   "milestone": "M24",
   "evidenceLevel": "PREFLIGHT_ONLY",
   "verdict": "NO_GO",
-  "generatedAtUtc": "2026-08-11T05:46:10.830923Z",
-  "sourceCommit": "a5d0cc09d47179d30227369802932f29f1d82a18",
+  "generatedAtUtc": "2026-08-18T19:08:51Z",
+  "sourceCommit": "766ef5bc28a6b8ab9400a9ce2359ede21526ecff",
+  "provenance": {
+    "baseCommit": "9eb4bcd86a95440ee28c0e3191761c1c5725f5bc",
+    "implementationCommit": "766ef5bc28a6b8ab9400a9ce2359ede21526ecff",
+    "implementationPaths": [
+      {
+        "path": "docs/release/M24_CURRENT_PREFLIGHT.md",
+        "change": "ADDED",
+        "baseSha256": null,
+        "implementationSha256": "7bdb3d454bcc67fc7303be2855ad83ae2093a3cd7871bbb6fea23fcd6f1f10ef",
+        "patchSha256": "85f16ccc511052590f509cb111dc0f96b24d718cf9795355de004349e31555be"
+      },
+      {
+        "path": "tasks/AUTONOMOUS_MATURITY_TODO.md",
+        "change": "MODIFIED",
+        "baseSha256": "194ae98b77e074f7cad5a215f5d4ed1bdcbe6db7695b2ab417030ce4c7c245f8",
+        "implementationSha256": "8963ca5dd6b5a8f9a509bdbb09d579e2dc99ac7c98b93d0581e1a1c8428eda40",
+        "patchSha256": "b92cc09c7a9756140114d7a0a89b9d6143f7f5c84cc40afc2ba5d8fd1093c00a"
+      },
+      {
+        "path": "tools/evidence/collect_m24_release_preflight.py",
+        "change": "MODIFIED",
+        "baseSha256": "0d7b844be5cc4a99573ce7dac90438ee7c301cad2ceed889deaa7582b01be7db",
+        "implementationSha256": "9e1be5a437084470c3747102a0e7c798821c0e54535a9a166cb248d0968dde6e",
+        "patchSha256": "f8a91e6866e7e40c9b99a583e1efaefc69224df57b75a57f972181cdb5fbd7f4"
+      },
+      {
+        "path": "tools/evidence/test_m24_release_preflight.py",
+        "change": "MODIFIED",
+        "baseSha256": "3dea5c2f8ed1b2620aff91f19a3d51071fdb211295efb1f9d6e2f497e1489ec6",
+        "implementationSha256": "5c5514b952a7e6be58d2d8e68ad8568bf318b6d2d8f91dbac3a341c9e7392ec1",
+        "patchSha256": "76c7ab4a12aed97bcb11e16cfa53a0e431c975d6efc8ba58a961e0616e0501f9"
+      },
+      {
+        "path": "tools/evidence/validate_m24_release_preflight.py",
+        "change": "MODIFIED",
+        "baseSha256": "26cab30d6dd5a7b015011c8fe867a9956f7f35cd9451db1d5cf8fc207de286b5",
+        "implementationSha256": "81c994b73cace179b8db2f72e8297a3e095d571dd8c46ef24b938d3cb0c5c54e",
+        "patchSha256": "a98eab52db286baa0225b087dcd3fb6af9a14fc886ac682e50acb5bceb66c3ec"
+      },
+      {
+        "path": "tools/evidence/schemas/autonomous-maturity-m24-preflight-v2.schema.json",
+        "change": "ADDED",
+        "baseSha256": null,
+        "implementationSha256": "7cb573b18fe89490709aa9ae57fa41861acd942a4888eb0faa43f5a3b58d3f2d",
+        "patchSha256": "cd395dbcd6048bd28697bd28c7f3c04bb74e386cc413fe174250031a78d78467"
+      }
+    ],
+    "implementationDiffSha256": "4419c09730cf3577f120a106dd3e3d7d0e24532ac8b6560a53dbece07b849f80",
+    "receiptPath": "tasks/test-evidence/autonomous-maturity-m24-preflight.json",
+    "receiptCommitRequired": true
+  },
   "sources": [
     {
       "path": ".github/workflows/release.yml",
+      "status": "PRESENT",
       "sha256": "07e18f4ab4c6164f0602b1d0de636d63e30ca31f7481d132c69ae7891c5ecf90"
     },
     {
       "path": "app/build.gradle.kts",
+      "status": "PRESENT",
       "sha256": "a457c7b5718d7a80fdbe4028ef2289a9ea7323e7065b3bb06a02d9f99b429263"
     },
     {
-      "path": "docs/release/PHYSICAL_SSH_RELEASE_GATE.md",
-      "sha256": "07186644cb93a6d4e593e4bec05d271a579e5889b5339aff027f17ffb3b19ab6"
+      "path": "docs/release/M23_LOCAL_PREFLIGHT.md",
+      "status": "PRESENT",
+      "sha256": "12468dfb576a9eff712af75c6a848cfea3536b2a6bb5ef0a0051d010ea484fa8"
+    },
+    {
+      "path": "docs/release/M24_CURRENT_PREFLIGHT.md",
+      "status": "PRESENT",
+      "sha256": "7bdb3d454bcc67fc7303be2855ad83ae2093a3cd7871bbb6fea23fcd6f1f10ef"
     },
     {
       "path": "docs/release/production-state.json",
+      "status": "PRESENT",
       "sha256": "4cca496cff13a5b063bb4144bd2ec3a308fde1051aa7571eea44e42d64b0c0a8"
     },
     {
-      "path": "scripts/physical_release_ssh_smoke.sh",
-      "sha256": "03439881e619f71082dce2fc003524a9c8785e8871ff9d4bc37ea404e5c79e74"
+      "path": "scripts/m16_autonomous_soak.py",
+      "status": "PRESENT",
+      "sha256": "81548fa10f67e900b8541037b7c4b6f38ddda22232499605b9a072e4fa95240b"
     },
     {
       "path": "scripts/verify_release_no_shrink.sh",
+      "status": "PRESENT",
       "sha256": "6fdf7ab044267c38e73777f2b74c2d39ffe883becc1ba0937f6711f5fddd193b"
     },
     {
-      "path": "tasks/AUTONOMOUS_MATURITY_PLAN.md",
-      "sha256": "19e5d19c157b7671e20c9f53d44d7043744ece4ab7a113eec5e357db1adf6967"
+      "path": "tasks/AUTONOMOUS_MATURITY_TODO.md",
+      "status": "PRESENT",
+      "sha256": "8963ca5dd6b5a8f9a509bdbb09d579e2dc99ac7c98b93d0581e1a1c8428eda40"
     },
     {
-      "path": "tasks/test-evidence/autonomous-maturity-m00-baseline.json",
-      "sha256": "60bdc910187cf3d21a8b726c7ced375cc47a3370c05049aed750e60c660d3c4c"
+      "path": "tasks/test-evidence/autonomous-maturity-m16-soak.json",
+      "status": "ABSENT",
+      "sha256": null
     },
     {
       "path": "tasks/test-evidence/autonomous-maturity-m20-rollback-rehearsal.json",
+      "status": "PRESENT",
       "sha256": "b6690f51d02995ea9d9dabe7e98144e2c10f301dc4f068d0997c7de37596e5ac"
     },
     {
+      "path": "tasks/test-evidence/m21-public-release-live.json",
+      "status": "PRESENT",
+      "sha256": "0ec73d0bec68d91c3933c4963b93ec4fccdb44047587b794af12f5921d202d85"
+    },
+    {
       "path": "tools/evidence/collect_m20_rollback_rehearsal.py",
+      "status": "PRESENT",
       "sha256": "aeee48e892c9e1d49c36f40f843141f27c50cfc262adebf706694c24d3e6030a"
     },
     {
-      "path": "tools/evidence/validate_m20_rollback_rehearsal.py",
-      "sha256": "aee6d75733c97d13c9f37a2325df77d5ee8db7f7bbf3b574c4b67871c009e976"
+      "path": "tools/evidence/collect_m21_public_release_live.py",
+      "status": "PRESENT",
+      "sha256": "460cad87fb460b015bc5b183250d7b25a287093687261e5a125faf646681f5ed"
     },
     {
       "path": "tools/evidence/collect_m24_release_preflight.py",
-      "sha256": "0d7b844be5cc4a99573ce7dac90438ee7c301cad2ceed889deaa7582b01be7db"
+      "status": "PRESENT",
+      "sha256": "9e1be5a437084470c3747102a0e7c798821c0e54535a9a166cb248d0968dde6e"
+    },
+    {
+      "path": "tools/evidence/validate_m20_rollback_rehearsal.py",
+      "status": "PRESENT",
+      "sha256": "aee6d75733c97d13c9f37a2325df77d5ee8db7f7bbf3b574c4b67871c009e976"
+    },
+    {
+      "path": "tools/evidence/validate_m21_m23_local_readiness.py",
+      "status": "PRESENT",
+      "sha256": "5d55e8e8ee55d0043bd8eb32aa8aab9e93d7addd5e98585722b06a60868ac038"
     },
     {
       "path": "tools/evidence/validate_m24_release_preflight.py",
-      "sha256": "26cab30d6dd5a7b015011c8fe867a9956f7f35cd9451db1d5cf8fc207de286b5"
+      "status": "PRESENT",
+      "sha256": "81c994b73cace179b8db2f72e8297a3e095d571dd8c46ef24b938d3cb0c5c54e"
     },
     {
       "path": "tools/evidence/test_m24_release_preflight.py",
-      "sha256": "3dea5c2f8ed1b2620aff91f19a3d51071fdb211295efb1f9d6e2f497e1489ec6"
+      "status": "PRESENT",
+      "sha256": "5c5514b952a7e6be58d2d8e68ad8568bf318b6d2d8f91dbac3a341c9e7392ec1"
     },
     {
-      "path": "tools/evidence/schemas/autonomous-maturity-m24-preflight-v1.schema.json",
-      "sha256": "1a5aaa3c833a23212f755012851770837891da0c52cca28b343fede9cf287c04"
+      "path": "tools/evidence/schemas/autonomous-maturity-m16-soak-v1.schema.json",
+      "status": "PRESENT",
+      "sha256": "29790b59b697d8058129a66da60a4a0589d5548babd46e05ac0591e2c99b112d"
+    },
+    {
+      "path": "tools/evidence/schemas/autonomous-maturity-m24-preflight-v2.schema.json",
+      "status": "PRESENT",
+      "sha256": "7cb573b18fe89490709aa9ae57fa41861acd942a4888eb0faa43f5a3b58d3f2d"
     }
   ],
-  "connectedDevice": {
+  "adbClassification": {
+    "status": "PASS",
+    "endpoint": {
+      "host": "127.0.0.1",
+      "port": 5037
+    },
+    "protocol": "ADB_SERVER_HOST_PROTOCOL_V1",
+    "request": "host:devices-l",
+    "responseSha256": "0b90b9310fbcdba73abbcde47c90c4cc0b07bbc1502577b6e3026d9e8e7d7f4f",
+    "devices": [],
+    "physicalDeviceCount": 0,
+    "emulatorCount": 0,
+    "unknownDeviceCount": 0,
+    "adbCliInvoked": false,
+    "rawSerialRecorded": false,
+    "packageQueryRun": false,
+    "apkPullRun": false
+  },
+  "phone": {
     "status": "NOT_RUN",
     "physicalDeviceCount": 0,
-    "emulatorCount": 2,
-    "unknownDeviceCount": 0,
-    "deviceIdSha256": null,
-    "manufacturer": null,
-    "model": null,
-    "androidSdk": null,
-    "package": null,
-    "versionCode": null,
-    "versionName": null,
-    "installer": null,
-    "installedApkSha256": null,
-    "signerSha256": null
+    "installedIdentityStatus": "NOT_RUN"
   },
   "publishedBaseline": {
     "status": "PASS",
@@ -90,28 +188,77 @@
     "versionCode": 37,
     "versionName": "0.1.37",
     "apkSha256": "8c8eca1b3e4b0f56a2128185c42a062687011e68a9d3fd16fe24851616baa9f2",
-    "signerSha256": "07a642e758f394b6aeaecfe35c64ca84d891ca4e6de4b6cc010702c0e52e2df6",
-    "checksumVerified": true,
-    "privateSigningMaterialInspected": false
+    "signerSha256": "07a642e758f394b6aeaecfe35c64ca84d891ca4e6de4b6cc010702c0e52e2df6"
+  },
+  "m16": {
+    "status": "NOT_RUN",
+    "capacityStatus": "NOT_RUN",
+    "timeStatus": "NOT_RUN",
+    "plannedAvds": 4,
+    "plannedProfilesPerAvd": 5,
+    "plannedProfiles": 20,
+    "observedProfiles": 0,
+    "requiredHours": 168,
+    "observedHours": 0,
+    "requiredEligibleProfileHours": 3360,
+    "observedEligibleProfileHours": 0,
+    "requiredAcknowledgedOperations": 336000,
+    "observedAcknowledgedOperations": 0,
+    "receiptPath": "tasks/test-evidence/autonomous-maturity-m16-soak.json",
+    "receiptPresent": false,
+    "controllerPath": "scripts/m16_autonomous_soak.py",
+    "controllerSha256": "81548fa10f67e900b8541037b7c4b6f38ddda22232499605b9a072e4fa95240b",
+    "validatorPath": "tools/evidence/validate_m16_autonomous_soak.py",
+    "validatorSha256": "b4e6587f36b246e0b6412bd295c16f18d9b6aabc6ea0bbfcdbc5ebf081e7a249",
+    "schemaPath": "tools/evidence/schemas/autonomous-maturity-m16-soak-v1.schema.json",
+    "schemaSha256": "29790b59b697d8058129a66da60a4a0589d5548babd46e05ac0591e2c99b112d"
   },
   "m20Closure": {
     "status": "COMPLETE",
     "integrationCommit": "a5d0cc09d47179d30227369802932f29f1d82a18",
-    "receiptSourceCommit": "a899c24ac10d2f393ac5ba41d7a47830f6a96f09",
     "receiptPath": "tasks/test-evidence/autonomous-maturity-m20-rollback-rehearsal.json",
     "receiptSha256": "b6690f51d02995ea9d9dabe7e98144e2c10f301dc4f068d0997c7de37596e5ac",
-    "receiptDigest": "fdc322bf8f926ac4b2339f714d23a330a16815a715adfcee981f8146ae88088b",
+    "receiptSchema": "codecks.autonomous-maturity.m20-rollback-rehearsal.v1",
     "collectorPath": "tools/evidence/collect_m20_rollback_rehearsal.py",
     "collectorSha256": "aeee48e892c9e1d49c36f40f843141f27c50cfc262adebf706694c24d3e6030a",
     "validatorPath": "tools/evidence/validate_m20_rollback_rehearsal.py",
     "validatorSha256": "aee6d75733c97d13c9f37a2325df77d5ee8db7f7bbf3b574c4b67871c009e976"
   },
+  "m21Closure": {
+    "status": "LOCAL_COMPLETE",
+    "integrationCommit": "0a8f84faddbe8a1015a85f6431fd14d68b402c73",
+    "receiptPath": "tasks/test-evidence/m21-public-release-live.json",
+    "receiptSha256": "0ec73d0bec68d91c3933c4963b93ec4fccdb44047587b794af12f5921d202d85",
+    "receiptSchema": "codecks.m21.public-release-live.v2",
+    "collectorPath": "tools/evidence/collect_m21_public_release_live.py",
+    "collectorSha256": "460cad87fb460b015bc5b183250d7b25a287093687261e5a125faf646681f5ed",
+    "validatorPath": "tools/evidence/validate_m21_m23_local_readiness.py",
+    "validatorSha256": "5d55e8e8ee55d0043bd8eb32aa8aab9e93d7addd5e98585722b06a60868ac038"
+  },
+  "m23": {
+    "status": "NOT_A_CANDIDATE",
+    "preflightPath": "docs/release/M23_LOCAL_PREFLIGHT.md",
+    "preflightSha256": "12468dfb576a9eff712af75c6a848cfea3536b2a6bb5ef0a0051d010ea484fa8",
+    "versionAssigned": false,
+    "artifactAdmitted": false
+  },
+  "signing": {
+    "status": "UNSET",
+    "source": "CANONICAL_AGENT_ENV_NAME_PRESENCE_ONLY",
+    "names": [
+      "CODECKS_RELEASE_STORE_FILE",
+      "CODECKS_RELEASE_KEY_ALIAS",
+      "CODECKS_RELEASE_STORE_PASSWORD",
+      "CODECKS_RELEASE_KEY_PASSWORD"
+    ],
+    "presentNames": [],
+    "valuesRecorded": false
+  },
   "candidate": {
-    "status": "DEFERRED",
-    "reason": "CANDIDATE_NOT_BUILT",
-    "buildWorkflow": ".github/workflows/release.yml",
+    "status": "ABSENT",
+    "reason": "M23_NOT_A_CANDIDATE",
     "expectedArtifactPath": "release-candidate/codecks-release.apk",
-    "expectedPackage": "app.codecks",
+    "artifactPresent": false,
     "sourceSha": null,
     "versionCode": null,
     "apkSha256": null,
@@ -119,107 +266,76 @@
   },
   "dependencies": [
     {
+      "milestone": "M16",
+      "status": "NOT_RUN"
+    },
+    {
       "milestone": "M20",
       "status": "COMPLETE"
     },
     {
       "milestone": "M21",
-      "status": "DEFERRED"
+      "status": "LOCAL_COMPLETE"
     },
     {
       "milestone": "M23",
-      "status": "DEFERRED"
+      "status": "NOT_A_CANDIDATE"
     }
   ],
   "gates": [
     {
-      "id": "source.canonical_clean_sha",
+      "id": "source.current_head_bound",
       "status": "PASS",
-      "code": "exact_source_sha"
+      "code": "exact_head_and_sources_bound"
+    },
+    {
+      "id": "adb.read_only_classification",
+      "status": "PASS",
+      "code": "raw_adb_server_devices_l_only"
     },
     {
       "id": "phone.single_physical_connected",
       "status": "NOT_RUN",
-      "code": "phone_unavailable"
+      "code": "physical_phone_count_zero"
     },
     {
-      "id": "phone.installed_package_identity",
+      "id": "m16.capacity_execution",
       "status": "NOT_RUN",
-      "code": "phone_unavailable"
+      "code": "m16_runtime_receipt_absent"
     },
     {
-      "id": "phone.installed_version",
+      "id": "m16.elapsed_168h",
       "status": "NOT_RUN",
-      "code": "phone_unavailable"
+      "code": "m16_168h_not_started"
     },
     {
-      "id": "phone.installed_signer",
-      "status": "NOT_RUN",
-      "code": "phone_unavailable"
-    },
-    {
-      "id": "public.checksum",
+      "id": "m21.local_support_package",
       "status": "PASS",
-      "code": "checksum_verified"
+      "code": "m21_local_complete"
     },
     {
-      "id": "public.signer_baseline",
+      "id": "m23.exact_candidate",
+      "status": "NOT_RUN",
+      "code": "m23_not_a_candidate"
+    },
+    {
+      "id": "candidate.source_artifact_signer",
+      "status": "NOT_RUN",
+      "code": "candidate_absent"
+    },
+    {
+      "id": "signing.canonical_inputs",
       "status": "PASS",
-      "code": "signer_baseline_verified"
-    },
-    {
-      "id": "candidate.available",
-      "status": "DEFERRED",
-      "code": "candidate_not_built"
-    },
-    {
-      "id": "candidate.source_and_checksum_bound",
-      "status": "DEFERRED",
-      "code": "candidate_not_built"
-    },
-    {
-      "id": "candidate.package_and_version_monotonic",
-      "status": "DEFERRED",
-      "code": "candidate_not_built"
-    },
-    {
-      "id": "candidate.signer_matches_installed",
-      "status": "DEFERRED",
-      "code": "candidate_not_built"
-    },
-    {
-      "id": "candidate.unshrunk",
-      "status": "DEFERRED",
-      "code": "candidate_not_built"
-    },
-    {
-      "id": "candidate.exact_tests",
-      "status": "DEFERRED",
-      "code": "candidate_not_built"
+      "code": "canonical_signing_inputs_unset"
     },
     {
       "id": "update.data_preserving_authorized",
-      "status": "DEFERRED",
+      "status": "NOT_RUN",
       "code": "explicit_execution_not_authorized"
     }
   ],
   "safeInPlaceUpdate": {
     "authorizedNow": false,
-    "requiredOrder": [
-      "one_authorized_physical_phone",
-      "read_installed_app.codecks_identity_version_signer",
-      "bind_exact_candidate_source_and_checksum",
-      "require_candidate_package_app.codecks",
-      "require_candidate_version_greater_than_installed",
-      "require_candidate_signer_equal_to_installed_signer",
-      "require_candidate_minification_and_resource_shrinking_disabled",
-      "require_exact_candidate_managed_and_release_tests",
-      "capture_redacted_pre_update_data_and_ssh_hid_state",
-      "obtain_explicit_install_authorization",
-      "adb_install_r_no_streaming_only",
-      "verify_post_update_version_and_preserved_data",
-      "verify_post_update_ssh_and_hid_without_instrumentation"
-    ],
     "forbidden": [
       "UNINSTALL_PROTECTED_PACKAGE",
       "CLEAR_PROTECTED_PACKAGE_DATA",
@@ -236,6 +352,15 @@
   },
   "blockers": [
     "PHYSICAL_PHONE_NOT_CONNECTED",
-    "CANDIDATE_NOT_BUILT"
+    "M16_CAPACITY_NOT_RUN",
+    "M16_168H_NOT_RUN",
+    "M23_NOT_A_CANDIDATE",
+    "CANDIDATE_NOT_BUILT",
+    "PRODUCTION_SIGNING_INPUTS_UNSET"
+  ],
+  "limitations": [
+    "Read-only ADB classification used one raw host:devices-l server request; no adb CLI, package query, pull, install, or instrumentation ran.",
+    "M21 local distribution/support preparation is complete; physical update and external publication remain outside this preflight.",
+    "M16 capacity execution and 168-hour evidence remain NOT_RUN; planned source capacity is not runtime proof."
   ]
 }
