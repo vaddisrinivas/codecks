@@ -1,58 +1,51 @@
 {
-  "schema": "codecks.autonomous-maturity.m24-preflight.v2",
+  "schema": "codecks.autonomous-maturity.m24-preflight.v3",
   "milestone": "M24",
   "evidenceLevel": "PREFLIGHT_ONLY",
   "verdict": "NO_GO",
-  "generatedAtUtc": "2026-08-18T19:08:51Z",
-  "sourceCommit": "766ef5bc28a6b8ab9400a9ce2359ede21526ecff",
+  "generatedAtUtc": "2026-08-18T19:16:15Z",
+  "sourceCommit": "92452e737b9e03506b24fc62bd041ed40e88e39b",
   "provenance": {
-    "baseCommit": "9eb4bcd86a95440ee28c0e3191761c1c5725f5bc",
-    "implementationCommit": "766ef5bc28a6b8ab9400a9ce2359ede21526ecff",
+    "baseCommit": "3e0e022819a1204a0a07c2db48798d0c2b890d23",
+    "implementationCommit": "92452e737b9e03506b24fc62bd041ed40e88e39b",
     "implementationPaths": [
       {
         "path": "docs/release/M24_CURRENT_PREFLIGHT.md",
-        "change": "ADDED",
-        "baseSha256": null,
-        "implementationSha256": "7bdb3d454bcc67fc7303be2855ad83ae2093a3cd7871bbb6fea23fcd6f1f10ef",
-        "patchSha256": "85f16ccc511052590f509cb111dc0f96b24d718cf9795355de004349e31555be"
-      },
-      {
-        "path": "tasks/AUTONOMOUS_MATURITY_TODO.md",
         "change": "MODIFIED",
-        "baseSha256": "194ae98b77e074f7cad5a215f5d4ed1bdcbe6db7695b2ab417030ce4c7c245f8",
-        "implementationSha256": "8963ca5dd6b5a8f9a509bdbb09d579e2dc99ac7c98b93d0581e1a1c8428eda40",
-        "patchSha256": "b92cc09c7a9756140114d7a0a89b9d6143f7f5c84cc40afc2ba5d8fd1093c00a"
+        "baseSha256": "7bdb3d454bcc67fc7303be2855ad83ae2093a3cd7871bbb6fea23fcd6f1f10ef",
+        "implementationSha256": "ad70b7c3ea097dcf5aa2fa04753d7232ba69d211abb6edf532a921de2b113a16",
+        "patchSha256": "93fd0a7588fb5eb4b449d1394e3ee38b2720b79c975795802453b19f981e07d7"
       },
       {
         "path": "tools/evidence/collect_m24_release_preflight.py",
         "change": "MODIFIED",
-        "baseSha256": "0d7b844be5cc4a99573ce7dac90438ee7c301cad2ceed889deaa7582b01be7db",
-        "implementationSha256": "9e1be5a437084470c3747102a0e7c798821c0e54535a9a166cb248d0968dde6e",
-        "patchSha256": "f8a91e6866e7e40c9b99a583e1efaefc69224df57b75a57f972181cdb5fbd7f4"
+        "baseSha256": "9e1be5a437084470c3747102a0e7c798821c0e54535a9a166cb248d0968dde6e",
+        "implementationSha256": "6a7579764ebd507516815bc8f9636749132cdd2377cc4371bc15ee69389b4748",
+        "patchSha256": "9206cd5102618c8582b07826e6d3c8bccc41e19b216521108c7944d155fdb028"
       },
       {
         "path": "tools/evidence/test_m24_release_preflight.py",
         "change": "MODIFIED",
-        "baseSha256": "3dea5c2f8ed1b2620aff91f19a3d51071fdb211295efb1f9d6e2f497e1489ec6",
-        "implementationSha256": "5c5514b952a7e6be58d2d8e68ad8568bf318b6d2d8f91dbac3a341c9e7392ec1",
-        "patchSha256": "76c7ab4a12aed97bcb11e16cfa53a0e431c975d6efc8ba58a961e0616e0501f9"
+        "baseSha256": "5c5514b952a7e6be58d2d8e68ad8568bf318b6d2d8f91dbac3a341c9e7392ec1",
+        "implementationSha256": "9a8c6a0fc94bb174229a682c301ba53104d9ed8627562299bca799f788cedc11",
+        "patchSha256": "e30e4e35f7d7f9999e8cbb268a508bb67a5ea24fc4695910a596774736024401"
       },
       {
         "path": "tools/evidence/validate_m24_release_preflight.py",
         "change": "MODIFIED",
-        "baseSha256": "26cab30d6dd5a7b015011c8fe867a9956f7f35cd9451db1d5cf8fc207de286b5",
-        "implementationSha256": "81c994b73cace179b8db2f72e8297a3e095d571dd8c46ef24b938d3cb0c5c54e",
-        "patchSha256": "a98eab52db286baa0225b087dcd3fb6af9a14fc886ac682e50acb5bceb66c3ec"
+        "baseSha256": "81c994b73cace179b8db2f72e8297a3e095d571dd8c46ef24b938d3cb0c5c54e",
+        "implementationSha256": "f1234cceb995d1d71588149d2851742a51d0c23beb606e769b182f4277e77253",
+        "patchSha256": "84d6de896f5c5e5f0303ce9f14b6f1ec134ee39b688c5d450b8612623f2727ad"
       },
       {
-        "path": "tools/evidence/schemas/autonomous-maturity-m24-preflight-v2.schema.json",
+        "path": "tools/evidence/schemas/autonomous-maturity-m24-preflight-v3.schema.json",
         "change": "ADDED",
         "baseSha256": null,
-        "implementationSha256": "7cb573b18fe89490709aa9ae57fa41861acd942a4888eb0faa43f5a3b58d3f2d",
-        "patchSha256": "cd395dbcd6048bd28697bd28c7f3c04bb74e386cc413fe174250031a78d78467"
+        "implementationSha256": "2ec5709994a5c4688f3e1d1d37b7c61e17337b7c2664187e949798b2e5fe3bd4",
+        "patchSha256": "8a5b05a98627444c5379b6f9f3c51aff8a6bf6e1f4934d00f6dc85ec11677cf9"
       }
     ],
-    "implementationDiffSha256": "4419c09730cf3577f120a106dd3e3d7d0e24532ac8b6560a53dbece07b849f80",
+    "implementationDiffSha256": "e7589de2f0839a6afc472222e59434465b1c4c5f6b5730e47a2dfcc20f12bb9d",
     "receiptPath": "tasks/test-evidence/autonomous-maturity-m24-preflight.json",
     "receiptCommitRequired": true
   },
@@ -75,7 +68,7 @@
     {
       "path": "docs/release/M24_CURRENT_PREFLIGHT.md",
       "status": "PRESENT",
-      "sha256": "7bdb3d454bcc67fc7303be2855ad83ae2093a3cd7871bbb6fea23fcd6f1f10ef"
+      "sha256": "ad70b7c3ea097dcf5aa2fa04753d7232ba69d211abb6edf532a921de2b113a16"
     },
     {
       "path": "docs/release/production-state.json",
@@ -125,7 +118,7 @@
     {
       "path": "tools/evidence/collect_m24_release_preflight.py",
       "status": "PRESENT",
-      "sha256": "9e1be5a437084470c3747102a0e7c798821c0e54535a9a166cb248d0968dde6e"
+      "sha256": "6a7579764ebd507516815bc8f9636749132cdd2377cc4371bc15ee69389b4748"
     },
     {
       "path": "tools/evidence/validate_m20_rollback_rehearsal.py",
@@ -140,12 +133,12 @@
     {
       "path": "tools/evidence/validate_m24_release_preflight.py",
       "status": "PRESENT",
-      "sha256": "81c994b73cace179b8db2f72e8297a3e095d571dd8c46ef24b938d3cb0c5c54e"
+      "sha256": "f1234cceb995d1d71588149d2851742a51d0c23beb606e769b182f4277e77253"
     },
     {
       "path": "tools/evidence/test_m24_release_preflight.py",
       "status": "PRESENT",
-      "sha256": "5c5514b952a7e6be58d2d8e68ad8568bf318b6d2d8f91dbac3a341c9e7392ec1"
+      "sha256": "9a8c6a0fc94bb174229a682c301ba53104d9ed8627562299bca799f788cedc11"
     },
     {
       "path": "tools/evidence/schemas/autonomous-maturity-m16-soak-v1.schema.json",
@@ -153,9 +146,9 @@
       "sha256": "29790b59b697d8058129a66da60a4a0589d5548babd46e05ac0591e2c99b112d"
     },
     {
-      "path": "tools/evidence/schemas/autonomous-maturity-m24-preflight-v2.schema.json",
+      "path": "tools/evidence/schemas/autonomous-maturity-m24-preflight-v3.schema.json",
       "status": "PRESENT",
-      "sha256": "7cb573b18fe89490709aa9ae57fa41861acd942a4888eb0faa43f5a3b58d3f2d"
+      "sha256": "2ec5709994a5c4688f3e1d1d37b7c61e17337b7c2664187e949798b2e5fe3bd4"
     }
   ],
   "adbClassification": {
