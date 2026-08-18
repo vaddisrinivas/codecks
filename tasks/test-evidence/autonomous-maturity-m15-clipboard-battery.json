@@ -3,8 +3,8 @@
   "milestone": "M15",
   "status": "PASS",
   "scope": "CPU_AND_MANAGED_SOURCE_ARTIFACT_BOUND",
-  "generatedAtUtc": "2026-08-17T23:08:09.696304Z",
-  "sourceCommit": "5757c7195e7fa1c39b1c12bcf01a0947d0e64c38",
+  "generatedAtUtc": "2026-08-18T01:05:56.006396Z",
+  "sourceCommit": "0aa92c2b40a0939d78d58d813158051bbea78343",
   "sources": [
     {
       "path": "app/src/main/java/io/codecks/AppCompositionRoot.kt",
@@ -64,19 +64,23 @@
     },
     {
       "path": "tools/evidence/collect_m15_clipboard_battery.py",
-      "sha256": "7a5d06a333387cdaa538a30a26c80ce6e836cb4f6ec55d5f643383e9dc627f34"
+      "sha256": "f9c2182a4ed8f520cc92998c247e75e71665585384d3f5d57d3f29f98b8d495a"
     },
     {
       "path": "tools/evidence/validate_m15_clipboard_battery.py",
-      "sha256": "a272b37a555ae25591a1ff4e6cb7d43da0db91a40a4176969ddba6608a6f0be5"
+      "sha256": "ee47231386edc5295f557c2349f9d23b26a13f786ff0c13c1bf2329eac11d9ec"
     },
     {
       "path": "tools/evidence/test_m15_clipboard_battery.py",
-      "sha256": "a2303f83a01c4739f0b141374ac0c77e6dfa5c14822007e3da6a086938e35840"
+      "sha256": "e9d0c7c7d554960f203c2f0b004db965d3da890e824da5530384115e0f9fda47"
     },
     {
       "path": "tools/evidence/schemas/autonomous-maturity-m15-clipboard-battery-v1.schema.json",
-      "sha256": "5e40c67474dd0b3840f20fc30ad346870aae1e9475fa56b2e3894fb9575197ba"
+      "sha256": "917e2955140aeab2d2e2e703ddae0a2b80244ad13d261818a66e7bfc22d70461"
+    },
+    {
+      "path": "tools/evidence/managed_execution_binding.py",
+      "sha256": "a297048fc75861c4e896aa2c8deb1932d4197fab331808f440c835241123e837"
     }
   ],
   "unitResult": {
@@ -104,9 +108,9 @@
   "managedResult": {
     "artifactKind": "SANITIZED_JUNIT_METADATA",
     "executedBinaryBinding": "APK_DIGESTS_BOUND",
-    "path": "tasks/test-evidence/m15-clipboard-battery-managed.xml",
-    "sha256": "043d4b20ba1a61730b35301a4188d57c486a9abbcca2abb6a0fc3be5b88f680c",
-    "timestamp": "2026-08-17T23:07:45",
+    "path": "tasks/test-evidence/m15/runtime/TEST-M15ClipboardPrivacyInstrumentedTest.xml",
+    "sha256": "ad3dad52d591cf1dfae06b445b06de67fde994dc2f41a66a722a2d7381a5849f",
+    "timestamp": "2026-08-18T00:42:57",
     "className": "io.codecks.ui.clipboard.M15ClipboardPrivacyInstrumentedTest",
     "methods": [
       "ordinarySynchronizedClipCarriesSensitivePreviewFlag",
@@ -119,15 +123,146 @@
     "errors": 0,
     "skipped": 0,
     "targetArtifact": {
-      "path": "app/build/outputs/apk/playInternal/release/app-playInternal-release.apk",
+      "path": "tasks/test-evidence/m15/runtime/app-playInternal-release.apk",
       "applicationId": "app.codecks.internal",
-      "sha256": "ee519555e484e2b2918e03641efd82ecff861211e82d45ddbf38c3afdd1475ec"
+      "sha256": "500c61703d9f208b873b0ee705a86b11028feebe5f18a305a255484acd53199f"
     },
     "testArtifact": {
-      "path": "app/build/outputs/apk/androidTest/playInternal/release/app-playInternal-release-androidTest.apk",
+      "path": "tasks/test-evidence/m15/runtime/app-playInternal-release-androidTest.apk",
       "applicationId": "app.codecks.internal.test",
-      "sha256": "850b03c1f53c184501371cb6ee7c40cc5a21d50f84cfe228d28280ef873300c1"
+      "sha256": "d9046a6c20ebb47cf585e7d506fc82241c792253d58a4b6c4d5bef3dcd8190aa"
     }
+  },
+  "managedExecution": {
+    "sourceCommit": "0aa92c2b40a0939d78d58d813158051bbea78343",
+    "sources": [
+      {
+        "path": "app/src/androidTest/java/io/codecks/ui/clipboard/M15ClipboardPrivacyInstrumentedTest.kt",
+        "sha256": "9c1936a66e00141fc7e720ba19604c4e83935b2b9868d0f650d402df0e36a10e"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/AppCompositionRoot.kt",
+        "sha256": "2459acc6a1ebca31f8a1beb3b282535e9432fbc25801a31bd412b48f81bb8619"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/data/clipboard/ClipboardLastSyncStore.kt",
+        "sha256": "72d8fa2ea82e9ec68e526ef073f1737ba453b15f3c1fb409079c6d61c79b326b"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/domain/clipboard/ClipboardBatteryPolicy.kt",
+        "sha256": "9e026b617a05e6140a30a7ec91bcfd74eec59c34833c665f43124c71b58d1227"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/domain/clipboard/ClipboardReceipt.kt",
+        "sha256": "128ccafe54473a73e5e8aae610aaa65ec5be3a9ae58482c04be45a64f4ad3532"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/domain/clipboard/ClipboardSessionState.kt",
+        "sha256": "d67e8d92bd5c0a1be77abf201e57faa0200e3a1581da52f7484065b1dd35c0f8"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/domain/clipboard/ClipboardSyncEngine.kt",
+        "sha256": "a844e0fefd42dbeb3bc913bd20c16a8667a081616d22689900ee95e693321142"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/ui/clipboard/ClipboardBatterySettings.kt",
+        "sha256": "ebeb191466c350eb69cfc03c53b0344d941918ef5ac74652c1833c35714c569f"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/ui/clipboard/ClipboardClipFactory.kt",
+        "sha256": "dacd60c7c99d6e8ab23ba8d841b124a8b2024eab6fe5c937ba287a7964a8fdef"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/ui/clipboard/ClipboardScreen.kt",
+        "sha256": "76eeb5f9018d4f418e51cbf5d994c8cb725e70c8d7b7b40c9bfd3dcb10fae6fb"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/ui/clipboard/ClipboardStateAndPolicies.kt",
+        "sha256": "e60bf6513ef5dbdd394a7e24be5dc617545b98e35f4acaf8d0fe37bf730c90ff"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/ui/clipboard/ClipboardViewModel.kt",
+        "sha256": "3ceaad79db07cf4cf1641d1fd265c865f5aebc77d264c3b845b2520a9f5ca549"
+      },
+      {
+        "path": "app/src/test/java/io/codecks/ui/clipboard/ClipboardStatusPolicyTest.kt",
+        "sha256": "201d762a71e6b846a9f8604d790c801ea81c218a6e2fc7918bbb4fb9202b106f"
+      },
+      {
+        "path": "app/src/test/java/io/codecks/ui/clipboard/M15ClipboardCharacterizationTest.kt",
+        "sha256": "8e0659428b6f629893cf68b295e929a20d00e87bef1687977a6dc7fb0cb35580"
+      },
+      {
+        "path": "tools/evidence/collect_m15_clipboard_battery.py",
+        "sha256": "f9c2182a4ed8f520cc92998c247e75e71665585384d3f5d57d3f29f98b8d495a"
+      },
+      {
+        "path": "tools/evidence/managed_execution_binding.py",
+        "sha256": "a297048fc75861c4e896aa2c8deb1932d4197fab331808f440c835241123e837"
+      },
+      {
+        "path": "tools/evidence/schemas/autonomous-maturity-m15-clipboard-battery-v1.schema.json",
+        "sha256": "917e2955140aeab2d2e2e703ddae0a2b80244ad13d261818a66e7bfc22d70461"
+      },
+      {
+        "path": "tools/evidence/test_m15_clipboard_battery.py",
+        "sha256": "e9d0c7c7d554960f203c2f0b004db965d3da890e824da5530384115e0f9fda47"
+      },
+      {
+        "path": "tools/evidence/validate_m15_clipboard_battery.py",
+        "sha256": "ee47231386edc5295f557c2349f9d23b26a13f786ff0c13c1bf2329eac11d9ec"
+      }
+    ],
+    "sourceTreeSha256": "9867d09d8524d211b122e69e334be3815c0215cd7d872e173b49242396049adc",
+    "sourceDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "result": {
+      "path": "tasks/test-evidence/m15/runtime/TEST-M15ClipboardPrivacyInstrumentedTest.xml",
+      "sha256": "ad3dad52d591cf1dfae06b445b06de67fde994dc2f41a66a722a2d7381a5849f",
+      "className": "io.codecks.ui.clipboard.M15ClipboardPrivacyInstrumentedTest",
+      "methods": [
+        "ordinarySynchronizedClipCarriesSensitivePreviewFlag",
+        "synchronizedClipDescriptionUsesGenericLabel"
+      ],
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "properties": {
+        "device": "pixel6Api35",
+        "flavor": "playInternal",
+        "project": ":app"
+      }
+    },
+    "device": {
+      "name": "pixel6Api35",
+      "api": 35,
+      "source": "AOSP_MANAGED_EMULATOR",
+      "properties": {
+        "device": "pixel6Api35",
+        "flavor": "playInternal",
+        "project": ":app"
+      },
+      "deviceInfoPath": "tasks/test-evidence/m15/runtime/device-info.pb",
+      "deviceInfoSha256": "197c6c5a263e276976af71c9238eb2b754109679f562f07efd98b73acce601dd",
+      "textprotoPath": "tasks/test-evidence/m15/runtime/test-result.textproto",
+      "textprotoSha256": "5d63ef197144230e871888faeb85ca96c4d77b04a712f61d40b74c4916c0ba7b"
+    },
+    "targetApk": {
+      "path": "tasks/test-evidence/m15/runtime/app-playInternal-release.apk",
+      "applicationId": "app.codecks.internal",
+      "sha256": "500c61703d9f208b873b0ee705a86b11028feebe5f18a305a255484acd53199f"
+    },
+    "testApk": {
+      "path": "tasks/test-evidence/m15/runtime/app-playInternal-release-androidTest.apk",
+      "applicationId": "app.codecks.internal.test",
+      "sha256": "d9046a6c20ebb47cf585e7d506fc82241c792253d58a4b6c4d5bef3dcd8190aa"
+    }
+  },
+  "managedCompanionPrivacy": {
+    "kind": "SANITIZED_METADATA_ONLY",
+    "sanitized": true,
+    "path": "tasks/test-evidence/m15/runtime/test-result.textproto",
+    "sha256": "5d63ef197144230e871888faeb85ca96c4d77b04a712f61d40b74c4916c0ba7b"
   },
   "lanes": [
     {

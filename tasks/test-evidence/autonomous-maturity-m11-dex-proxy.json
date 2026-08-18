@@ -75,7 +75,7 @@
     "Real mouse DOWN/UP and keyboard events are emulator-injected through production input surfaces in an internal-only host."
   ],
   "managedExecution": {
-    "sourceCommit": "e945caf86b7bd30e35c836463364cbf8f102a0ff",
+    "sourceCommit": "0aa92c2b40a0939d78d58d813158051bbea78343",
     "sources": [
       {
         "path": "app/src/androidTestPlayInternal/java/io/codecks/internalquality/M11DexProxyInstrumentedTest.kt",
@@ -91,7 +91,7 @@
       },
       {
         "path": "tools/evidence/collect_m11_dex_proxy.py",
-        "sha256": "99275fc20100716f978c1bfad10389410ced8a7ad390383f190d3787f9202578"
+        "sha256": "736a177e932388be57c053fe4b98c0e4402daf7f1f26ee65589f8437bf1e3190"
       },
       {
         "path": "tools/evidence/managed_execution_binding.py",
@@ -110,7 +110,7 @@
         "sha256": "9143f9a3069de1c3cc6e29905a93ac8a4cad57706dd5c63c8c47b463c9169dee"
       }
     ],
-    "sourceTreeSha256": "7b3e893fef5ac9ac66b77f6eae67e5dabb95330a92838194676061ad1993d63d",
+    "sourceTreeSha256": "4921f0a2112b236c318696182d80ad88c3ba9de94db0183d8cd3944486313665",
     "sourceDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "result": {
       "path": "tasks/test-evidence/m11/runtime/TEST-pixel6Api35-playInternalRelease.xml",
@@ -149,12 +149,12 @@
       "textprotoSha256": "d2853e2b67fc464fd7ffebf45e730353735250bb32509cf281e89bb732ae51aa"
     },
     "targetApk": {
-      "path": "app/build/outputs/apk/playInternal/release/app-playInternal-release.apk",
+      "path": "tasks/test-evidence/m11/runtime/app-playInternal-release.apk",
       "applicationId": "app.codecks.internal",
       "sha256": "ed969090ff6e14d9a4c96742e4daedadc6a8c91dd8ce6d011395812dbc55b8ac"
     },
     "testApk": {
-      "path": "app/build/outputs/apk/androidTest/playInternal/release/app-playInternal-release-androidTest.apk",
+      "path": "tasks/test-evidence/m11/runtime/app-playInternal-release-androidTest.apk",
       "applicationId": "app.codecks.internal.test",
       "sha256": "d9046a6c20ebb47cf585e7d506fc82241c792253d58a4b6c4d5bef3dcd8190aa"
     }

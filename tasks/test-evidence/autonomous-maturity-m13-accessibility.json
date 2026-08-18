@@ -78,9 +78,9 @@
       "skipped": 0,
       "tests": 13
     },
-    "sourceCommit": "e945caf86b7bd30e35c836463364cbf8f102a0ff",
+    "sourceCommit": "0aa92c2b40a0939d78d58d813158051bbea78343",
     "sourceDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "sourceTreeSha256": "50f552dda07688767a3e390ec3115aeac7a0b34b4637cccd146865e85aa4f9f7",
+    "sourceTreeSha256": "0e7e58717ea74228bf606ef8cb37c7f8a13cbdbd91263ff3c87fa4a0da9d36e1",
     "sources": [
       {
         "path": "app/src/androidTest/java/io/codecks/ui/mouse/RawTrackpadViewInstrumentedTest.kt",
@@ -148,7 +148,7 @@
       },
       {
         "path": "tools/evidence/generate_m13_accessibility_receipt.py",
-        "sha256": "682b7aba8eb1267d772d0f8c9e8a1a223dba1e6b20a31a0c7201deeada9eef81"
+        "sha256": "3552d854306364a8e3b47b9c2f69a8e9b3e568db1b940b3ee634fe2ec0afe24f"
       },
       {
         "path": "tools/evidence/managed_execution_binding.py",
@@ -169,12 +169,12 @@
     ],
     "targetApk": {
       "applicationId": "app.codecks.internal",
-      "path": "app/build/outputs/apk/playInternal/release/app-playInternal-release.apk",
+      "path": "tasks/test-evidence/m13/runtime/app-playInternal-release.apk",
       "sha256": "ed969090ff6e14d9a4c96742e4daedadc6a8c91dd8ce6d011395812dbc55b8ac"
     },
     "testApk": {
       "applicationId": "app.codecks.internal.test",
-      "path": "app/build/outputs/apk/androidTest/playInternal/release/app-playInternal-release-androidTest.apk",
+      "path": "tasks/test-evidence/m13/runtime/app-playInternal-release-androidTest.apk",
       "sha256": "d9046a6c20ebb47cf585e7d506fc82241c792253d58a4b6c4d5bef3dcd8190aa"
     }
   },
@@ -188,8 +188,8 @@
   "repository": {
     "base_commit": "b4562b5b9a770da0ea0f47a66b61ef799463adb2",
     "base_is_ancestor": true,
-    "source_commit": "e945caf86b7bd30e35c836463364cbf8f102a0ff",
-    "workspace_content_sha256": "4fd8cdb202f6d6c23d2c12d48a5ce6f9ea091ee9334f2df72a88fd430bfdb262"
+    "source_commit": "0aa92c2b40a0939d78d58d813158051bbea78343",
+    "workspace_content_sha256": "9b34b2c28234037b6d909f56169604181a6d2367b02bbe1112b22741357d6c5c"
   },
   "required_unit_tests": {
     "io.codecks.ui.app.AccessibilityCriticalFlowPolicyTest.keyboardComposerHasPersistentLabelLiveDeliveryStatusAndTwoHundredPercentReflow": "PASS",
@@ -223,7 +223,7 @@
     "app/src/androidTestPlayInternal/java/io/codecks/ui/designsystem/CodecksDesignSystemInstrumentedTest.kt": "5b416e0045999b3fb7f8fdab4eba9f0b9bc63de8d1c11614fb13afa457c0d619",
     "app/src/test/java/io/codecks/ui/app/AccessibilityCriticalFlowPolicyTest.kt": "83e34582951d9ccb845cf98a5df10bebcfdb60211f052c310760b343142da6a8",
     "app/src/test/java/io/codecks/ui/app/AccessibilityPrimitiveTest.kt": "4913e3757eda47d1f921e0988b561bb570860b6df45779554848b11bff2186ce",
-    "tools/evidence/generate_m13_accessibility_receipt.py": "682b7aba8eb1267d772d0f8c9e8a1a223dba1e6b20a31a0c7201deeada9eef81",
+    "tools/evidence/generate_m13_accessibility_receipt.py": "3552d854306364a8e3b47b9c2f69a8e9b3e568db1b940b3ee634fe2ec0afe24f",
     "tools/evidence/managed_execution_binding.py": "a297048fc75861c4e896aa2c8deb1932d4197fab331808f440c835241123e837",
     "tools/evidence/schemas/autonomous-maturity-m13-accessibility-v1.schema.json": "be942863da2edd964768750e32cc044d4561eb9204e49e7c60916b7c5f01b34d",
     "tools/evidence/test_generate_m13_accessibility_receipt.py": "c554f9c8522e002184f715c41374b587d7cd7f1996f020894e29daed1b770958",
