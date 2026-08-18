@@ -400,6 +400,13 @@ android {
                     apiLevel = 35
                     systemImageSource = "aosp"
                 }
+                (1..4).forEach { index ->
+                    create("m16Soak%02dApi35".format(index)) {
+                        device = "Pixel 6"
+                        apiLevel = 35
+                        systemImageSource = "aosp"
+                    }
+                }
             }
         }
     }

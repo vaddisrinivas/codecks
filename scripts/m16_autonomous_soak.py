@@ -1,0 +1,1076 @@
+#!/usr/bin/env python3
+"""Fail-closed host controller for the M16 AUTONOMOUS_PROXY harness.
+
+This script never creates evidence events or acknowledgements; those originate in
+the five app processes on each of four reviewed API-35 emulators.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+import time
+import xml.etree.ElementTree as ET
+
+PACKAGE = "app.codecks.internal"
+PROTECTED_PACKAGE = "app.codecks"
+AVDS = tuple(f"m16Soak0{i}Api35" for i in range(1, 5))
+SERVICES = tuple(f"io.codecks.internalquality.m16.M16ProfileService0{i}" for i in range(1, 6))
+LOCK = Path("/opt/codex-auth/locks/codecks-m16-soak.lock")
+MIN_PREPROVISION_GIB = 64
+MIN_POSTPROVISION_GIB = 50
+RUNTIME_STOP_GIB = 40
+PROJECTED_FOOTPRINT_GIB = 24
+HOST_LEDGER_CAP = 32 * 1024 * 1024
+ARTIFACT_CAP = 32 * 1024 * 1024
+FAILURE_ARTIFACT_CAP = 4 * 1024 * 1024
+SERIAL = re.compile(r"emulator-[0-9]{4,5}")
+PRIVACY = re.compile(rb"(?i)(/Users/[^\s]+|/home/[^\s]+|Bearer\s+[^\s]+|password=[^\s]+|token=[^\s]+|BEGIN [A-Z ]*PRIVATE KEY)")
+CATEGORIES = frozenset(("deck", "trackpad", "keyboard", "clipboard", "rules", "ssh_failure", "ssh_recovery", "lifecycle"))
+EVENT_TYPES = frozenset(("admitted", "ack", "window_complete", "window_ineligible", "admitted_incomplete",
+                         "profile_complete", "lifecycle_process_death_scheduled", "resumed"))
+COMMON_EVENT_KEYS = frozenset(("type", "elapsedRealtimeMillis", "wallTimeMillis", "profileId", "processName",
+                               "pid", "originNonce", "previousHash", "eventHash"))
+EVENT_KEYS = {
+    "admitted": frozenset(("bootId", "windowIndex", "eligibleTarget", "profileRoot", "seed")),
+    "ack": frozenset(("windowIndex", "sequence", "ackId", "category", "operationLatencyMillis", "totalPssKb",
+                       "batteryPercentProxy", "applicationExitReasons", "crashOrAnr")),
+    "window_complete": frozenset(("windowIndex", "sequence", "elapsedMillis", "activeMillis", "categories", "eligible")),
+    "window_ineligible": frozenset(("windowIndex", "reasonCode")),
+    "admitted_incomplete": frozenset(("windowIndex", "sequence", "reasonCode")),
+    "profile_complete": frozenset(("attemptedWindows", "eligibleWindows", "acknowledgedOperations")),
+    "lifecycle_process_death_scheduled": frozenset(("attemptedWindows", "eligibleWindows")),
+    "resumed": frozenset(("windowIndex", "sequence", "priorPid", "newPid")),
+}
+ISOLATION_CLASS = "io.codecks.internalquality.m16.M16ProfileIsolationInstrumentedTest"
+ISOLATION_METHODS = frozenset(("exactTwentyImmutableIdentitiesAreDisjoint", "profileContextsCannotReadEachOthersStores",
+                               "manifestCarriesFiveExactNamedProcesses", "fiveLiveServicesOwnFivePidsLocksAndRealRepositoryStores"))
+HOST_COMMON_KEYS = frozenset(("schema", "previousHash", "hostWallMillis", "hostMonotonicNanos", "type"))
+HOST_EVENT_KEYS = {"controller_start": frozenset(("mode", "profiles")), "twenty_workers_admitted": frozenset(("workers",)),
+                   "monitor": frozenset(("workers", "complete", "qemuRssKiB", "freeGiB", "health")),
+                   "scheduled_restart_gap": frozenset(("profileId",)),
+                   "unexpected_worker_missing": frozenset(("profileId", "failurePacket", "oldPid", "lastAckId")),
+                   "worker_restarted": frozenset(("profileId", "oldPid", "newPid", "freshAckId", "repoProbePath", "repoProbeSha256")),
+                   "worker_crash_or_anr": frozenset(("profileId", "failurePacket")), "controller_stop": frozenset()}
+
+
+class SafetyStop(RuntimeError):
+    pass
+
+
+def fsync_dir(path: Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def acquire_owner(run_dir: Path, path: Path = LOCK) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError as error:
+        raise SafetyStop("m16_singleton_exists") from error
+    try:
+        os.write(descriptor, json.dumps({"runDir": str(run_dir), "createdWallMillis": int(time.time() * 1000)}).encode())
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+    fsync_dir(path.parent)
+
+
+def require_owner(run_dir: Path, path: Path = LOCK) -> None:
+    try:
+        owner = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise SafetyStop("m16_owner_missing_or_invalid") from error
+    if owner != {"runDir": str(run_dir), "createdWallMillis": owner.get("createdWallMillis")}:
+        raise SafetyStop("m16_owner_mismatch")
+    if not isinstance(owner["createdWallMillis"], int):
+        raise SafetyStop("m16_owner_invalid")
+
+
+def release_owner(run_dir: Path, path: Path = LOCK) -> None:
+    require_owner(run_dir, path)
+    path.unlink()
+    fsync_dir(path.parent)
+
+
+def disk_free_gib(path: Path) -> float:
+    return shutil.disk_usage(path).free / 1024**3
+
+
+def adb(serial: str, *args: str, timeout: int = 20) -> str:
+    if not SERIAL.fullmatch(serial):
+        raise SafetyStop("non_emulator_serial")
+    result = subprocess.run(
+        ["adb", "-s", serial, *args], text=True, capture_output=True, timeout=timeout, check=False,
+    )
+    if result.returncode:
+        raise SafetyStop(f"adb_failed:{args[0] if args else 'unknown'}")
+    return result.stdout.strip()
+
+
+def adb_result(serial: str, *args: str, timeout: int = 20) -> subprocess.CompletedProcess[str]:
+    if not SERIAL.fullmatch(serial):
+        raise SafetyStop("non_emulator_serial")
+    return subprocess.run(["adb", "-s", serial, *args], text=True, capture_output=True, timeout=timeout, check=False)
+
+
+def adb_bytes(serial: str, *args: str, timeout: int = 60) -> bytes:
+    if not SERIAL.fullmatch(serial):
+        raise SafetyStop("non_emulator_serial")
+    result = subprocess.run(["adb", "-s", serial, *args], capture_output=True, timeout=timeout, check=False)
+    if result.returncode:
+        raise SafetyStop(f"adb_binary_failed:{args[0] if args else 'unknown'}")
+    if len(result.stdout) > ARTIFACT_CAP:
+        raise SafetyStop("pulled_artifact_cap")
+    return result.stdout
+
+
+def sha256_bytes(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest()
+
+
+def sha256_file(path: Path) -> str:
+    if not path.is_file():
+        raise SafetyStop(f"artifact_missing:{path.name}")
+    return sha256_bytes(path.read_bytes())
+
+
+def apk_signer(path: Path) -> str:
+    build_tools = Path(os.environ.get("ANDROID_HOME", "")) / "build-tools"
+    candidates = [item for item in build_tools.glob("*/apksigner") if item.is_file()]
+    if not candidates:
+        raise SafetyStop("apksigner_missing")
+    tool = max(candidates, key=lambda item: tuple(int(x) if x.isdigit() else 0 for x in item.parent.name.split(".")))
+    result = subprocess.run([str(tool), "verify", "--print-certs", str(path)], text=True, capture_output=True, check=False)
+    digest = re.search(r"Signer #1 certificate SHA-256 digest: ([0-9a-fA-F]{64})", result.stdout)
+    if result.returncode or not digest:
+        raise SafetyStop("apk_signature_invalid")
+    return digest.group(1).lower()
+
+
+def verify_isolation_xml(path: Path) -> dict[str, object]:
+    try:
+        root = ET.parse(path).getroot()
+    except ET.ParseError as error:
+        raise SafetyStop("isolation_xml_invalid") from error
+    suites = [root] if root.tag == "testsuite" else list(root.findall(".//testsuite"))
+    cases = [case for suite in suites for case in suite.findall("testcase") if case.get("classname") == ISOLATION_CLASS]
+    names = [case.get("name") for case in cases]
+    if set(names) != ISOLATION_METHODS or len(names) != len(ISOLATION_METHODS):
+        raise SafetyStop("isolation_xml_exact_methods")
+    if any(case.find("failure") is not None or case.find("error") is not None or case.find("skipped") is not None for case in cases):
+        raise SafetyStop("isolation_xml_failure")
+    total_failures = sum(int(suite.get("failures", "0")) + int(suite.get("errors", "0")) for suite in suites)
+    if total_failures or any(int(suite.get("tests", "0")) < len(ISOLATION_METHODS) for suite in suites if any(c in cases for c in suite.findall("testcase"))):
+        raise SafetyStop("isolation_xml_counts")
+    output = "\n".join((node.text or "") for node in root.findall(".//system-out"))
+    match = re.search(r"M16_BINDING package=(\S+) flavor=(\S+) project=(\S+) api=(\d+) fingerprintSha256=([0-9a-f]{64})", output)
+    if not match or match.groups()[:4] != (PACKAGE, "playInternal", ":app", "35"):
+        raise SafetyStop("isolation_xml_binding")
+    return {"class": ISOLATION_CLASS, "methods": sorted(ISOLATION_METHODS), "package": PACKAGE,
+            "flavor": "playInternal", "project": ":app", "api": 35, "fingerprintSha256": match.group(5)}
+
+
+def git_output(repo: Path, *args: str) -> str:
+    result = subprocess.run(["git", *args], cwd=repo, text=True, capture_output=True, check=False)
+    if result.returncode:
+        raise SafetyStop("git_binding_failed")
+    return result.stdout.strip()
+
+
+def global_adb_guard(devices: dict[str, str]) -> None:
+    result = subprocess.run(["adb", "devices"], text=True, capture_output=True, check=False)
+    if result.returncode:
+        raise SafetyStop("adb_devices_failed")
+    rows = [line.split()[:2] for line in result.stdout.splitlines()[1:] if len(line.split()) >= 2]
+    if {row[0] for row in rows} != set(devices.values()) or any(row[1] != "device" for row in rows):
+        raise SafetyStop("global_adb_exact_four_only")
+
+
+def qemu_host_binding(avd: str) -> dict[str, object]:
+    avd_root = Path.home() / ".android/avd/gradle-managed"
+    configs = [path for path in avd_root.glob("*.avd/config.ini") if f"AvdId={avd}" in path.read_text() or path.parent.name == f"{avd}.avd"]
+    if len(configs) != 1 or configs[0].is_symlink():
+        raise SafetyStop("managed_avd_config_mismatch")
+    config = configs[0].read_text()
+    if "system-images/android-35/default/arm64-v8a/" not in config.replace("\\", "/"):
+        raise SafetyStop("managed_avd_not_aosp_api35_arm64")
+    output = subprocess.run(["ps", "ax", "-o", "pid=,rss=,command="], text=True, capture_output=True, check=True).stdout
+    matches = []
+    for line in output.splitlines():
+        if ("qemu-system" in line or "/emulator" in line) and re.search(rf"(?:-avd\s+|/){re.escape(avd)}(?:\s|$)", line):
+            parts = line.strip().split(maxsplit=2)
+            if len(parts) == 3:
+                matches.append((int(parts[0]), int(parts[1]), parts[2]))
+    if len(matches) != 1:
+        raise SafetyStop("qemu_host_process_mismatch")
+    pid, rss_kib, command = matches[0]
+    if "-no-window" not in command and "qemu-system" not in command and "/emulator" not in command:
+        raise SafetyStop("qemu_cmdline_invalid")
+    return {"pid": pid, "rssKiB": rss_kib, "cmdlineSha256": sha256_bytes(command.encode()),
+            "configSha256": sha256_file(configs[0])}
+
+
+def verify_device(avd: str, serial: str, target_sha256: str | None = None, test_sha256: str | None = None) -> dict[str, object]:
+    if avd not in AVDS:
+        raise SafetyStop("unexpected_avd_id")
+    if adb(serial, "shell", "getprop", "ro.kernel.qemu") != "1":
+        raise SafetyStop("device_not_qemu")
+    if adb(serial, "emu", "avd", "name").splitlines()[0].strip() != avd:
+        raise SafetyStop("avd_name_mismatch")
+    sdk = adb(serial, "shell", "getprop", "ro.build.version.sdk")
+    if sdk != "35":
+        raise SafetyStop("api_not_35")
+    package_path = adb(serial, "shell", "pm", "path", PACKAGE)
+    if not package_path.startswith("package:"):
+        raise SafetyStop("internal_package_missing")
+    fingerprint = adb(serial, "shell", "getprop", "ro.build.fingerprint")
+    if not any(marker in fingerprint.lower() for marker in ("aosp", "generic", "sdk_gphone")) or not fingerprint.endswith("dev-keys"):
+        raise SafetyStop("not_aosp_fingerprint")
+    protected = adb_result(serial, "shell", "pm", "path", PROTECTED_PACKAGE)
+    if protected.returncode == 0 and protected.stdout.strip().startswith("package:"):
+        raise SafetyStop("protected_package_present")
+    if "disabled" not in adb(serial, "shell", "cmd", "wifi", "status").lower():
+        raise SafetyStop("wifi_not_disabled")
+    if adb(serial, "shell", "settings", "get", "global", "mobile_data") not in {"0", "null"}:
+        raise SafetyStop("mobile_data_not_disabled")
+    routes = adb(serial, "shell", "ip", "route", "show", "default")
+    connectivity = adb(serial, "shell", "dumpsys", "connectivity")
+    if routes.strip() or re.search(r"(?m)^\s*Active default network:", connectivity) and "none" not in connectivity.lower():
+        raise SafetyStop("default_network_present")
+    proc_routes = adb(serial, "shell", "cat", "/proc/net/route")
+    if any(line.split()[1] == "00000000" for line in proc_routes.splitlines()[1:] if len(line.split()) > 1):
+        raise SafetyStop("kernel_default_route_present")
+    app_path = package_path.splitlines()[0].removeprefix("package:")
+    installed_sha = adb(serial, "shell", "sha256sum", app_path).split()[0]
+    if target_sha256 is not None and installed_sha != target_sha256:
+        raise SafetyStop("installed_target_apk_mismatch")
+    test_path_result = adb_result(serial, "shell", "pm", "path", f"{PACKAGE}.test")
+    if test_sha256 is not None:
+        if test_path_result.returncode:
+            raise SafetyStop("test_package_missing")
+        installed_test_sha = adb(serial, "shell", "sha256sum", test_path_result.stdout.strip().splitlines()[0].removeprefix("package:")).split()[0]
+        if installed_test_sha != test_sha256:
+            raise SafetyStop("installed_test_apk_mismatch")
+    package_dump = adb(serial, "shell", "dumpsys", "package", PACKAGE)
+    uid_match = re.search(r"userId=(\d+)", package_dump)
+    data_match = re.search(r"dataDir=([^\s]+)", package_dump)
+    if not uid_match or not data_match or data_match.group(1) != f"/data/user/0/{PACKAGE}":
+        raise SafetyStop("package_uid_datadir_invalid")
+    device_wall = int(adb(serial, "shell", "date", "+%s")) * 1000
+    device_uptime = int(float(adb(serial, "shell", "cat", "/proc/uptime").split()[0]) * 1000)
+    clock_delta = abs(int(time.time() * 1000) - device_wall)
+    if clock_delta > 10_000:
+        raise SafetyStop("device_wall_clock_jump")
+    return {
+        "avd": avd, "serial": serial, "api": 35, "fingerprintSha256": sha256_bytes(fingerprint.encode()),
+        "uid": int(uid_match.group(1)), "dataDir": data_match.group(1), "targetApkSha256": installed_sha,
+        "qemu": qemu_host_binding(avd), "observedWallMillis": device_wall, "observedUptimeMillis": device_uptime,
+    }
+
+
+def component(service: str) -> str:
+    return f"{PACKAGE}/{service}"
+
+
+def service_command(serial: str, avd: str, service: str, action: str, duration_hours: int) -> None:
+    if PACKAGE == PROTECTED_PACKAGE or not service in SERVICES:
+        raise SafetyStop("protected_or_unknown_component")
+    adb(
+        serial, "shell", "am", "start-foreground-service", "-n", component(service),
+        "-a", f"app.codecks.internal.m16.{action}", "--es", "avd_id", avd,
+        "--ei", "duration_hours", str(duration_hours),
+    )
+
+
+def parse_devices(values: list[str]) -> dict[str, str]:
+    devices: dict[str, str] = {}
+    for value in values:
+        avd, separator, serial = value.partition("=")
+        if not separator or avd in devices or avd not in AVDS or not SERIAL.fullmatch(serial):
+            raise SafetyStop("invalid_device_mapping")
+        devices[avd] = serial
+    if tuple(sorted(devices)) != AVDS or len(set(devices.values())) != 4:
+        raise SafetyStop("exactly_four_distinct_avds_required")
+    return devices
+
+
+def append_host_event(run_dir: Path, event: dict[str, object]) -> None:
+    ledger = run_dir / "host-ledger.jsonl"
+    head = run_dir / "host-ledger.head"
+    previous = head.read_text().strip() if head.exists() else "0" * 64
+    if not re.fullmatch(r"[0-9a-f]{64}", previous):
+        raise SafetyStop("host_ledger_head_invalid")
+    closed = {"schema": "codecks.m16.host-event.v1", "previousHash": previous,
+              "hostWallMillis": int(time.time() * 1000), "hostMonotonicNanos": time.monotonic_ns(), **event}
+    event_hash = sha256_bytes(json.dumps(closed, sort_keys=True, separators=(",", ":")).encode())
+    closed["eventHash"] = event_hash
+    encoded = (json.dumps(closed, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    if ledger.exists() and ledger.stat().st_size + len(encoded) > HOST_LEDGER_CAP:
+        raise SafetyStop("host_ledger_cap")
+    with ledger.open("ab", buffering=0) as output:
+        output.write(encoded)
+        os.fsync(output.fileno())
+    atomic_bytes(head, event_hash.encode(), 64)
+
+
+def verify_host_ledger(data: bytes, started_wall: int, finished_wall: int) -> dict[str, int]:
+    previous = "0" * 64
+    monitors = 0
+    unexpected = 0
+    crash_events = 0
+    failure_packets: set[str] = set()
+    pending_restarts: dict[str, tuple[int, str]] = {}
+    recoveries: list[dict[str, object]] = []
+    prior_wall = started_wall
+    prior_mono = None
+    first_mono = None
+    last_mono = None
+    for raw in data.splitlines():
+        event = json.loads(raw)
+        recorded = event.pop("eventHash", None)
+        if event.get("schema") != "codecks.m16.host-event.v1" or event.get("previousHash") != previous:
+            raise SafetyStop("host_ledger_chain")
+        if event.get("type") not in HOST_EVENT_KEYS or set(event) != HOST_COMMON_KEYS | HOST_EVENT_KEYS[event["type"]] or sha256_bytes(json.dumps(event, sort_keys=True, separators=(",", ":")).encode()) != recorded:
+            raise SafetyStop("host_ledger_event")
+        if event["type"] == "monitor" and (not isinstance(event.get("health"), dict) or
+                set(event["health"]) != {"swapUsedMiB", "memoryFreePercent", "availableGiB", "load1", "thermal"}):
+            raise SafetyStop("host_monitor_not_closed")
+        wall, mono = event.get("hostWallMillis"), event.get("hostMonotonicNanos")
+        if not isinstance(wall, int) or not isinstance(mono, int) or wall < prior_wall:
+            raise SafetyStop("host_clock_rollback")
+        if prior_mono is not None:
+            mono_delta = (mono - prior_mono) / 1_000_000
+            wall_delta = wall - prior_wall
+            if mono_delta < 0 or abs(wall_delta - mono_delta) > 5_000:
+                raise SafetyStop("host_wall_monotonic_jump")
+        first_mono = mono if first_mono is None else first_mono
+        last_mono = mono
+        prior_wall, prior_mono, previous = wall, mono, recorded
+        if event["type"] == "monitor": monitors += 1
+        if event["type"] == "unexpected_worker_missing":
+            unexpected += 1
+            profile = event["profileId"]
+            if not re.fullmatch(r"avd0[1-4]-p0[1-5]", profile) or profile in pending_restarts or not isinstance(event["oldPid"], int) or event["oldPid"] <= 0 or not isinstance(event["lastAckId"], str):
+                raise SafetyStop("host_unexpected_missing_binding")
+            pending_restarts[profile] = (event["oldPid"], event["lastAckId"])
+        if event["type"] == "worker_restarted":
+            pending = pending_restarts.pop(event["profileId"], None)
+            if (pending is None or event["oldPid"] != pending[0] or event["newPid"] == event["oldPid"]
+                    or event["freshAckId"] == pending[1] or not re.fullmatch(r"[0-9a-f]{64}", event.get("repoProbeSha256", ""))):
+                raise SafetyStop("host_restart_not_fresh")
+            if not re.fullmatch(rf"restart-probes/{re.escape(event['profileId'])}-[0-9]+\.json", event.get("repoProbePath", "")):
+                raise SafetyStop("host_restart_probe_path")
+            recoveries.append({"profileId": event["profileId"], "priorPid": event["oldPid"], "newPid": event["newPid"],
+                               "freshAckId": event["freshAckId"], "repoProbePath": event["repoProbePath"],
+                               "repoProbeSha256": event["repoProbeSha256"]})
+        if event["type"] == "worker_crash_or_anr": crash_events += 1
+        if event["type"] in {"unexpected_worker_missing", "worker_crash_or_anr"}:
+            packet = event["failurePacket"]
+            if not isinstance(packet, str) or not re.fullmatch(r"failures/[0-9]+-avd0[1-4]-p0[1-5]", packet) or packet in failure_packets:
+                raise SafetyStop("host_failure_packet_bijection")
+            failure_packets.add(packet)
+    if not data or pending_restarts or prior_wall > finished_wall or monitors < 1 or first_mono is None or last_mono is None:
+        raise SafetyStop("host_ledger_coverage")
+    return {"monitorEvents": monitors, "unexpectedWorkerDeaths": unexpected,
+            "crashOrAnrEvents": crash_events, "failurePacketCount": len(failure_packets),
+            "failurePackets": sorted(failure_packets),
+            "recoveries": recoveries,
+            "monitoredMillis": int((last_mono - first_mono) / 1_000_000), "headHash": previous}
+
+
+def atomic_state(run_dir: Path, state: dict[str, object]) -> None:
+    candidate = run_dir / "state.next"
+    target = run_dir / "state.json"
+    with candidate.open("w", encoding="utf-8") as output:
+        json.dump(state, output, sort_keys=True, separators=(",", ":"))
+        output.flush()
+        os.fsync(output.fileno())
+    os.replace(candidate, target)
+    fsync_dir(run_dir)
+
+
+def atomic_bytes(path: Path, value: bytes, cap: int = ARTIFACT_CAP) -> None:
+    if len(value) > cap:
+        raise SafetyStop("artifact_cap")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    candidate = path.with_suffix(path.suffix + ".next")
+    descriptor = os.open(candidate, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    try:
+        os.write(descriptor, value)
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+    os.replace(candidate, path)
+    fsync_dir(path.parent)
+
+
+def sanitize_text(value: bytes) -> bytes:
+    return PRIVACY.sub(b"[REDACTED]", value)[:FAILURE_ARTIFACT_CAP]
+
+
+def verify_worker_ledger(data: bytes, checkpoint_data: bytes, profile_id: str, process_name: str, nonce: str) -> dict[str, object]:
+    if not data or len(data) > ARTIFACT_CAP:
+        raise SafetyStop("ledger_size")
+    checkpoint = json.loads(checkpoint_data)
+    previous_hash = "0" * 64
+    hashes: set[str] = set()
+    ack_ids: set[str] = set()
+    admitted: set[int] = set()
+    eligible: set[int] = set()
+    categories: dict[int, set[str]] = {}
+    ops: dict[int, int] = {}
+    crash_or_anr: set[int] = set()
+    failures = 0
+    last_elapsed = -1
+    last_wall = -1
+    profile_complete = None
+    window_start: dict[int, int] = {}
+    ack_elapsed: dict[int, list[int]] = {}
+    ack_sequences: dict[int, list[int]] = {}
+    scheduled_restarts = 0
+    pending_resume: dict[int, tuple[int, int]] = {}
+    recoveries: list[dict[str, object]] = []
+    for raw in data.splitlines():
+        event = json.loads(raw)
+        if not isinstance(event, dict) or event.get("type") not in EVENT_TYPES:
+            raise SafetyStop("ledger_event_type")
+        if set(event) != COMMON_EVENT_KEYS | EVENT_KEYS[event["type"]]:
+            raise SafetyStop("ledger_event_not_closed")
+        if event.get("profileId") != profile_id or event.get("processName") != process_name or event.get("originNonce") != nonce:
+            raise SafetyStop("ledger_identity")
+        if not isinstance(event.get("pid"), int) or event["pid"] <= 0:
+            raise SafetyStop("ledger_pid")
+        if PRIVACY.search(raw):
+            raise SafetyStop("ledger_privacy")
+        recorded = event.pop("eventHash", None)
+        if event.get("previousHash") != previous_hash:
+            raise SafetyStop("ledger_chain_previous")
+        canonical = json.dumps(event, ensure_ascii=False, separators=(",", ":"))
+        if not isinstance(recorded, str) or sha256_bytes(canonical.encode()) != recorded:
+            raise SafetyStop("ledger_chain_hash")
+        previous_hash = recorded
+        hashes.add(recorded)
+        elapsed, wall = int(event["elapsedRealtimeMillis"]), int(event["wallTimeMillis"])
+        if elapsed < last_elapsed or wall + 5_000 < last_wall:
+            raise SafetyStop("ledger_clock_rollback")
+        last_elapsed, last_wall = elapsed, wall
+        window = int(event.get("windowIndex", 0))
+        if event["type"] == "admitted":
+            if window in admitted:
+                raise SafetyStop("duplicate_admission")
+            expected_seed = hashlib.sha256(f"codecks-m16-seed-v1:{profile_id}".encode()).hexdigest()[:16]
+            if event.get("seed") != expected_seed or event.get("profileRoot") != f"m16/profiles/{profile_id}" or event.get("eligibleTarget") not in {2, 168}:
+                raise SafetyStop("admission_binding")
+            admitted.add(window)
+            window_start[window] = elapsed
+        elif event["type"] == "ack":
+            ack = event.get("ackId")
+            if not isinstance(ack, str) or ack in ack_ids:
+                raise SafetyStop("duplicate_ack")
+            ack_ids.add(ack)
+            sequence = event.get("sequence")
+            category = event.get("category")
+            if not isinstance(sequence, int) or sequence <= 0 or category not in CATEGORIES:
+                raise SafetyStop("ack_sequence_or_category")
+            expected_ack = hashlib.sha256(f"{nonce}:{window}:{sequence}".encode()).hexdigest()
+            if ack != expected_ack:
+                raise SafetyStop("ack_identity")
+            resumed = pending_resume.pop(window, None)
+            if resumed:
+                if event["pid"] != resumed[1]: raise SafetyStop("resume_ack_pid")
+                recoveries.append({"profileId": profile_id, "priorPid": resumed[0], "newPid": resumed[1], "freshAckId": ack})
+            reasons = event.get("applicationExitReasons")
+            if not isinstance(reasons, dict) or set(reasons) != {"crash", "nativeCrash", "anr", "self", "other"} or any(not isinstance(value, int) or value < 0 for value in reasons.values()):
+                raise SafetyStop("exit_reason_shape")
+            if not isinstance(event.get("operationLatencyMillis"), int) or not 0 <= event["operationLatencyMillis"] <= 10_000:
+                raise SafetyStop("operation_latency")
+            ack_sequences.setdefault(window, []).append(sequence)
+            ack_elapsed.setdefault(window, []).append(elapsed)
+            ops[window] = ops.get(window, 0) + 1
+            categories.setdefault(window, set()).add(category)
+            reasons = event.get("applicationExitReasons", {})
+            if any(int(reasons.get(key, 0)) > 0 for key in ("crash", "nativeCrash", "anr")):
+                crash_or_anr.add(window)
+        elif event["type"] == "window_complete":
+            claimed = bool(event["eligible"])
+            times = ack_elapsed.get(window, [])
+            active = sum(delta for first, second in zip(times, times[1:]) if 20_000 <= (delta := second - first) <= 45_000)
+            sequences = ack_sequences.get(window, [])
+            if sequences != list(range(1, len(sequences) + 1)):
+                raise SafetyStop("ack_sequence_gap")
+            span = elapsed - window_start.get(window, elapsed)
+            if int(event.get("elapsedMillis", -1)) != span or not 3_600_000 <= span <= 3_660_000:
+                raise SafetyStop("window_not_exact_hour")
+            if int(event.get("activeMillis", -1)) != active or set(event.get("categories", [])) != categories.get(window, set()):
+                raise SafetyStop("window_claim_mismatch")
+            computed = active >= 50 * 60 * 1000 and len(sequences) >= 100 and len(categories.get(window, set())) >= 5
+            if claimed != computed:
+                raise SafetyStop("window_eligibility_mismatch")
+            if computed:
+                eligible.add(window)
+        elif event["type"] in {"admitted_incomplete", "window_ineligible"}:
+            failures += 1
+        elif event["type"] == "profile_complete":
+            profile_complete = event
+        elif event["type"] == "lifecycle_process_death_scheduled":
+            scheduled_restarts += 1
+        elif event["type"] == "resumed":
+            prior_pid, new_pid = event.get("priorPid"), event.get("newPid")
+            if (window not in admitted or window in pending_resume or event.get("sequence") != len(ack_sequences.get(window, []))
+                    or not isinstance(prior_pid, int) or not isinstance(new_pid, int) or prior_pid <= 0 or new_pid <= 0
+                    or prior_pid == new_pid or event["pid"] != new_pid):
+                raise SafetyStop("resume_binding")
+            pending_resume[window] = (prior_pid, new_pid)
+    if checkpoint.get("ledgerHeadHash") not in hashes or pending_resume:
+        raise SafetyStop("checkpoint_not_prefix")
+    if profile_complete is None:
+        raise SafetyStop("profile_not_complete")
+    if int(profile_complete["eligibleWindows"]) != len(eligible) or int(profile_complete["attemptedWindows"]) != len(admitted):
+        raise SafetyStop("profile_totals_mismatch")
+    if failures != len(admitted) - len(eligible):
+        raise SafetyStop("incomplete_not_classified")
+    return {
+        "profileId": profile_id, "ledgerSha256": sha256_bytes(data), "checkpointSha256": sha256_bytes(checkpoint_data),
+        "attemptedSessions": len(admitted), "eligibleSessions": len(eligible), "acknowledgedOperations": len(ack_ids),
+        "uniqueAckOperations": len(ack_ids), "crashOrAnrSessions": len(crash_or_anr), "classifiedFailures": failures,
+        "ledgerHeadHash": previous_hash,
+        "scheduledRestarts": scheduled_restarts,
+        "recoveries": recoveries,
+    }
+
+
+def pull_profile_artifacts(run_dir: Path, devices: dict[str, str]) -> list[dict[str, object]]:
+    results = []
+    for avd, serial in devices.items():
+        avd_number = int(avd.removeprefix("m16Soak").removesuffix("Api35"))
+        for slot in range(1, 6):
+            profile = f"avd{avd_number:02d}-p{slot:02d}"
+            process = f"{PACKAGE}:m16p{slot:02d}"
+            nonce = hashlib.sha256(f"codecks-m16-nonce-v1:{profile}".encode()).hexdigest()[:32]
+            base_uri = f"content://{PACKAGE}.m16evidence/profile/{profile}"
+            ledger = adb_bytes(serial, "exec-out", "content", "read", "--uri", f"{base_uri}/ledger.jsonl")
+            checkpoint = adb_bytes(serial, "exec-out", "content", "read", "--uri", f"{base_uri}/checkpoint.json")
+            directory = run_dir / "profiles" / profile
+            atomic_bytes(directory / "ledger.jsonl", ledger)
+            atomic_bytes(directory / "checkpoint.json", checkpoint)
+            summary = verify_worker_ledger(ledger, checkpoint, profile, process, nonce)
+            summary.update({"avd": avd, "process": process, "ledgerPath": str((directory / "ledger.jsonl").relative_to(run_dir)),
+                            "checkpointPath": str((directory / "checkpoint.json").relative_to(run_dir))})
+            results.append(summary)
+    return results
+
+
+def verify_repo_probes(devices: dict[str, str]) -> dict[str, bytes]:
+    hashes = {}
+    for avd, serial in devices.items():
+        avd_number = int(avd.removeprefix("m16Soak").removesuffix("Api35"))
+        speeds = set()
+        for slot in range(1, 6):
+            profile = f"avd{avd_number:02d}-p{slot:02d}"
+            nonce = hashlib.sha256(f"codecks-m16-nonce-v1:{profile}".encode()).hexdigest()[:32]
+            data = adb_bytes(serial, "exec-out", "content", "read", "--uri",
+                             f"content://{PACKAGE}.m16evidence/profile/{profile}/repo-probe.json")
+            probe = json.loads(data)
+            if set(probe) != {"profileId", "pointerSpeed", "originNonce"} or probe["profileId"] != profile or probe["originNonce"] != nonce:
+                raise SafetyStop("repo_probe_identity")
+            hashes[profile] = data
+            speeds.add(probe["pointerSpeed"])
+        if len(speeds) != 5:
+            raise SafetyStop("repo_probe_cross_store_contamination")
+    return hashes
+
+
+def capture_failure(run_dir: Path, avd: str, serial: str, worker: dict[str, object]) -> str:
+    profile = str(worker.get("profileId", "unknown"))
+    if not re.fullmatch(r"avd0[1-4]-p0[1-5]", profile):
+        raise SafetyStop("failure_profile_invalid")
+    directory = run_dir / "failures" / f"{int(time.time() * 1000)}-{profile}"
+    if len(list((run_dir / "failures").glob("*"))) >= 64 if (run_dir / "failures").exists() else False:
+        raise SafetyStop("failure_packet_cap")
+    pid = str(worker.get("pid", ""))
+    logcat = adb_bytes(serial, "logcat", "-d", "--pid", pid, "-t", "400")
+    exits = adb_bytes(serial, "shell", "dumpsys", "activity", "exit-info", PACKAGE)
+    tombstones = adb_bytes(serial, "shell", "dumpsys", "dropbox", "--print", "SYSTEM_TOMBSTONE")
+    for name, value in (("logcat.txt", logcat), ("exit-info.txt", exits), ("tombstones.txt", tombstones)):
+        atomic_bytes(directory / name, sanitize_text(value), FAILURE_ARTIFACT_CAP)
+    failure_code = str(worker.get("reasonCode", "worker_failed"))
+    if not re.fullmatch(r"[a-z][a-z0-9_]{0,47}", failure_code):
+        failure_code = "worker_failed"
+    window_index = min(336, max(1, int(worker.get("attemptedWindows", 0)) + 1))
+    activity = f"{PACKAGE}/io.codecks.internalquality.m16.M16FailureEvidenceActivity"
+    adb(serial, "shell", "am", "start", "-W", "-n", activity, "--es", "profile_id", profile,
+        "--es", "failure_code", failure_code, "--ei", "window_index", str(window_index))
+    foreground = adb(serial, "shell", "dumpsys", "activity", "activities")
+    if not re.search(r"mResumedActivity.*io\.codecks\.internalquality\.m16\.M16FailureEvidenceActivity", foreground):
+        atomic_bytes(directory / "screenshot-capture-failed.json", b'{"reasonCode":"safe_surface_not_foreground"}')
+        raise SafetyStop("safe_screenshot_surface_not_foreground")
+    screenshot = adb_bytes(serial, "exec-out", "screencap", "-p")
+    atomic_bytes(directory / "screenshot-allowlist.png", screenshot, FAILURE_ARTIFACT_CAP)
+    repro = {
+        "schema": "codecks.m16.failure-host.v1", "avd": avd, "profileId": profile,
+        "processName": worker.get("processName"), "reasonCode": failure_code,
+        "lastAckId": worker.get("lastAckId"), "syntheticNoNetworkDevice": True,
+        "reproduction": ["install exact bound PlayInternal APKs", "start exact profile seed", "replay ledger through last acknowledged operation"],
+    }
+    atomic_bytes(directory / "state-repro.json", json.dumps(repro, sort_keys=True, separators=(",", ":")).encode(), FAILURE_ARTIFACT_CAP)
+    return str(directory.relative_to(run_dir))
+
+
+def write_receipt(run_dir: Path, state: dict[str, object], profiles: list[dict[str, object]]) -> Path:
+    binding = state["binding"]
+    target = int(state["durationHours"]) * 20
+    finished_wall = int(time.time() * 1000)
+    host_proof = verify_host_ledger((run_dir / "host-ledger.jsonl").read_bytes(), int(state["startedWallMillis"]), finished_wall)
+    if host_proof["monitoredMillis"] < int(state["durationHours"]) * 3_600_000:
+        raise SafetyStop("host_monitor_duration")
+    crash_sessions = sum(int(item["crashOrAnrSessions"]) for item in profiles)
+    if int(host_proof["crashOrAnrEvents"]) != crash_sessions or int(host_proof["failurePacketCount"]) != crash_sessions + int(host_proof["unexpectedWorkerDeaths"]):
+        raise SafetyStop("failure_event_packet_count")
+    classified = (sum(int(item["classifiedFailures"]) for item in profiles)
+                  + int(host_proof["unexpectedWorkerDeaths"]) + crash_sessions)
+    summary = {
+        "admittedSessions": sum(int(item["attemptedSessions"]) for item in profiles),
+        "eligibleSessions": sum(int(item["eligibleSessions"]) for item in profiles),
+        "acknowledgedOperations": sum(int(item["acknowledgedOperations"]) for item in profiles),
+        "crashOrAnrSessions": crash_sessions,
+        "p0": (sum(int(item["eligibleSessions"]) != int(state["durationHours"]) for item in profiles)
+               + int(sum(int(item["eligibleSessions"]) for item in profiles) != target)),
+        "p1": crash_sessions + int(host_proof["unexpectedWorkerDeaths"]),
+        "classifiedFailures": classified,
+    }
+    dependencies = json.loads((Path(__file__).resolve().parents[1] / "tasks/test-evidence/m16-dependency-manifest.json").read_text())["dependencies"]
+    failure_artifacts = []
+    for artifact in sorted((run_dir / "failures").glob("**/*")) if (run_dir / "failures").exists() else []:
+        if artifact.is_file():
+            if artifact.stat().st_size > FAILURE_ARTIFACT_CAP or PRIVACY.search(artifact.read_bytes()):
+                raise SafetyStop("failure_artifact_invalid")
+            failure_artifacts.append({"path": str(artifact.relative_to(run_dir)), "sha256": sha256_file(artifact)})
+    packet_dirs = {str(path.parent.relative_to(run_dir)) for path in (run_dir / "failures").glob("*/*") if path.is_file()}
+    if packet_dirs != set(host_proof["failurePackets"]):
+        raise SafetyStop("failure_packet_orphan_or_missing")
+    passed = summary["p0"] == 0 and summary["p1"] == 0 and summary["crashOrAnrSessions"] == 0
+    receipt = {
+        "schema": "codecks.autonomous-maturity.m16-soak.v1", "milestone": "M16", "status": "PASS" if passed else "FAIL",
+        "evidence": "AUTONOMOUS_PROXY", "package": PACKAGE, "sourceCommit": binding["sourceCommit"],
+        "binding": binding, "devices": state["deviceBindings"], "profiles": profiles,
+        "dependencies": dependencies, "summary": summary, "failureArtifacts": failure_artifacts,
+        "wall": {"startedWallMillis": state["startedWallMillis"], "finishedWallMillis": finished_wall,
+                 "hostLedgerSha256": sha256_file(run_dir / "host-ledger.jsonl"), **host_proof},
+        "limitations": ["AUTONOMOUS_PROXY is not human, Samsung, physical-phone, or production evidence."],
+    }
+    path = run_dir / "receipt.json"
+    atomic_bytes(path, json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode())
+    if not passed:
+        raise SafetyStop("receipt_quality_gate_failed")
+    return path
+
+
+def self_validate_receipt(path: Path) -> None:
+    repo = Path(__file__).resolve().parents[1]
+    validator = repo / "tools/evidence/validate_m16_autonomous_soak.py"
+    result = subprocess.run([sys.executable, str(validator), str(path)], cwd=repo, text=True, capture_output=True, check=False)
+    if result.returncode != 0 or result.stdout.strip() != "PASS M16 AUTONOMOUS_PROXY receipt":
+        raise SafetyStop("producer_self_validation_failed")
+
+
+def safe_stop_services(state: dict[str, object]) -> None:
+    devices = state.get("devices", {})
+    for avd, serial in devices.items():
+        for service in SERVICES:
+            try:
+                service_command(str(serial), str(avd), service, "STOP", int(state["durationHours"]))
+            except (SafetyStop, subprocess.SubprocessError):
+                continue
+        try:
+            adb(str(serial), "shell", "am", "force-stop", PACKAGE)
+        except (SafetyStop, subprocess.SubprocessError):
+            continue
+
+
+def verify_services_stopped(state: dict[str, object]) -> None:
+    deadline=time.monotonic()+30
+    devices=state.get("devices",{})
+    while time.monotonic()<deadline:
+        live=[]
+        for serial in devices.values():
+            result=adb_result(str(serial),"shell","pidof",PACKAGE,*[f"{PACKAGE}:m16p{i:02d}" for i in range(1,6)])
+            if result.stdout.strip(): live.append(result.stdout.strip())
+        if not live: return
+        time.sleep(1)
+    raise SafetyStop("worker_cleanup_timeout")
+
+
+def continuous_monitor(run_dir: Path, state: dict[str, object]) -> None:
+    devices = parse_devices([f"{key}={value}" for key, value in state["devices"].items()])
+    previous_ack: dict[str, tuple[str, float]] = {}
+    previous_workers: dict[str, dict[str, object]] = {}
+    scheduled_gap_since: dict[str, float] = {}
+    pending_restarts: dict[str, tuple[int, str, float]] = {}
+    device_clocks: dict[str, tuple[int, int]] = {}
+    deadline = time.monotonic() + int(state["durationHours"]) * 2 * 3600 + 600
+    try:
+        while True:
+            current_state = json.loads((run_dir / "state.json").read_text())
+            if current_state.get("status") == "stopped":
+                return
+            if time.monotonic() > deadline:
+                raise SafetyStop("monitor_wall_cap")
+            require_capacity("runtime", run_dir)
+            global_adb_guard(devices)
+            health = host_health()
+            baseline = state["baselineHealth"]
+            if state["mode"] == "burnin2h" and float(health["swapUsedMiB"]) > float(baseline["swapUsedMiB"]):
+                raise SafetyStop("burnin_swap_growth")
+            qemu_rss = 0
+            for binding in state["deviceBindings"]:
+                verified = verify_device(binding["avd"], binding["serial"], state["binding"]["targetApkSha256"], state["binding"]["testApkSha256"])
+                qemu_rss += int(verified["qemu"]["rssKiB"])
+                prior_clock = device_clocks.get(str(binding["avd"]))
+                current_clock = (int(verified["observedWallMillis"]), int(verified["observedUptimeMillis"]))
+                if prior_clock and (current_clock[1] < prior_clock[1] or abs((current_clock[0] - prior_clock[0]) - (current_clock[1] - prior_clock[1])) > 5_000):
+                    raise SafetyStop("device_wall_monotonic_jump")
+                device_clocks[str(binding["avd"])] = current_clock
+            if qemu_rss > 24 * 1024 * 1024:
+                raise SafetyStop("qemu_rss_cap")
+            statuses = collect_worker_statuses(devices, tolerate_missing=True)
+            now = time.monotonic()
+            for worker in statuses:
+                profile = str(worker["profileId"])
+                if worker["state"] == "scheduled_gap":
+                    since = scheduled_gap_since.setdefault(profile, now)
+                    if now - since > 90:
+                        raise SafetyStop("scheduled_restart_timeout")
+                    append_host_event(run_dir, {"type": "scheduled_restart_gap", "profileId": profile})
+                    continue
+                scheduled_gap_since.pop(profile, None)
+                if worker["state"] == "missing":
+                    pending = pending_restarts.get(profile)
+                    if pending:
+                        if now - pending[2] > 90: raise SafetyStop("unexpected_restart_timeout")
+                        continue
+                    prior = previous_workers.get(profile, worker)
+                    packet = capture_failure(run_dir, str(worker["avd"]), devices[str(worker["avd"])], prior)
+                    append_host_event(run_dir, {"type": "unexpected_worker_missing", "profileId": profile, "failurePacket": packet,
+                                               "oldPid": int(prior["pid"]), "lastAckId": str(prior.get("lastAckId", ""))})
+                    slot = int(profile[-2:])
+                    service_command(devices[str(worker["avd"])], str(worker["avd"]), SERVICES[slot - 1], "RESUME", int(state["durationHours"]))
+                    pending_restarts[profile] = (int(prior["pid"]), str(prior.get("lastAckId", "")), now)
+                    continue
+                if worker["state"] == "failed":
+                    serial = devices[str(worker["avd"])]
+                    capture_failure(run_dir, str(worker["avd"]), serial, worker)
+                    raise SafetyStop("worker_failed")
+                pending = pending_restarts.get(profile)
+                if pending:
+                    if worker.get("state") != "running" or int(worker.get("pid", 0)) == pending[0] or not worker.get("lastAckId") or worker.get("lastAckId") == pending[1]:
+                        if now - pending[2] > 90: raise SafetyStop("unexpected_restart_not_fresh")
+                        continue
+                    probes = verify_repo_probes({str(worker["avd"]): devices[str(worker["avd"])]})
+                    probe_path = run_dir / "restart-probes" / f"{profile}-{int(worker['pid'])}.json"
+                    atomic_bytes(probe_path, probes[profile], FAILURE_ARTIFACT_CAP)
+                    append_host_event(run_dir, {"type": "worker_restarted", "profileId": profile,
+                                               "oldPid": pending[0], "newPid": int(worker["pid"]), "freshAckId": worker["lastAckId"],
+                                               "repoProbePath": str(probe_path.relative_to(run_dir)),
+                                               "repoProbeSha256": sha256_bytes(probes[profile])})
+                    pending_restarts.pop(profile)
+                ack = worker.get("lastAckId")
+                if worker["state"] == "running" and isinstance(ack, str):
+                    old = previous_ack.get(str(worker["profileId"]))
+                    if old and old[0] == ack and now - old[1] > 90:
+                        raise SafetyStop("ack_not_advancing")
+                    if not old or old[0] != ack:
+                        previous_ack[str(worker["profileId"])] = (ack, now)
+                previous_workers[profile] = worker
+            append_host_event(run_dir, {"type": "monitor", "workers": 20, "complete": sum(item["state"] == "complete" for item in statuses),
+                                        "qemuRssKiB": qemu_rss, "freeGiB": round(disk_free_gib(run_dir), 3), "health": health})
+            if all(item["state"] == "complete" for item in statuses):
+                profiles = pull_profile_artifacts(run_dir, devices)
+                status_by_profile = {str(item["profileId"]): item for item in statuses}
+                for profile_summary in profiles:
+                    for _ in range(int(profile_summary["crashOrAnrSessions"])):
+                        worker = status_by_profile[str(profile_summary["profileId"])]
+                        packet = capture_failure(run_dir, str(worker["avd"]), devices[str(worker["avd"])], worker)
+                        append_host_event(run_dir, {"type": "worker_crash_or_anr",
+                                                   "profileId": profile_summary["profileId"], "failurePacket": packet})
+                receipt = write_receipt(run_dir, state, profiles)
+                self_validate_receipt(receipt)
+                state["status"] = "complete"
+                state["receiptSha256"] = sha256_file(receipt)
+                atomic_state(run_dir, state)
+                safe_stop_services(state)
+                verify_services_stopped(state)
+                release_owner(run_dir)
+                return
+            time.sleep(15)
+    except BaseException:
+        safe_stop_services(state)
+        try: verify_services_stopped(state)
+        except SafetyStop: state["cleanupStatus"]="incomplete"
+        state["status"] = "failed"
+        atomic_state(run_dir, state)
+        raise
+
+
+def require_capacity(stage: str, root: Path) -> None:
+    free = disk_free_gib(root)
+    minimum = {"pre": MIN_PREPROVISION_GIB, "post": MIN_POSTPROVISION_GIB, "runtime": RUNTIME_STOP_GIB}.get(stage)
+    if minimum is None:
+        raise SafetyStop("unknown_capacity_stage")
+    if stage == "pre" and free < PROJECTED_FOOTPRINT_GIB + 40:
+        raise SafetyStop("preprovision_reserve")
+    if free < minimum:
+        raise SafetyStop(f"disk_{stage}_below_{minimum}gib")
+
+
+def host_health() -> dict[str, object]:
+    swap = subprocess.run(["sysctl", "-n", "vm.swapusage"], text=True, capture_output=True, check=False)
+    thermal = subprocess.run(["pmset", "-g", "therm"], text=True, capture_output=True, check=False)
+    pressure = subprocess.run(["memory_pressure", "-Q"], text=True, capture_output=True, check=False)
+    if swap.returncode or thermal.returncode or pressure.returncode:
+        raise SafetyStop("host_health_probe_failed")
+    match = re.search(r"used = ([0-9.]+)M", swap.stdout)
+    free_match = re.search(r"System-wide memory free percentage:\s*([0-9]+)%", pressure.stdout)
+    if not match or not free_match:
+        raise SafetyStop("host_health_unparseable")
+    thermal_text = thermal.stdout.lower()
+    if "cpu_speed_limit=100" not in thermal_text.replace(" ", "") and "no thermal warning level" not in thermal_text:
+        raise SafetyStop("thermal_not_nominal")
+    free_percent = int(free_match.group(1))
+    if free_percent < 20:
+        raise SafetyStop("memory_pressure")
+    vm = subprocess.run(["vm_stat"], text=True, capture_output=True, check=False)
+    load = os.getloadavg()
+    page_size = int(re.search(r"page size of (\d+) bytes", vm.stdout).group(1)) if vm.returncode == 0 and re.search(r"page size of (\d+) bytes", vm.stdout) else 0
+    pages = sum(int(value.replace(".", "")) for value in re.findall(r"Pages (?:free|inactive|speculative):\s+(\d+\.)", vm.stdout))
+    available_gib = pages * page_size / 1024**3
+    if available_gib < 8:
+        raise SafetyStop("available_ram_below_8gib")
+    if load[0] > 9.5:
+        raise SafetyStop("host_load_cap")
+    return {"swapUsedMiB": float(match.group(1)), "memoryFreePercent": free_percent, "availableGiB": round(available_gib, 3), "load1": load[0], "thermal": "nominal"}
+
+
+def source_and_artifact_binding(args: argparse.Namespace) -> dict[str, object]:
+    repo = Path(__file__).resolve().parents[1]
+    if git_output(repo, "status", "--porcelain"):
+        raise SafetyStop("source_worktree_dirty")
+    commit = git_output(repo, "rev-parse", "HEAD")
+    if args.source_commit and args.source_commit != commit:
+        raise SafetyStop("source_commit_argument_mismatch")
+    if not args.target_apk or not args.test_apk or not args.xml_result:
+        raise SafetyStop("start_artifact_arguments_required")
+    target, test, xml = map(lambda value: Path(value).resolve(), (args.target_apk, args.test_apk, args.xml_result))
+    try:
+        target_relative, test_relative, xml_relative = (str(path.relative_to(repo)) for path in (target, test, xml))
+    except ValueError as error:
+        raise SafetyStop("bound_artifacts_must_be_repo_relative") from error
+    isolation = verify_isolation_xml(xml)
+    return {
+        "sourceCommit": commit, "targetApkPath": target_relative, "targetApkSha256": sha256_file(target),
+        "testApkPath": test_relative, "testApkSha256": sha256_file(test), "xmlResultPath": xml_relative,
+        "xmlResultSha256": sha256_file(xml), "targetSignerSha256": apk_signer(target), "testSignerSha256": apk_signer(test),
+        "isolation": isolation,
+    }
+
+
+def start(args: argparse.Namespace, resume: bool = False) -> None:
+    run_dir = Path(args.run_dir).resolve()
+    run_dir.mkdir(parents=True, exist_ok=True)
+    if resume:
+        require_owner(run_dir)
+    require_capacity("pre", run_dir)
+    devices = parse_devices(args.device)
+    global_adb_guard(devices)
+    binding = source_and_artifact_binding(args)
+    device_bindings = [verify_device(avd, serial, str(binding["targetApkSha256"]), str(binding["testApkSha256"])) for avd, serial in devices.items()]
+    if binding["isolation"]["fingerprintSha256"] not in {item["fingerprintSha256"] for item in device_bindings}:
+        raise SafetyStop("isolation_device_not_in_soak_set")
+    require_capacity("post", run_dir)
+    health = host_health()
+    duration_hours = 2 if args.mode == "burnin2h" else 168
+    if resume:
+        state = json.loads((run_dir / "state.json").read_text())
+        if state.get("devices") != devices or state.get("binding") != binding or int(state.get("durationHours", 0)) != duration_hours:
+            raise SafetyStop("resume_binding_mismatch")
+        state["status"] = "running"
+        state["resumedWallMillis"] = int(time.time() * 1000)
+    else:
+        acquire_owner(run_dir)
+        state = {
+            "schema": "codecks.m16.host-state.v1", "mode": args.mode,
+            "durationHours": duration_hours, "devices": devices,
+            "startedWallMillis": int(time.time() * 1000), "startedMonotonicNanos": time.monotonic_ns(),
+            "status": "running", "profiles": 20,
+            "baselineHealth": health,
+            "binding": binding, "deviceBindings": device_bindings,
+        }
+    atomic_state(run_dir, state)
+    append_host_event(run_dir, {"type": "controller_start", "mode": args.mode, "profiles": 20})
+    action = "RESUME" if resume else "START"
+    for avd, serial in devices.items():
+        for service in SERVICES:
+            service_command(serial, avd, service, action, duration_hours)
+    deadline = time.monotonic() + 90
+    while True:
+        try:
+            statuses = collect_worker_statuses(devices)
+            if any(worker.get("state") != "running" or not worker.get("lastAckId") for worker in statuses):
+                raise SafetyStop("workers_not_heartbeat_ready")
+            verify_repo_probes(devices)
+            break
+        except SafetyStop:
+            if time.monotonic() >= deadline:
+                raise SafetyStop("twenty_worker_admission_timeout")
+            time.sleep(2)
+    append_host_event(run_dir, {"type": "twenty_workers_admitted", "workers": len(statuses)})
+    continuous_monitor(run_dir, state)
+
+
+def stop(args: argparse.Namespace) -> None:
+    run_dir = Path(args.run_dir).resolve()
+    require_owner(run_dir)
+    state = json.loads((run_dir / "state.json").read_text())
+    devices = parse_devices([f"{key}={value}" for key, value in state["devices"].items()])
+    global_adb_guard(devices)
+    safe_stop_services(state)
+    verify_services_stopped(state)
+    state["status"] = "stopped"
+    state["stoppedWallMillis"] = int(time.time() * 1000)
+    atomic_state(run_dir, state)
+    append_host_event(run_dir, {"type": "controller_stop"})
+    release_owner(run_dir)
+
+
+def collect_worker_statuses(devices: dict[str, str], tolerate_missing: bool = False) -> list[dict[str, object]]:
+    statuses: list[dict[str, object]] = []
+    for avd, serial in devices.items():
+        uptime_millis = int(float(adb(serial, "shell", "cat", "/proc/uptime").split()[0]) * 1000)
+        avd_number = int(avd.removeprefix("m16Soak").removesuffix("Api35"))
+        for service in SERVICES:
+            slot = SERVICES.index(service) + 1
+            expected_profile = f"avd{avd_number:02d}-p{slot:02d}"
+            output = adb(serial, "shell", "dumpsys", "activity", "service", component(service))
+            json_lines = [line.strip() for line in output.splitlines() if line.strip().startswith("{")]
+            if len(json_lines) != 1:
+                if not tolerate_missing:
+                    raise SafetyStop("missing_worker_status")
+                scheduled = False
+                try:
+                    checkpoint = json.loads(adb_bytes(serial, "exec-out", "content", "read", "--uri",
+                        f"content://{PACKAGE}.m16evidence/profile/{expected_profile}/checkpoint.json"))
+                    scheduled = checkpoint.get("scheduledRestart") is True
+                except (SafetyStop, json.JSONDecodeError):
+                    pass
+                statuses.append({"avd": avd, "profileId": expected_profile,
+                                 "state": "scheduled_gap" if scheduled else "missing"})
+                continue
+            worker = json.loads(json_lines[0])
+            expected_process = f"{PACKAGE}:m16p{SERVICES.index(service) + 1:02d}"
+            expected_nonce = hashlib.sha256(f"codecks-m16-nonce-v1:{expected_profile}".encode()).hexdigest()[:32]
+            if worker.get("processName") != expected_process or worker.get("pid", 0) <= 0:
+                raise SafetyStop("worker_origin_mismatch")
+            if worker.get("profileId") != expected_profile or worker.get("originNonce") != expected_nonce:
+                raise SafetyStop("worker_identity_nonce_mismatch")
+            if worker.get("state") not in {"starting", "admitted", "running", "complete", "failed"}:
+                raise SafetyStop("worker_not_admitted")
+            pid = int(worker["pid"])
+            pidof = adb(serial, "shell", "pidof", expected_process).split()
+            if str(pid) not in pidof:
+                raise SafetyStop("worker_pid_not_live")
+            cmdline = adb(serial, "shell", "cat", f"/proc/{pid}/cmdline").rstrip("\x00")
+            if cmdline != expected_process:
+                raise SafetyStop("worker_cmdline_mismatch")
+            if worker.get("state") == "running":
+                heartbeat = int(worker.get("heartbeatElapsed", 0))
+                if heartbeat <= 0 or not 0 <= uptime_millis - heartbeat <= 90_000:
+                    raise SafetyStop("worker_heartbeat_stale")
+            statuses.append({"avd": avd, **worker})
+    if len({(item["avd"], item.get("profileId")) for item in statuses}) != 20:
+        raise SafetyStop("duplicate_profile_identity")
+    live = [item for item in statuses if item["state"] not in {"scheduled_gap", "missing"}]
+    if len({(item["avd"], item.get("pid")) for item in live}) != len(live):
+        raise SafetyStop("duplicate_worker_pid")
+    return statuses
+
+
+def status(args: argparse.Namespace) -> None:
+    run_dir = Path(args.run_dir).resolve()
+    require_owner(run_dir)
+    state = json.loads((run_dir / "state.json").read_text())
+    if disk_free_gib(run_dir) < RUNTIME_STOP_GIB:
+        raise SafetyStop("runtime_disk_below_40gib")
+    health = host_health()
+    baseline = state.get("baselineHealth", {})
+    if state.get("mode") == "burnin2h" and health["swapUsedMiB"] > float(baseline.get("swapUsedMiB", 0)):
+        raise SafetyStop("burnin_swap_growth")
+    devices = parse_devices([f"{key}={value}" for key, value in state["devices"].items()])
+    global_adb_guard(devices)
+    for binding in state["deviceBindings"]:
+        verify_device(binding["avd"], binding["serial"], state["binding"]["targetApkSha256"], state["binding"]["testApkSha256"])
+    statuses = collect_worker_statuses(devices)
+    print(json.dumps({"evidence": "AUTONOMOUS_PROXY", "workers": statuses}, sort_keys=True))
+
+
+def provision(args: argparse.Namespace) -> None:
+    """Provision only the four source-declared disposable GMDs; never launches the soak."""
+    repo = Path(__file__).resolve().parents[1]
+    require_capacity("pre", repo)
+    adb_devices = subprocess.run(["adb", "devices"], text=True, capture_output=True, check=False)
+    if adb_devices.returncode or any(line.strip() for line in adb_devices.stdout.splitlines()[1:]):
+        raise SafetyStop("provision_requires_no_connected_devices")
+    build = (repo / "app/build.gradle.kts").read_text()
+    if 'create("m16Soak%02dApi35".format(index))' not in build or 'systemImageSource = "aosp"' not in build:
+        raise SafetyStop("m16_avd_source_definition_missing")
+    command = [str(repo / "gradlew"), *[f":app:{avd}Setup" for avd in AVDS], "--no-daemon"]
+    result = subprocess.run(command, cwd=repo, check=False)
+    if result.returncode:
+        raise SafetyStop("m16_avd_provision_failed")
+    require_capacity("post", repo)
+
+
+def parser() -> argparse.ArgumentParser:
+    result = argparse.ArgumentParser()
+    result.add_argument("command", choices=("provision", "start", "status", "stop", "resume"))
+    result.add_argument("--run-dir", required=True)
+    result.add_argument("--device", action="append", default=[])
+    result.add_argument("--mode", choices=("burnin2h", "soak168h"), default="burnin2h")
+    result.add_argument("--source-commit")
+    result.add_argument("--target-apk")
+    result.add_argument("--test-apk")
+    result.add_argument("--xml-result")
+    return result
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parser().parse_args(argv)
+    try:
+        if args.command == "provision":
+            provision(args)
+        elif args.command == "start":
+            start(args)
+        elif args.command == "resume":
+            start(args, resume=True)
+        elif args.command == "stop":
+            stop(args)
+        else:
+            status(args)
+        return 0
+    except (SafetyStop, OSError, ValueError, json.JSONDecodeError) as error:
+        print(f"M16_STOP:{error}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <application>
         <meta-data
             android:name="app.codecks.distribution"
@@ -37,5 +38,24 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>
+        <!-- M16 is playInternal-only. DUMP restricts host control to adb shell/system. -->
+        <service android:name="io.codecks.internalquality.m16.M16ProfileService01" android:exported="true" android:foregroundServiceType="specialUse" android:permission="android.permission.DUMP" android:process=":m16p01"><property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="internal autonomous reliability test" /></service>
+        <service android:name="io.codecks.internalquality.m16.M16ProfileService02" android:exported="true" android:foregroundServiceType="specialUse" android:permission="android.permission.DUMP" android:process=":m16p02"><property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="internal autonomous reliability test" /></service>
+        <service android:name="io.codecks.internalquality.m16.M16ProfileService03" android:exported="true" android:foregroundServiceType="specialUse" android:permission="android.permission.DUMP" android:process=":m16p03"><property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="internal autonomous reliability test" /></service>
+        <service android:name="io.codecks.internalquality.m16.M16ProfileService04" android:exported="true" android:foregroundServiceType="specialUse" android:permission="android.permission.DUMP" android:process=":m16p04"><property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="internal autonomous reliability test" /></service>
+        <service android:name="io.codecks.internalquality.m16.M16ProfileService05" android:exported="true" android:foregroundServiceType="specialUse" android:permission="android.permission.DUMP" android:process=":m16p05"><property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="internal autonomous reliability test" /></service>
+        <provider
+            android:name="io.codecks.internalquality.m16.M16EvidenceProvider"
+            android:authorities="app.codecks.internal.m16evidence"
+            android:exported="true"
+            android:process=":m16evidence"
+            android:readPermission="android.permission.DUMP" />
+        <activity
+            android:name="io.codecks.internalquality.m16.M16FailureEvidenceActivity"
+            android:exported="true"
+            android:permission="android.permission.DUMP"
+            android:process=":m16evidence"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.Codecks" />
     </application>
 </manifest>
