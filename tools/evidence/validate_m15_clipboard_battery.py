@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import re
+import hashlib
 import subprocess
 
 from collect_m15_clipboard_battery import (
@@ -20,8 +21,10 @@ from collect_m15_clipboard_battery import (
     parse_cpu_result,
     parse_managed_result,
     safe_path,
+    sanitized_companion,
     sha256,
 )
+from managed_execution_binding import validate_binding
 from validate_autonomous_maturity_evidence import validate_schema_node
 
 RECEIPT = ROOT / "tasks/test-evidence/autonomous-maturity-m15-clipboard-battery.json"
@@ -49,7 +52,7 @@ def validate(path: Path = RECEIPT) -> None:
     validate_schema_node(data, schema, schema, "m15")
     expected_keys = {
         "schema", "milestone", "status", "scope", "generatedAtUtc", "sourceCommit",
-        "sources", "unitResult", "managedResult", "lanes", "privacy", "summary", "limitations",
+        "sources", "unitResult", "managedResult", "managedExecution", "managedCompanionPrivacy", "lanes", "privacy", "summary", "limitations",
     }
     if set(data) != expected_keys:
         raise ValueError("M15 receipt keys are not closed")
@@ -115,6 +118,19 @@ def validate(path: Path = RECEIPT) -> None:
         artifact_path = safe_path(artifact["path"])
         if artifact["applicationId"] != application_id or sha256(artifact_path) != artifact["sha256"]:
             raise ValueError(f"M15 {name} binding mismatch")
+    validate_binding(
+        ROOT, data["managedExecution"], source_paths=SOURCE_PATHS,
+        class_name=MANAGED_TEST_CLASS, methods=EXPECTED_MANAGED_METHODS,
+    )
+    companion = data["managedCompanionPrivacy"]
+    expected_companion = sanitized_companion(MANAGED_TEST_CLASS, len(EXPECTED_MANAGED_METHODS))
+    companion_path = safe_path(companion["path"])
+    if (
+        set(companion) != {"kind", "sanitized", "path", "sha256"} or
+        companion["kind"] != "SANITIZED_METADATA_ONLY" or companion["sanitized"] is not True or
+        companion_path.read_bytes() != expected_companion or companion["sha256"] != hashlib.sha256(expected_companion).hexdigest()
+    ):
+        raise ValueError("M15 managed companion privacy binding mismatch")
     expected_lanes = list(PASS_LANES) + [MANAGED_PASS_LANE] + list(NOT_RUN_LANES)
     if [lane["id"] for lane in data["lanes"]] != expected_lanes:
         raise ValueError("M15 lane identity/order is not exact")

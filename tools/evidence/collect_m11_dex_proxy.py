@@ -34,8 +34,8 @@ SOURCE_PATHS = (
     "tools/evidence/test_m11_dex_proxy.py",
     "tools/evidence/schemas/autonomous-maturity-m11-dex-proxy-v1.schema.json",
 )
-TARGET_APK = "app/build/outputs/apk/playInternal/release/app-playInternal-release.apk"
-TEST_APK = "app/build/outputs/apk/androidTest/playInternal/release/app-playInternal-release-androidTest.apk"
+TARGET_APK = "tasks/test-evidence/m11/runtime/app-playInternal-release.apk"
+TEST_APK = "tasks/test-evidence/m11/runtime/app-playInternal-release-androidTest.apk"
 
 
 def safe_path(value: str) -> Path:

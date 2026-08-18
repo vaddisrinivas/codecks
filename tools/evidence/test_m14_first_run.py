@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+import hashlib
 from pathlib import Path
 
 from tools.evidence.collect_m14_first_run import UNIT_CLASS, UNIT_METHODS, exact_suite, receipt_digest
@@ -66,9 +67,28 @@ class M14ReceiptValidatorTest(unittest.TestCase):
     def test_compose_result_binding_tamper_fails(self):
         self.assertTrue(self.mutate(lambda data: data["bindings"]["managed"].update(resultDigest="0" * 64)))
 
-    def test_managed_attempt_binding_tamper_fails(self):
-        self.assertTrue(self.mutate(lambda data: data["bindings"]["managed"]["attempts"][0].update(
-            digest="0" * 64
+    def test_stable_managed_binding_tamper_fails(self):
+        self.assertTrue(self.mutate(lambda data: data["bindings"]["managedExecution"].update(
+            sourceDiffSha256="0" * 64
+        )))
+
+    def test_stable_artifact_and_device_tampering_fails(self):
+        self.assertTrue(self.mutate(lambda data: data["bindings"]["managedExecution"]["targetApk"].update(
+            sha256="0" * 64
+        )))
+
+    def test_companion_username_path_and_secret_canaries_fail(self):
+        for canary in ("username=srinivas", "/Users/private/build", "password=secret-token"):
+            with self.subTest(canary=canary), tempfile.TemporaryDirectory(dir=self.root / "tasks/test-evidence") as directory:
+                companion = Path(directory) / "test-result.textproto"
+                companion.write_text(canary)
+                relative = companion.relative_to(self.root).as_posix()
+                errors = self.mutate(lambda data: data["bindings"]["managedCompanionPrivacy"].update(
+                    path=relative, sha256=hashlib.sha256(canary.encode()).hexdigest()
+                ))
+                self.assertTrue(any("privacy" in error for error in errors))
+        self.assertTrue(self.mutate(lambda data: data["bindings"]["managedExecution"]["device"]["properties"].update(
+            device="physical"
         )))
 
     def test_artifact_identity_tamper_fails(self):

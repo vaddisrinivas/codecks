@@ -72,8 +72,8 @@ MANAGED_METHODS = {
     "deleteFailureExposesRepairActionWithoutSecretSurface",
 }
 MANAGED_RESULT = "tasks/test-evidence/m19/runtime/TEST-M19SupportUiInstrumentedTest.xml"
-TARGET_APK = "app/build/outputs/apk/playInternal/release/app-playInternal-release.apk"
-TEST_APK = "app/build/outputs/apk/androidTest/playInternal/release/app-playInternal-release-androidTest.apk"
+TARGET_APK = "tasks/test-evidence/m19/runtime/app-playInternal-release.apk"
+TEST_APK = "tasks/test-evidence/m19/runtime/app-playInternal-release-androidTest.apk"
 VALIDATOR_POSITIVE_CASES = 1
 VALIDATOR_NEGATIVE_CASES = 22
 

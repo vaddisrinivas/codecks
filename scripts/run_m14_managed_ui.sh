@@ -27,3 +27,7 @@ durable="tasks/test-evidence/m14/runtime/TEST-pixel6Api35-M14FirstRunRepairInstr
 test -f "$generated" || { echo "M14 managed result missing: $generated" >&2; exit 1; }
 mkdir -p "$(dirname "$durable")"
 cp "$generated" "$durable"
+cp "$(dirname "$generated")/device-info.pb" "$(dirname "$durable")/device-info.pb"
+cp "$(dirname "$generated")/test-result.textproto" "$(dirname "$durable")/test-result.textproto"
+cp app/build/outputs/apk/playInternal/release/app-playInternal-release.apk "$(dirname "$durable")/app-playInternal-release.apk"
+cp app/build/outputs/apk/androidTest/playInternal/release/app-playInternal-release-androidTest.apk "$(dirname "$durable")/app-playInternal-release-androidTest.apk"

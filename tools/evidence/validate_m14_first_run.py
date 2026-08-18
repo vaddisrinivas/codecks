@@ -13,9 +13,10 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from tools.evidence.collect_m14_first_run import (
-    COMMANDS, FAILED_ATTEMPT_PATH, MANAGED_CLASS, MANAGED_METHODS, RETRY_PATH, SOURCE_FILES, UNIT_CLASS, UNIT_METHODS,
-    canonical, exact_suite, execution_environment, receipt_digest, sha256_bytes,
+    COMMANDS, MANAGED_CLASS, MANAGED_METHODS, SOURCE_FILES, UNIT_CLASS, UNIT_METHODS,
+    canonical, exact_suite, execution_environment, receipt_digest, sanitized_companion, sha256_bytes,
 )
+from tools.evidence.managed_execution_binding import validate_binding
 
 SCENARIOS = {
     "hid_pairing", "ssh_setup", "helper_pairing", "permission_denial", "wrong_host",
@@ -155,7 +156,7 @@ def validate(path: Path, root: Path | None = None) -> list[str]:
     bindings = data.get("bindings", {})
     expected_binding_keys = {
         "baseCommit", "sourceDigests", "sourceTreeDigest", "corpusDigest", "canonicalInputDigest",
-        "unit", "managed", "commands", "commandDigest", "environment", "environmentDigest",
+        "unit", "managed", "managedExecution", "managedCompanionPrivacy", "commands", "commandDigest", "environment", "environmentDigest",
     }
     if set(bindings) != expected_binding_keys:
         errors.append("missing or unknown execution binding")
@@ -196,7 +197,7 @@ def validate(path: Path, root: Path | None = None) -> list[str]:
     managed = bindings.get("managed", {})
     if set(managed) != {
         "suiteClass", "methods", "passed", "device", "flavor", "project", "resultPath", "resultDigest",
-        "targetArtifact", "testArtifact", "attempts",
+        "targetArtifact", "testArtifact",
     }:
         errors.append("managed binding fields invalid")
     managed_path = root / str(managed.get("resultPath", ""))
@@ -213,40 +214,21 @@ def validate(path: Path, root: Path | None = None) -> list[str]:
         managed.get("flavor") != "playInternalRelease" or managed.get("project") != ":app"
     ):
         errors.append("managed execution identity mismatch")
-    attempts = managed.get("attempts", [])
-    expected_attempts = [
-        ("FAILED_HARNESS_ATTEMPT", FAILED_ATTEMPT_PATH, MANAGED_METHODS, 1),
-        ("FILTERED_HARNESS_RETRY", RETRY_PATH, {"directResetTrustRequiresConfirmation"}, 0),
-    ]
-    if not isinstance(attempts, list) or len(attempts) != 2:
-        errors.append("managed attempt history missing")
-    else:
-        for attempt, (kind, relative, methods, failures) in zip(attempts, expected_attempts):
-            if not isinstance(attempt, dict) or set(attempt) != {"kind", "path", "digest"} or attempt.get("kind") != kind or attempt.get("path") != relative:
-                errors.append("managed attempt identity mismatch")
-                continue
-            attempt_path = root / relative
-            if not attempt_path.is_file() or attempt.get("digest") != sha256_bytes(attempt_path.read_bytes()):
-                errors.append("managed attempt digest mismatch")
-                continue
-            try:
-                xml_root = ET.parse(attempt_path).getroot()
-                suites = [xml_root] if xml_root.tag == "testsuite" else list(xml_root.findall("testsuite"))
-                suite = suites[0] if len(suites) == 1 else None
-                cases = list(suite.findall("testcase")) if suite is not None else []
-                names = {case.attrib.get("name") for case in cases}
-                actual_failures = sum(len(case.findall("failure")) for case in cases)
-                properties = {
-                    node.attrib.get("name"): node.attrib.get("value")
-                    for node in suite.findall("./properties/property")
-                } if suite is not None else {}
-                if (
-                    suite is None or suite.attrib.get("name") != MANAGED_CLASS or names != methods or
-                    len(cases) != len(methods) or actual_failures != failures or properties != managed_properties
-                ):
-                    errors.append("managed attempt content mismatch")
-            except (OSError, ET.ParseError):
-                errors.append("managed attempt unreadable")
+    try:
+        validate_binding(root, bindings.get("managedExecution", {}), source_paths=tuple(SOURCE_FILES),
+                         class_name=MANAGED_CLASS, methods=MANAGED_METHODS)
+    except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:
+        errors.append(f"stable managed binding mismatch: {error}")
+    companion = bindings.get("managedCompanionPrivacy", {})
+    expected_companion = sanitized_companion(MANAGED_CLASS, len(MANAGED_METHODS))
+    companion_path = root / str(companion.get("path", ""))
+    if (
+        set(companion) != {"kind", "sanitized", "path", "sha256"} or
+        companion.get("kind") != "SANITIZED_METADATA_ONLY" or companion.get("sanitized") is not True or
+        not companion_path.is_file() or companion_path.read_bytes() != expected_companion or
+        companion.get("sha256") != sha256_bytes(expected_companion)
+    ):
+        errors.append("managed companion privacy binding mismatch")
     for name, expected_id in (("targetArtifact", "app.codecks.internal"), ("testArtifact", "app.codecks.internal.test")):
         artifact = managed.get(name, {})
         if set(artifact) != {"path", "applicationId", "digest"}:

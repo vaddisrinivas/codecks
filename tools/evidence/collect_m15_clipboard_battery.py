@@ -9,6 +9,7 @@ from pathlib import Path
 import os
 import subprocess
 import xml.etree.ElementTree as ET
+from managed_execution_binding import collect_binding
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_ID = "codecks.autonomous-maturity.m15-clipboard-battery.v1"
@@ -50,7 +51,11 @@ SOURCE_PATHS = (
     "tools/evidence/validate_m15_clipboard_battery.py",
     "tools/evidence/test_m15_clipboard_battery.py",
     "tools/evidence/schemas/autonomous-maturity-m15-clipboard-battery-v1.schema.json",
+    "tools/evidence/managed_execution_binding.py",
 )
+MANAGED_RESULT = "tasks/test-evidence/m15/runtime/TEST-M15ClipboardPrivacyInstrumentedTest.xml"
+TARGET_APK = "tasks/test-evidence/m15/runtime/app-playInternal-release.apk"
+TEST_APK = "tasks/test-evidence/m15/runtime/app-playInternal-release-androidTest.apk"
 PASS_LANES = (
     "cpu.visible_session_boundary",
     "cpu.battery_saver_policy",
@@ -98,6 +103,13 @@ def apk_application_id(apk: Path) -> str:
         [str(analyzer), "manifest", "application-id", str(apk)],
         check=True, capture_output=True, text=True,
     ).stdout.strip()
+
+
+def sanitized_companion(suite: str, tests: int) -> bytes:
+    return (
+        "schema_version: 1\nartifact_kind: \"SANITIZED_METADATA_ONLY\"\n"
+        f"device: \"pixel6Api35\"\nsuite: \"{suite}\"\ntests: {tests}\nfailures: 0\n"
+    ).encode()
 
 
 def parse_cpu_result(path: Path) -> tuple[str, list[str]]:
@@ -213,6 +225,8 @@ def collect(
     timestamp, methods = sanitized_result(raw_path, result_path)
     managed_path = safe_path(sanitized_managed_output)
     managed_timestamp, managed_methods = sanitized_managed_result(safe_path(raw_managed_result), managed_path)
+    textproto = managed_path.parent / "test-result.textproto"
+    textproto.write_bytes(sanitized_companion(MANAGED_TEST_CLASS, len(EXPECTED_MANAGED_METHODS)))
     target_path = safe_path(target_apk)
     test_path = safe_path(test_apk)
     target_id = apk_application_id(target_path)
@@ -274,6 +288,15 @@ def collect(
             "testArtifact": {
                 "path": test_apk, "applicationId": test_id, "sha256": sha256(test_path),
             },
+        },
+        "managedExecution": collect_binding(
+            ROOT, source_paths=SOURCE_PATHS, class_name=MANAGED_TEST_CLASS,
+            methods=EXPECTED_MANAGED_METHODS, result_path=sanitized_managed_output,
+            target_apk=target_apk, test_apk=test_apk,
+        ),
+        "managedCompanionPrivacy": {
+            "kind": "SANITIZED_METADATA_ONLY", "sanitized": True,
+            "path": textproto.relative_to(ROOT).as_posix(), "sha256": sha256(textproto),
         },
         "lanes": lanes,
         "privacy": {

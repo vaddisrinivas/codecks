@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import subprocess
 import sys
@@ -154,6 +155,30 @@ class M15EvidenceTest(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "targetArtifact binding"):
             validate(path)
+
+    def test_stable_binding_diff_artifact_and_device_mutations_fail(self) -> None:
+        mutations = (
+            lambda data: data["managedExecution"].update({"sourceDiffSha256": "0" * 64}),
+            lambda data: data["managedExecution"]["targetApk"].update({"sha256": "0" * 64}),
+            lambda data: data["managedExecution"]["device"]["properties"].update({"device": "physical"}),
+        )
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                path = self.mutated_receipt(mutation)
+                with self.assertRaisesRegex(ValueError, "binding mismatch"):
+                    validate(path)
+
+    def test_companion_username_path_and_secret_canaries_fail(self) -> None:
+        for canary in ("username=srinivas", "/Users/private/build", "password=secret-token"):
+            with self.subTest(canary=canary), tempfile.TemporaryDirectory(dir=ROOT / "tasks/test-evidence") as directory:
+                companion = Path(directory) / "test-result.textproto"
+                companion.write_text(canary)
+                relative = companion.relative_to(ROOT).as_posix()
+                path = self.mutated_receipt(lambda data: data["managedCompanionPrivacy"].update(
+                    path=relative, sha256=hashlib.sha256(canary.encode()).hexdigest()
+                ))
+                with self.assertRaisesRegex(ValueError, "privacy binding"):
+                    validate(path)
 
 
 if __name__ == "__main__":

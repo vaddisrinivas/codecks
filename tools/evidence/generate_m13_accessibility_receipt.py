@@ -83,8 +83,8 @@ TEST_SOURCE_PATHS = (
 
 BOUND_PATHS = SOURCE_PATHS + TEST_SOURCE_PATHS
 MANAGED_RESULT = "tasks/test-evidence/m13/runtime/TEST-CodecksDesignSystemInstrumentedTest.xml"
-TARGET_APK = "app/build/outputs/apk/playInternal/release/app-playInternal-release.apk"
-TEST_APK = "app/build/outputs/apk/androidTest/playInternal/release/app-playInternal-release-androidTest.apk"
+TARGET_APK = "tasks/test-evidence/m13/runtime/app-playInternal-release.apk"
+TEST_APK = "tasks/test-evidence/m13/runtime/app-playInternal-release-androidTest.apk"
 
 
 @dataclass(frozen=True)

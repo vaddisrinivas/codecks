@@ -1,0 +1,6 @@
+schema_version: 1
+artifact_kind: "SANITIZED_METADATA_ONLY"
+device: "pixel6Api35"
+suite: "io.codecks.ui.settings.M14FirstRunRepairInstrumentedTest"
+tests: 4
+failures: 0

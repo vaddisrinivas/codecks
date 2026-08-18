@@ -1,0 +1,6 @@
+schema_version: 1
+artifact_kind: "SANITIZED_METADATA_ONLY"
+device: "pixel6Api35"
+suite: "io.codecks.ui.clipboard.M15ClipboardPrivacyInstrumentedTest"
+tests: 2
+failures: 0

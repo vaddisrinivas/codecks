@@ -7,6 +7,7 @@ import platform
 import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from managed_execution_binding import collect_binding
 
 SOURCE_FILES = [
     "app/src/main/java/io/codecks/ui/settings/SettingsConnectionSections.kt",
@@ -18,6 +19,7 @@ SOURCE_FILES = [
     "tools/evidence/combine_m14_managed_attempts.py",
     "tools/evidence/validate_m14_first_run.py",
     "tools/evidence/test_m14_first_run.py",
+    "tools/evidence/managed_execution_binding.py",
 ]
 UNIT_CLASS = "io.codecks.ui.connection.FirstRunRepairBenchmarkTest"
 UNIT_METHODS = {
@@ -32,14 +34,13 @@ MANAGED_METHODS = {
     "changedIdentityRepairInvokesResetTrustCallback",
     "directResetTrustRequiresConfirmation",
 }
-FAILED_ATTEMPT_PATH = "tasks/test-evidence/m14/runtime/TEST-pixel6Api35-M14FirstRunRepairInstrumentedTest.failed-attempt.xml"
-RETRY_PATH = "tasks/test-evidence/m14/runtime/TEST-pixel6Api35-M14FirstRunRepairInstrumentedTest.retry.xml"
+MANAGED_RESULT_PATH = "tasks/test-evidence/m14/runtime/TEST-pixel6Api35-M14FirstRunRepairInstrumentedTest.xml"
+TARGET_APK = "tasks/test-evidence/m14/runtime/app-playInternal-release.apk"
+TEST_APK = "tasks/test-evidence/m14/runtime/app-playInternal-release-androidTest.apk"
 COMMANDS = [
     ":app:testOssReleaseUnitTest --tests io.codecks.ui.connection.FirstRunRepairBenchmarkTest",
     ":app:compilePlayInternalReleaseAndroidTestKotlin",
     ":app:pixel6Api35PlayInternalReleaseAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=io.codecks.ui.settings.M14FirstRunRepairInstrumentedTest",
-    ":app:pixel6Api35PlayInternalReleaseAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=io.codecks.ui.settings.M14FirstRunRepairInstrumentedTest#directResetTrustRequiresConfirmation",
-    "python3 tools/evidence/combine_m14_managed_attempts.py --failed <failed-attempt> --retry <filtered-retry> --output <combined-result>",
     "python3 tools/evidence/validate_m14_first_run.py tasks/test-evidence/autonomous-maturity-m14-first-run.json",
     "python3 -m unittest tools/evidence/test_m14_first_run.py",
 ]
@@ -102,13 +103,18 @@ def execution_environment() -> dict:
     }
 
 
+def sanitized_companion(suite: str, tests: int) -> bytes:
+    return (
+        "schema_version: 1\nartifact_kind: \"SANITIZED_METADATA_ONLY\"\n"
+        f"device: \"pixel6Api35\"\nsuite: \"{suite}\"\ntests: {tests}\nfailures: 0\n"
+    ).encode()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--raw", type=Path, required=True)
     parser.add_argument("--junit", type=Path, required=True)
     parser.add_argument("--compose-junit", type=Path, required=True)
-    parser.add_argument("--managed-failed-attempt", type=Path, required=True)
-    parser.add_argument("--managed-retry", type=Path, required=True)
     parser.add_argument("--target-apk", type=Path, required=True)
     parser.add_argument("--test-apk", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -128,6 +134,8 @@ def main() -> int:
         MANAGED_METHODS,
         {"device": "pixel6Api35", "flavor": "playInternal", "project": ":app"},
     )
+    textproto = args.compose_junit.resolve().parent / "test-result.textproto"
+    textproto.write_bytes(sanitized_companion(MANAGED_CLASS, len(MANAGED_METHODS)))
     apkanalyzer = Path(os.environ["ANDROID_HOME"]) / "cmdline-tools/latest/bin/apkanalyzer"
     target_id = apk_application_id(apkanalyzer, args.target_apk)
     test_id = apk_application_id(apkanalyzer, args.test_apk)
@@ -151,14 +159,8 @@ def main() -> int:
             "device": "pixel6Api35",
             "flavor": "playInternalRelease",
             "project": ":app",
-            "resultPath": "tasks/test-evidence/m14/runtime/TEST-pixel6Api35-M14FirstRunRepairInstrumentedTest.xml",
+            "resultPath": MANAGED_RESULT_PATH,
             "resultDigest": sha256_bytes(args.compose_junit.read_bytes()),
-            "attempts": [
-                {"kind": "FAILED_HARNESS_ATTEMPT", "path": FAILED_ATTEMPT_PATH,
-                 "digest": sha256_bytes(args.managed_failed_attempt.read_bytes())},
-                {"kind": "FILTERED_HARNESS_RETRY", "path": RETRY_PATH,
-                 "digest": sha256_bytes(args.managed_retry.read_bytes())},
-            ],
             "targetArtifact": {
                 "path": str(args.target_apk), "applicationId": target_id,
                 "digest": sha256_bytes(args.target_apk.read_bytes()),
@@ -167,6 +169,15 @@ def main() -> int:
                 "path": str(args.test_apk), "applicationId": test_id,
                 "digest": sha256_bytes(args.test_apk.read_bytes()),
             },
+        },
+        "managedExecution": collect_binding(
+            root, source_paths=tuple(SOURCE_FILES), class_name=MANAGED_CLASS,
+            methods=MANAGED_METHODS, result_path=MANAGED_RESULT_PATH,
+            target_apk=str(args.target_apk), test_apk=str(args.test_apk),
+        ),
+        "managedCompanionPrivacy": {
+            "kind": "SANITIZED_METADATA_ONLY", "sanitized": True,
+            "path": textproto.relative_to(root).as_posix(), "sha256": sha256_bytes(textproto.read_bytes()),
         },
         "commands": commands,
         "commandDigest": sha256_bytes(canonical(commands)),
