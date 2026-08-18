@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import time
@@ -342,6 +343,20 @@ def receipt_provision_binding(run_dir: Path, state: dict[str, object]) -> dict[s
             "systemImage":SYSTEM_IMAGE,"avds":entries}
 
 
+def identity_log_binding(run_dir: Path, avd: str, run_token: str, candidate: Path | None = None) -> dict[str, object]:
+    if avd not in AVDS or not re.fullmatch(r"[0-9a-f]{32}",run_token): raise SafetyStop("identity_log_arguments")
+    lexical_run=Path(os.path.abspath(run_dir)); expected=lexical_run/f"emulator-{avd}-{run_token}.log"
+    actual=Path(os.path.abspath(candidate or expected))
+    if actual!=expected or not actual.is_file() or actual.is_symlink(): raise SafetyStop("identity_log_path")
+    for existing in (actual.parent,*actual.parents):
+        if existing.exists() and existing.is_symlink(): raise SafetyStop("identity_log_symlink_parent")
+    canonical=actual.resolve()
+    if canonical!=actual or not canonical.is_relative_to(lexical_run.resolve()): raise SafetyStop("identity_log_containment")
+    metadata=actual.stat()
+    if metadata.st_uid!=os.getuid() or not stat.S_ISREG(metadata.st_mode): raise SafetyStop("identity_log_owner")
+    return {"identityLogPath":str(actual),"identityLogCanonical":str(canonical),"identityLogOwnerUid":metadata.st_uid}
+
+
 def qemu_host_binding(avd_home: Path, avd: str, run_token: str | None = None, expected_pid: int | None = None) -> dict[str, object]:
     config_path = managed_avd_config(avd_home, avd)
     output = subprocess.run(["ps", "ax", "-o", "pid=,rss=,command="], text=True, capture_output=True, check=True).stdout
@@ -355,14 +370,17 @@ def qemu_host_binding(avd_home: Path, avd: str, run_token: str | None = None, ex
         raise SafetyStop("qemu_host_process_mismatch")
     pid, rss_kib, command = matches[0]
     if expected_pid is not None and pid != expected_pid: raise SafetyStop("qemu_pid_binding")
-    if run_token is not None and f"qemu.codecks.m16_run_token={run_token}" not in command: raise SafetyStop("qemu_run_token_binding")
+    identity={}
+    if run_token is not None:
+        identity=identity_log_binding(avd_home.parent,avd,run_token)
+        if f"-logcat-output {identity['identityLogPath']}" not in command: raise SafetyStop("qemu_run_identity_binding")
     expected_port = EMULATOR_PORTS[AVDS.index(avd)]
     if f"-port {expected_port}" not in command: raise SafetyStop("qemu_port_binding")
     if "-wipe-data" in command: raise SafetyStop("qemu_wipe_forbidden")
     if "-no-window" not in command and "qemu-system" not in command and "/emulator" not in command:
         raise SafetyStop("qemu_cmdline_invalid")
     return {"pid": pid, "rssKiB": rss_kib, "cmdlineSha256": sha256_bytes(command.encode()),
-            "configPath": str(config_path), "configSha256": sha256_file(config_path)}
+            "configPath": str(config_path), "configSha256": sha256_file(config_path),**identity}
 
 
 def verify_device(avd: str, serial: str, target_sha256: str | None = None, test_sha256: str | None = None,
@@ -371,8 +389,6 @@ def verify_device(avd: str, serial: str, target_sha256: str | None = None, test_
         raise SafetyStop("unexpected_avd_id")
     if adb(serial, "shell", "getprop", "ro.kernel.qemu") != "1":
         raise SafetyStop("device_not_qemu")
-    if run_token is not None and adb(serial,"shell","getprop","qemu.codecks.m16_run_token") != run_token:
-        raise SafetyStop("device_run_token")
     if adb(serial, "emu", "avd", "name").splitlines()[0].strip() != avd:
         raise SafetyStop("avd_name_mismatch")
     sdk = adb(serial, "shell", "getprop", "ro.build.version.sdk")
@@ -1089,10 +1105,13 @@ def launch(args: argparse.Namespace) -> None:
         if not emulator.is_file(): raise SafetyStop("emulator_binary_missing")
         for avd,port in zip(AVDS,EMULATOR_PORTS):
             managed_avd_config(avd_home,avd)
-            log=run_dir/f"{avd}.emulator.log"
-            descriptor=os.open(log,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
+            identity_log=run_dir/f"emulator-{avd}-{token}.log"
+            identity_descriptor=os.open(identity_log,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600); os.close(identity_descriptor)
+            identity_log_binding(run_dir,avd,token,identity_log)
+            console_log=run_dir/f"emulator-{avd}-{token}.console.log"
+            descriptor=os.open(console_log,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
             process=subprocess.Popen([str(emulator),"-avd",avd,"-port",str(port),"-no-window","-no-snapshot",
-                "-no-boot-anim","-no-audio","-gpu","swiftshader_indirect","-no-metrics","-prop",f"qemu.codecks.m16_run_token={token}"],
+                "-no-boot-anim","-no-audio","-gpu","swiftshader_indirect","-no-metrics","-logcat-output",str(identity_log)],
                 stdout=descriptor,stderr=subprocess.STDOUT,start_new_session=True,
                 env={**os.environ,"ANDROID_ADB_SERVER_PORT":str(ADB_SERVER_PORT),"ANDROID_AVD_HOME":str(avd_home)})
             os.close(descriptor); pids[avd]=process.pid; devices[avd]=f"emulator-{port}"
@@ -1107,7 +1126,6 @@ def launch(args: argparse.Namespace) -> None:
             time.sleep(2)
         else: raise SafetyStop("isolated_four_boot_timeout")
         for avd,serial in devices.items():
-            if adb(serial,"shell","getprop","qemu.codecks.m16_run_token")!=token: raise SafetyStop("launched_token_missing")
             qemu_host_binding(avd_home,avd,token,pids[avd])
         state={"schema":"codecks.m16.launch-state.v1","status":"launched","isolatedAdb":server_binding,
                "runToken":token,"devices":devices,"emulatorPids":pids,"defaultAdbAudit":audit,"avdHome":str(avd_home),

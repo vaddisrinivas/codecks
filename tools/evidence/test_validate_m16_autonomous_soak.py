@@ -58,10 +58,14 @@ class ValidatorIntegrationTests(unittest.TestCase):
         provision={"schema":"codecks.m16.avd-provision.v1","avdHome":str(avd_home),
                    "systemImage":"system-images;android-35;default;arm64-v8a","avds":provision_entries}
         provision_path=self.run/"provision.json"; provision_path.write_text(json.dumps(provision,sort_keys=True,separators=(",", ":")))
+        identity_logs=[]
+        for item in provision_entries:
+            log=self.run/f"emulator-{item['name']}-{'1'*32}.log"; log.write_text("fixture\n"); identity_logs.append(log)
         devices=[{"avd":f"m16Soak0{i}Api35","serial":f"emulator-{5578+i*2}","api":35,"fingerprintSha256":fingerprint,"uid":10100,
           "dataDir":"/data/user/0/app.codecks.internal","targetApkSha256":binding["targetApkSha256"],"observedWallMillis":1,"observedUptimeMillis":1,
           "qemu":{"pid":100+i,"rssKiB":1024,"cmdlineSha256":"c"*64,"configPath":provision_entries[i-1]["configPath"],
-                  "configSha256":provision_entries[i-1]["configSha256"]}} for i in range(1,5)]
+                  "configSha256":provision_entries[i-1]["configSha256"],"identityLogPath":str(identity_logs[i-1]),
+                  "identityLogCanonical":str(identity_logs[i-1].resolve()),"identityLogOwnerUid":identity_logs[i-1].stat().st_uid}} for i in range(1,5)]
         self.receipt={"schema":validator.SCHEMA,"milestone":"M16","status":"PASS","evidence":"AUTONOMOUS_PROXY","package":"app.codecks.internal","sourceCommit":commit,
           "binding":binding,"devices":devices,"runtime":{"isolatedAdb":{"port":5039,"endpoint":"tcp:127.0.0.1:5039","serverPid":99,"cmdlineSha256":"9"*64},"runIdentity":"1"*32,
           "emulatorPids":{f"m16Soak0{i}Api35":100+i for i in range(1,5)},"defaultAdbAudit":{"status":"absent","sanitizedNonM16EmulatorCount":0,
@@ -141,6 +145,7 @@ class ValidatorIntegrationTests(unittest.TestCase):
         edits=(
             lambda x:x["devices"][0]["qemu"].pop("configPath"),
             lambda x:x["devices"][0]["qemu"].update(extra=True),
+            lambda x:x["devices"][0]["qemu"].update(identityLogPath=x["devices"][1]["qemu"]["identityLogPath"]),
             lambda x:x["runtime"].pop("avdProvision"),
             lambda x:x["runtime"]["avdProvision"].update(extra=True),
             lambda x:x["runtime"].update(defaultAdbAudit={"status":"present","sanitizedNonM16EmulatorCount":1,

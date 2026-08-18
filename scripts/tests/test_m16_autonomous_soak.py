@@ -62,6 +62,9 @@ class M16HostTests(unittest.TestCase):
             stop_server.assert_called_once(); release.assert_called_once()
             command=popen.call_args_list[0].args[0]; environment=popen.call_args_list[0].kwargs["env"]
             self.assertNotIn("-wipe-data",command)
+            self.assertNotIn("-prop",command)
+            self.assertIn("-logcat-output",command)
+            self.assertTrue(command[command.index("-logcat-output")+1].endswith("emulator-m16Soak01Api35-"+"1"*32+".log"))
             self.assertEqual(command[command.index("-port")+1],"5580")
             self.assertEqual(Path(environment["ANDROID_AVD_HOME"]).resolve(),Path(directory).resolve()/"avd-home")
 
@@ -143,6 +146,20 @@ class M16HostTests(unittest.TestCase):
                  mock.patch.object(m16,"listener_pids",return_value=set()),mock.patch.object(m16.subprocess,"run") as execute, \
                  self.assertRaisesRegex(m16.SafetyStop,"symlink"): m16.provision(args)
             execute.assert_not_called()
+
+    def test_identity_log_path_missing_substituted_wrong_token_outside_and_symlink_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run=Path(directory).resolve()/"run"; run.mkdir(); token="1"*32; avd=m16.AVDS[0]
+            expected=run/f"emulator-{avd}-{token}.log"
+            with self.assertRaises(m16.SafetyStop): m16.identity_log_binding(run,avd,token)
+            expected.write_text("safe")
+            self.assertEqual(m16.identity_log_binding(run,avd,token)["identityLogPath"],str(expected))
+            other=run/"other.log"; other.write_text("safe")
+            for candidate,bound_token in ((other,token),(expected,"2"*32),(Path(directory).resolve()/"outside.log",token)):
+                if not candidate.exists(): candidate.write_text("safe")
+                with self.assertRaises(m16.SafetyStop): m16.identity_log_binding(run,avd,bound_token,candidate)
+            expected.unlink(); expected.symlink_to(other)
+            with self.assertRaisesRegex(m16.SafetyStop,"identity_log"): m16.identity_log_binding(run,avd,token,expected)
 
     def test_singleton_is_exclusive_and_released_only_by_owner(self):
         with tempfile.TemporaryDirectory() as directory:

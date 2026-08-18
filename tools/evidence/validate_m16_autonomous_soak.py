@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -111,7 +112,7 @@ def validate(receipt_path: Path, repo: Path) -> None:
     if len({item.get("serial") for item in devices}) != 4 or any(item.get("api") != 35 or item.get("dataDir") != "/data/user/0/app.codecks.internal" or item.get("targetApkSha256") != binding["targetApkSha256"] for item in devices):
         raise ValueError("device_binding")
     if binding["isolation"]["fingerprintSha256"] not in {item["fingerprintSha256"] for item in devices}: raise ValueError("isolation_device")
-    device_keys={"avd","serial","api","fingerprintSha256","uid","dataDir","targetApkSha256","qemu","observedWallMillis","observedUptimeMillis"}; qemu_keys={"pid","rssKiB","cmdlineSha256","configPath","configSha256"}
+    device_keys={"avd","serial","api","fingerprintSha256","uid","dataDir","targetApkSha256","qemu","observedWallMillis","observedUptimeMillis"}; qemu_keys={"pid","rssKiB","cmdlineSha256","configPath","configSha256","identityLogPath","identityLogCanonical","identityLogOwnerUid"}
     if any(set(item)!=device_keys or set(item["qemu"])!=qemu_keys or not all(re.fullmatch(r"[0-9a-f]{64}",item["qemu"][key]) for key in ("cmdlineSha256","configSha256")) for item in devices):
         raise ValueError("device_closed")
     runtime=receipt["runtime"]
@@ -151,6 +152,10 @@ def validate(receipt_path: Path, repo: Path) -> None:
         config=Path(entry["configPath"])
         if config.resolve()!=config or not config.is_relative_to(canonical) or not config.is_file() or sha256(config)!=entry["configSha256"]: raise ValueError("provision_config")
         if by_avd[name]["serial"]!=f"emulator-{port}" or by_avd[name]["qemu"]["configPath"]!=str(config) or by_avd[name]["qemu"]["configSha256"]!=entry["configSha256"]: raise ValueError("provision_device_cross_binding")
+        identity=receipt_path.parent/f"emulator-{name}-{runtime['runIdentity']}.log"; qemu=by_avd[name]["qemu"]
+        if (qemu["identityLogPath"]!=str(identity) or qemu["identityLogCanonical"]!=str(identity.resolve())
+                or identity.is_symlink() or not identity.is_file() or identity.resolve()!=identity
+                or qemu["identityLogOwnerUid"]!=identity.stat().st_uid or identity.stat().st_uid!=os.getuid()): raise ValueError("provision_identity_log")
     dependencies = receipt["dependencies"]
     if [item.get("milestone") for item in dependencies] != list(MILESTONES): raise ValueError("dependency_order")
     for item in dependencies:
