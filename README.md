@@ -61,6 +61,8 @@ Use a non-admin Mac account and review every custom command before enabling it. 
 
 Download the signed APK and `SHA256SUMS.txt` from the [latest GitHub release](https://github.com/vaddisrinivas/codecks/releases/latest). Android may ask you to allow installation from your browser or file manager.
 
+Follow the [self-service install, checksum, safe-update, rollback, and support guide](docs/distribution/GITHUB_RELEASE_SUPPORT.md). Stop if Android requests an uninstall, downgrade, or differently signed replacement.
+
 Requirements:
 
 - Android 9 or newer.

@@ -5,7 +5,8 @@ Canonical plan: `tasks/AUTONOMOUS_MATURITY_PLAN.md`.
 Status: implementation and bounded evidence exist through M20, but proof lanes
 remain deliberately mixed. `STRUCTURE_VALID` proves receipt shape only; a
 historical milestone receipt does not become current-source proof after later
-changes. M21 and M23 are deferred. M24 remains `NO_GO` until an exact candidate,
+changes. M21 local GitHub/support packaging is complete; external update and
+publication lanes remain deferred. M23 remains deferred. M24 remains `NO_GO` until an exact candidate,
 signer continuity, and physical-phone gates exist.
 
 Current Batch 1 truth:
@@ -106,9 +107,10 @@ Current Batch 1 truth:
 - [x] M20 rehearse rollback, forward-fix, backup recovery, incident intake, and clean verification
 - [x] M20 verify signer-continuity logic with disposable local keys without exposing key material
 - [ ] M20 verify real release-key custody and protected-app update continuity (`NOT_RUN`; external authority/hardware required)
-- [ ] M21 finalize and test self-service GitHub-only distribution/support path
-- [ ] M21 prepare Play listing, Data Safety, policy, and staged-rollout drafts only
-- [ ] M21 keep commercial systems dark and Play publication unauthorized
+- [x] M21 finalize the GitHub-only download/checksum/signer/update/rollback/support guidance and verify exact public v0.1.37 metadata, bytes, signature, package, and version — [`GITHUB_RELEASE_SUPPORT.md`](../docs/distribution/GITHUB_RELEASE_SUPPORT.md), [`m21-public-release-live.json`](test-evidence/m21-public-release-live.json)
+- [ ] M21 execute clean install, in-place update, broken-network UI, and rollback-support journeys on a protected-package-safe physical target (`NOT_RUN`; public-artifact verification is not device proof)
+- [x] M21 prepare Play listing, Data Safety, account deletion, policy, and staged-rollout drafts only — [`PLAY_STORE_DRAFT.md`](../docs/distribution/PLAY_STORE_DRAFT.md)
+- [x] M21 bind current-source commercial-dark static proof and keep repository documents non-authorizing; external Play state remains `NOT_VERIFIED` — [`validate_m21_m23_local_readiness.py`](../tools/evidence/validate_m21_m23_local_readiness.py)
 - [x] M22 reconcile production plan from v0.1.36 to actual release/candidate state — [`PRODUCTION_LAUNCH_PLAN.md`](../docs/release/PRODUCTION_LAUNCH_PLAN.md)
 - [x] M22 reconcile commercial plan/checklist using evidence-linked completion — [`tasks/todo.md`](todo.md)
 - [x] M22 update release ledger, feature guide, README, limitations, and deferred scope — [`CODECKS_RELEASE_LEDGER.md`](../docs/release/CODECKS_RELEASE_LEDGER.md)
@@ -117,7 +119,7 @@ Current Batch 1 truth:
 - [ ] M23 run all unit/shared/lint/managed/artifact/split/no-shrink/security gates
 - [ ] M23 run cold-start, reachability, migration, soak, AI, support, and rollback gates
 - [ ] M23 bind exact source/artifacts/signers/checksums/evidence digest
-- [ ] M23 prepare notes/version without pushing, tagging, releasing, or installing
+- [x] M23 prepare local gate inventory and unassigned release-note draft without pushing, tagging, releasing, or installing — [`M23_LOCAL_PREFLIGHT.md`](../docs/release/M23_LOCAL_PREFLIGHT.md)
 
 ## Phase 5 — Verdict
 
