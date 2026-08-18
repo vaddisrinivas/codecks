@@ -13,6 +13,15 @@ SPEC.loader.exec_module(m16)
 
 
 class M16HostTests(unittest.TestCase):
+    def test_isolated_adb_namespace_and_default_audit_fail_closed(self):
+        self.assertEqual(m16.adb_command(m16.ADB_SERVER_PORT,"devices"),["adb","-P","5039","devices"])
+        self.assertEqual(m16.adb_command(m16.DEFAULT_ADB_SERVER_PORT,"devices"),["adb","-P","5037","devices"])
+        physical=mock.Mock(returncode=0,stdout="List of devices attached\nphone-1\tdevice\n")
+        with mock.patch.object(m16.subprocess,"run",return_value=physical),self.assertRaises(m16.SafetyStop): m16.audit_default_adb()
+        devices=mock.Mock(returncode=0,stdout="List of devices attached\nemulator-5554\tdevice\n")
+        qemu=mock.Mock(returncode=0,stdout="1\n")
+        with mock.patch.object(m16.subprocess,"run",side_effect=[devices,qemu]):
+            self.assertEqual(m16.audit_default_adb(),{"sanitizedNonM16EmulatorCount":1})
     def test_requires_exact_four_distinct_emulators(self):
         values = [f"m16Soak0{i}Api35=emulator-{5552 + i * 2}" for i in range(1, 5)]
         self.assertEqual(len(m16.parse_devices(values)), 4)

@@ -54,7 +54,9 @@ class ValidatorIntegrationTests(unittest.TestCase):
           "dataDir":"/data/user/0/app.codecks.internal","targetApkSha256":binding["targetApkSha256"],"observedWallMillis":1,"observedUptimeMillis":1,
           "qemu":{"pid":100+i,"rssKiB":1024,"cmdlineSha256":"c"*64,"configSha256":"f"*64}} for i in range(1,5)]
         self.receipt={"schema":validator.SCHEMA,"milestone":"M16","status":"PASS","evidence":"AUTONOMOUS_PROXY","package":"app.codecks.internal","sourceCommit":commit,
-          "binding":binding,"devices":devices,"profiles":profiles,"dependencies":deps,"failureArtifacts":[],
+          "binding":binding,"devices":devices,"runtime":{"isolatedAdb":{"port":5039,"endpoint":"tcp:127.0.0.1:5039","serverPid":99,"cmdlineSha256":"9"*64},"runIdentity":"1"*32,
+          "emulatorPids":{f"m16Soak0{i}Api35":100+i for i in range(1,5)},"defaultAdbAudit":{"sanitizedNonM16EmulatorCount":2}},
+          "profiles":profiles,"dependencies":deps,"failureArtifacts":[],
           "summary":{"admittedSessions":40,"eligibleSessions":40,"acknowledgedOperations":4840,"crashOrAnrSessions":0,"p0":0,"p1":0,"classifiedFailures":0},
           "wall":{"startedWallMillis":1000,"finishedWallMillis":7_201_000,"hostLedgerSha256":digest(host_ledger.read_bytes()),**proof},"limitations":["AUTONOMOUS_PROXY only"]}
 

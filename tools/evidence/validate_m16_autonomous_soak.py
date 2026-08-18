@@ -13,7 +13,7 @@ SCHEMA = "codecks.autonomous-maturity.m16-soak.v1"
 MILESTONES = tuple(f"M{i}" for i in range(10, 16))
 FORBIDDEN_KEYS = re.compile(r"(?i)(secret|token|password|clipboard(text|content)|private.?key|username|userpath)")
 FORBIDDEN_VALUES = re.compile(r"(?i)(/Users/|/home/|BEGIN [A-Z ]*PRIVATE KEY|bearer\s|password=|token=)")
-TOP = {"schema","milestone","status","evidence","package","sourceCommit","binding","devices","profiles","dependencies","summary","wall","failureArtifacts","limitations"}
+TOP = {"schema","milestone","status","evidence","package","sourceCommit","binding","devices","runtime","profiles","dependencies","summary","wall","failureArtifacts","limitations"}
 
 
 def schema_validate(value: object, schema: dict, location: str = "$") -> None:
@@ -114,6 +114,14 @@ def validate(receipt_path: Path, repo: Path) -> None:
     device_keys={"avd","serial","api","fingerprintSha256","uid","dataDir","targetApkSha256","qemu","observedWallMillis","observedUptimeMillis"}; qemu_keys={"pid","rssKiB","cmdlineSha256","configSha256"}
     if any(set(item)!=device_keys or set(item["qemu"])!=qemu_keys or not all(re.fullmatch(r"[0-9a-f]{64}",item["qemu"][key]) for key in ("cmdlineSha256","configSha256")) for item in devices):
         raise ValueError("device_closed")
+    runtime=receipt["runtime"]
+    isolated=runtime["isolatedAdb"]
+    if (set(isolated)!={"port","endpoint","serverPid","cmdlineSha256"} or isolated["port"]!=5039 or isolated["endpoint"]!="tcp:127.0.0.1:5039"
+            or not isinstance(isolated["serverPid"],int) or isolated["serverPid"]<=0 or not re.fullmatch(r"[0-9a-f]{64}",isolated["cmdlineSha256"])
+            or not re.fullmatch(r"[0-9a-f]{32}",runtime["runIdentity"])
+            or set(runtime["emulatorPids"])!={f"m16Soak0{i}Api35" for i in range(1,5)}
+            or set(runtime["emulatorPids"].values())!={item["qemu"]["pid"] for item in devices}
+            or set(runtime["defaultAdbAudit"])!={"sanitizedNonM16EmulatorCount"}): raise ValueError("runtime_binding")
     dependencies = receipt["dependencies"]
     if [item.get("milestone") for item in dependencies] != list(MILESTONES): raise ValueError("dependency_order")
     for item in dependencies:
