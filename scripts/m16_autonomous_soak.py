@@ -268,12 +268,23 @@ def adb_server_binding() -> dict[str, object]:
 
 
 def avd_home_for(run_dir: Path) -> Path:
-    return run_dir.resolve() / "avd-home"
+    lexical = Path(os.path.abspath(run_dir)) / "avd-home"
+    for existing in (lexical, *lexical.parents):
+        if existing.exists() and existing.is_symlink():
+            raise SafetyStop("managed_avd_symlink_parent")
+    canonical_parent = lexical.parent.resolve()
+    if canonical_parent != lexical.parent or lexical.exists() and lexical.resolve() != lexical:
+        raise SafetyStop("managed_avd_symlink_escape")
+    return lexical
 
 
 def managed_avd_config(avd_home: Path, avd: str) -> Path:
-    root = avd_home.resolve()
-    if avd not in AVDS or root.name != "avd-home" or root.is_symlink():
+    lexical_root = Path(os.path.abspath(avd_home))
+    for existing in (lexical_root, *lexical_root.parents):
+        if existing.exists() and existing.is_symlink():
+            raise SafetyStop("managed_avd_symlink_parent")
+    root = lexical_root.resolve()
+    if avd not in AVDS or root.name != "avd-home" or root != lexical_root:
         raise SafetyStop("managed_avd_home_mismatch")
     ini = root / f"{avd}.ini"
     config_path = root / f"{avd}.avd" / "config.ini"
@@ -313,6 +324,22 @@ def provision_binding(run_dir: Path) -> dict[str, object]:
     if len(directories) != 4:
         raise SafetyStop("m16_provision_shared_store")
     return binding
+
+
+def receipt_provision_binding(run_dir: Path, state: dict[str, object]) -> dict[str, object]:
+    provision = provision_binding(run_dir)
+    manifest = run_dir / "provision.json"
+    avd_home_lexical = Path(str(provision["avdHome"]))
+    avd_home_canonical = avd_home_lexical.resolve()
+    token = str(state.get("runToken", ""))
+    if not re.fullmatch(r"[0-9a-f]{32}", token):
+        raise SafetyStop("receipt_provision_token")
+    entries=[]
+    for item in provision["avds"]:
+        entries.append({**item,"runIdentity":token})
+    return {"avdHomeLexical":str(avd_home_lexical),"avdHomeCanonical":str(avd_home_canonical),
+            "manifestPath":"provision.json","manifestSha256":sha256_file(manifest),
+            "systemImage":SYSTEM_IMAGE,"avds":entries}
 
 
 def qemu_host_binding(avd_home: Path, avd: str, run_token: str | None = None, expected_pid: int | None = None) -> dict[str, object]:
@@ -787,7 +814,8 @@ def write_receipt(run_dir: Path, state: dict[str, object], profiles: list[dict[s
         "evidence": "AUTONOMOUS_PROXY", "package": PACKAGE, "sourceCommit": binding["sourceCommit"],
         "binding": binding, "devices": state["deviceBindings"], "profiles": profiles,
         "runtime": {"isolatedAdb": state["isolatedAdb"], "runIdentity": state["runToken"],
-                    "emulatorPids": state["emulatorPids"], "defaultAdbAudit": state["defaultAdbAudit"]},
+                    "emulatorPids": state["emulatorPids"], "defaultAdbAudit": state["defaultAdbAudit"],
+                    "avdProvision":receipt_provision_binding(run_dir,state)},
         "dependencies": dependencies, "summary": summary, "failureArtifacts": failure_artifacts,
         "wall": {"startedWallMillis": state["startedWallMillis"], "finishedWallMillis": finished_wall,
                  "hostLedgerSha256": sha256_file(run_dir / "host-ledger.jsonl"), **host_proof},
@@ -1255,7 +1283,12 @@ def status(args: argparse.Namespace) -> None:
 
 def provision(args: argparse.Namespace) -> None:
     """Create four persistent, run-owned AVD stores without launching them."""
-    run_dir=Path(args.run_dir).resolve(); run_dir.mkdir(parents=True,exist_ok=True)
+    lexical_run_dir=Path(os.path.abspath(args.run_dir))
+    for existing in (lexical_run_dir,*lexical_run_dir.parents):
+        if existing.exists() and existing.is_symlink(): raise SafetyStop("m16_run_dir_symlink_parent")
+    lexical_run_dir.mkdir(parents=True,exist_ok=True)
+    if lexical_run_dir.resolve()!=lexical_run_dir: raise SafetyStop("m16_run_dir_symlink_escape")
+    run_dir=lexical_run_dir
     require_capacity("pre", run_dir)
     audit_default_adb()
     if listener_pids(ADB_SERVER_PORT): raise SafetyStop("isolated_adb_port_in_use")

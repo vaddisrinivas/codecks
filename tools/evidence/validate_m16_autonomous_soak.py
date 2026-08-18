@@ -111,7 +111,7 @@ def validate(receipt_path: Path, repo: Path) -> None:
     if len({item.get("serial") for item in devices}) != 4 or any(item.get("api") != 35 or item.get("dataDir") != "/data/user/0/app.codecks.internal" or item.get("targetApkSha256") != binding["targetApkSha256"] for item in devices):
         raise ValueError("device_binding")
     if binding["isolation"]["fingerprintSha256"] not in {item["fingerprintSha256"] for item in devices}: raise ValueError("isolation_device")
-    device_keys={"avd","serial","api","fingerprintSha256","uid","dataDir","targetApkSha256","qemu","observedWallMillis","observedUptimeMillis"}; qemu_keys={"pid","rssKiB","cmdlineSha256","configSha256"}
+    device_keys={"avd","serial","api","fingerprintSha256","uid","dataDir","targetApkSha256","qemu","observedWallMillis","observedUptimeMillis"}; qemu_keys={"pid","rssKiB","cmdlineSha256","configPath","configSha256"}
     if any(set(item)!=device_keys or set(item["qemu"])!=qemu_keys or not all(re.fullmatch(r"[0-9a-f]{64}",item["qemu"][key]) for key in ("cmdlineSha256","configSha256")) for item in devices):
         raise ValueError("device_closed")
     runtime=receipt["runtime"]
@@ -121,6 +121,7 @@ def validate(receipt_path: Path, repo: Path) -> None:
             or not re.fullmatch(r"[0-9a-f]{32}",runtime["runIdentity"])
             or set(runtime["emulatorPids"])!={f"m16Soak0{i}Api35" for i in range(1,5)}
             or set(runtime["emulatorPids"].values())!={item["qemu"]["pid"] for item in devices}
+            or set(runtime)!={"isolatedAdb","runIdentity","emulatorPids","defaultAdbAudit","avdProvision"}
             or set(runtime["defaultAdbAudit"])!={"status","sanitizedNonM16EmulatorCount","authorizedAvds","serverPid","serverCmdlineSha256"}): raise ValueError("runtime_binding")
     audit=runtime["defaultAdbAudit"]
     if audit["status"]=="absent":
@@ -128,8 +129,28 @@ def validate(receipt_path: Path, repo: Path) -> None:
     elif audit["status"]=="present":
         if (audit["sanitizedNonM16EmulatorCount"]!=len(audit["authorizedAvds"]) or audit["serverPid"]<=0
                 or not re.fullmatch(r"[0-9a-f]{64}",audit["serverCmdlineSha256"])
-                or {item.get("avd") for item in audit["authorizedAvds"]}-{"Utopia_GL_1","Utopia_GL_2"}): raise ValueError("default_audit_present")
+                or any(set(item)!={"avd","serial","hostPid","cmdlineSha256"} for item in audit["authorizedAvds"])
+                or {(item.get("avd"),item.get("serial")) for item in audit["authorizedAvds"]}
+                   - {("Utopia_GL_1","emulator-5554"),("Utopia_GL_2","emulator-5556")}): raise ValueError("default_audit_present")
     else: raise ValueError("default_audit_status")
+    provision=runtime["avdProvision"]
+    if set(provision)!={"avdHomeLexical","avdHomeCanonical","manifestPath","manifestSha256","systemImage","avds"}: raise ValueError("provision_closed")
+    lexical=Path(provision["avdHomeLexical"]); canonical=Path(provision["avdHomeCanonical"])
+    if lexical.resolve()!=canonical or lexical!=canonical or lexical.name!="avd-home": raise ValueError("provision_avd_home")
+    manifest=relative_file(receipt_path.parent,provision["manifestPath"])
+    if sha256(manifest)!=provision["manifestSha256"] or provision["systemImage"]!="system-images;android-35;default;arm64-v8a": raise ValueError("provision_manifest")
+    manifest_value=json.loads(manifest.read_text())
+    if set(manifest_value)!={"schema","avdHome","systemImage","avds"} or manifest_value["schema"]!="codecks.m16.avd-provision.v1" or manifest_value["avdHome"]!=str(lexical): raise ValueError("provision_manifest_shape")
+    entries=provision["avds"]
+    if len(entries)!=4 or len(manifest_value["avds"])!=4: raise ValueError("provision_count")
+    by_avd={item["avd"]:item for item in devices}
+    for index,(entry,raw) in enumerate(zip(entries,manifest_value["avds"]),1):
+        name=f"m16Soak0{index}Api35"; port=5578+index*2
+        if set(entry)!={"name","port","configPath","configSha256","runIdentity"} or entry["name"]!=name or entry["port"]!=port or entry["runIdentity"]!=runtime["runIdentity"]: raise ValueError("provision_entry")
+        if raw!={key:entry[key] for key in ("name","port","configPath","configSha256")}: raise ValueError("provision_manifest_entry")
+        config=Path(entry["configPath"])
+        if config.resolve()!=config or not config.is_relative_to(canonical) or not config.is_file() or sha256(config)!=entry["configSha256"]: raise ValueError("provision_config")
+        if by_avd[name]["serial"]!=f"emulator-{port}" or by_avd[name]["qemu"]["configPath"]!=str(config) or by_avd[name]["qemu"]["configSha256"]!=entry["configSha256"]: raise ValueError("provision_device_cross_binding")
     dependencies = receipt["dependencies"]
     if [item.get("milestone") for item in dependencies] != list(MILESTONES): raise ValueError("dependency_order")
     for item in dependencies:

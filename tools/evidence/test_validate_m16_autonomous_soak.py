@@ -18,7 +18,7 @@ def digest(data: bytes)->str: return hashlib.sha256(data).hexdigest()
 
 class ValidatorIntegrationTests(unittest.TestCase):
     def setUp(self):
-        self.temp=tempfile.TemporaryDirectory(); self.repo=Path(self.temp.name); self.run=self.repo/"run"; self.run.mkdir()
+        self.temp=tempfile.TemporaryDirectory(); self.repo=Path(self.temp.name).resolve(); self.run=self.repo/"run"; self.run.mkdir()
         (self.repo/"scripts").mkdir(); shutil.copy2(SOURCE_REPO/"scripts/m16_autonomous_soak.py",self.repo/"scripts/m16_autonomous_soak.py")
         targets=list((SOURCE_REPO/"app/build/outputs/apk/playInternal/release").glob("*.apk"))
         tests=list((SOURCE_REPO/"app/build/outputs/apk/androidTest/playInternal/release").glob("*.apk"))
@@ -50,13 +50,24 @@ class ValidatorIntegrationTests(unittest.TestCase):
             for slot in range(1,6): profiles.append(self.make_profile(avd,slot))
         host_ledger=self.make_host_ledger()
         proof=self.host.verify_host_ledger(host_ledger.read_bytes(),1000,7_201_000)
-        devices=[{"avd":f"m16Soak0{i}Api35","serial":f"emulator-{5552+i*2}","api":35,"fingerprintSha256":fingerprint,"uid":10100,
+        avd_home=self.run/"avd-home"; avd_home.mkdir(); provision_entries=[]
+        for i in range(1,5):
+            name=f"m16Soak0{i}Api35"; root=avd_home/f"{name}.avd"; root.mkdir()
+            config=root/"config.ini"; config.write_text("image.sysdir.1=system-images/android-35/default/arm64-v8a/\n")
+            provision_entries.append({"name":name,"port":5578+i*2,"configPath":str(config),"configSha256":digest(config.read_bytes())})
+        provision={"schema":"codecks.m16.avd-provision.v1","avdHome":str(avd_home),
+                   "systemImage":"system-images;android-35;default;arm64-v8a","avds":provision_entries}
+        provision_path=self.run/"provision.json"; provision_path.write_text(json.dumps(provision,sort_keys=True,separators=(",", ":")))
+        devices=[{"avd":f"m16Soak0{i}Api35","serial":f"emulator-{5578+i*2}","api":35,"fingerprintSha256":fingerprint,"uid":10100,
           "dataDir":"/data/user/0/app.codecks.internal","targetApkSha256":binding["targetApkSha256"],"observedWallMillis":1,"observedUptimeMillis":1,
-          "qemu":{"pid":100+i,"rssKiB":1024,"cmdlineSha256":"c"*64,"configSha256":"f"*64}} for i in range(1,5)]
+          "qemu":{"pid":100+i,"rssKiB":1024,"cmdlineSha256":"c"*64,"configPath":provision_entries[i-1]["configPath"],
+                  "configSha256":provision_entries[i-1]["configSha256"]}} for i in range(1,5)]
         self.receipt={"schema":validator.SCHEMA,"milestone":"M16","status":"PASS","evidence":"AUTONOMOUS_PROXY","package":"app.codecks.internal","sourceCommit":commit,
           "binding":binding,"devices":devices,"runtime":{"isolatedAdb":{"port":5039,"endpoint":"tcp:127.0.0.1:5039","serverPid":99,"cmdlineSha256":"9"*64},"runIdentity":"1"*32,
           "emulatorPids":{f"m16Soak0{i}Api35":100+i for i in range(1,5)},"defaultAdbAudit":{"status":"absent","sanitizedNonM16EmulatorCount":0,
-          "authorizedAvds":[],"serverPid":0,"serverCmdlineSha256":"0"*64}},
+          "authorizedAvds":[],"serverPid":0,"serverCmdlineSha256":"0"*64},"avdProvision":{"avdHomeLexical":str(avd_home),
+          "avdHomeCanonical":str(avd_home.resolve()),"manifestPath":"provision.json","manifestSha256":digest(provision_path.read_bytes()),
+          "systemImage":"system-images;android-35;default;arm64-v8a","avds":[{**item,"runIdentity":"1"*32} for item in provision_entries]}},
           "profiles":profiles,"dependencies":deps,"failureArtifacts":[],
           "summary":{"admittedSessions":40,"eligibleSessions":40,"acknowledgedOperations":4840,"crashOrAnrSessions":0,"p0":0,"p1":0,"classifiedFailures":0},
           "wall":{"startedWallMillis":1000,"finishedWallMillis":7_201_000,"hostLedgerSha256":digest(host_ledger.read_bytes()),**proof},"limitations":["AUTONOMOUS_PROXY only"]}
@@ -124,6 +135,19 @@ class ValidatorIntegrationTests(unittest.TestCase):
             lambda x:x["summary"].update(classifiedFailures=1), lambda x:x.update(extra=1)):
             value=copy.deepcopy(self.receipt); edit(value); mutations.append(value)
         for value in mutations:
+            with self.assertRaises((ValueError,self.host.SafetyStop)): self.validate(value)
+
+    def test_new_provision_and_audit_shapes_are_closed(self):
+        edits=(
+            lambda x:x["devices"][0]["qemu"].pop("configPath"),
+            lambda x:x["devices"][0]["qemu"].update(extra=True),
+            lambda x:x["runtime"].pop("avdProvision"),
+            lambda x:x["runtime"]["avdProvision"].update(extra=True),
+            lambda x:x["runtime"].update(defaultAdbAudit={"status":"present","sanitizedNonM16EmulatorCount":1,
+                "authorizedAvds":[{"avd":"Utopia_GL_1","hostPid":1,"cmdlineSha256":"a"*64}],"serverPid":1,"serverCmdlineSha256":"b"*64}),
+        )
+        for edit in edits:
+            value=copy.deepcopy(self.receipt); edit(value)
             with self.assertRaises((ValueError,self.host.SafetyStop)): self.validate(value)
 
     def test_repaired_recovery_cross_binding_and_mutations(self):

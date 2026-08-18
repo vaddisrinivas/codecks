@@ -108,7 +108,7 @@ class M16HostTests(unittest.TestCase):
 
     def test_provision_creates_four_distinct_persistent_run_owned_avds(self):
         with tempfile.TemporaryDirectory() as directory:
-            run_dir=Path(directory)/"run"; sdk=Path(directory)/"sdk"
+            run_dir=Path(directory).resolve()/"run"; sdk=Path(directory).resolve()/"sdk"
             (sdk/"cmdline-tools/latest/bin").mkdir(parents=True); (sdk/"cmdline-tools/latest/bin/avdmanager").touch()
             (sdk/"system-images/android-35/default/arm64-v8a").mkdir(parents=True)
             calls=[]
@@ -133,6 +133,16 @@ class M16HostTests(unittest.TestCase):
             rerun.assert_not_called()
             first=Path(binding["avds"][0]["configPath"]); first.write_text(first.read_text()+"tampered=yes\n")
             with self.assertRaisesRegex(m16.SafetyStop,"config_binding"): m16.provision_binding(run_dir)
+
+    def test_provision_rejects_avd_home_symlink_redirect_before_avdmanager(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory).resolve(); run=root/"run"; redirect=root/"redirect"; run.mkdir(); redirect.mkdir()
+            (run/"avd-home").symlink_to(redirect,target_is_directory=True)
+            args=mock.Mock(run_dir=str(run))
+            with mock.patch.object(m16,"require_capacity"),mock.patch.object(m16,"audit_default_adb",return_value={}), \
+                 mock.patch.object(m16,"listener_pids",return_value=set()),mock.patch.object(m16.subprocess,"run") as execute, \
+                 self.assertRaisesRegex(m16.SafetyStop,"symlink"): m16.provision(args)
+            execute.assert_not_called()
 
     def test_singleton_is_exclusive_and_released_only_by_owner(self):
         with tempfile.TemporaryDirectory() as directory:
