@@ -6,7 +6,7 @@
   "artifacts": [
     {
       "path": "tasks/test-evidence/m11/runtime/TEST-pixel6Api35-playInternalRelease.xml",
-      "sha256": "fbbbfa722d7dc8d6d8d53f6eeffd53cbc7f3a03d654fa5b492be55cfce8cedeb",
+      "sha256": "9d3e5965a7db1572d7db67d6f3f8e71e60dc25d89062142f0db858b0ae45e353",
       "timestamp": "2026-08-18T00:13:30",
       "passedMethods": [
         "freeformWindow1280x720",
@@ -75,7 +75,7 @@
     "Real mouse DOWN/UP and keyboard events are emulator-injected through production input surfaces in an internal-only host."
   ],
   "managedExecution": {
-    "sourceCommit": "f11c18eb2679c776960f94329470c70c777d7370",
+    "sourceCommit": "e945caf86b7bd30e35c836463364cbf8f102a0ff",
     "sources": [
       {
         "path": "app/src/androidTestPlayInternal/java/io/codecks/internalquality/M11DexProxyInstrumentedTest.kt",
@@ -114,7 +114,7 @@
     "sourceDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "result": {
       "path": "tasks/test-evidence/m11/runtime/TEST-pixel6Api35-playInternalRelease.xml",
-      "sha256": "fbbbfa722d7dc8d6d8d53f6eeffd53cbc7f3a03d654fa5b492be55cfce8cedeb",
+      "sha256": "9d3e5965a7db1572d7db67d6f3f8e71e60dc25d89062142f0db858b0ae45e353",
       "className": "io.codecks.internalquality.M11DexProxyInstrumentedTest",
       "methods": [
         "freeformWindow1280x720",

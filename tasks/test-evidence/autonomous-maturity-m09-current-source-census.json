@@ -1,6 +1,6 @@
 {
   "schema": "codecks.autonomous-maturity.m09-current-source-census.v1",
-  "sourceCommit": "f11c18eb2679c776960f94329470c70c777d7370",
+  "sourceCommit": "e945caf86b7bd30e35c836463364cbf8f102a0ff",
   "baseline": {
     "commit": "d1f1788f03fe59bb0dceb5822e9f5b19194090fd",
     "inventorySha256": "fa4afa40ec297bdc29be2e823118f1349ea7242c0136d1217581ca3494a8f312",
@@ -5962,5 +5962,5 @@
       "sha256": "47c8b36b8cbb9b1ba2cb3aff618e714db52314bfa722accebfc4f89f859dbce7"
     }
   ],
-  "receiptDigest": "44fa56e68b5f8c864473cc79076c84180e3ea3c2b74085847a3d136c39262ca1"
+  "receiptDigest": "b9ffb2cbeab65d48594c4ffab50333fd2fd829b31edfb3f48bff5755dbbe691b"
 }
