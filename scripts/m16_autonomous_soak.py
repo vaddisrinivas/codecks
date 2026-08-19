@@ -183,8 +183,79 @@ def burnin_not_required() -> dict[str, object]:
         "statePath": "", "stateSha256": "0" * 64, "finishedWallMillis": 0,
         "validatedWallMillis": 0, "maxBurninAgeHours": 24,
         "bindingSha256": "0" * 64, "topologySha256": "0" * 64,
+        "burninRunDirLexical": "", "burninRunDirCanonical": "",
+        "soakRunDirLexical": "", "soakRunDirCanonical": "",
+        "pathIdentitySha256": "0" * 64,
         "externalValidator": "NOT_REQUIRED",
     }
+
+
+def safe_absolute_directory(value: str, code: str, must_exist: bool) -> Path:
+    candidate = Path(value)
+    if not candidate.is_absolute():
+        raise SafetyStop(f"{code}_not_absolute")
+    lexical = Path(os.path.abspath(candidate))
+    for existing in (lexical, *lexical.parents):
+        if existing.exists() and existing.is_symlink():
+            raise SafetyStop(f"{code}_symlink")
+    if must_exist and (not lexical.is_dir() or lexical.resolve() != lexical):
+        raise SafetyStop(f"{code}_missing_or_noncanonical")
+    if not must_exist and lexical.exists() and (not lexical.is_dir() or lexical.resolve() != lexical):
+        raise SafetyStop(f"{code}_noncanonical")
+    return lexical
+
+
+def resolve_phase_directories(run_dir_value: str, burnin_run_dir_value: str | None,
+                              mode: str, require_run: bool) -> tuple[Path, Path | None]:
+    run_dir = safe_absolute_directory(run_dir_value, "run_dir", require_run)
+    if mode == "burnin2h":
+        if burnin_run_dir_value:
+            raise SafetyStop("burnin_mode_rejects_burnin_run_dir")
+        return run_dir, None
+    if mode != "soak168h" or not burnin_run_dir_value:
+        raise SafetyStop("soak_requires_burnin_run_dir")
+    burnin_dir = safe_absolute_directory(burnin_run_dir_value, "burnin_run_dir", True)
+    if (run_dir == burnin_dir or run_dir.is_relative_to(burnin_dir)
+            or burnin_dir.is_relative_to(run_dir)):
+        raise SafetyStop("phase_directory_relationship")
+    return run_dir, burnin_dir
+
+
+def phase_path_identity(run_dir: Path, burnin_dir: Path) -> dict[str, str]:
+    value = {
+        "burninRunDirLexical": str(burnin_dir), "burninRunDirCanonical": str(burnin_dir.resolve()),
+        "soakRunDirLexical": str(run_dir), "soakRunDirCanonical": str(run_dir.resolve()),
+    }
+    return {**value, "pathIdentitySha256": canonical_sha256(value)}
+
+
+def phase_manifest_value(run_dir: Path, burnin_dir: Path) -> dict[str, object]:
+    return {"schema": "codecks.m16.phase-directory.v1", "mode": "soak168h",
+            **phase_path_identity(run_dir, burnin_dir)}
+
+
+def require_phase_manifest(run_dir: Path, burnin_dir: Path) -> None:
+    path = run_dir / "phase.json"
+    if path.is_symlink() or not path.is_file() or path.resolve().parent != run_dir:
+        raise SafetyStop("soak_phase_manifest_missing")
+    try:
+        value = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise SafetyStop("soak_phase_manifest_invalid") from error
+    if value != phase_manifest_value(run_dir, burnin_dir):
+        raise SafetyStop("soak_phase_manifest_mismatch")
+
+
+def require_fresh_soak_evidence(run_dir: Path) -> None:
+    forbidden = ("host-ledger.jsonl", "host-ledger.head", "receipt.json", BURNIN_RECEIPT_NAME,
+                 BURNIN_STATE_NAME, "profiles", "failures", "restart-probes")
+    if any((run_dir / name).exists() for name in forbidden):
+        raise SafetyStop("soak_evidence_directory_not_fresh")
+
+
+def require_prelaunch_soak_directory(run_dir: Path) -> None:
+    if {item.name for item in run_dir.iterdir()} != {"phase.json", "provision.json", "avd-home"}:
+        raise SafetyStop("soak_run_directory_not_new")
 
 
 def apk_signer(path: Path) -> str:
@@ -823,6 +894,30 @@ def expected_profile_catalog() -> list[dict[str, object]]:
             for avd in range(1, 5) for slot in range(1, 6)]
 
 
+def phase_neutral_avd_configs(provision: dict[str, object]) -> list[dict[str, object]]:
+    entries = provision.get("avds")
+    lexical_value = provision.get("avdHomeLexical")
+    canonical_value = provision.get("avdHomeCanonical")
+    if not isinstance(entries, list) or not isinstance(lexical_value, str) or not isinstance(canonical_value, str):
+        raise SafetyStop("topology_provision_shape")
+    lexical = Path(lexical_value); canonical = Path(canonical_value)
+    if (not lexical.is_absolute() or lexical.is_symlink() or lexical.resolve() != canonical
+            or lexical != canonical or canonical.name != "avd-home"):
+        raise SafetyStop("topology_avd_home_binding")
+    normalized=[]
+    for item in entries:
+        if not isinstance(item,dict): raise SafetyStop("topology_config_shape")
+        name=item.get("name"); path=Path(str(item.get("configPath","")))
+        expected=Path(f"{name}.avd")/"config.ini"
+        if (name not in AVDS or not path.is_absolute() or path.is_symlink() or not path.is_file()
+                or path.resolve()!=path or not path.is_relative_to(canonical)
+                or path.relative_to(canonical)!=expected or sha256_file(path)!=item.get("configSha256")):
+            raise SafetyStop("topology_config_binding")
+        normalized.append({"name":name,"port":item.get("port"),"configRelativePath":expected.as_posix(),
+                           "configSha256":item.get("configSha256")})
+    return normalized
+
+
 def burnin_topology(receipt: dict[str, object]) -> dict[str, object]:
     runtime = receipt.get("runtime")
     devices = receipt.get("devices")
@@ -834,8 +929,7 @@ def burnin_topology(receipt: dict[str, object]) -> dict[str, object]:
     return {
         "devices": [{key: item.get(key) for key in ("avd", "serial", "api", "fingerprintSha256", "uid", "dataDir")}
                     for item in devices if isinstance(item, dict)],
-        "avdConfigs": [{key: item.get(key) for key in ("name", "port", "configPath", "configSha256")}
-                       for item in provision["avds"] if isinstance(item, dict)],
+        "avdConfigs": phase_neutral_avd_configs(provision),
         "profiles": profile_catalog_from_receipt(receipt),
     }
 
@@ -847,8 +941,7 @@ def current_topology(device_bindings: list[dict[str, object]], provision: dict[s
     return {
         "devices": [{key: item.get(key) for key in ("avd", "serial", "api", "fingerprintSha256", "uid", "dataDir")}
                     for item in device_bindings],
-        "avdConfigs": [{key: item.get(key) for key in ("name", "port", "configPath", "configSha256")}
-                       for item in entries if isinstance(item, dict)],
+        "avdConfigs": phase_neutral_avd_configs(provision),
         "profiles": expected_profile_catalog(),
     }
 
@@ -883,13 +976,17 @@ def verify_burnin_state_snapshot(state: dict[str, object], receipt: dict[str, ob
         raise SafetyStop("burnin_state_mismatch")
 
 
-def verify_burnin_admission(run_dir: Path, binding: dict[str, object],
+def verify_burnin_admission(burnin_run_dir: Path, soak_run_dir: Path, binding: dict[str, object],
                             device_bindings: list[dict[str, object]],
                             provision: dict[str, object], now_millis: int | None = None) -> dict[str, object]:
-    receipt_path = run_dir / BURNIN_RECEIPT_NAME
-    state_path = run_dir / BURNIN_STATE_NAME
+    if (burnin_run_dir == soak_run_dir or burnin_run_dir.is_relative_to(soak_run_dir)
+            or soak_run_dir.is_relative_to(burnin_run_dir)):
+        raise SafetyStop("phase_directory_relationship")
+    path_identity = phase_path_identity(soak_run_dir, burnin_run_dir)
+    receipt_path = burnin_run_dir / BURNIN_RECEIPT_NAME
+    state_path = burnin_run_dir / BURNIN_STATE_NAME
     if (receipt_path.is_symlink() or state_path.is_symlink() or not receipt_path.is_file() or not state_path.is_file()
-            or receipt_path.resolve().parent != run_dir.resolve() or state_path.resolve().parent != run_dir.resolve()):
+            or receipt_path.resolve().parent != burnin_run_dir or state_path.resolve().parent != burnin_run_dir):
         raise SafetyStop("burnin_artifacts_missing_or_unsafe")
     try:
         receipt = json.loads(receipt_path.read_text())
@@ -927,6 +1024,7 @@ def verify_burnin_admission(run_dir: Path, binding: dict[str, object],
         "finishedWallMillis": finished, "validatedWallMillis": now,
         "maxBurninAgeHours": 24, "bindingSha256": canonical_sha256(binding),
         "topologySha256": topology_sha, "externalValidator": validator_pass,
+        **path_identity,
     }
 
 
@@ -1230,7 +1328,11 @@ def stop_owned_adb_server(binding: dict[str, object]) -> None:
 
 
 def launch(args: argparse.Namespace) -> None:
-    run_dir=Path(args.run_dir).resolve(); run_dir.mkdir(parents=True,exist_ok=True)
+    run_dir,burnin_dir=resolve_phase_directories(args.run_dir,args.burnin_run_dir,args.mode,True)
+    if burnin_dir is not None:
+        require_phase_manifest(run_dir,burnin_dir)
+        require_prelaunch_soak_directory(run_dir)
+        require_fresh_soak_evidence(run_dir)
     require_capacity("pre",run_dir); audit=audit_default_adb()
     provision=provision_binding(run_dir); avd_home=Path(str(provision["avdHome"]))
     if listener_pids(ADB_SERVER_PORT): raise SafetyStop("isolated_adb_port_in_use")
@@ -1294,8 +1396,11 @@ def launch(args: argparse.Namespace) -> None:
 
 
 def start(args: argparse.Namespace, resume: bool = False) -> None:
-    run_dir = Path(args.run_dir).resolve()
-    run_dir.mkdir(parents=True, exist_ok=True)
+    run_dir,burnin_dir=resolve_phase_directories(args.run_dir,args.burnin_run_dir,args.mode,True)
+    if burnin_dir is not None:
+        require_phase_manifest(run_dir,burnin_dir)
+        if not resume:
+            require_fresh_soak_evidence(run_dir)
     require_owner(run_dir)
     require_capacity("pre", run_dir)
     devices = parse_devices(args.device)
@@ -1318,8 +1423,8 @@ def start(args: argparse.Namespace, resume: bool = False) -> None:
     if binding["isolation"]["fingerprintSha256"] not in {item["fingerprintSha256"] for item in device_bindings}:
         raise SafetyStop("isolation_device_not_in_soak_set")
     current_provision = receipt_provision_binding(run_dir, launch_state)
-    burnin_admission = (verify_burnin_admission(run_dir, binding, device_bindings, current_provision)
-                         if args.mode == "soak168h" else burnin_not_required())
+    burnin_admission = (verify_burnin_admission(burnin_dir, run_dir, binding, device_bindings, current_provision)
+                         if burnin_dir is not None else burnin_not_required())
     if resume:
         state = json.loads((run_dir / "state.json").read_text())
         stored_admission = state.get("burninAdmission")
@@ -1455,12 +1560,16 @@ def status(args: argparse.Namespace) -> None:
 
 def provision(args: argparse.Namespace) -> None:
     """Create four persistent, run-owned AVD stores without launching them."""
-    lexical_run_dir=Path(os.path.abspath(args.run_dir))
-    for existing in (lexical_run_dir,*lexical_run_dir.parents):
-        if existing.exists() and existing.is_symlink(): raise SafetyStop("m16_run_dir_symlink_parent")
-    lexical_run_dir.mkdir(parents=True,exist_ok=True)
-    if lexical_run_dir.resolve()!=lexical_run_dir: raise SafetyStop("m16_run_dir_symlink_escape")
-    run_dir=lexical_run_dir
+    run_dir,burnin_dir=resolve_phase_directories(args.run_dir,args.burnin_run_dir,args.mode,False)
+    existing_items=list(run_dir.iterdir()) if run_dir.exists() else []
+    if burnin_dir is not None and existing_items:
+        require_phase_manifest(run_dir,burnin_dir)
+        names={item.name for item in existing_items}
+        allowed={"phase.json"} if "provision.json" not in names else {"phase.json","provision.json","avd-home"}
+        if names!=allowed: raise SafetyStop("soak_run_directory_not_new")
+    run_dir.mkdir(parents=True,exist_ok=True)
+    if burnin_dir is not None and not existing_items:
+        atomic_bytes(run_dir/"phase.json",json.dumps(phase_manifest_value(run_dir,burnin_dir),sort_keys=True,separators=(",", ":")).encode())
     require_capacity("pre", run_dir)
     audit_default_adb()
     if listener_pids(ADB_SERVER_PORT): raise SafetyStop("isolated_adb_port_in_use")
@@ -1495,6 +1604,7 @@ def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser()
     result.add_argument("command", choices=("provision", "launch", "start", "status", "stop", "resume"))
     result.add_argument("--run-dir", required=True)
+    result.add_argument("--burnin-run-dir")
     result.add_argument("--device", action="append", default=[])
     result.add_argument("--mode", choices=("burnin2h", "soak168h"), default="burnin2h")
     result.add_argument("--source-commit")

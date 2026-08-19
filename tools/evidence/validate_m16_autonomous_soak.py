@@ -95,8 +95,17 @@ def validate_burnin_admission(receipt_path: Path, repo: Path, receipt: dict, tar
             or admission.get("statePath") != host.BURNIN_STATE_NAME or admission.get("maxBurninAgeHours") != 24
             or admission.get("externalValidator") != "PASS M16 AUTONOMOUS_PROXY receipt"):
         raise ValueError("burnin_admission_shape")
-    burnin_path = relative_file(receipt_path.parent, admission["receiptPath"])
-    state_path = relative_file(receipt_path.parent, admission["statePath"])
+    soak_dir=receipt_path.parent
+    burnin_dir=host.safe_absolute_directory(admission.get("burninRunDirLexical", ""),"burnin_run_dir",True)
+    identity=host.phase_path_identity(soak_dir,burnin_dir)
+    if ({key:admission.get(key) for key in identity}!=identity
+            or admission.get("soakRunDirLexical")!=str(soak_dir)
+            or admission.get("soakRunDirCanonical")!=str(soak_dir.resolve())
+            or burnin_dir==soak_dir or burnin_dir.is_relative_to(soak_dir) or soak_dir.is_relative_to(burnin_dir)):
+        raise ValueError("burnin_path_identity")
+    host.require_phase_manifest(soak_dir,burnin_dir)
+    burnin_path = relative_file(burnin_dir, admission["receiptPath"])
+    state_path = relative_file(burnin_dir, admission["statePath"])
     if burnin_path.is_symlink() or state_path.is_symlink() or sha256(burnin_path) != admission["receiptSha256"] or sha256(state_path) != admission["stateSha256"]:
         raise ValueError("burnin_artifact_binding")
     burnin = json.loads(burnin_path.read_text()); state = json.loads(state_path.read_text())

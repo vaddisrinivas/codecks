@@ -35,7 +35,7 @@ class M16HostTests(unittest.TestCase):
         for forbidden in ("install","uninstall","kill","force-stop","pm clear"): self.assertNotIn(forbidden,sent)
 
     def test_collision_partial_launch_and_unowned_cleanup_fail_closed(self):
-        args=mock.Mock(run_dir="/tmp/m16-collision")
+        args=mock.Mock(run_dir="/tmp/m16-collision",mode="burnin2h",burnin_run_dir=None)
         with mock.patch.object(m16,"require_capacity"),mock.patch.object(m16,"audit_default_adb",return_value={}), \
              mock.patch.object(m16,"listener_pids",return_value={999}),mock.patch.object(m16,"acquire_owner") as acquire, \
              self.assertRaises(m16.SafetyStop): m16.launch(args)
@@ -49,7 +49,7 @@ class M16HostTests(unittest.TestCase):
 
     def test_partial_launch_releases_owner_and_only_owned_cleanup(self):
         with tempfile.TemporaryDirectory() as directory:
-            args=mock.Mock(run_dir=directory); process=mock.Mock(pid=1111)
+            args=mock.Mock(run_dir=str(Path(directory).resolve()),mode="burnin2h",burnin_run_dir=None); process=mock.Mock(pid=1111)
             blank=mock.Mock(returncode=0,stdout="List of devices attached\n")
             with mock.patch.object(m16,"require_capacity"),mock.patch.object(m16,"audit_default_adb",return_value={}), \
                  mock.patch.object(m16,"listener_pids",return_value=set()),mock.patch.object(m16,"adb_server_binding",return_value={"serverPid":9}), \
@@ -121,7 +121,7 @@ class M16HostTests(unittest.TestCase):
                 (home/f"{avd}.ini").write_text(f"path={root}\ntarget=android-35\n")
                 (root/"config.ini").write_text("image.sysdir.1=system-images/android-35/default/arm64-v8a/\n")
                 return mock.Mock(returncode=0,stdout="",stderr="")
-            args=mock.Mock(run_dir=str(run_dir))
+            args=mock.Mock(run_dir=str(run_dir),mode="burnin2h",burnin_run_dir=None)
             with mock.patch.dict(m16.os.environ,{"ANDROID_HOME":str(sdk)}),mock.patch.object(m16,"require_capacity"), \
                  mock.patch.object(m16,"audit_default_adb",return_value={}),mock.patch.object(m16,"listener_pids",return_value=set()), \
                  mock.patch.object(m16.subprocess,"run",side_effect=create): m16.provision(args)
@@ -141,7 +141,7 @@ class M16HostTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory).resolve(); run=root/"run"; redirect=root/"redirect"; run.mkdir(); redirect.mkdir()
             (run/"avd-home").symlink_to(redirect,target_is_directory=True)
-            args=mock.Mock(run_dir=str(run))
+            args=mock.Mock(run_dir=str(run),mode="burnin2h",burnin_run_dir=None)
             with mock.patch.object(m16,"require_capacity"),mock.patch.object(m16,"audit_default_adb",return_value={}), \
                  mock.patch.object(m16,"listener_pids",return_value=set()),mock.patch.object(m16.subprocess,"run") as execute, \
                  self.assertRaisesRegex(m16.SafetyStop,"symlink"): m16.provision(args)
@@ -262,13 +262,24 @@ class M16HostTests(unittest.TestCase):
 
     def test_soak168_requires_fresh_exact_burnin_receipt_state_and_topology(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
+            base = Path(directory).resolve()
+            burnin = base / "burnin"
+            soak = base / "soak"
+            burnin.mkdir(); soak.mkdir()
             binding = {"sourceCommit": "a" * 40, "targetApkSha256": "b" * 64,
                        "testApkSha256": "c" * 64, "targetSignerSha256": "d" * 64,
                        "testSignerSha256": "e" * 64}
-            configs = [{"name": avd, "port": port, "configPath": f"/safe/{avd}/config.ini",
-                        "configSha256": f"{index}" * 64, "runIdentity": "f" * 32}
-                       for index, (avd, port) in enumerate(zip(m16.AVDS, m16.EMULATOR_PORTS), 1)]
+            def configs_for(root):
+                home=root/"avd-home"; home.mkdir(); result=[]
+                for avd,port in zip(m16.AVDS,m16.EMULATOR_PORTS):
+                    path=home/f"{avd}.avd"/"config.ini"; path.parent.mkdir(); path.write_text(f"name={avd}\n")
+                    result.append({"name":avd,"port":port,"configPath":str(path),
+                                   "configSha256":m16.sha256_file(path),"runIdentity":"f"*32})
+                return home,result
+            burnin_home,burnin_configs=configs_for(burnin)
+            soak_home,soak_configs=configs_for(soak)
+            burnin_provision={"avdHomeLexical":str(burnin_home),"avdHomeCanonical":str(burnin_home.resolve()),"avds":burnin_configs}
+            soak_provision={"avdHomeLexical":str(soak_home),"avdHomeCanonical":str(soak_home.resolve()),"avds":soak_configs}
             devices = [{"avd": avd, "serial": f"emulator-{port}", "api": 35,
                         "fingerprintSha256": f"{index + 4}" * 64, "uid": 10100,
                         "dataDir": "/data/user/0/app.codecks.internal"}
@@ -282,8 +293,8 @@ class M16HostTests(unittest.TestCase):
                        "devices": devices, "profiles": profiles, "wall": {"finishedWallMillis": 1_000},
                        "runtime": {"runIdentity": "f" * 32, "isolatedAdb": isolated,
                                    "emulatorPids": emulator_pids, "defaultAdbAudit": default_audit,
-                                   "avdProvision": {"avdHomeLexical": str(root / "avd-home"), "avds": configs}}}
-            receipt_path = root / m16.BURNIN_RECEIPT_NAME
+                                   "avdProvision": burnin_provision}}
+            receipt_path = burnin / m16.BURNIN_RECEIPT_NAME
             receipt_path.write_text(json.dumps(receipt))
             state = {"schema": "codecks.m16.host-state.v1", "mode": "burnin2h", "durationHours": 2,
                      "status": "complete", "cleanupStatus": "complete", "completedWallMillis": 1_000,
@@ -294,40 +305,90 @@ class M16HostTests(unittest.TestCase):
                      "baselineHealth": {"swapUsedMiB": 0.0, "memoryFreePercent": 50,
                                         "availableGiB": 16.0, "load1": 1.0, "thermal": "nominal"},
                      "isolatedAdb": isolated, "emulatorPids": emulator_pids,
-                     "defaultAdbAudit": default_audit, "avdHome": str(root / "avd-home"),
+                     "defaultAdbAudit": default_audit, "avdHome": str(burnin_home),
                      "burninAdmission": m16.burnin_not_required()}
-            state_path = root / m16.BURNIN_STATE_NAME
+            state_path = burnin / m16.BURNIN_STATE_NAME
             state_path.write_text(json.dumps(state))
             validator_pass = mock.Mock(returncode=0, stdout="PASS M16 AUTONOMOUS_PROXY receipt\n")
             with mock.patch.object(m16.subprocess, "run", return_value=validator_pass):
-                admission = m16.verify_burnin_admission(root, binding, devices, {"avds": configs}, 2_000)
+                admission = m16.verify_burnin_admission(burnin, soak, binding, devices, soak_provision, 2_000)
                 self.assertEqual((admission["status"], admission["maxBurninAgeHours"]), ("PASS", 24))
+                self.assertEqual(admission["pathIdentitySha256"],m16.phase_path_identity(soak,burnin)["pathIdentitySha256"])
+                outside=json.loads(json.dumps(soak_provision)); outside["avds"][0]["configPath"]=burnin_configs[0]["configPath"]
+                with self.assertRaisesRegex(m16.SafetyStop,"config_binding"):
+                    m16.verify_burnin_admission(burnin,soak,binding,devices,outside,2_000)
+                wrong=soak_home/"wrong.avd"/"config.ini"; wrong.parent.mkdir(); wrong.write_bytes(Path(soak_configs[0]["configPath"]).read_bytes())
+                suffix=json.loads(json.dumps(soak_provision)); suffix["avds"][0]["configPath"]=str(wrong)
+                with self.assertRaisesRegex(m16.SafetyStop,"config_binding"):
+                    m16.verify_burnin_admission(burnin,soak,binding,devices,suffix,2_000)
+                bad_hash=json.loads(json.dumps(soak_provision)); bad_hash["avds"][0]["configSha256"]="0"*64
+                with self.assertRaisesRegex(m16.SafetyStop,"config_binding"):
+                    m16.verify_burnin_admission(burnin,soak,binding,devices,bad_hash,2_000)
                 with self.assertRaisesRegex(m16.SafetyStop, "stale"):
-                    m16.verify_burnin_admission(root, binding, devices, {"avds": configs},
+                    m16.verify_burnin_admission(burnin, soak, binding, devices, soak_provision,
                                                 1_000 + m16.BURNIN_MAX_AGE_MILLIS + 1)
                 different = {**binding, "targetApkSha256": "0" * 64}
                 with self.assertRaisesRegex(m16.SafetyStop, "mismatched"):
-                    m16.verify_burnin_admission(root, different, devices, {"avds": configs}, 2_000)
+                    m16.verify_burnin_admission(burnin, soak, different, devices, soak_provision, 2_000)
                 changed_devices = [dict(item) for item in devices]
                 changed_devices[0]["fingerprintSha256"] = "0" * 64
                 with self.assertRaisesRegex(m16.SafetyStop, "topology"):
-                    m16.verify_burnin_admission(root, binding, changed_devices, {"avds": configs}, 2_000)
+                    m16.verify_burnin_admission(burnin, soak, binding, changed_devices, soak_provision, 2_000)
                 receipt["status"] = "FAIL"
                 receipt_path.write_text(json.dumps(receipt))
                 state["receiptSha256"] = m16.sha256_file(receipt_path)
                 state_path.write_text(json.dumps(state))
                 with self.assertRaisesRegex(m16.SafetyStop, "stale_or_mismatched"):
-                    m16.verify_burnin_admission(root, binding, devices, {"avds": configs}, 2_000)
+                    m16.verify_burnin_admission(burnin, soak, binding, devices, soak_provision, 2_000)
                 receipt["status"] = "PASS"
                 receipt_path.write_text(json.dumps(receipt))
                 state["receiptSha256"] = m16.sha256_file(receipt_path)
                 state_path.write_text(json.dumps(state))
             with mock.patch.object(m16.subprocess, "run", return_value=mock.Mock(returncode=1, stdout="")), \
                  self.assertRaisesRegex(m16.SafetyStop, "external_validator"):
-                m16.verify_burnin_admission(root, binding, devices, {"avds": configs}, 2_000)
+                m16.verify_burnin_admission(burnin, soak, binding, devices, soak_provision, 2_000)
             receipt_path.unlink()
             with self.assertRaisesRegex(m16.SafetyStop, "missing"):
-                m16.verify_burnin_admission(root, binding, devices, {"avds": configs}, 2_000)
+                m16.verify_burnin_admission(burnin, soak, binding, devices, soak_provision, 2_000)
+
+    def test_phase_directories_reject_same_related_symlink_and_reused_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base=Path(directory).resolve(); burnin=base/"burnin"; soak=base/"soak"; child=burnin/"child"
+            burnin.mkdir(); soak.mkdir(); child.mkdir()
+            with self.assertRaisesRegex(m16.SafetyStop,"relationship"):
+                m16.resolve_phase_directories(str(burnin),str(burnin),"soak168h",True)
+            with self.assertRaisesRegex(m16.SafetyStop,"relationship"):
+                m16.resolve_phase_directories(str(child),str(burnin),"soak168h",True)
+            alias=base/"burnin-alias"; alias.symlink_to(burnin,target_is_directory=True)
+            with self.assertRaisesRegex(m16.SafetyStop,"symlink"):
+                m16.resolve_phase_directories(str(soak),str(alias),"soak168h",True)
+            (soak/"host-ledger.jsonl").write_text("historical")
+            with self.assertRaisesRegex(m16.SafetyStop,"not_fresh"):
+                m16.require_fresh_soak_evidence(soak)
+            (soak/"host-ledger.jsonl").unlink()
+            for name in ("phase.json","provision.json"): (soak/name).write_text("fixture")
+            (soak/"avd-home").mkdir()
+            m16.require_prelaunch_soak_directory(soak)
+            (soak/"old-state.json").write_text("historical")
+            with self.assertRaisesRegex(m16.SafetyStop,"not_new"):
+                m16.require_prelaunch_soak_directory(soak)
+
+    def test_phase_transition_uses_new_host_chain_without_historical_clock_rollback(self):
+        health={"swapUsedMiB":0.0,"memoryFreePercent":50,"availableGiB":16.0,"load1":1.0,"thermal":"nominal"}
+        with tempfile.TemporaryDirectory() as directory:
+            burnin=Path(directory)/"burnin"; soak=Path(directory)/"soak"; burnin.mkdir(); soak.mkdir()
+            with mock.patch.object(m16.time,"time",side_effect=[1.0,2.0,3.0,4.0]), \
+                 mock.patch.object(m16.time,"monotonic_ns",side_effect=[1_000_000_000,2_000_000_000,3_000_000_000,4_000_000_000]):
+                m16.append_host_event(burnin,{"type":"controller_start","mode":"burnin2h","profiles":20})
+                m16.append_host_event(burnin,{"type":"monitor","workers":20,"complete":20,"qemuRssKiB":1,"freeGiB":99.0,"health":health})
+                m16.append_host_event(soak,{"type":"controller_start","mode":"soak168h","profiles":20})
+                m16.append_host_event(soak,{"type":"monitor","workers":20,"complete":0,"qemuRssKiB":1,"freeGiB":99.0,"health":health})
+            burnin_lines=(burnin/"host-ledger.jsonl").read_text().splitlines()
+            soak_lines=(soak/"host-ledger.jsonl").read_text().splitlines()
+            self.assertEqual(json.loads(soak_lines[0])["previousHash"],"0"*64)
+            self.assertNotEqual((burnin/"host-ledger.jsonl").resolve(),(soak/"host-ledger.jsonl").resolve())
+            self.assertEqual(m16.verify_host_ledger((burnin/"host-ledger.jsonl").read_bytes(),1000,2000)["monitoredMillis"],1000)
+            self.assertEqual(m16.verify_host_ledger((soak/"host-ledger.jsonl").read_bytes(),3000,4000)["monitoredMillis"],1000)
 
 
 if __name__ == "__main__":

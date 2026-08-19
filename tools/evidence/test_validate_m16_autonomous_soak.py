@@ -170,6 +170,8 @@ class ValidatorIntegrationTests(unittest.TestCase):
         with self.assertRaises(ValueError): validator.verify_recovery_probes(self.run,bad,self.host)
 
     def test_soak_admission_revalidates_exact_burnin_and_rejects_mutations(self):
+        soak_run=self.repo/"soak-run"; soak_run.mkdir()
+        (soak_run/"phase.json").write_text(json.dumps(self.host.phase_manifest_value(soak_run,self.run),sort_keys=True,separators=(",", ":")))
         burnin_path=self.run/self.host.BURNIN_RECEIPT_NAME
         burnin_path.write_text(json.dumps(self.receipt,sort_keys=True,separators=(",", ":")))
         finished=self.receipt["wall"]["finishedWallMillis"]
@@ -187,6 +189,13 @@ class ValidatorIntegrationTests(unittest.TestCase):
         state_path=self.run/self.host.BURNIN_STATE_NAME
         state_path.write_text(json.dumps(state,sort_keys=True,separators=(",", ":")))
         final=copy.deepcopy(self.receipt)
+        soak_home=soak_run/"avd-home"; soak_home.mkdir(); soak_entries=[]
+        for entry in self.receipt["runtime"]["avdProvision"]["avds"]:
+            path=soak_home/f"{entry['name']}.avd"/"config.ini"; path.parent.mkdir(); path.write_bytes(Path(entry["configPath"]).read_bytes())
+            soak_entries.append({**entry,"configPath":str(path)})
+        wrong_suffix=soak_home/"wrong.avd"/"config.ini"; wrong_suffix.parent.mkdir(); wrong_suffix.write_bytes(Path(soak_entries[0]["configPath"]).read_bytes())
+        final["runtime"]["avdProvision"].update(avdHomeLexical=str(soak_home),avdHomeCanonical=str(soak_home.resolve()),avds=soak_entries)
+        for device,entry in zip(final["devices"],soak_entries): device["qemu"]["configPath"]=entry["configPath"]
         validated=finished+1_000
         final["wall"]["startedWallMillis"]=validated
         topology=self.host.burnin_topology(self.receipt)
@@ -196,14 +205,20 @@ class ValidatorIntegrationTests(unittest.TestCase):
           "validatedWallMillis":validated,"maxBurninAgeHours":24,
           "bindingSha256":self.host.canonical_sha256(final["binding"]),
           "topologySha256":self.host.canonical_sha256(topology),
+          **self.host.phase_path_identity(soak_run,self.run),
           "externalValidator":"PASS M16 AUTONOMOUS_PROXY receipt"}
-        validator.validate_burnin_admission(self.run/"receipt.json",self.repo,final,168,self.host)
+        validator.validate_burnin_admission(soak_run/"receipt.json",self.repo,final,168,self.host)
         mutations=[]
         for edit in (
             lambda x:x["burninAdmission"].update(receiptSha256="0"*64),
             lambda x:x["burninAdmission"].update(validatedWallMillis=finished+self.host.BURNIN_MAX_AGE_MILLIS+1),
             lambda x:x["wall"].update(startedWallMillis=finished+self.host.BURNIN_MAX_AGE_MILLIS+1),
             lambda x:x["burninAdmission"].update(validatedWallMillis=finished-1),
+            lambda x:x["burninAdmission"].update(burninRunDirCanonical=str(soak_run)),
+            lambda x:x["burninAdmission"].update(pathIdentitySha256="0"*64),
+            lambda x:x["runtime"]["avdProvision"]["avds"][0].update(configPath=self.receipt["runtime"]["avdProvision"]["avds"][0]["configPath"]),
+            lambda x:x["runtime"]["avdProvision"]["avds"][0].update(configPath=str(wrong_suffix)),
+            lambda x:x["runtime"]["avdProvision"]["avds"][0].update(configSha256="0"*64),
             lambda x:x["binding"].update(targetApkSha256="0"*64),
             lambda x:x["devices"][0].update(fingerprintSha256="0"*64),
             lambda x:x["profiles"][0].update(process="app.codecks.internal:m16p02"),
@@ -211,9 +226,9 @@ class ValidatorIntegrationTests(unittest.TestCase):
             value=copy.deepcopy(final); edit(value); mutations.append(value)
         for value in mutations:
             with self.assertRaises((ValueError,self.host.SafetyStop)):
-                validator.validate_burnin_admission(self.run/"receipt.json",self.repo,value,168,self.host)
+                validator.validate_burnin_admission(soak_run/"receipt.json",self.repo,value,168,self.host)
         state_path.write_text(state_path.read_text()+" ")
         with self.assertRaises(ValueError):
-            validator.validate_burnin_admission(self.run/"receipt.json",self.repo,final,168,self.host)
+            validator.validate_burnin_admission(soak_run/"receipt.json",self.repo,final,168,self.host)
 
 if __name__=="__main__": unittest.main()
