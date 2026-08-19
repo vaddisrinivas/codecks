@@ -14,7 +14,8 @@ SCHEMA = "codecks.autonomous-maturity.m16-soak.v1"
 MILESTONES = tuple(f"M{i}" for i in range(10, 16))
 FORBIDDEN_KEYS = re.compile(r"(?i)(secret|token|password|clipboard(text|content)|private.?key|username|userpath)")
 FORBIDDEN_VALUES = re.compile(r"(?i)(/Users/|/home/|BEGIN [A-Z ]*PRIVATE KEY|bearer\s|password=|token=)")
-TOP = {"schema","milestone","status","evidence","package","sourceCommit","binding","devices","runtime","profiles","dependencies","summary","wall","failureArtifacts","limitations"}
+TOP = {"schema","milestone","status","evidence","package","sourceCommit","binding","devices","runtime","profiles","dependencies","summary","burninAdmission","wall","failureArtifacts","limitations"}
+ADMISSION_START_MAX_DELAY_MILLIS = 60_000
 
 
 def schema_validate(value: object, schema: dict, location: str = "$") -> None:
@@ -82,6 +83,41 @@ def verify_recovery_probes(base: Path, host_proof: dict, host_module) -> None:
     for recovery in host_proof["recoveries"]:
         probe=relative_file(base,recovery["repoProbePath"])
         if sha256(probe)!=recovery["repoProbeSha256"] or host_module.PRIVACY.search(probe.read_bytes()): raise ValueError("recovery_probe_binding")
+
+
+def validate_burnin_admission(receipt_path: Path, repo: Path, receipt: dict, target: int, host) -> None:
+    admission = receipt["burninAdmission"]
+    if target == 2:
+        if admission != host.burnin_not_required(): raise ValueError("burnin_not_required_shape")
+        return
+    if target != 168: raise ValueError("burnin_target")
+    if (admission.get("status") != "PASS" or admission.get("receiptPath") != host.BURNIN_RECEIPT_NAME
+            or admission.get("statePath") != host.BURNIN_STATE_NAME or admission.get("maxBurninAgeHours") != 24
+            or admission.get("externalValidator") != "PASS M16 AUTONOMOUS_PROXY receipt"):
+        raise ValueError("burnin_admission_shape")
+    burnin_path = relative_file(receipt_path.parent, admission["receiptPath"])
+    state_path = relative_file(receipt_path.parent, admission["statePath"])
+    if burnin_path.is_symlink() or state_path.is_symlink() or sha256(burnin_path) != admission["receiptSha256"] or sha256(state_path) != admission["stateSha256"]:
+        raise ValueError("burnin_artifact_binding")
+    burnin = json.loads(burnin_path.read_text()); state = json.loads(state_path.read_text())
+    validate(burnin_path, repo)
+    finished = burnin.get("wall", {}).get("finishedWallMillis")
+    validated = admission.get("validatedWallMillis")
+    started = receipt["wall"]["startedWallMillis"]
+    if (not isinstance(finished, int) or not isinstance(validated, int) or admission.get("finishedWallMillis") != finished
+            or validated < finished or validated - finished > host.BURNIN_MAX_AGE_MILLIS
+            or not isinstance(started, int) or started < validated
+            or started - validated > ADMISSION_START_MAX_DELAY_MILLIS
+            or started - finished > host.BURNIN_MAX_AGE_MILLIS):
+        raise ValueError("burnin_freshness")
+    if (burnin.get("binding") != receipt.get("binding") or burnin.get("sourceCommit") != receipt.get("sourceCommit")
+            or admission.get("bindingSha256") != host.canonical_sha256(receipt["binding"])):
+        raise ValueError("burnin_state_or_binding")
+    host.verify_burnin_state_snapshot(state, burnin, admission["receiptSha256"])
+    burnin_topology = host.burnin_topology(burnin)
+    if (burnin_topology != host.burnin_topology(receipt)
+            or admission.get("topologySha256") != host.canonical_sha256(burnin_topology)):
+        raise ValueError("burnin_topology")
 
 
 def validate(receipt_path: Path, repo: Path) -> None:
@@ -181,6 +217,7 @@ def validate(receipt_path: Path, repo: Path) -> None:
         recomputed.append(actual)
     target = profiles[0]["eligibleSessions"]
     if target not in {2,168} or any(item["eligibleSessions"] != target for item in profiles): raise ValueError("eligible_target")
+    validate_burnin_admission(receipt_path, repo, receipt, target, host)
     summary = receipt["summary"]
     host_ledger = relative_file(receipt_path.parent,"host-ledger.jsonl")
     wall = receipt["wall"]

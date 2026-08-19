@@ -33,6 +33,9 @@ PROJECTED_FOOTPRINT_GIB = 24
 HOST_LEDGER_CAP = 32 * 1024 * 1024
 ARTIFACT_CAP = 32 * 1024 * 1024
 FAILURE_ARTIFACT_CAP = 4 * 1024 * 1024
+BURNIN_MAX_AGE_MILLIS = 24 * 60 * 60 * 1000
+BURNIN_RECEIPT_NAME = "burnin2h-receipt.json"
+BURNIN_STATE_NAME = "burnin2h-state.json"
 SERIAL = re.compile(r"emulator-[0-9]{4,5}")
 ADB_SERVER_PORT = 5039
 DEFAULT_ADB_SERVER_PORT = 5037
@@ -168,6 +171,20 @@ def sha256_file(path: Path) -> str:
     if not path.is_file():
         raise SafetyStop(f"artifact_missing:{path.name}")
     return sha256_bytes(path.read_bytes())
+
+
+def canonical_sha256(value: object) -> str:
+    return sha256_bytes(json.dumps(value, sort_keys=True, separators=(",", ":")).encode())
+
+
+def burnin_not_required() -> dict[str, object]:
+    return {
+        "status": "NOT_REQUIRED", "receiptPath": "", "receiptSha256": "0" * 64,
+        "statePath": "", "stateSha256": "0" * 64, "finishedWallMillis": 0,
+        "validatedWallMillis": 0, "maxBurninAgeHours": 24,
+        "bindingSha256": "0" * 64, "topologySha256": "0" * 64,
+        "externalValidator": "NOT_REQUIRED",
+    }
 
 
 def apk_signer(path: Path) -> str:
@@ -792,6 +809,127 @@ def capture_failure(run_dir: Path, avd: str, serial: str, worker: dict[str, obje
     return str(directory.relative_to(run_dir))
 
 
+def profile_catalog_from_receipt(receipt: dict[str, object]) -> list[dict[str, object]]:
+    profiles = receipt.get("profiles")
+    if not isinstance(profiles, list):
+        raise SafetyStop("burnin_profile_catalog")
+    return [{"profileId": item.get("profileId"), "avd": item.get("avd"), "process": item.get("process")}
+            for item in profiles if isinstance(item, dict)]
+
+
+def expected_profile_catalog() -> list[dict[str, object]]:
+    return [{"profileId": f"avd{avd:02d}-p{slot:02d}", "avd": AVDS[avd - 1],
+             "process": f"{PACKAGE}:m16p{slot:02d}"}
+            for avd in range(1, 5) for slot in range(1, 6)]
+
+
+def burnin_topology(receipt: dict[str, object]) -> dict[str, object]:
+    runtime = receipt.get("runtime")
+    devices = receipt.get("devices")
+    if not isinstance(runtime, dict) or not isinstance(devices, list):
+        raise SafetyStop("burnin_topology_shape")
+    provision = runtime.get("avdProvision")
+    if not isinstance(provision, dict) or not isinstance(provision.get("avds"), list):
+        raise SafetyStop("burnin_topology_provision")
+    return {
+        "devices": [{key: item.get(key) for key in ("avd", "serial", "api", "fingerprintSha256", "uid", "dataDir")}
+                    for item in devices if isinstance(item, dict)],
+        "avdConfigs": [{key: item.get(key) for key in ("name", "port", "configPath", "configSha256")}
+                       for item in provision["avds"] if isinstance(item, dict)],
+        "profiles": profile_catalog_from_receipt(receipt),
+    }
+
+
+def current_topology(device_bindings: list[dict[str, object]], provision: dict[str, object]) -> dict[str, object]:
+    entries = provision.get("avds")
+    if not isinstance(entries, list):
+        raise SafetyStop("current_topology_provision")
+    return {
+        "devices": [{key: item.get(key) for key in ("avd", "serial", "api", "fingerprintSha256", "uid", "dataDir")}
+                    for item in device_bindings],
+        "avdConfigs": [{key: item.get(key) for key in ("name", "port", "configPath", "configSha256")}
+                       for item in entries if isinstance(item, dict)],
+        "profiles": expected_profile_catalog(),
+    }
+
+
+def verify_burnin_state_snapshot(state: dict[str, object], receipt: dict[str, object], receipt_sha: str) -> None:
+    required = {"schema", "mode", "durationHours", "devices", "startedWallMillis", "startedMonotonicNanos",
+                "status", "profiles", "baselineHealth", "binding", "deviceBindings", "isolatedAdb", "runToken",
+                "emulatorPids", "defaultAdbAudit", "avdHome", "burninAdmission", "receiptSha256",
+                "completedWallMillis", "cleanupStatus"}
+    if set(state) not in (required, required | {"resumedWallMillis"}):
+        raise SafetyStop("burnin_state_not_closed")
+    runtime = receipt.get("runtime")
+    wall = receipt.get("wall")
+    devices = receipt.get("devices")
+    if not isinstance(runtime, dict) or not isinstance(wall, dict) or not isinstance(devices, list):
+        raise SafetyStop("burnin_state_receipt_shape")
+    expected_devices = {str(item.get("avd")): str(item.get("serial")) for item in devices if isinstance(item, dict)}
+    if (state.get("schema") != "codecks.m16.host-state.v1" or state.get("mode") != "burnin2h"
+            or state.get("durationHours") != 2 or state.get("status") != "complete"
+            or state.get("cleanupStatus") != "complete" or state.get("profiles") != 20
+            or state.get("completedWallMillis") != wall.get("finishedWallMillis")
+            or state.get("receiptSha256") != receipt_sha or state.get("binding") != receipt.get("binding")
+            or state.get("deviceBindings") != devices or state.get("devices") != expected_devices
+            or state.get("runToken") != runtime.get("runIdentity") or state.get("isolatedAdb") != runtime.get("isolatedAdb")
+            or state.get("emulatorPids") != runtime.get("emulatorPids")
+            or state.get("defaultAdbAudit") != runtime.get("defaultAdbAudit")
+            or state.get("avdHome") != runtime.get("avdProvision", {}).get("avdHomeLexical")
+            or state.get("burninAdmission") != burnin_not_required()
+            or not isinstance(state.get("startedWallMillis"), int) or not isinstance(state.get("startedMonotonicNanos"), int)
+            or not isinstance(state.get("baselineHealth"), dict)
+            or set(state["baselineHealth"]) != {"swapUsedMiB", "memoryFreePercent", "availableGiB", "load1", "thermal"}):
+        raise SafetyStop("burnin_state_mismatch")
+
+
+def verify_burnin_admission(run_dir: Path, binding: dict[str, object],
+                            device_bindings: list[dict[str, object]],
+                            provision: dict[str, object], now_millis: int | None = None) -> dict[str, object]:
+    receipt_path = run_dir / BURNIN_RECEIPT_NAME
+    state_path = run_dir / BURNIN_STATE_NAME
+    if (receipt_path.is_symlink() or state_path.is_symlink() or not receipt_path.is_file() or not state_path.is_file()
+            or receipt_path.resolve().parent != run_dir.resolve() or state_path.resolve().parent != run_dir.resolve()):
+        raise SafetyStop("burnin_artifacts_missing_or_unsafe")
+    try:
+        receipt = json.loads(receipt_path.read_text())
+        state = json.loads(state_path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise SafetyStop("burnin_artifacts_invalid") from error
+    repo = Path(__file__).resolve().parents[1]
+    validator = repo / "tools/evidence/validate_m16_autonomous_soak.py"
+    result = subprocess.run([sys.executable, str(validator), str(receipt_path)], cwd=repo,
+                            text=True, capture_output=True, check=False)
+    validator_pass = "PASS M16 AUTONOMOUS_PROXY receipt"
+    if result.returncode != 0 or result.stdout.strip() != validator_pass:
+        raise SafetyStop("burnin_external_validator_failed")
+    receipt_sha = sha256_file(receipt_path)
+    finished = receipt.get("wall", {}).get("finishedWallMillis") if isinstance(receipt.get("wall"), dict) else None
+    now = int(time.time() * 1000) if now_millis is None else now_millis
+    if (receipt.get("status") != "PASS" or receipt.get("sourceCommit") != binding.get("sourceCommit")
+            or receipt.get("binding") != binding or not isinstance(finished, int)
+            or finished > now or now - finished > BURNIN_MAX_AGE_MILLIS):
+        raise SafetyStop("burnin_receipt_stale_or_mismatched")
+    profiles = receipt.get("profiles")
+    if (not isinstance(profiles, list) or len(profiles) != 20
+            or any(not isinstance(item, dict) or item.get("eligibleSessions") != 2 for item in profiles)
+            or profile_catalog_from_receipt(receipt) != expected_profile_catalog()):
+        raise SafetyStop("burnin_profile_catalog_mismatch")
+    verify_burnin_state_snapshot(state, receipt, receipt_sha)
+    burnin_topology_value = burnin_topology(receipt)
+    current_topology_value = current_topology(device_bindings, provision)
+    topology_sha = canonical_sha256(burnin_topology_value)
+    if burnin_topology_value != current_topology_value:
+        raise SafetyStop("burnin_topology_mismatch")
+    return {
+        "status": "PASS", "receiptPath": BURNIN_RECEIPT_NAME, "receiptSha256": receipt_sha,
+        "statePath": BURNIN_STATE_NAME, "stateSha256": sha256_file(state_path),
+        "finishedWallMillis": finished, "validatedWallMillis": now,
+        "maxBurninAgeHours": 24, "bindingSha256": canonical_sha256(binding),
+        "topologySha256": topology_sha, "externalValidator": validator_pass,
+    }
+
+
 def write_receipt(run_dir: Path, state: dict[str, object], profiles: list[dict[str, object]]) -> Path:
     binding = state["binding"]
     target = int(state["durationHours"]) * 20
@@ -833,6 +971,7 @@ def write_receipt(run_dir: Path, state: dict[str, object], profiles: list[dict[s
                     "emulatorPids": state["emulatorPids"], "defaultAdbAudit": state["defaultAdbAudit"],
                     "avdProvision":receipt_provision_binding(run_dir,state)},
         "dependencies": dependencies, "summary": summary, "failureArtifacts": failure_artifacts,
+        "burninAdmission": state.get("burninAdmission", burnin_not_required()),
         "wall": {"startedWallMillis": state["startedWallMillis"], "finishedWallMillis": finished_wall,
                  "hostLedgerSha256": sha256_file(run_dir / "host-ledger.jsonl"), **host_proof},
         "limitations": ["AUTONOMOUS_PROXY is not human, Samsung, physical-phone, or production evidence."],
@@ -993,12 +1132,17 @@ def continuous_monitor(run_dir: Path, state: dict[str, object]) -> None:
                                                    "profileId": profile_summary["profileId"], "failurePacket": packet})
                 receipt = write_receipt(run_dir, state, profiles)
                 self_validate_receipt(receipt)
-                state["status"] = "complete"
                 state["receiptSha256"] = sha256_file(receipt)
-                atomic_state(run_dir, state)
+                state["completedWallMillis"] = json.loads(receipt.read_text())["wall"]["finishedWallMillis"]
                 safe_stop_services(state)
                 verify_services_stopped(state)
                 stop_owned_emulators(run_dir,state)
+                state["status"] = "complete"
+                state["cleanupStatus"] = "complete"
+                atomic_state(run_dir, state)
+                if state["mode"] == "burnin2h":
+                    atomic_bytes(run_dir / BURNIN_RECEIPT_NAME, receipt.read_bytes())
+                    atomic_bytes(run_dir / BURNIN_STATE_NAME, (run_dir / "state.json").read_bytes())
                 release_owner(run_dir)
                 return
             time.sleep(15)
@@ -1173,10 +1317,19 @@ def start(args: argparse.Namespace, resume: bool = False) -> None:
                                      int(emulator_pids[avd]),avd_home) for avd, serial in devices.items()]
     if binding["isolation"]["fingerprintSha256"] not in {item["fingerprintSha256"] for item in device_bindings}:
         raise SafetyStop("isolation_device_not_in_soak_set")
+    current_provision = receipt_provision_binding(run_dir, launch_state)
+    burnin_admission = (verify_burnin_admission(run_dir, binding, device_bindings, current_provision)
+                         if args.mode == "soak168h" else burnin_not_required())
     if resume:
         state = json.loads((run_dir / "state.json").read_text())
-        if state.get("devices") != devices or state.get("binding") != binding or int(state.get("durationHours", 0)) != duration_hours:
+        stored_admission = state.get("burninAdmission")
+        comparable_stored = {**stored_admission, "validatedWallMillis": 0} if isinstance(stored_admission, dict) else stored_admission
+        comparable_current = {**burnin_admission, "validatedWallMillis": 0}
+        if (state.get("devices") != devices or state.get("binding") != binding
+                or int(state.get("durationHours", 0)) != duration_hours
+                or comparable_stored != comparable_current):
             raise SafetyStop("resume_binding_mismatch")
+        burnin_admission = stored_admission
         state["status"] = "running"
         state["resumedWallMillis"] = int(time.time() * 1000)
     else:
@@ -1189,6 +1342,7 @@ def start(args: argparse.Namespace, resume: bool = False) -> None:
             "binding": binding, "deviceBindings": device_bindings,
             "isolatedAdb":launch_state["isolatedAdb"],"runToken":run_token,"emulatorPids":emulator_pids,
             "defaultAdbAudit":launch_state["defaultAdbAudit"],"avdHome":str(avd_home),
+            "burninAdmission": burnin_admission,
         }
     atomic_state(run_dir, state)
     append_host_event(run_dir, {"type": "controller_start", "mode": args.mode, "profiles": 20})

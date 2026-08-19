@@ -260,6 +260,75 @@ class M16HostTests(unittest.TestCase):
             path.write_text(path.read_text().replace('name="manifestCarriesFiveExactNamedProcesses"','name="proxy"'))
             with self.assertRaises(m16.SafetyStop): m16.verify_isolation_xml(path)
 
+    def test_soak168_requires_fresh_exact_burnin_receipt_state_and_topology(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            binding = {"sourceCommit": "a" * 40, "targetApkSha256": "b" * 64,
+                       "testApkSha256": "c" * 64, "targetSignerSha256": "d" * 64,
+                       "testSignerSha256": "e" * 64}
+            configs = [{"name": avd, "port": port, "configPath": f"/safe/{avd}/config.ini",
+                        "configSha256": f"{index}" * 64, "runIdentity": "f" * 32}
+                       for index, (avd, port) in enumerate(zip(m16.AVDS, m16.EMULATOR_PORTS), 1)]
+            devices = [{"avd": avd, "serial": f"emulator-{port}", "api": 35,
+                        "fingerprintSha256": f"{index + 4}" * 64, "uid": 10100,
+                        "dataDir": "/data/user/0/app.codecks.internal"}
+                       for index, (avd, port) in enumerate(zip(m16.AVDS, m16.EMULATOR_PORTS), 1)]
+            profiles = [{**item, "eligibleSessions": 2} for item in m16.expected_profile_catalog()]
+            isolated = {"port": 5039, "endpoint": "tcp:127.0.0.1:5039", "serverPid": 99, "cmdlineSha256": "9" * 64}
+            emulator_pids = {avd: 100 + index for index, avd in enumerate(m16.AVDS, 1)}
+            default_audit = {"status": "absent", "sanitizedNonM16EmulatorCount": 0, "authorizedAvds": [],
+                             "serverPid": 0, "serverCmdlineSha256": "0" * 64}
+            receipt = {"status": "PASS", "sourceCommit": binding["sourceCommit"], "binding": binding,
+                       "devices": devices, "profiles": profiles, "wall": {"finishedWallMillis": 1_000},
+                       "runtime": {"runIdentity": "f" * 32, "isolatedAdb": isolated,
+                                   "emulatorPids": emulator_pids, "defaultAdbAudit": default_audit,
+                                   "avdProvision": {"avdHomeLexical": str(root / "avd-home"), "avds": configs}}}
+            receipt_path = root / m16.BURNIN_RECEIPT_NAME
+            receipt_path.write_text(json.dumps(receipt))
+            state = {"schema": "codecks.m16.host-state.v1", "mode": "burnin2h", "durationHours": 2,
+                     "status": "complete", "cleanupStatus": "complete", "completedWallMillis": 1_000,
+                     "receiptSha256": m16.sha256_file(receipt_path), "binding": binding,
+                     "deviceBindings": devices, "runToken": "f" * 32,
+                     "devices": {item["avd"]: item["serial"] for item in devices},
+                     "startedWallMillis": 1, "startedMonotonicNanos": 1, "profiles": 20,
+                     "baselineHealth": {"swapUsedMiB": 0.0, "memoryFreePercent": 50,
+                                        "availableGiB": 16.0, "load1": 1.0, "thermal": "nominal"},
+                     "isolatedAdb": isolated, "emulatorPids": emulator_pids,
+                     "defaultAdbAudit": default_audit, "avdHome": str(root / "avd-home"),
+                     "burninAdmission": m16.burnin_not_required()}
+            state_path = root / m16.BURNIN_STATE_NAME
+            state_path.write_text(json.dumps(state))
+            validator_pass = mock.Mock(returncode=0, stdout="PASS M16 AUTONOMOUS_PROXY receipt\n")
+            with mock.patch.object(m16.subprocess, "run", return_value=validator_pass):
+                admission = m16.verify_burnin_admission(root, binding, devices, {"avds": configs}, 2_000)
+                self.assertEqual((admission["status"], admission["maxBurninAgeHours"]), ("PASS", 24))
+                with self.assertRaisesRegex(m16.SafetyStop, "stale"):
+                    m16.verify_burnin_admission(root, binding, devices, {"avds": configs},
+                                                1_000 + m16.BURNIN_MAX_AGE_MILLIS + 1)
+                different = {**binding, "targetApkSha256": "0" * 64}
+                with self.assertRaisesRegex(m16.SafetyStop, "mismatched"):
+                    m16.verify_burnin_admission(root, different, devices, {"avds": configs}, 2_000)
+                changed_devices = [dict(item) for item in devices]
+                changed_devices[0]["fingerprintSha256"] = "0" * 64
+                with self.assertRaisesRegex(m16.SafetyStop, "topology"):
+                    m16.verify_burnin_admission(root, binding, changed_devices, {"avds": configs}, 2_000)
+                receipt["status"] = "FAIL"
+                receipt_path.write_text(json.dumps(receipt))
+                state["receiptSha256"] = m16.sha256_file(receipt_path)
+                state_path.write_text(json.dumps(state))
+                with self.assertRaisesRegex(m16.SafetyStop, "stale_or_mismatched"):
+                    m16.verify_burnin_admission(root, binding, devices, {"avds": configs}, 2_000)
+                receipt["status"] = "PASS"
+                receipt_path.write_text(json.dumps(receipt))
+                state["receiptSha256"] = m16.sha256_file(receipt_path)
+                state_path.write_text(json.dumps(state))
+            with mock.patch.object(m16.subprocess, "run", return_value=mock.Mock(returncode=1, stdout="")), \
+                 self.assertRaisesRegex(m16.SafetyStop, "external_validator"):
+                m16.verify_burnin_admission(root, binding, devices, {"avds": configs}, 2_000)
+            receipt_path.unlink()
+            with self.assertRaisesRegex(m16.SafetyStop, "missing"):
+                m16.verify_burnin_admission(root, binding, devices, {"avds": configs}, 2_000)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -73,6 +73,7 @@ class ValidatorIntegrationTests(unittest.TestCase):
           "avdHomeCanonical":str(avd_home.resolve()),"manifestPath":"provision.json","manifestSha256":digest(provision_path.read_bytes()),
           "systemImage":"system-images;android-35;default;arm64-v8a","avds":[{**item,"runIdentity":"1"*32} for item in provision_entries]}},
           "profiles":profiles,"dependencies":deps,"failureArtifacts":[],
+          "burninAdmission":self.host.burnin_not_required(),
           "summary":{"admittedSessions":40,"eligibleSessions":40,"acknowledgedOperations":4840,"crashOrAnrSessions":0,"p0":0,"p1":0,"classifiedFailures":0},
           "wall":{"startedWallMillis":1000,"finishedWallMillis":7_201_000,"hostLedgerSha256":digest(host_ledger.read_bytes()),**proof},"limitations":["AUTONOMOUS_PROXY only"]}
 
@@ -167,5 +168,52 @@ class ValidatorIntegrationTests(unittest.TestCase):
                 self.host.verify_host_ledger(self.make_host_ledger(recovery=True,**options).read_bytes(),1000,7_201_000)
         bad=copy.deepcopy(proof); bad["recoveries"][0]["repoProbeSha256"]="0"*64
         with self.assertRaises(ValueError): validator.verify_recovery_probes(self.run,bad,self.host)
+
+    def test_soak_admission_revalidates_exact_burnin_and_rejects_mutations(self):
+        burnin_path=self.run/self.host.BURNIN_RECEIPT_NAME
+        burnin_path.write_text(json.dumps(self.receipt,sort_keys=True,separators=(",", ":")))
+        finished=self.receipt["wall"]["finishedWallMillis"]
+        state={"schema":"codecks.m16.host-state.v1","mode":"burnin2h","durationHours":2,"status":"complete","cleanupStatus":"complete",
+               "completedWallMillis":finished,"receiptSha256":digest(burnin_path.read_bytes()),
+               "binding":self.receipt["binding"],"deviceBindings":self.receipt["devices"],
+               "runToken":self.receipt["runtime"]["runIdentity"],
+               "devices":{item["avd"]:item["serial"] for item in self.receipt["devices"]},
+               "startedWallMillis":1000,"startedMonotonicNanos":1_000_000_000,"profiles":20,
+               "baselineHealth":{"swapUsedMiB":0.0,"memoryFreePercent":50,"availableGiB":16.0,"load1":1.0,"thermal":"nominal"},
+               "isolatedAdb":self.receipt["runtime"]["isolatedAdb"],"emulatorPids":self.receipt["runtime"]["emulatorPids"],
+               "defaultAdbAudit":self.receipt["runtime"]["defaultAdbAudit"],
+               "avdHome":self.receipt["runtime"]["avdProvision"]["avdHomeLexical"],
+               "burninAdmission":self.host.burnin_not_required()}
+        state_path=self.run/self.host.BURNIN_STATE_NAME
+        state_path.write_text(json.dumps(state,sort_keys=True,separators=(",", ":")))
+        final=copy.deepcopy(self.receipt)
+        validated=finished+1_000
+        final["wall"]["startedWallMillis"]=validated
+        topology=self.host.burnin_topology(self.receipt)
+        final["burninAdmission"]={"status":"PASS","receiptPath":self.host.BURNIN_RECEIPT_NAME,
+          "receiptSha256":digest(burnin_path.read_bytes()),"statePath":self.host.BURNIN_STATE_NAME,
+          "stateSha256":digest(state_path.read_bytes()),"finishedWallMillis":finished,
+          "validatedWallMillis":validated,"maxBurninAgeHours":24,
+          "bindingSha256":self.host.canonical_sha256(final["binding"]),
+          "topologySha256":self.host.canonical_sha256(topology),
+          "externalValidator":"PASS M16 AUTONOMOUS_PROXY receipt"}
+        validator.validate_burnin_admission(self.run/"receipt.json",self.repo,final,168,self.host)
+        mutations=[]
+        for edit in (
+            lambda x:x["burninAdmission"].update(receiptSha256="0"*64),
+            lambda x:x["burninAdmission"].update(validatedWallMillis=finished+self.host.BURNIN_MAX_AGE_MILLIS+1),
+            lambda x:x["wall"].update(startedWallMillis=finished+self.host.BURNIN_MAX_AGE_MILLIS+1),
+            lambda x:x["burninAdmission"].update(validatedWallMillis=finished-1),
+            lambda x:x["binding"].update(targetApkSha256="0"*64),
+            lambda x:x["devices"][0].update(fingerprintSha256="0"*64),
+            lambda x:x["profiles"][0].update(process="app.codecks.internal:m16p02"),
+        ):
+            value=copy.deepcopy(final); edit(value); mutations.append(value)
+        for value in mutations:
+            with self.assertRaises((ValueError,self.host.SafetyStop)):
+                validator.validate_burnin_admission(self.run/"receipt.json",self.repo,value,168,self.host)
+        state_path.write_text(state_path.read_text()+" ")
+        with self.assertRaises(ValueError):
+            validator.validate_burnin_admission(self.run/"receipt.json",self.repo,final,168,self.host)
 
 if __name__=="__main__": unittest.main()

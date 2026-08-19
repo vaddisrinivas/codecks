@@ -2,7 +2,7 @@
   "$schema":"https://json-schema.org/draft/2020-12/schema",
   "$id":"codecks.autonomous-maturity.m16-soak.v1",
   "type":"object","additionalProperties":false,
-  "required":["schema","milestone","status","evidence","package","sourceCommit","binding","devices","runtime","profiles","dependencies","summary","wall","failureArtifacts","limitations"],
+  "required":["schema","milestone","status","evidence","package","sourceCommit","binding","devices","runtime","profiles","dependencies","summary","burninAdmission","wall","failureArtifacts","limitations"],
   "properties":{
     "schema":{"const":"codecks.autonomous-maturity.m16-soak.v1"},"milestone":{"const":"M16"},
     "status":{"enum":["INCOMPLETE","PASS","FAIL"]},"evidence":{"const":"AUTONOMOUS_PROXY"},
@@ -28,6 +28,12 @@
     "summary":{"type":"object","additionalProperties":false,"required":["admittedSessions","eligibleSessions","acknowledgedOperations","crashOrAnrSessions","p0","p1","classifiedFailures"],"properties":{
       "admittedSessions":{"type":"integer","minimum":40,"maximum":6720},"eligibleSessions":{"type":"integer","minimum":40,"maximum":3360},"acknowledgedOperations":{"type":"integer","minimum":4000},
       "crashOrAnrSessions":{"type":"integer","minimum":0},"p0":{"type":"integer","minimum":0},"p1":{"type":"integer","minimum":0},"classifiedFailures":{"type":"integer","minimum":0}
+    }},
+    "burninAdmission":{"type":"object","additionalProperties":false,"required":["status","receiptPath","receiptSha256","statePath","stateSha256","finishedWallMillis","validatedWallMillis","maxBurninAgeHours","bindingSha256","topologySha256","externalValidator"],"properties":{
+      "status":{"enum":["NOT_REQUIRED","PASS"]},"receiptPath":{"type":"string","maxLength":64},"receiptSha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+      "statePath":{"type":"string","maxLength":64},"stateSha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"finishedWallMillis":{"type":"integer","minimum":0},
+      "validatedWallMillis":{"type":"integer","minimum":0},"maxBurninAgeHours":{"const":24},"bindingSha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+      "topologySha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"externalValidator":{"enum":["NOT_REQUIRED","PASS M16 AUTONOMOUS_PROXY receipt"]}
     }},
     "failureArtifacts":{"type":"array","maxItems":320,"items":{"type":"object","additionalProperties":false,"required":["path","sha256"],"properties":{"path":{"type":"string","pattern":"^failures/"},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}}}},
     "wall":{"type":"object","additionalProperties":false,"required":["startedWallMillis","finishedWallMillis","hostLedgerSha256","monitorEvents","unexpectedWorkerDeaths","crashOrAnrEvents","failurePacketCount","failurePackets","recoveries","monitoredMillis","headHash"],"properties":{"startedWallMillis":{"type":"integer","minimum":0},"finishedWallMillis":{"type":"integer","minimum":0},"hostLedgerSha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"monitorEvents":{"type":"integer","minimum":1},"unexpectedWorkerDeaths":{"type":"integer","minimum":0},"crashOrAnrEvents":{"type":"integer","minimum":0},"failurePacketCount":{"type":"integer","minimum":0},"failurePackets":{"type":"array","maxItems":64,"items":{"type":"string","pattern":"^failures/[0-9]+-avd0[1-4]-p0[1-5]$"}},"recoveries":{"type":"array","maxItems":336,"items":{"type":"object","additionalProperties":false,"required":["profileId","priorPid","newPid","freshAckId","repoProbePath","repoProbeSha256"],"properties":{"profileId":{"type":"string","pattern":"^avd0[1-4]-p0[1-5]$"},"priorPid":{"type":"integer","minimum":1},"newPid":{"type":"integer","minimum":1},"freshAckId":{"type":"string","pattern":"^[0-9a-f]{64}$"},"repoProbePath":{"type":"string","pattern":"^restart-probes/avd0[1-4]-p0[1-5]-[0-9]+\\.json$"},"repoProbeSha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}}}},"monitoredMillis":{"type":"integer","minimum":7200000},"headHash":{"type":"string","pattern":"^[0-9a-f]{64}$"}}},
