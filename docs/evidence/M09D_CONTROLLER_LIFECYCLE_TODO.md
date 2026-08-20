@@ -1,6 +1,6 @@
 # M09D controller lifecycle TODO
 
-- C1 source review/commit: pending; source currently frozen uncommitted.
+- Original C1 `08655e7b3b90ec4d5c1cd41bbf05fee0a70528f2`: committed. Exact-six append-only replacement source review/commit: pending.
 - C2 artifacts and C3 receipt: `NOT_RUN` until their preceding independent reviews pass.
 - Long-press Compose UI: `NOT_RUN`.
 - Provider live network: `NOT_RUN`.
