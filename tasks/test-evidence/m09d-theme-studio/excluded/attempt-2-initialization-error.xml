@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="1" failures="1" errors="0" skipped="0" time="0.285" timestamp="2026-08-20T03:59:48" hostname="localhost">
+  <testsuite name="io.codecks.ui.theme.ThemeStudioInstrumentedTest" tests="1" failures="1" errors="0" skipped="0" time="0.022" timestamp="2026-08-20T03:59:48" hostname="localhost">
+    <properties>
+      <property name="device" value="pixel6Api35" />
+      <property name="flavor" value="playInternal" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="initializationError" classname="io.codecks.ui.theme.ThemeStudioInstrumentedTest" time="0.022">
+      <failure>java.lang.RuntimeException: Failed to instantiate test runner class androidx.test.internal.runner.junit4.AndroidJUnit4ClassRunner
+
+
+at androidx.test.ext.junit.runners.AndroidJUnit4.throwInitializationError(AndroidJUnit4.java:129)
+at androidx.test.ext.junit.runners.AndroidJUnit4.loadRunner(AndroidJUnit4.java:121)
+at androidx.test.ext.junit.runners.AndroidJUnit4.loadRunner(AndroidJUnit4.java:82)
+at androidx.test.ext.junit.runners.AndroidJUnit4.&lt;init&gt;(AndroidJUnit4.java:56)
+... 14 trimmed
+Caused by: java.lang.reflect.InvocationTargetException
+at java.lang.reflect.Constructor.newInstance0(Native Method)
+at java.lang.reflect.Constructor.newInstance(Constructor.java:343)
+at androidx.test.ext.junit.runners.AndroidJUnit4.loadRunner(AndroidJUnit4.java:112)
+... 17 more
+Caused by: org.junit.runners.model.InvalidTestClassError: Invalid test class 'io.codecks.ui.theme.ThemeStudioInstrumentedTest':
+1. Method v1LibraryMigratesAtomicallyAndCorruptBytesStayQuarantinedUntilReset() should be void
+2. Method namedLibraryUiSavesLoadsAndRequiresDeleteConfirmation() should be void
+3. Method m09dProductionRepositoryLifecycleSavesRenamesLoadsAndDeletesNamedTheme() should be void
+at org.junit.runners.ParentRunner.validate(ParentRunner.java:525)
+at org.junit.runners.ParentRunner.&lt;init&gt;(ParentRunner.java:92)
+at org.junit.runners.BlockJUnit4ClassRunner.&lt;init&gt;(BlockJUnit4ClassRunner.java:74)
+at androidx.test.internal.runner.junit4.AndroidJUnit4ClassRunner.&lt;init&gt;(AndroidJUnit4ClassRunner.java:50)
+at androidx.test.internal.runner.junit4.AndroidJUnit4ClassRunner.&lt;init&gt;(AndroidJUnit4ClassRunner.java:55)
+... 20 more
+</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

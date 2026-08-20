@@ -1,0 +1,749 @@
+# proto-message: google.testing.platform.proto.api.core.TestSuiteResult
+# 2026-08-20T06:09:00.698087Z:
+test_suite_meta_data {
+  scheduled_test_case_count: 13
+  device {
+    id: "emulator-5554"
+    friendly_name: "primary"
+  }
+}
+test_status: PASSED
+test_result {
+  test_case {
+    test_class: "ThemeStudioInstrumentedTest"
+    test_package: "io.codecks.ui.theme"
+    test_method: "keyImportDialogUsesCurrentTheme"
+    start_time {
+      seconds: 1787206101
+      nanos: 71000000
+    }
+    end_time {
+      seconds: 1787206104
+      nanos: 918000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/logcat-io.codecks.ui.theme.ThemeStudioInstrumentedTest-keyImportDialogUsesCurrentTheme.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/cpuinfo"
+    }
+  }
+}
+test_result {
+  test_case {
+    test_class: "ThemeStudioInstrumentedTest"
+    test_package: "io.codecks.ui.theme"
+    test_method: "widgetAndNotificationSurfaceStoreKeepsOpaqueThemeColors"
+    start_time {
+      seconds: 1787206104
+      nanos: 946000000
+    }
+    end_time {
+      seconds: 1787206107
+      nanos: 88000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/logcat-io.codecks.ui.theme.ThemeStudioInstrumentedTest-widgetAndNotificationSurfaceStoreKeepsOpaqueThemeColors.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/cpuinfo"
+    }
+  }
+}
+test_result {
+  test_case {
+    test_class: "ThemeStudioInstrumentedTest"
+    test_package: "io.codecks.ui.theme"
+    test_method: "lockscreenPolicyDisablesChangedThemeApply"
+    start_time {
+      seconds: 1787206107
+      nanos: 90000000
+    }
+    end_time {
+      seconds: 1787206109
+      nanos: 860000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/logcat-io.codecks.ui.theme.ThemeStudioInstrumentedTest-lockscreenPolicyDisablesChangedThemeApply.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/cpuinfo"
+    }
+  }
+}
+test_result {
+  test_case {
+    test_class: "ThemeStudioInstrumentedTest"
+    test_package: "io.codecks.ui.theme"
+    test_method: "allPresetsAndGeneratedCustomRenderAtTwoHundredPercentText"
+    start_time {
+      seconds: 1787206109
+      nanos: 890000000
+    }
+    end_time {
+      seconds: 1787206117
+      nanos: 535000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/logcat-io.codecks.ui.theme.ThemeStudioInstrumentedTest-allPresetsAndGeneratedCustomRenderAtTwoHundredPercentText.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/cpuinfo"
+    }
+  }
+}
+test_result {
+  test_case {
+    test_class: "ThemeStudioInstrumentedTest"
+    test_package: "io.codecks.ui.theme"
+    test_method: "rawHexEditorIsCollapsedUntilAdvancedIsRequested"
+    start_time {
+      seconds: 1787206117
+      nanos: 536000000
+    }
+    end_time {
+      seconds: 1787206119
+      nanos: 798000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/logcat-io.codecks.ui.theme.ThemeStudioInstrumentedTest-rawHexEditorIsCollapsedUntilAdvancedIsRequested.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/cpuinfo"
+    }
+  }
+}
+test_result {
+  test_case {
+    test_class: "ThemeStudioInstrumentedTest"
+    test_package: "io.codecks.ui.theme"
+    test_method: "rtlLandscapePolicyOverrideBindsActualPhoneOrTabletWindow"
+    start_time {
+      seconds: 1787206119
+      nanos: 829000000
+    }
+    end_time {
+      seconds: 1787206122
+      nanos: 27000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/logcat-io.codecks.ui.theme.ThemeStudioInstrumentedTest-rtlLandscapePolicyOverrideBindsActualPhoneOrTabletWindow.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/cpuinfo"
+    }
+  }
+}
+test_result {
+  test_case {
+    test_class: "ThemeStudioInstrumentedTest"
+    test_package: "io.codecks.ui.theme"
+    test_method: "v1LibraryMigratesAtomicallyAndCorruptBytesStayQuarantinedUntilReset"
+    start_time {
+      seconds: 1787206122
+      nanos: 28000000
+    }
+    end_time {
+      seconds: 1787206123
+      nanos: 371000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/logcat-io.codecks.ui.theme.ThemeStudioInstrumentedTest-v1LibraryMigratesAtomicallyAndCorruptBytesStayQuarantinedUntilReset.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/cpuinfo"
+    }
+  }
+}
+test_result {
+  test_case {
+    test_class: "ThemeStudioInstrumentedTest"
+    test_package: "io.codecks.ui.theme"
+    test_method: "iconPackSelectorUsesRadioSelectionAndFortyEightDpTargets"
+    start_time {
+      seconds: 1787206123
+      nanos: 401000000
+    }
+    end_time {
+      seconds: 1787206125
+      nanos: 936000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/logcat-io.codecks.ui.theme.ThemeStudioInstrumentedTest-iconPackSelectorUsesRadioSelectionAndFortyEightDpTargets.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/cpuinfo"
+    }
+  }
+}
+test_result {
+  test_case {
+    test_class: "ThemeStudioInstrumentedTest"
+    test_package: "io.codecks.ui.theme"
+    test_method: "persistedThemeRepairsSystemSurfaceMirrorAfterRepositoryRecreation"
+    start_time {
+      seconds: 1787206125
+      nanos: 938000000
+    }
+    end_time {
+      seconds: 1787206127
+      nanos: 538000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/logcat-io.codecks.ui.theme.ThemeStudioInstrumentedTest-persistedThemeRepairsSystemSurfaceMirrorAfterRepositoryRecreation.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/cpuinfo"
+    }
+  }
+}
+test_result {
+  test_case {
+    test_class: "ThemeStudioInstrumentedTest"
+    test_package: "io.codecks.ui.theme"
+    test_method: "presetCardsExposeFullRadioSemanticsAndNonOverlappingTargetsAtLargeText"
+    start_time {
+      seconds: 1787206127
+      nanos: 540000000
+    }
+    end_time {
+      seconds: 1787206131
+      nanos: 835000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/logcat-io.codecks.ui.theme.ThemeStudioInstrumentedTest-presetCardsExposeFullRadioSemanticsAndNonOverlappingTargetsAtLargeText.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/cpuinfo"
+    }
+  }
+}
+test_result {
+  test_case {
+    test_class: "ThemeStudioInstrumentedTest"
+    test_package: "io.codecks.ui.theme"
+    test_method: "namedLibraryUiSavesLoadsAndRequiresDeleteConfirmation"
+    start_time {
+      seconds: 1787206131
+      nanos: 836000000
+    }
+    end_time {
+      seconds: 1787206135
+      nanos: 927000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/logcat-io.codecks.ui.theme.ThemeStudioInstrumentedTest-namedLibraryUiSavesLoadsAndRequiresDeleteConfirmation.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/cpuinfo"
+    }
+  }
+}
+test_result {
+  test_case {
+    test_class: "ThemeStudioInstrumentedTest"
+    test_package: "io.codecks.ui.theme"
+    test_method: "overlayAndLockscreenPoliciesDisableAtomicApply"
+    start_time {
+      seconds: 1787206135
+      nanos: 930000000
+    }
+    end_time {
+      seconds: 1787206138
+      nanos: 362000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/logcat-io.codecks.ui.theme.ThemeStudioInstrumentedTest-overlayAndLockscreenPoliciesDisableAtomicApply.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/cpuinfo"
+    }
+  }
+}
+test_result {
+  test_case {
+    test_class: "ThemeStudioInstrumentedTest"
+    test_package: "io.codecks.ui.theme"
+    test_method: "m09dProductionRepositoryLifecycleSavesRenamesLoadsAndDeletesNamedTheme"
+    start_time {
+      seconds: 1787206138
+      nanos: 363000000
+    }
+    end_time {
+      seconds: 1787206139
+      nanos: 962000000
+    }
+    device {
+      id: "emulator-5554"
+      friendly_name: "primary"
+    }
+  }
+  test_status: PASSED
+  output_artifact {
+    label {
+      label: "logcat"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/logcat-io.codecks.ui.theme.ThemeStudioInstrumentedTest-m09dProductionRepositoryLifecycleSavesRenamesLoadsAndDeletesNamedTheme.txt"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/device-info.pb"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.meminfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/meminfo"
+    }
+  }
+  output_artifact {
+    label {
+      label: "device-info.cpuinfo"
+      namespace: "android"
+    }
+    source_path {
+      path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/cpuinfo"
+    }
+  }
+}
+output_artifact {
+  label {
+    label: "test-results.log"
+    namespace: "com.google.testing.platform.runtime.android.driver.AndroidInstrumentationDriver"
+  }
+  source_path {
+    path: "$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/m10TabletApi35/testlog/test-results.log"
+  }
+  type: TEST_DATA
+  mime_type: "text/plain"
+}

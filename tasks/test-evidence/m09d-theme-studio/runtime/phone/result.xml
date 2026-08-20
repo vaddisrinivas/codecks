@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="13" failures="0" errors="0" skipped="0" time="31.162" timestamp="2026-08-20T06:06:28" hostname="localhost">
+  <testsuite name="io.codecks.ui.theme.ThemeStudioInstrumentedTest" tests="13" failures="0" errors="0" skipped="0" time="30.541" timestamp="2026-08-20T06:06:28" hostname="localhost">
+    <properties>
+      <property name="device" value="pixel6Api35" />
+      <property name="flavor" value="playInternal" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="keyImportDialogUsesCurrentTheme" classname="io.codecks.ui.theme.ThemeStudioInstrumentedTest" time="3.309" />
+    <testcase name="widgetAndNotificationSurfaceStoreKeepsOpaqueThemeColors" classname="io.codecks.ui.theme.ThemeStudioInstrumentedTest" time="1.638" />
+    <testcase name="lockscreenPolicyDisablesChangedThemeApply" classname="io.codecks.ui.theme.ThemeStudioInstrumentedTest" time="2.038" />
+    <testcase name="allPresetsAndGeneratedCustomRenderAtTwoHundredPercentText" classname="io.codecks.ui.theme.ThemeStudioInstrumentedTest" time="5.309" />
+    <testcase name="rawHexEditorIsCollapsedUntilAdvancedIsRequested" classname="io.codecks.ui.theme.ThemeStudioInstrumentedTest" time="1.605" />
+    <testcase name="rtlLandscapePolicyOverrideBindsActualPhoneOrTabletWindow" classname="io.codecks.ui.theme.ThemeStudioInstrumentedTest" time="1.403" />
+    <testcase name="v1LibraryMigratesAtomicallyAndCorruptBytesStayQuarantinedUntilReset" classname="io.codecks.ui.theme.ThemeStudioInstrumentedTest" time="1.281" />
+    <testcase name="iconPackSelectorUsesRadioSelectionAndFortyEightDpTargets" classname="io.codecks.ui.theme.ThemeStudioInstrumentedTest" time="2.02" />
+    <testcase name="persistedThemeRepairsSystemSurfaceMirrorAfterRepositoryRecreation" classname="io.codecks.ui.theme.ThemeStudioInstrumentedTest" time="1.409" />
+    <testcase name="presetCardsExposeFullRadioSemanticsAndNonOverlappingTargetsAtLargeText" classname="io.codecks.ui.theme.ThemeStudioInstrumentedTest" time="3.588" />
+    <testcase name="namedLibraryUiSavesLoadsAndRequiresDeleteConfirmation" classname="io.codecks.ui.theme.ThemeStudioInstrumentedTest" time="3.751" />
+    <testcase name="overlayAndLockscreenPoliciesDisableAtomicApply" classname="io.codecks.ui.theme.ThemeStudioInstrumentedTest" time="1.551" />
+    <testcase name="m09dProductionRepositoryLifecycleSavesRenamesLoadsAndDeletesNamedTheme" classname="io.codecks.ui.theme.ThemeStudioInstrumentedTest" time="1.639" />
+  </testsuite>
+</testsuites>
