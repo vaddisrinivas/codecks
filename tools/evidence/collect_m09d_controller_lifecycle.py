@@ -20,7 +20,7 @@ import zipfile
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[2]
-BASE_COMMIT = "b4482ba03feaceebe09c4fd9690897c93dc92a40"
+BASE_COMMIT = "4e05521e0f30d662182e9f13cbf30ff50eb6ab01"
 CLASS_NAME = "io.codecks.m09d.M09DControllerLifecycleTest"
 METHODS = (
     "aiCreateSurvivesRepositoryBackedControllerRecreationProxy",
@@ -45,6 +45,7 @@ C1_PATHS = frozenset({
     "tools/evidence/collect_m09d_controller_lifecycle.py",
     "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.schema.json",
     "tools/evidence/test_m09d_controller_lifecycle.py",
+    "tools/evidence/validate_m09d_controller_lifecycle.py",
 })
 EVIDENCE_DIR = Path("tasks/test-evidence/m09d-controller-lifecycle")
 SANITIZED_JUNIT_XML = EVIDENCE_DIR / "junit.xml"
@@ -369,14 +370,80 @@ def validate_sanitized_junit(data: bytes) -> list[str]:
     return methods
 
 
-def remove_focused_result(path: Path = RESULT_XML) -> None:
-    target = ROOT / path
-    if target.exists() or target.is_symlink():
-        if target.is_symlink() or not target.is_file():
-            raise ValueError("focused JUnit result is not a regular file")
-        target.unlink()
-    if target.exists() or target.is_symlink():
-        raise ValueError("focused JUnit result must be absent before execution")
+def _open_result_parent_at_root(root: Path) -> int | None:
+    if RESULT_XML.is_absolute() or RESULT_XML.parts != PurePosixPath(RESULT_XML.as_posix()).parts or ".." in RESULT_XML.parts:
+        raise ValueError("focused JUnit result path is not the exact canonical relative path")
+    flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(root, flags)
+    try:
+        for component in RESULT_XML.parts[:-1]:
+            try:
+                child = os.open(component, flags, dir_fd=descriptor)
+            except FileNotFoundError:
+                os.close(descriptor)
+                return None
+            os.close(descriptor)
+            descriptor = child
+        return descriptor
+    except Exception:
+        os.close(descriptor)
+        raise
+
+
+def _require_focused_result_absent_at_root(root: Path) -> None:
+    try:
+        parent = _open_result_parent_at_root(root)
+    except OSError as error:
+        raise ValueError("focused JUnit parent chain is not no-follow safe") from error
+    if parent is None:
+        return
+    try:
+        try:
+            os.stat(RESULT_XML.name, dir_fd=parent, follow_symlinks=False)
+        except FileNotFoundError:
+            return
+        raise ValueError("focused JUnit result must be lexically absent")
+    finally:
+        os.close(parent)
+
+
+def require_focused_result_absent() -> None:
+    _require_focused_result_absent_at_root(ROOT)
+
+
+def _remove_focused_result_at_root(root: Path) -> None:
+    try:
+        parent = _open_result_parent_at_root(root)
+    except OSError as error:
+        raise ValueError("focused JUnit parent chain is not no-follow safe") from error
+    if parent is None:
+        return
+    target = None
+    try:
+        flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+        try:
+            target = os.open(RESULT_XML.name, flags, dir_fd=parent)
+        except FileNotFoundError:
+            return
+        opened = os.fstat(target)
+        named = os.stat(RESULT_XML.name, dir_fd=parent, follow_symlinks=False)
+        if not stat.S_ISREG(opened.st_mode) or (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino):
+            raise ValueError("focused JUnit result is not a stable regular file")
+        os.unlink(RESULT_XML.name, dir_fd=parent)
+        try:
+            os.stat(RESULT_XML.name, dir_fd=parent, follow_symlinks=False)
+        except FileNotFoundError:
+            return
+        raise ValueError("focused JUnit result remained after fd-relative deletion")
+    finally:
+        if target is not None:
+            os.close(target)
+        os.close(parent)
+
+
+def remove_focused_result() -> None:
+    _remove_focused_result_at_root(ROOT)
+    require_focused_result_absent()
 
 
 def bind_fresh_focused_result(start_ns: int, end_ns: int, path: Path = RESULT_XML) -> tuple[bytes, dict]:
@@ -1144,7 +1211,8 @@ def validate_artifact_data(
         validate_manifest_aggregate(tables[name], root, MAX_TREE_FILES, max_bytes)
     if tools["dependencyCacheOrigin"] != "NOT_PROVEN":
         raise ValueError("dependency cache origin overclaimed")
-    if tools["zipExtract"] != {"equal": True, "sha256": tables["distribution"]["digest"]}:
+    zip_equal = tools["zipExtract"].get("equal") if isinstance(tools["zipExtract"], dict) else None
+    if type(zip_equal) is not bool or tools["zipExtract"] != {"equal": True, "sha256": tables["distribution"]["digest"]}:
         raise ValueError("ZIP/extracted distribution proof substituted")
     if tools["javaHome"] != "$JAVA_HOME":
         raise ValueError("Java home substituted")
@@ -1178,7 +1246,7 @@ def validate_artifact_data(
     validate_private_free(data)
 
 
-def collect_artifacts() -> None:
+def _collect_artifacts_with_raw_result() -> None:
     source = git("rev-parse", "HEAD")
     validate_topology(source, git("rev-parse", f"{source}^"), changed_paths(source))
     require_clean_status()
@@ -1240,7 +1308,22 @@ def collect_artifacts() -> None:
     atomic_write(ARTIFACT_MANIFEST, serialized)
 
 
+def collect_artifacts() -> None:
+    try:
+        _collect_artifacts_with_raw_result()
+    except Exception as primary:
+        try:
+            remove_focused_result()
+        except Exception as cleanup:
+            raise RuntimeError(f"artifact collection failed: {primary}; raw cleanup failed: {cleanup}") from primary
+        raise
+    else:
+        remove_focused_result()
+    require_focused_result_absent()
+
+
 def collect_receipt(artifact_commit: str | None = None) -> dict:
+    require_focused_result_absent()
     artifact = artifact_commit or git("rev-parse", "HEAD")
     source = git("rev-parse", f"{artifact}^")
     validate_topology(
@@ -1255,7 +1338,7 @@ def collect_receipt(artifact_commit: str | None = None) -> dict:
     durable_log = read_bounded_file(ROOT / SANITIZED_LOG, MAX_LOG_BYTES)
     validate_private_bytes(durable_log)
     validate_command_header(durable_log)
-    return {
+    receipt = {
         "schema": "codecks.m09d.controller-lifecycle.v1", "status": "PASS",
         "scope": "CURRENT_SOURCE_CPU_CONTROLLER_LIFECYCLE_ONLY",
         "commitChain": {"base": BASE_COMMIT, "source": source, "artifact": artifact},
@@ -1264,6 +1347,8 @@ def collect_receipt(artifact_commit: str | None = None) -> dict:
         "test": {"className": CLASS_NAME, "methods": sorted(METHODS), "tests": 10, "failures": 0, "errors": 0, "skipped": 0, "command": list(COMMAND), "environment": EXEC_ENV},
         "claims": artifact_data["claims"],
     }
+    require_focused_result_absent()
+    return receipt
 
 
 def main() -> None:

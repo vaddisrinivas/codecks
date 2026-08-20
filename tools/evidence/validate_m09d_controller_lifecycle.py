@@ -10,7 +10,7 @@ from pathlib import Path
 from collect_m09d_controller_lifecycle import (
     C1_PATHS, C2_PATHS, C3_PATHS, MAX_RECEIPT_BYTES, RECEIPT, ROOT, changed_paths, collect_receipt, git,
     load_bounded_json,
-    require_clean_status, require_worktree_matches_commit, validate_topology,
+    require_clean_status, require_focused_result_absent, require_worktree_matches_commit, validate_topology,
 )
 from strict_json_schema import validate_json_schema
 
@@ -18,6 +18,7 @@ SCHEMA = ROOT / "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.sch
 
 
 def validate_data(data: dict, receipt_commit: str | None = None) -> None:
+    require_focused_result_absent()
     test = data.get("test") if isinstance(data, dict) else None
     expected_counts = {"tests": 10, "failures": 0, "errors": 0, "skipped": 0}
     if not isinstance(test, dict) or any(type(test.get(key)) is not int or test[key] != value for key, value in expected_counts.items()):
@@ -38,6 +39,7 @@ def validate_data(data: dict, receipt_commit: str | None = None) -> None:
     require_worktree_matches_commit(receipt, C3_PATHS)
     if data != collect_receipt(artifact):
         raise ValueError("receipt does not exactly match current C1/C2 bytes and topology")
+    require_focused_result_absent()
 
 
 def main() -> None:

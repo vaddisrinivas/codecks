@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 import warnings
@@ -20,7 +21,7 @@ import zipfile
 from datetime import datetime, timezone
 
 from collect_m09d_controller_lifecycle import (
-    ARTIFACT_MANIFEST, BASE_COMMIT, C1_PATHS, C2_PATHS, C3_PATHS, CLASS_NAME, EXEC_ENV,
+    ARTIFACT_MANIFEST, BASE_COMMIT, C1_PATHS, C2_PATHS, C3_PATHS, CLASS_NAME, EXEC_ENV, RESULT_XML,
     CHECKSUM_RECEIPT_SHA256, CHECKSUM_RECEIPT_URL, GRADLE_DISTRIBUTION_SHA256,
     GRADLE_PROPERTIES_SHA256,
     COMMAND, METHODS, ROOT, SOURCE_BINDINGS, parse_junit, dedupe_manifest_tables,
@@ -28,7 +29,8 @@ from collect_m09d_controller_lifecycle import (
     require_source_bindings, require_wrapper_checksum_property, sanitize_log, tree_digest, validate_artifact_data,
     jdk_distribution_manifest, validate_command_header, validate_gradle_properties_bytes, validate_no_shrink, validate_pre_post,
     validate_source_snapshot_pair,
-    bind_fresh_focused_result, remove_focused_result, validate_source_binding_values, validate_status_bytes,
+    bind_fresh_focused_result, remove_focused_result, require_focused_result_absent, validate_source_binding_values, validate_status_bytes,
+    _remove_focused_result_at_root, _require_focused_result_absent_at_root,
     validate_topology, validate_working_bytes, zip_manifest, serialize_artifact_manifest,
     validate_bound_manifest, validate_raw_junit_binding, load_bounded_json, validate_private_bytes,
     validate_manifest_aggregate, preparse_zip_directory, sanitize_junit_hostname, validate_sanitized_junit,
@@ -37,6 +39,7 @@ from collect_m09d_controller_lifecycle import (
     sha_bytes,
 )
 from strict_json_schema import validate_json_schema
+import collect_m09d_controller_lifecycle as collector
 import validate_m09d_controller_lifecycle as final_validator
 
 
@@ -172,7 +175,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw:
             path = Path(raw) / "result.xml"
             path.write_bytes(junit_bytes())
-            remove_focused_result(path)
+            path.unlink()
             self.assertFalse(path.exists())
             start = time.time_ns() - 1_000_000_000
             timestamp = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
@@ -235,8 +238,8 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
                 validate_no_shrink(changed)
 
     def test_stale_swapped_and_path_topology_are_rejected(self) -> None:
-        self.assertEqual(5, len(C1_PATHS))
-        self.assertNotIn("tools/evidence/validate_m09d_controller_lifecycle.py", C1_PATHS)
+        self.assertEqual(6, len(C1_PATHS))
+        self.assertIn("tools/evidence/validate_m09d_controller_lifecycle.py", C1_PATHS)
         source, artifact = "1" * 40, "2" * 40
         validate_topology(source, BASE_COMMIT, C1_PATHS, artifact, source, C2_PATHS, artifact, C3_PATHS)
         mutations = (
@@ -359,6 +362,10 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             ("localProperties", {"path": "local.properties", "state": "PRESENT", "sha256": "0" * 64}),
         ):
             changed = copy.deepcopy(data); changed["tools"][key] = value
+            with self.assertRaises(ValueError):
+                validate_artifact_data(changed, source, verify_current=False)
+        for substituted in (1, 0):
+            changed = copy.deepcopy(data); changed["tools"]["zipExtract"]["equal"] = substituted
             with self.assertRaises(ValueError):
                 validate_artifact_data(changed, source, verify_current=False)
         changed = copy.deepcopy(data); changed["tools"]["jdkVersion"] = "/Users/private/jdk"
@@ -495,6 +502,91 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             path.write_bytes(b"{" + b"x" * 100)
             with self.assertRaisesRegex(ValueError, "bounded|cap"):
                 load_bounded_json(path, max_bytes=16)
+
+    def test_raw_result_is_absent_after_success_and_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            result = root / RESULT_XML
+            result.parent.mkdir(parents=True)
+            result.write_bytes(b"raw")
+            with self.assertRaisesRegex(ValueError, "lexically absent"):
+                _require_focused_result_absent_at_root(root)
+            _remove_focused_result_at_root(root)
+            _require_focused_result_absent_at_root(root)
+
+        with patch.object(collector, "_collect_artifacts_with_raw_result"), patch.object(collector, "remove_focused_result") as cleanup:
+            collector.collect_artifacts()
+            cleanup.assert_called_once_with()
+        with patch.object(collector, "_collect_artifacts_with_raw_result", side_effect=ValueError("lane failed")), patch.object(
+            collector, "remove_focused_result"
+        ) as cleanup:
+            with self.assertRaisesRegex(ValueError, "lane failed"):
+                collector.collect_artifacts()
+            cleanup.assert_called_once_with()
+
+    def test_raw_cleanup_rejects_parent_symlink_and_composes_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as raw, tempfile.TemporaryDirectory() as outside_raw:
+            root, outside = Path(raw), Path(outside_raw)
+            outside_result = outside / RESULT_XML
+            outside_result.parent.mkdir(parents=True)
+            outside_result.write_bytes(b"do-not-delete")
+            (root / RESULT_XML.parts[0]).symlink_to(outside / RESULT_XML.parts[0], target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, "parent chain"):
+                _remove_focused_result_at_root(root)
+            self.assertEqual(b"do-not-delete", outside_result.read_bytes())
+
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            result = root / RESULT_XML
+            result.parent.mkdir(parents=True)
+            result.write_bytes(b"race")
+            metadata = result.stat()
+            swapped = SimpleNamespace(st_dev=metadata.st_dev, st_ino=metadata.st_ino + 1)
+            with patch.object(collector.os, "stat", return_value=swapped):
+                with self.assertRaisesRegex(ValueError, "stable regular file"):
+                    _remove_focused_result_at_root(root)
+            self.assertEqual(b"race", result.read_bytes())
+
+        with patch.object(collector, "_collect_artifacts_with_raw_result", side_effect=ValueError("lane failed")), patch.object(
+            collector, "remove_focused_result", side_effect=OSError("cleanup failed")
+        ):
+            with self.assertRaisesRegex(RuntimeError, "lane failed.*cleanup failed") as caught:
+                collector.collect_artifacts()
+            self.assertIsInstance(caught.exception.__cause__, ValueError)
+        with patch.object(collector, "_collect_artifacts_with_raw_result"), patch.object(
+            collector, "remove_focused_result", side_effect=OSError("cleanup-only failed")
+        ):
+            with self.assertRaisesRegex(OSError, "cleanup-only failed"):
+                collector.collect_artifacts()
+
+    def test_retained_raw_result_blocks_receipt_and_final(self) -> None:
+        with patch.object(collector, "require_focused_result_absent", side_effect=ValueError("retained raw")):
+            with self.assertRaisesRegex(ValueError, "retained raw"):
+                collector.collect_receipt("2" * 40)
+        with patch.object(final_validator, "require_focused_result_absent", side_effect=ValueError("retained raw")):
+            with self.assertRaisesRegex(ValueError, "retained raw"):
+                final_validator.validate_data({})
+
+    def test_final_validator_requires_raw_result_absent_at_both_boundaries(self) -> None:
+        data = {"test": {"tests": 10, "failures": 0, "errors": 0, "skipped": 0}}
+        calls = []
+        with patch.object(final_validator, "require_focused_result_absent", side_effect=lambda: calls.append("absent")), patch.object(
+            final_validator, "validate_json_schema"
+        ), patch.object(final_validator, "git", side_effect=["2" * 40, "1" * 40, BASE_COMMIT, "1" * 40, "2" * 40]), patch.object(
+            final_validator, "changed_paths", side_effect=[C1_PATHS, C2_PATHS, C3_PATHS]
+        ), patch.object(final_validator, "validate_topology"), patch.object(final_validator, "require_clean_status"), patch.object(
+            final_validator, "require_worktree_matches_commit"
+        ), patch.object(final_validator, "collect_receipt", return_value=data):
+            final_validator.validate_data(data, receipt_commit="3" * 40)
+        self.assertEqual(["absent", "absent"], calls)
+
+    def test_boolean_schema_rejects_integer_substitution(self) -> None:
+        boolean_schema = {"type": "boolean"}
+        validate_json_schema(True, boolean_schema)
+        validate_json_schema(False, boolean_schema)
+        for substituted in (1, 0):
+            with self.assertRaises(ValueError):
+                validate_json_schema(substituted, boolean_schema)
 
     def test_compiled_tree_digest_rejects_empty_tree_and_binds_bytes(self) -> None:
         with tempfile.TemporaryDirectory() as raw:

@@ -11,7 +11,7 @@
     "commitChain": {
       "type": "object", "additionalProperties": false, "required": ["base", "source", "artifact"],
       "properties": {
-        "base": {"const": "b4482ba03feaceebe09c4fd9690897c93dc92a40"},
+        "base": {"const": "4e05521e0f30d662182e9f13cbf30ff50eb6ab01"},
         "source": {"$ref": "#/$defs/commit"}, "artifact": {"$ref": "#/$defs/commit"}
       }
     },
@@ -19,7 +19,7 @@
       "type": "object", "additionalProperties": false, "required": ["files", "c1Paths"],
       "properties": {
         "files": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/file"}},
-        "c1Paths": {"type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true, "items": {"$ref": "#/$defs/path"}}
+        "c1Paths": {"type": "array", "minItems": 6, "maxItems": 6, "uniqueItems": true, "items": {"$ref": "#/$defs/path"}}
       }
     },
     "artifacts": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/file"}},
