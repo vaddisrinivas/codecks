@@ -19,6 +19,15 @@ from strict_json_schema import validate_json_schema
 SCHEMA = ROOT / "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.schema.json"
 
 
+def require_recorded_postrun_scope(data: dict) -> None:
+    claims = data.get("claims") if isinstance(data, dict) else None
+    if not isinstance(claims, dict) or claims.get("writableHomeMaterialRetention") != "NOT_RETAINED" or claims.get("postRunLiveRevalidation") != "NOT_APPLICABLE":
+        raise ValueError("receipt writable-home retention/revalidation scope substituted")
+    evidence_source = data.get("evidenceSource")
+    if not isinstance(evidence_source, dict) or set(evidence_source) != {"sourceParent", "c1Paths", "files"}:
+        raise ValueError("receipt collector/schema/validator source binding missing")
+
+
 def validate_committed_evidence_privacy(artifact_commit: str, receipt_commit: str) -> None:
     """Scan only committed C2/C3 evidence; ignored local build outputs are outside this proof."""
     limits = {
@@ -45,6 +54,7 @@ def validate_data(data: dict, receipt_commit: str | None = None) -> None:
         raise ValueError("receipt test counts must be exact integers")
     schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
     validate_json_schema(data, schema)
+    require_recorded_postrun_scope(data)
     receipt = receipt_commit or git("rev-parse", "HEAD")
     artifact = git("rev-parse", f"{receipt}^")
     source = git("rev-parse", f"{artifact}^")

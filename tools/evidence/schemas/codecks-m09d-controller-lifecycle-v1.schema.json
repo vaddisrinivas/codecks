@@ -3,7 +3,7 @@
   "$id": "codecks.m09d.controller-lifecycle.v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "status", "scope", "commitChain", "sourceBinding", "artifacts", "test", "claims"],
+  "required": ["schema", "status", "scope", "commitChain", "sourceBinding", "evidenceSource", "artifacts", "test", "claims"],
   "properties": {
     "schema": {"const": "codecks.m09d.controller-lifecycle.v1"},
     "status": {"const": "PASS"},
@@ -11,8 +11,16 @@
     "commitChain": {
       "type": "object", "additionalProperties": false, "required": ["base", "source", "artifact"],
       "properties": {
-        "base": {"const": "f3b2a29a2c98ddace4ac9d4ad87122197c49d745"},
+        "base": {"const": "eeb664106fe9a6d6fc7fac74dc977d10583aeb65"},
         "source": {"$ref": "#/$defs/commit"}, "artifact": {"$ref": "#/$defs/commit"}
+      }
+    },
+    "evidenceSource": {
+      "type": "object", "additionalProperties": false, "required": ["sourceParent", "c1Paths", "files"],
+      "properties": {
+        "sourceParent": {"const": "eeb664106fe9a6d6fc7fac74dc977d10583aeb65"},
+        "c1Paths": {"type": "array", "minItems": 6, "maxItems": 6, "uniqueItems": true, "items": {"$ref": "#/$defs/path"}},
+        "files": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/file"}}
       }
     },
     "sourceBinding": {
@@ -45,9 +53,9 @@
     },
     "claims": {
       "type": "object", "additionalProperties": false,
-      "required": ["providerNetwork", "networkDenial", "dependencyCacheOrigin", "freshnessAdversaryResistance", "rawMaterialInCommittedEvidence", "ignoredLocalBuildOutputsRetention", "rawTransformationRevalidation", "longPressUi", "device", "physicalPhone", "publicRelease", "aiDeleteUndo"],
+      "required": ["providerNetwork", "networkDenial", "dependencyCacheOrigin", "freshnessAdversaryResistance", "rawMaterialInCommittedEvidence", "ignoredLocalBuildOutputsRetention", "rawTransformationRevalidation", "writableHomeMaterialRetention", "postRunLiveRevalidation", "longPressUi", "device", "physicalPhone", "publicRelease", "aiDeleteUndo"],
       "properties": {
-        "providerNetwork": {"const": "NOT_RUN"}, "networkDenial": {"const": "NOT_PROVEN"}, "dependencyCacheOrigin": {"const": "NOT_PROVEN"}, "freshnessAdversaryResistance": {"const": "NOT_PROVEN"}, "rawMaterialInCommittedEvidence": {"const": "NOT_RETAINED"}, "ignoredLocalBuildOutputsRetention": {"const": "NOT_PROVEN"}, "rawTransformationRevalidation": {"const": "NOT_POSSIBLE"}, "longPressUi": {"const": "NOT_RUN"},
+        "providerNetwork": {"const": "NOT_RUN"}, "networkDenial": {"const": "NOT_PROVEN"}, "dependencyCacheOrigin": {"const": "NOT_PROVEN"}, "freshnessAdversaryResistance": {"const": "NOT_PROVEN"}, "rawMaterialInCommittedEvidence": {"const": "NOT_RETAINED"}, "ignoredLocalBuildOutputsRetention": {"const": "NOT_PROVEN"}, "rawTransformationRevalidation": {"const": "NOT_POSSIBLE"}, "writableHomeMaterialRetention": {"const": "NOT_RETAINED"}, "postRunLiveRevalidation": {"const": "NOT_APPLICABLE"}, "longPressUi": {"const": "NOT_RUN"},
         "device": {"const": "NOT_RUN"}, "physicalPhone": {"const": "NOT_RUN"},
         "publicRelease": {"const": "NOT_RUN"}, "aiDeleteUndo": {"const": "NOT_AVAILABLE"}
       }

@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import shutil
 import stat
 import struct
 import subprocess
@@ -20,7 +21,7 @@ import zipfile
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[2]
-BASE_COMMIT = "f3b2a29a2c98ddace4ac9d4ad87122197c49d745"
+BASE_COMMIT = "eeb664106fe9a6d6fc7fac74dc977d10583aeb65"
 CLASS_NAME = "io.codecks.m09d.M09DControllerLifecycleTest"
 METHODS = (
     "aiCreateSurvivesRepositoryBackedControllerRecreationProxy",
@@ -80,7 +81,8 @@ CHECKSUM_RECEIPT_URL = "https://gradle.org/release-checksums/"
 GRADLE_PROPERTIES_SHA256 = "85ded62c7cf18436166cbd09f5e6f372a6d6b8e9568591bf05401783453f1b37"
 ANDROID_HOME = "/Users/srinivasvaddi/Library/Android/sdk"
 JAVA_HOME = "/Users/srinivasvaddi/Library/Java/JavaVirtualMachines/openjdk-20.0.2/Contents/Home"
-ISOLATED_GRADLE_HOME = "/tmp/codecks-m09d-controller-gradle-home"
+SEED_GRADLE_HOME = Path("/tmp/codecks-m09d-controller-gradle-home")
+ISOLATED_GRADLE_HOME = SEED_GRADLE_HOME.as_posix()
 GRADLE_DISTRIBUTION_ZIP = Path(ISOLATED_GRADLE_HOME) / "provenance/gradle-9.4.1-bin.zip"
 CHECKSUM_RECEIPT = Path(ISOLATED_GRADLE_HOME) / "provenance/gradle-release-checksums.html"
 GRADLE_DISTRIBUTION_ROOT = Path(ISOLATED_GRADLE_HOME) / "wrapper/dists/gradle-9.4.1-bin/arn2x92ynaizyzdaamcbpbhtj/gradle-9.4.1"
@@ -131,6 +133,21 @@ INIT_DIRS = (
     Path(ISOLATED_GRADLE_HOME) / "init.d", Path("/Users/srinivasvaddi/.gradle/init.d"),
     Path("/etc/gradle/init.d"), GRADLE_DISTRIBUTION_ROOT / "init.d",
 )
+
+
+def activate_gradle_home(path: Path) -> None:
+    global ISOLATED_GRADLE_HOME, GRADLE_DISTRIBUTION_ZIP, CHECKSUM_RECEIPT, GRADLE_DISTRIBUTION_ROOT
+    global GRADLE_LAUNCHER, GRADLE_PROPERTIES, GRADLE_BINARY, EXEC_COMMAND, GRADLE_VERSION_COMMAND
+    ISOLATED_GRADLE_HOME = path.as_posix()
+    GRADLE_DISTRIBUTION_ZIP = path / "provenance/gradle-9.4.1-bin.zip"
+    CHECKSUM_RECEIPT = path / "provenance/gradle-release-checksums.html"
+    GRADLE_DISTRIBUTION_ROOT = path / "wrapper/dists/gradle-9.4.1-bin/arn2x92ynaizyzdaamcbpbhtj/gradle-9.4.1"
+    GRADLE_LAUNCHER = GRADLE_DISTRIBUTION_ROOT / "lib/gradle-launcher-9.4.1.jar"
+    GRADLE_PROPERTIES = path / "gradle.properties"
+    GRADLE_BINARY = GRADLE_DISTRIBUTION_ROOT / "bin/gradle"
+    EXEC_COMMAND = tuple(GRADLE_BINARY.as_posix() if item == "$GRADLE_DISTRIBUTION_ROOT/bin/gradle" else item for item in COMMAND)
+    GRADLE_VERSION_COMMAND = (GRADLE_BINARY.as_posix(), "--version", "--no-daemon")
+    ACTUAL_EXEC_ENV["GRADLE_USER_HOME"] = path.as_posix()
 
 
 def sha_bytes(data: bytes) -> str:
@@ -737,6 +754,133 @@ def committed_c1_digest(source_commit: str) -> str:
     return manifest_sha(entries)
 
 
+def evidence_source_binding(source_commit: str) -> dict:
+    paths = (
+        "tools/evidence/collect_m09d_controller_lifecycle.py",
+        "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.schema.json",
+        "tools/evidence/validate_m09d_controller_lifecycle.py",
+    )
+    return {
+        "sourceParent": git("rev-parse", f"{source_commit}^"),
+        "c1Paths": sorted(C1_PATHS),
+        "files": [
+            {"path": path, "sha256": sha_bytes(subprocess.run(
+                ["git", "show", f"{source_commit}:{path}"], cwd=ROOT, check=True, capture_output=True,
+            ).stdout)}
+            for path in paths
+        ],
+    }
+
+
+def canonical_junit_semantic_digest(sanitized: bytes) -> str:
+    methods = validate_sanitized_junit(sanitized)
+    value = {"className": CLASS_NAME, "methods": methods, "tests": 10, "failures": 0, "errors": 0, "skipped": 0, "hostname": JUNIT_HOST_TOKEN}
+    return sha_bytes(json.dumps(value, separators=(",", ":"), sort_keys=True).encode())
+
+
+def tool_seed_digest(data: dict) -> str:
+    stable_tables = {key: value for key, value in data["manifestTables"].items() if key not in {"gradleHomeBefore", "gradleHomeAfter"}}
+    tool = {"tools": data["tools"], "manifestTables": stable_tables}
+    return sha_bytes(json.dumps(tool, separators=(",", ":"), sort_keys=True).encode())
+
+
+def capture_summary(sanitized: bytes, log: bytes, data: dict, ordinal: int) -> dict:
+    timing_keys = ("executionStartNs", "executionEndNs", "sourceMtimeNs", "sourceBirthtimeNs", "sourceInode", "newFileProof", "suiteTimestampNs")
+    stable = {
+        "junitSemanticSha256": canonical_junit_semantic_digest(sanitized),
+        "logSha256": sha_bytes(log),
+        "compiledTreesSha256": sha_bytes(json.dumps(data["compiledTrees"], separators=(",", ":"), sort_keys=True).encode()),
+        "toolSeedSha256": tool_seed_digest(data),
+        "methodsSha256": sha_bytes(json.dumps(sorted(METHODS), separators=(",", ":")).encode()),
+        "tests": 10, "failures": 0, "errors": 0, "skipped": 0,
+    }
+    return {
+        "ordinal": ordinal, "ownedHomeToken": f"$INVOCATION_GRADLE_USER_HOME_{ordinal}",
+        "ownedHomeIdentitySha256": data["_ownedHomeIdentitySha256"],
+        "stable": stable,
+        "junitTiming": {key: data["junit"][key] for key in timing_keys},
+        "ownedHomeInitial": data["manifestTables"]["gradleHomeBefore"],
+        "ownedHomeFinal": data["manifestTables"]["gradleHomeAfter"],
+    }
+
+
+def bind_independent_captures(first: tuple[bytes, bytes, dict], second: tuple[bytes, bytes, dict]) -> dict:
+    runs = [capture_summary(*first, 1), capture_summary(*second, 2)]
+    if runs[0]["stable"] != runs[1]["stable"]:
+        raise ValueError("independent Gradle captures differ semantically or by tool/artifact digest")
+    if runs[1]["junitTiming"]["executionStartNs"] <= runs[0]["junitTiming"]["executionEndNs"]:
+        raise ValueError("second Gradle capture is not temporally independent")
+    return {"status": "MATCHED_TWO_INDEPENDENT_CAPTURES", "runCount": 2, "comparison": runs[0]["stable"], "runs": runs}
+
+
+def validate_evidence_source_shape(binding: object) -> None:
+    paths = [
+        "tools/evidence/collect_m09d_controller_lifecycle.py",
+        "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.schema.json",
+        "tools/evidence/validate_m09d_controller_lifecycle.py",
+    ]
+    if not isinstance(binding, dict) or set(binding) != {"sourceParent", "c1Paths", "files"}:
+        raise ValueError("artifact evidence-source topology substituted")
+    if binding["sourceParent"] != BASE_COMMIT or binding["c1Paths"] != sorted(C1_PATHS):
+        raise ValueError("artifact evidence-source parent/path closure substituted")
+    if not isinstance(binding["files"], list) or [item.get("path") for item in binding["files"] if isinstance(item, dict)] != paths:
+        raise ValueError("artifact collector/schema/validator path binding substituted")
+    if any(set(item) != {"path", "sha256"} or not valid_sha(item["sha256"]) for item in binding["files"]):
+        raise ValueError("artifact collector/schema/validator hash binding substituted")
+
+
+def validate_repeatability_proof(data: dict, sanitized: bytes | None = None) -> None:
+    proof = data.get("repeatability")
+    if not isinstance(proof, dict) or set(proof) != {"status", "runCount", "comparison", "runs"} or proof["status"] != "MATCHED_TWO_INDEPENDENT_CAPTURES" or type(proof["runCount"]) is not int or proof["runCount"] != 2:
+        raise ValueError("two-capture repeatability topology substituted")
+    if not isinstance(proof["runs"], list) or len(proof["runs"]) != 2:
+        raise ValueError("two independent capture summaries required")
+    stable_keys = {"junitSemanticSha256", "logSha256", "compiledTreesSha256", "toolSeedSha256", "methodsSha256", "tests", "failures", "errors", "skipped"}
+    timing_keys = {"executionStartNs", "executionEndNs", "sourceMtimeNs", "sourceBirthtimeNs", "sourceInode", "newFileProof", "suiteTimestampNs"}
+    expected_stable = {
+        "logSha256": data["log"]["sha256"],
+        "compiledTreesSha256": sha_bytes(json.dumps(data["compiledTrees"], separators=(",", ":"), sort_keys=True).encode()),
+        "toolSeedSha256": tool_seed_digest(data),
+        "methodsSha256": sha_bytes(json.dumps(sorted(METHODS), separators=(",", ":")).encode()),
+        "tests": 10, "failures": 0, "errors": 0, "skipped": 0,
+    }
+    for ordinal, run in enumerate(proof["runs"], 1):
+        if not isinstance(run, dict) or set(run) != {"ordinal", "ownedHomeToken", "ownedHomeIdentitySha256", "stable", "junitTiming", "ownedHomeInitial", "ownedHomeFinal"}:
+            raise ValueError("independent capture summary topology substituted")
+        if run["ordinal"] != ordinal or run["ownedHomeToken"] != f"$INVOCATION_GRADLE_USER_HOME_{ordinal}" or not valid_sha(run["ownedHomeIdentitySha256"]) or not isinstance(run["stable"], dict) or set(run["stable"]) != stable_keys:
+            raise ValueError("independent capture identity/stable binding substituted")
+        if any(type(run["stable"][key]) is not int for key in ("tests", "failures", "errors", "skipped")) or any(not valid_sha(run["stable"][key]) for key in stable_keys - {"tests", "failures", "errors", "skipped"}):
+            raise ValueError("independent capture digest/count substituted")
+        if not isinstance(run["junitTiming"], dict) or set(run["junitTiming"]) != timing_keys:
+            raise ValueError("independent capture timing topology substituted")
+        start, end = run["junitTiming"]["executionStartNs"], run["junitTiming"]["executionEndNs"]
+        if type(start) is not int or type(end) is not int or not 0 < start <= end:
+            raise ValueError("independent capture timing substituted")
+        mtime, suite, inode = run["junitTiming"]["sourceMtimeNs"], run["junitTiming"]["suiteTimestampNs"], run["junitTiming"]["sourceInode"]
+        if any(type(value) is not int for value in (mtime, suite, inode)) or not (start <= mtime <= end and start <= suite <= end) or inode <= 0:
+            raise ValueError("independent capture result timing substituted")
+        birth = run["junitTiming"]["sourceBirthtimeNs"]
+        if birth is None:
+            if run["junitTiming"]["newFileProof"] != "NOT_PROVEN":
+                raise ValueError("independent capture new-file proof substituted")
+        elif type(birth) is not int or not start <= birth <= end or run["junitTiming"]["newFileProof"] != "BIRTHTIME_IN_INTERVAL":
+            raise ValueError("independent capture birthtime substituted")
+        validate_manifest_aggregate(run["ownedHomeInitial"], "$GRADLE_USER_HOME", MAX_TREE_FILES, MAX_GRADLE_HOME_BYTES)
+        validate_manifest_aggregate(run["ownedHomeFinal"], "$GRADLE_USER_HOME", MAX_TREE_FILES, MAX_GRADLE_HOME_BYTES)
+    if proof["runs"][0]["stable"] != proof["runs"][1]["stable"] or proof["comparison"] != proof["runs"][0]["stable"]:
+        raise ValueError("independent capture equality proof substituted")
+    if proof["runs"][0]["ownedHomeIdentitySha256"] == proof["runs"][1]["ownedHomeIdentitySha256"]:
+        raise ValueError("independent captures reused one owned Gradle home identity")
+    if proof["runs"][1]["junitTiming"]["executionStartNs"] <= proof["runs"][0]["junitTiming"]["executionEndNs"]:
+        raise ValueError("second Gradle capture is not temporally independent")
+    if proof["runs"][0]["junitTiming"] != {key: data["junit"][key] for key in timing_keys} or proof["runs"][0]["ownedHomeInitial"] != data["manifestTables"]["gradleHomeBefore"] or proof["runs"][0]["ownedHomeFinal"] != data["manifestTables"]["gradleHomeAfter"]:
+        raise ValueError("first independent capture does not bind admitted artifact")
+    if any(proof["comparison"].get(key) != value for key, value in expected_stable.items()):
+        raise ValueError("repeatability proof does not bind admitted C2 artifact")
+    if sanitized is not None and proof["comparison"]["junitSemanticSha256"] != canonical_junit_semantic_digest(sanitized):
+        raise ValueError("repeatability JUnit semantic digest substituted")
+
+
 def validate_source_snapshot_pair(
     before: dict,
     after: dict,
@@ -812,6 +956,56 @@ def writable_gradle_home_manifest() -> dict:
     return tree_manifest(Path(ISOLATED_GRADLE_HOME), "$GRADLE_USER_HOME", max_bytes=MAX_GRADLE_HOME_BYTES)
 
 
+def create_owned_gradle_home(candidate: Path | None = None) -> tuple[Path, tuple[int, int]]:
+    if candidate is None:
+        path = Path(tempfile.mkdtemp(prefix="codecks-m09d-owned-gradle-"))
+    else:
+        path = candidate
+        os.mkdir(path, 0o700)
+    metadata = path.lstat()
+    if path.is_symlink() or not stat.S_ISDIR(metadata.st_mode) or any(path.iterdir()):
+        raise ValueError("invocation-owned Gradle home creation substituted")
+    return path, (metadata.st_dev, metadata.st_ino)
+
+
+def owned_seed_paths() -> tuple[Path, Path, Path, Path]:
+    return (
+        SEED_GRADLE_HOME / "provenance/gradle-9.4.1-bin.zip",
+        SEED_GRADLE_HOME / "provenance/gradle-release-checksums.html",
+        SEED_GRADLE_HOME / "wrapper/dists/gradle-9.4.1-bin/arn2x92ynaizyzdaamcbpbhtj/gradle-9.4.1",
+        SEED_GRADLE_HOME / "gradle.properties",
+    )
+
+
+def seed_owned_gradle_home(path: Path) -> None:
+    seed_zip, seed_receipt, seed_distribution, seed_properties = owned_seed_paths()
+    if sha_path(seed_zip) != GRADLE_DISTRIBUTION_SHA256 or sha_path(seed_receipt) != CHECKSUM_RECEIPT_SHA256:
+        raise ValueError("owned-home seed provenance substituted")
+    validate_gradle_properties_bytes(seed_properties.read_bytes())
+    archived = zip_manifest(seed_zip)
+    if archived != tree_manifest(seed_distribution, "$GRADLE_DISTRIBUTION_ROOT"):
+        raise ValueError("owned-home seed distribution substituted")
+    provenance = path / "provenance"
+    distribution_parent = path / "wrapper/dists/gradle-9.4.1-bin/arn2x92ynaizyzdaamcbpbhtj"
+    provenance.mkdir(parents=True)
+    distribution_parent.mkdir(parents=True)
+    shutil.copyfile(seed_zip, provenance / seed_zip.name)
+    shutil.copyfile(seed_receipt, provenance / seed_receipt.name)
+    shutil.copyfile(seed_properties, path / "gradle.properties")
+    shutil.copytree(seed_distribution, distribution_parent / "gradle-9.4.1")
+
+
+def remove_owned_gradle_home(path: Path, identity: tuple[int, int]) -> None:
+    metadata = path.lstat()
+    if path.is_symlink() or not stat.S_ISDIR(metadata.st_mode) or (metadata.st_dev, metadata.st_ino) != identity:
+        raise ValueError("invocation-owned Gradle home identity substituted")
+    if not shutil.rmtree.avoids_symlink_attacks:
+        raise ValueError("safe owned-home recursive cleanup unsupported")
+    shutil.rmtree(path)
+    if path.exists() or path.is_symlink():
+        raise ValueError("invocation-owned Gradle home cleanup incomplete")
+
+
 def sdk_required_manifests() -> list[dict]:
     roots = (
         (Path(ANDROID_HOME) / "platforms/android-37.0", "$ANDROID_HOME/platforms/android-37.0"),
@@ -845,8 +1039,14 @@ def parse_runtime_versions(jdk_text: str, gradle_text: str) -> dict:
 
 
 def require_no_init_scripts() -> dict:
-    present = [path.as_posix() for path in FORBIDDEN_INIT_FILES if path.exists()]
-    for directory in INIT_DIRS:
+    scoped_files = (Path(ISOLATED_GRADLE_HOME) / "init.gradle", Path(ISOLATED_GRADLE_HOME) / "init.gradle.kts")
+    files = scoped_files + tuple(path for path in FORBIDDEN_INIT_FILES if not path.as_posix().startswith(SEED_GRADLE_HOME.as_posix()))
+    directories = (
+        Path(ISOLATED_GRADLE_HOME) / "init.d", Path("/Users/srinivasvaddi/.gradle/init.d"),
+        Path("/etc/gradle/init.d"), GRADLE_DISTRIBUTION_ROOT / "init.d",
+    )
+    present = [path.as_posix() for path in files if path.exists()]
+    for directory in directories:
         if directory.is_dir():
             present.extend(
                 path.as_posix() for path in directory.rglob("*")
@@ -857,7 +1057,7 @@ def require_no_init_scripts() -> dict:
             )
     if present:
         raise ValueError(f"Gradle init scripts forbidden: {present}")
-    checked_paths = FORBIDDEN_INIT_FILES + INIT_DIRS
+    checked_paths = files + directories
     return {
         "scopedUser": [], "defaultUser": [], "system": [], "distribution": [],
         "checked": [tokenize_private_path(path.as_posix()) for path in checked_paths],
@@ -1099,18 +1299,28 @@ def validate_artifact_data(
     source_commit: str,
     verify_current: bool = True,
     verify_live_build_outputs: bool | None = None,
+    verify_source_commit: bool | None = None,
+    verify_live_toolchain: bool | None = None,
 ) -> None:
     if verify_live_build_outputs is None:
         verify_live_build_outputs = verify_current
+    if verify_source_commit is None:
+        verify_source_commit = verify_current
+    if verify_live_toolchain is None:
+        verify_live_toolchain = verify_current
     if verify_current and (ROOT / ARTIFACT_MANIFEST).exists() and (ROOT / ARTIFACT_MANIFEST).stat().st_size > MAX_ARTIFACT_MANIFEST_BYTES:
         raise ValueError("artifact manifest exceeds canonical size cap")
-    if set(data) != {"schema", "sourceCommit", "command", "environment", "className", "methods", "junit", "log", "compiledTrees", "tools", "snapshots", "manifestTables", "claims"}:
+    if set(data) != {"schema", "sourceCommit", "evidenceSource", "repeatability", "command", "environment", "className", "methods", "junit", "log", "compiledTrees", "tools", "snapshots", "manifestTables", "ownedGradleHome", "claims"}:
         raise ValueError("artifact manifest keys substituted")
     validate_manifest_references(data["tools"], data["snapshots"])
     validate_manifest_tables(data["manifestTables"])
     tables = data["manifestTables"]
     if data["schema"] != "codecks.m09d.controller-lifecycle-artifacts.v1" or data["sourceCommit"] != source_commit:
         raise ValueError("artifact source binding mismatch")
+    validate_evidence_source_shape(data["evidenceSource"])
+    if verify_source_commit and data["evidenceSource"] != evidence_source_binding(source_commit):
+        raise ValueError("artifact collector/schema/validator source binding substituted")
+    validate_repeatability_proof(data)
     if data["command"] != list(COMMAND) or data["className"] != CLASS_NAME or data["methods"] != sorted(METHODS):
         raise ValueError("artifact command, class, or method substitution")
     if data["environment"] != EXEC_ENV:
@@ -1120,13 +1330,20 @@ def validate_artifact_data(
         raise ValueError("execution snapshot topology substituted")
     if snapshots["sourceBefore"] != snapshots["sourceAfter"] or snapshots["sdkBefore"] != snapshots["sdkAfter"]:
         raise ValueError("source or required SDK changed during execution")
-    if verify_current:
+    if verify_source_commit:
         validate_source_snapshot_pair(
             snapshots["sourceBefore"], snapshots["sourceAfter"], source_commit,
             git("rev-parse", f"{source_commit}^{{tree}}"), committed_c1_digest(source_commit),
         )
     validate_manifest_aggregate(tables["gradleHomeBefore"], "$GRADLE_USER_HOME", MAX_TREE_FILES, MAX_GRADLE_HOME_BYTES)
     validate_manifest_aggregate(tables["gradleHomeAfter"], "$GRADLE_USER_HOME", MAX_TREE_FILES, MAX_GRADLE_HOME_BYTES)
+    lifecycle = data["ownedGradleHome"]
+    if lifecycle != {
+        "initialManifestRef": "gradleHomeBefore", "finalManifestRef": "gradleHomeAfter",
+        "cleanupProof": "ABSENT_AFTER_SAFE_DELETE", "writableHomeMaterialRetention": "NOT_RETAINED",
+        "postRunLiveRevalidation": "NOT_APPLICABLE",
+    }:
+        raise ValueError("invocation-owned Gradle home lifecycle substituted")
     if verify_live_build_outputs and tables["gradleHomeAfter"] != manifest_aggregate(writable_gradle_home_manifest()):
         raise ValueError("post-execution writable Gradle home changed")
     log_binding = data["log"]
@@ -1157,6 +1374,7 @@ def validate_artifact_data(
     if verify_current:
         sanitized_junit = read_bounded_file(ROOT / SANITIZED_JUNIT_XML, MAX_XML_BYTES)
         validate_durable_sanitized_junit(junit_binding, sanitized_junit)
+        validate_repeatability_proof(data, sanitized_junit)
         if junit_timestamp_ns(sanitized_junit) != suite:
             raise ValueError("durable sanitized JUnit bytes substituted")
         if sha_path(ROOT / SANITIZED_LOG) != log_binding["sha256"]:
@@ -1226,7 +1444,7 @@ def validate_artifact_data(
     init_scripts = tools["initScripts"]
     if set(init_scripts) != {"scopedUser", "defaultUser", "system", "distribution", "checked"} or any(init_scripts[key] for key in ("scopedUser", "defaultUser", "system", "distribution")):
         raise ValueError("Gradle init-script attestation substituted")
-    if verify_current:
+    if verify_live_toolchain:
         live = collect_toolchain_data()
         for key, value in live.items():
             if key in {"distribution", "wrapperDirectory", "dependencyCache", "jdkDistribution", "sdkRequired"}:
@@ -1242,12 +1460,12 @@ def validate_artifact_data(
                 raise ValueError("live tool manifest aggregate substituted")
         if tables["executionDependencyCache"] != manifest_aggregate(live["dependencyCache"]):
             raise ValueError("live execution dependency-cache aggregate substituted")
-    if data["claims"] != {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialInCommittedEvidence": "NOT_RETAINED", "ignoredLocalBuildOutputsRetention": "NOT_PROVEN", "rawTransformationRevalidation": "NOT_POSSIBLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"}:
+    if data["claims"] != {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialInCommittedEvidence": "NOT_RETAINED", "ignoredLocalBuildOutputsRetention": "NOT_PROVEN", "rawTransformationRevalidation": "NOT_POSSIBLE", "writableHomeMaterialRetention": "NOT_RETAINED", "postRunLiveRevalidation": "NOT_APPLICABLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"}:
         raise ValueError("artifact claim substitution")
     validate_private_free(data)
 
 
-def _collect_artifacts_with_raw_result() -> None:
+def _collect_artifacts_with_raw_result() -> tuple[bytes, bytes, dict]:
     source = git("rev-parse", "HEAD")
     validate_topology(source, git("rev-parse", f"{source}^"), changed_paths(source))
     require_clean_status()
@@ -1259,8 +1477,8 @@ def _collect_artifacts_with_raw_result() -> None:
         raise ValueError("Gradle distribution ZIP checksum mismatch before execution")
     remove_focused_result()
     source_before = repo_source_snapshot()
-    tools_before = collect_toolchain_data()
     gradle_home_before = writable_gradle_home_manifest()
+    tools_before = collect_toolchain_data()
     execution_start_ns = time.time_ns()
     process = subprocess.run(EXEC_COMMAND, cwd=ROOT, env=closed_environment(), text=False, capture_output=True)
     execution_end_ns = time.time_ns()
@@ -1282,8 +1500,6 @@ def _collect_artifacts_with_raw_result() -> None:
     )
     gradle_home_after = writable_gradle_home_manifest()
     source_after = repo_source_snapshot()
-    atomic_write(SANITIZED_JUNIT_XML, sanitized_junit)
-    atomic_write(SANITIZED_LOG, log)
     full_snapshots = {
         "sourceBefore": source_before, "sourceAfter": source_after,
         "gradleHomeBefore": gradle_home_before, "gradleHomeAfter": gradle_home_after,
@@ -1294,7 +1510,7 @@ def _collect_artifacts_with_raw_result() -> None:
     compact_tools, compact_snapshots, manifest_tables = dedupe_manifest_tables(tools_before, full_snapshots)
     manifest = {
         "schema": "codecks.m09d.controller-lifecycle-artifacts.v1",
-        "sourceCommit": source,
+        "sourceCommit": source, "evidenceSource": evidence_source_binding(source),
         "command": list(COMMAND), "environment": EXEC_ENV, "className": CLASS_NAME, "methods": sorted(METHODS),
         "junit": junit_binding,
         "log": {"path": SANITIZED_LOG.as_posix(), "sha256": sha_bytes(log), "capture": "DIRECT_SUBPROCESS_STDOUT_STDERR"},
@@ -1302,16 +1518,50 @@ def _collect_artifacts_with_raw_result() -> None:
         "tools": compact_tools,
         "snapshots": compact_snapshots,
         "manifestTables": manifest_tables,
-        "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialInCommittedEvidence": "NOT_RETAINED", "ignoredLocalBuildOutputsRetention": "NOT_PROVEN", "rawTransformationRevalidation": "NOT_POSSIBLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
+        "ownedGradleHome": {"initialManifestRef": "gradleHomeBefore", "finalManifestRef": "gradleHomeAfter", "cleanupProof": "ABSENT_AFTER_SAFE_DELETE", "writableHomeMaterialRetention": "NOT_RETAINED", "postRunLiveRevalidation": "NOT_APPLICABLE"},
+        "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialInCommittedEvidence": "NOT_RETAINED", "ignoredLocalBuildOutputsRetention": "NOT_PROVEN", "rawTransformationRevalidation": "NOT_POSSIBLE", "writableHomeMaterialRetention": "NOT_RETAINED", "postRunLiveRevalidation": "NOT_APPLICABLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
     }
-    validate_artifact_data(manifest, source, verify_live_build_outputs=True)
-    serialized = serialize_artifact_manifest(manifest)
-    atomic_write(ARTIFACT_MANIFEST, serialized)
+    return sanitized_junit, log, manifest
+
+
+def _capture_in_owned_home() -> tuple[bytes, bytes, dict]:
+    owned, identity = create_owned_gradle_home()
+    try:
+        seed_owned_gradle_home(owned)
+        activate_gradle_home(owned)
+        sanitized_junit, log, manifest = _collect_artifacts_with_raw_result()
+        manifest["_ownedHomeIdentitySha256"] = sha_bytes(f"{owned.name}:{identity[0]}:{identity[1]}".encode())
+    except Exception as primary:
+        try:
+            remove_owned_gradle_home(owned, identity)
+        except Exception as cleanup:
+            raise RuntimeError(f"artifact collection failed: {primary}; owned Gradle home cleanup failed: {cleanup}") from primary
+        finally:
+            activate_gradle_home(SEED_GRADLE_HOME)
+        raise
+    try:
+        remove_owned_gradle_home(owned, identity)
+    finally:
+        activate_gradle_home(SEED_GRADLE_HOME)
+    return sanitized_junit, log, manifest
+
+
+def _collect_artifacts_in_owned_home() -> None:
+    first = _capture_in_owned_home()
+    second = _capture_in_owned_home()
+    sanitized_junit, log, manifest = first
+    manifest["repeatability"] = bind_independent_captures(first, second)
+    manifest.pop("_ownedHomeIdentitySha256")
+    source = git("rev-parse", "HEAD")
+    validate_artifact_data(manifest, source, verify_current=False, verify_live_build_outputs=False, verify_source_commit=True, verify_live_toolchain=False)
+    atomic_write(SANITIZED_JUNIT_XML, sanitized_junit)
+    atomic_write(SANITIZED_LOG, log)
+    atomic_write(ARTIFACT_MANIFEST, serialize_artifact_manifest(manifest))
 
 
 def collect_artifacts() -> None:
     try:
-        _collect_artifacts_with_raw_result()
+        _collect_artifacts_in_owned_home()
     except Exception as primary:
         try:
             remove_focused_result()
@@ -1335,7 +1585,7 @@ def collect_receipt(artifact_commit: str | None = None) -> dict:
     require_worktree_matches_commit(source, C1_PATHS)
     require_worktree_matches_commit(artifact, C2_PATHS)
     artifact_data = load_bounded_json(ROOT / ARTIFACT_MANIFEST)
-    validate_artifact_data(artifact_data, source)
+    validate_artifact_data(artifact_data, source, verify_current=True, verify_live_build_outputs=False, verify_source_commit=True, verify_live_toolchain=False)
     durable_log = read_bounded_file(ROOT / SANITIZED_LOG, MAX_LOG_BYTES)
     validate_private_bytes(durable_log)
     validate_command_header(durable_log)
@@ -1344,6 +1594,7 @@ def collect_receipt(artifact_commit: str | None = None) -> dict:
         "scope": "CURRENT_SOURCE_CPU_CONTROLLER_LIFECYCLE_ONLY",
         "commitChain": {"base": BASE_COMMIT, "source": source, "artifact": artifact},
         "sourceBinding": {"files": require_source_bindings(), "c1Paths": sorted(C1_PATHS)},
+        "evidenceSource": artifact_data["evidenceSource"],
         "artifacts": [{"path": path, "sha256": sha_path(ROOT / path)} for path in sorted(C2_PATHS)],
         "test": {"className": CLASS_NAME, "methods": sorted(METHODS), "tests": 10, "failures": 0, "errors": 0, "skipped": 0, "command": list(COMMAND), "environment": EXEC_ENV},
         "claims": artifact_data["claims"],

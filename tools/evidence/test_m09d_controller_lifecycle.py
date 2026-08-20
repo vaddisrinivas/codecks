@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import inspect
 import json
 from pathlib import Path
 import shutil
@@ -36,6 +37,8 @@ from collect_m09d_controller_lifecycle import (
     validate_manifest_aggregate, preparse_zip_directory, sanitize_junit_hostname, validate_sanitized_junit,
     sanitized_junit_artifact_binding, JUNIT_HOST_TOKEN, JUNIT_SANITIZER_ALGORITHM, JUNIT_SANITIZER_VERSION,
     validate_durable_sanitized_junit,
+    bind_independent_captures, capture_summary, create_owned_gradle_home, remove_owned_gradle_home, owned_seed_paths,
+    tool_seed_digest, SEED_GRADLE_HOME,
     sha_bytes,
 )
 from strict_json_schema import validate_json_schema
@@ -62,6 +65,35 @@ def junit_bytes(
     ET.SubElement(root, "system-out")
     ET.SubElement(root, "system-err")
     return ET.tostring(root)
+
+
+def repeatability_proof(data: dict, junit_semantic_sha: str = "f" * 64) -> dict:
+    stable = {
+        "junitSemanticSha256": junit_semantic_sha,
+        "logSha256": data["log"]["sha256"],
+        "compiledTreesSha256": sha_bytes(json.dumps(data["compiledTrees"], separators=(",", ":"), sort_keys=True).encode()),
+        "toolSeedSha256": tool_seed_digest(data),
+        "methodsSha256": sha_bytes(json.dumps(sorted(METHODS), separators=(",", ":")).encode()),
+        "tests": 10, "failures": 0, "errors": 0, "skipped": 0,
+    }
+    timing_keys = ("executionStartNs", "executionEndNs", "sourceMtimeNs", "sourceBirthtimeNs", "sourceInode", "newFileProof", "suiteTimestampNs")
+    runs = [{
+        "ordinal": ordinal, "ownedHomeToken": f"$INVOCATION_GRADLE_USER_HOME_{ordinal}", "stable": copy.deepcopy(stable),
+        "ownedHomeIdentitySha256": str(ordinal) * 64,
+        "junitTiming": {key: data["junit"][key] for key in timing_keys},
+        "ownedHomeInitial": data["manifestTables"]["gradleHomeBefore"], "ownedHomeFinal": data["manifestTables"]["gradleHomeAfter"],
+    } for ordinal in (1, 2)]
+    first_end = runs[0]["junitTiming"]["executionEndNs"]
+    duration = max(2, first_end - runs[0]["junitTiming"]["executionStartNs"])
+    second_start = first_end + 1
+    runs[1]["junitTiming"].update({
+        "executionStartNs": second_start, "executionEndNs": second_start + duration,
+        "sourceMtimeNs": second_start + 1, "suiteTimestampNs": second_start + 1,
+        "sourceInode": runs[0]["junitTiming"]["sourceInode"] + 1,
+    })
+    if runs[1]["junitTiming"]["sourceBirthtimeNs"] is not None:
+        runs[1]["junitTiming"]["sourceBirthtimeNs"] = second_start + 1
+    return {"status": "MATCHED_TWO_INDEPENDENT_CAPTURES", "runCount": 2, "comparison": stable, "runs": runs}
 
 
 class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
@@ -273,6 +305,13 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
         source_snapshot = {"head": source, "headTree": "2" * 40, "indexTree": "2" * 40, "status": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "c1": "c" * 64}
         data = {
             "schema": "codecks.m09d.controller-lifecycle-artifacts.v1", "sourceCommit": source,
+            "evidenceSource": {"sourceParent": BASE_COMMIT, "c1Paths": sorted(C1_PATHS), "files": [
+                {"path": path, "sha256": "e" * 64} for path in (
+                    "tools/evidence/collect_m09d_controller_lifecycle.py",
+                    "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.schema.json",
+                    "tools/evidence/validate_m09d_controller_lifecycle.py",
+                )
+            ]},
             "command": list(COMMAND), "environment": EXEC_ENV,
             "className": CLASS_NAME, "methods": sorted(METHODS),
             "junit": {"path": "tasks/test-evidence/m09d-controller-lifecycle/junit.xml", "sanitizerAlgorithm": JUNIT_SANITIZER_ALGORITHM, "sanitizerVersion": JUNIT_SANITIZER_VERSION, "hostnameToken": JUNIT_HOST_TOKEN, "sanitizedSha256": "b" * 64, "rawMaterialInCommittedEvidence": "NOT_RETAINED", "ignoredLocalBuildOutputsRetention": "NOT_PROVEN", "rawTransformationRevalidation": "NOT_POSSIBLE", "executionStartNs": 1, "sourceMtimeNs": 2, "suiteTimestampNs": 2, "executionEndNs": 3, "sourceBirthtimeNs": None, "sourceInode": 1, "newFileProof": "NOT_PROVEN"},
@@ -303,10 +342,12 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
                 "gradleVersionCommand": ["$GRADLE_DISTRIBUTION_ROOT/bin/gradle", "--version", "--no-daemon"], "gradleVersion": "test-gradle",
                 "initScripts": {"scopedUser": [], "defaultUser": [], "system": [], "distribution": [], "checked": ["$GRADLE_USER_HOME/init.gradle"]},
             },
-            "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialInCommittedEvidence": "NOT_RETAINED", "ignoredLocalBuildOutputsRetention": "NOT_PROVEN", "rawTransformationRevalidation": "NOT_POSSIBLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
+            "ownedGradleHome": {"initialManifestRef": "gradleHomeBefore", "finalManifestRef": "gradleHomeAfter", "cleanupProof": "ABSENT_AFTER_SAFE_DELETE", "writableHomeMaterialRetention": "NOT_RETAINED", "postRunLiveRevalidation": "NOT_APPLICABLE"},
+            "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialInCommittedEvidence": "NOT_RETAINED", "ignoredLocalBuildOutputsRetention": "NOT_PROVEN", "rawTransformationRevalidation": "NOT_POSSIBLE", "writableHomeMaterialRetention": "NOT_RETAINED", "postRunLiveRevalidation": "NOT_APPLICABLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
         }
         compact_tools, compact_snapshots, tables = dedupe_manifest_tables(data["tools"], data["snapshots"])
         data["tools"] = compact_tools; data["snapshots"] = compact_snapshots; data["manifestTables"] = tables
+        data["repeatability"] = repeatability_proof(data)
         self.assertTrue(all(set(table) == {"root", "files", "bytes", "digest"} for table in tables.values()))
         self.assertEqual(data["snapshots"]["dependencyCacheBefore"], data["snapshots"]["dependencyCacheAfter"])
         validate_artifact_data(data, source, verify_current=False)
@@ -371,6 +412,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 validate_artifact_data(changed, source, verify_current=False)
         changed = copy.deepcopy(data); changed["tools"]["jdkVersion"] = "/Users/private/jdk"
+        changed["repeatability"] = repeatability_proof(changed)
         with self.assertRaisesRegex(ValueError, "private filesystem path"):
             validate_artifact_data(changed, source, verify_current=False)
         for section in ("tools", "claims"):
@@ -384,6 +426,37 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             changed = copy.deepcopy(data); changed["claims"][key] = value
             with self.assertRaises(ValueError):
                 validate_artifact_data(changed, source, verify_current=False)
+        for section, key, value in (
+            ("claims", "writableHomeMaterialRetention", "RETAINED"),
+            ("claims", "postRunLiveRevalidation", "REQUIRED"),
+            ("ownedGradleHome", "cleanupProof", "PRESENT"),
+            ("ownedGradleHome", "writableHomeMaterialRetention", "RETAINED"),
+            ("ownedGradleHome", "postRunLiveRevalidation", "REQUIRED"),
+        ):
+            changed = copy.deepcopy(data); changed[section][key] = value
+            with self.assertRaises(ValueError):
+                validate_artifact_data(changed, source, verify_current=False)
+        changed = copy.deepcopy(data); changed["evidenceSource"]["files"][0]["sha256"] = "swapped"
+        with self.assertRaises(ValueError):
+            validate_artifact_data(changed, source, verify_current=False)
+        changed = copy.deepcopy(data); changed["repeatability"]["comparison"]["junitSemanticSha256"] = "0" * 64
+        with self.assertRaises(ValueError):
+            validate_artifact_data(changed, source, verify_current=False)
+        changed = copy.deepcopy(data)
+        changed["repeatability"]["runs"][1]["junitTiming"] = copy.deepcopy(changed["repeatability"]["runs"][0]["junitTiming"])
+        with self.assertRaisesRegex(ValueError, "temporally independent"):
+            validate_artifact_data(changed, source, verify_current=False)
+        for second_start in (data["repeatability"]["runs"][0]["junitTiming"]["executionEndNs"], data["repeatability"]["runs"][0]["junitTiming"]["executionEndNs"] - 1):
+            changed = copy.deepcopy(data)
+            timing = changed["repeatability"]["runs"][1]["junitTiming"]
+            timing.update({"executionStartNs": second_start, "executionEndNs": second_start + 2, "sourceMtimeNs": second_start + 1, "suiteTimestampNs": second_start + 1})
+            with self.assertRaisesRegex(ValueError, "temporally independent"):
+                validate_artifact_data(changed, source, verify_current=False)
+        changed = copy.deepcopy(data)
+        timing = changed["repeatability"]["runs"][1]["junitTiming"]
+        timing["executionStartNs"], timing["executionEndNs"] = timing["executionEndNs"], timing["executionStartNs"]
+        with self.assertRaisesRegex(ValueError, "timing substituted"):
+            validate_artifact_data(changed, source, verify_current=False)
         changed = copy.deepcopy(data); changed["snapshots"]["sourceAfter"] = {**source_snapshot, "c1": "0" * 64}
         with self.assertRaises(ValueError):
             validate_artifact_data(changed, source, verify_current=False)
@@ -516,10 +589,10 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             _remove_focused_result_at_root(root)
             _require_focused_result_absent_at_root(root)
 
-        with patch.object(collector, "_collect_artifacts_with_raw_result"), patch.object(collector, "remove_focused_result") as cleanup:
+        with patch.object(collector, "_collect_artifacts_in_owned_home"), patch.object(collector, "remove_focused_result") as cleanup:
             collector.collect_artifacts()
             cleanup.assert_called_once_with()
-        with patch.object(collector, "_collect_artifacts_with_raw_result", side_effect=ValueError("lane failed")), patch.object(
+        with patch.object(collector, "_collect_artifacts_in_owned_home", side_effect=ValueError("lane failed")), patch.object(
             collector, "remove_focused_result"
         ) as cleanup:
             with self.assertRaisesRegex(ValueError, "lane failed"):
@@ -549,13 +622,13 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
                     _remove_focused_result_at_root(root)
             self.assertEqual(b"race", result.read_bytes())
 
-        with patch.object(collector, "_collect_artifacts_with_raw_result", side_effect=ValueError("lane failed")), patch.object(
+        with patch.object(collector, "_collect_artifacts_in_owned_home", side_effect=ValueError("lane failed")), patch.object(
             collector, "remove_focused_result", side_effect=OSError("cleanup failed")
         ):
             with self.assertRaisesRegex(RuntimeError, "lane failed.*cleanup failed") as caught:
                 collector.collect_artifacts()
             self.assertIsInstance(caught.exception.__cause__, ValueError)
-        with patch.object(collector, "_collect_artifacts_with_raw_result"), patch.object(
+        with patch.object(collector, "_collect_artifacts_in_owned_home"), patch.object(
             collector, "remove_focused_result", side_effect=OSError("cleanup-only failed")
         ):
             with self.assertRaisesRegex(OSError, "cleanup-only failed"):
@@ -574,6 +647,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
         calls = []
         with patch.object(final_validator, "require_focused_result_absent", side_effect=lambda: calls.append("absent")), patch.object(
             final_validator, "validate_json_schema"
+        ), patch.object(final_validator, "require_recorded_postrun_scope"
         ), patch.object(final_validator, "git", side_effect=["2" * 40, "1" * 40, BASE_COMMIT, "1" * 40, "2" * 40]), patch.object(
             final_validator, "changed_paths", side_effect=[C1_PATHS, C2_PATHS, C3_PATHS]
         ), patch.object(final_validator, "validate_topology"), patch.object(final_validator, "require_clean_status"), patch.object(
@@ -589,6 +663,126 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
         for substituted in (1, 0):
             with self.assertRaises(ValueError):
                 validate_json_schema(substituted, boolean_schema)
+
+    def test_invocation_owned_gradle_homes_repeat_and_cleanup(self) -> None:
+        sanitized = sanitize_junit_hostname(junit_bytes())
+        log = b"canonical log"
+        home = {"root": "$GRADLE_USER_HOME", "files": 1, "bytes": 1, "digest": "9" * 64}
+        def captured(start: int) -> tuple[bytes, bytes, dict]:
+            return sanitized, log, {
+                "_ownedHomeIdentitySha256": ("1" if start == 100 else "2") * 64,
+                "junit": {"executionStartNs": start, "executionEndNs": start + 10, "sourceMtimeNs": start + 5, "sourceBirthtimeNs": None, "sourceInode": start, "newFileProof": "NOT_PROVEN", "suiteTimestampNs": start + 5},
+                "log": {"sha256": sha_bytes(log)},
+                "compiledTrees": [{"root": "production", "files": 1, "bytes": 1, "digest": "a" * 64}, {"root": "test", "files": 1, "bytes": 1, "digest": "b" * 64}],
+                "tools": {"verifiedSeed": "same"},
+                "manifestTables": {"distribution": {"root": "$GRADLE_DISTRIBUTION_ROOT", "files": 1, "bytes": 1, "digest": "d" * 64}, "gradleHomeBefore": home, "gradleHomeAfter": home},
+            }
+        first, second = captured(100), captured(200)
+        created = []
+        real_create = collector.create_owned_gradle_home
+        def tracked_create():
+            value = real_create(); created.append(value[0]); return value
+        with patch.object(collector, "create_owned_gradle_home", side_effect=tracked_create), patch.object(
+            collector, "seed_owned_gradle_home"
+        ), patch.object(collector, "activate_gradle_home"), patch.object(
+            collector, "_collect_artifacts_with_raw_result", side_effect=[first, second]
+        ) as execute, patch.object(collector, "validate_artifact_data"), patch.object(
+            collector, "git", return_value="1" * 40
+        ), patch.object(collector, "atomic_write") as write, patch.object(collector, "serialize_artifact_manifest", return_value=b"manifest"):
+            collector._collect_artifacts_in_owned_home()
+        self.assertEqual(2, execute.call_count)
+        self.assertEqual(2, len(created)); self.assertTrue(all(not path.exists() for path in created))
+        self.assertEqual(3, write.call_count)
+        self.assertEqual("MATCHED_TWO_INDEPENDENT_CAPTURES", first[2]["repeatability"]["status"])
+        self.assertNotEqual(first[2]["repeatability"]["runs"][0]["junitTiming"], first[2]["repeatability"]["runs"][1]["junitTiming"])
+        negative_first, swapped = captured(100), captured(200); swapped[2]["compiledTrees"][0]["digest"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "differ semantically"):
+            bind_independent_captures(negative_first, swapped)
+
+        def mismatched(surface: str) -> tuple[tuple[bytes, bytes, dict], tuple[bytes, bytes, dict]]:
+            left, right = captured(100), captured(200)
+            if surface == "compiled":
+                right[2]["compiledTrees"][0]["digest"] = "0" * 64
+            elif surface == "log":
+                right = (right[0], b"different canonical log", right[2])
+                right[2]["log"]["sha256"] = sha_bytes(right[1])
+            elif surface == "tool":
+                right[2]["tools"]["verifiedSeed"] = "substituted"
+            else:
+                right = (right[0].replace(METHODS[0].encode(), b"substitutedMethod"), right[1], right[2])
+            return left, right
+
+        for surface in ("compiled", "log", "tool", "junit"):
+            with self.subTest(orchestrator_mismatch=surface):
+                created = []
+                def tracked_mismatch_create():
+                    value = real_create(); created.append(value[0]); return value
+                captures = mismatched(surface)
+                with patch.object(collector, "create_owned_gradle_home", side_effect=tracked_mismatch_create), patch.object(
+                    collector, "seed_owned_gradle_home"
+                ), patch.object(collector, "activate_gradle_home"), patch.object(
+                    collector, "_collect_artifacts_with_raw_result", side_effect=captures
+                ) as execute, patch.object(collector, "atomic_write") as write:
+                    with self.assertRaises(ValueError):
+                        collector._collect_artifacts_in_owned_home()
+                self.assertEqual(2, execute.call_count)
+                self.assertEqual(0, write.call_count)
+                self.assertEqual(2, len(created))
+                self.assertTrue(all(not path.exists() for path in created))
+
+    def test_owned_home_preexist_symlink_identity_and_cleanup_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            parent = Path(raw)
+            existing = parent / "existing"; existing.mkdir()
+            with self.assertRaises(FileExistsError):
+                create_owned_gradle_home(existing)
+            link = parent / "link"; link.symlink_to(existing, target_is_directory=True)
+            with self.assertRaises(FileExistsError):
+                create_owned_gradle_home(link)
+            home, identity = create_owned_gradle_home(parent / "owned")
+            with self.assertRaisesRegex(ValueError, "identity"):
+                remove_owned_gradle_home(home, (identity[0], identity[1] + 1))
+            with patch.object(collector.shutil, "rmtree", side_effect=OSError("cleanup failed")):
+                with self.assertRaisesRegex(OSError, "cleanup failed"):
+                    remove_owned_gradle_home(home, identity)
+            remove_owned_gradle_home(home, identity)
+
+    def test_owned_home_primary_and_cleanup_errors_are_composed(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw) / "owned"; home.mkdir()
+            identity = (home.stat().st_dev, home.stat().st_ino)
+            with patch.object(collector, "create_owned_gradle_home", return_value=(home, identity)), patch.object(
+                collector, "seed_owned_gradle_home"
+            ), patch.object(collector, "activate_gradle_home"), patch.object(
+                collector, "_collect_artifacts_with_raw_result", side_effect=ValueError("build failed")
+            ), patch.object(collector, "remove_owned_gradle_home", side_effect=OSError("cleanup failed")):
+                with self.assertRaisesRegex(RuntimeError, "build failed.*cleanup failed") as caught:
+                    collector._collect_artifacts_in_owned_home()
+                self.assertIsInstance(caught.exception.__cause__, ValueError)
+            with patch.object(collector, "create_owned_gradle_home", return_value=(home, identity)), patch.object(
+                collector, "seed_owned_gradle_home"
+            ), patch.object(collector, "activate_gradle_home"), patch.object(
+                collector, "_collect_artifacts_with_raw_result", return_value=(b"xml", b"log", {})
+            ), patch.object(collector, "remove_owned_gradle_home", side_effect=OSError("cleanup-only failed")):
+                with self.assertRaisesRegex(OSError, "cleanup-only failed"):
+                    collector._collect_artifacts_in_owned_home()
+
+    def test_unrelated_shared_temp_material_is_not_a_seed_input(self) -> None:
+        exact = {path.relative_to(SEED_GRADLE_HOME).as_posix() for path in owned_seed_paths()}
+        self.assertEqual({
+            "provenance/gradle-9.4.1-bin.zip", "provenance/gradle-release-checksums.html",
+            "wrapper/dists/gradle-9.4.1-bin/arn2x92ynaizyzdaamcbpbhtj/gradle-9.4.1", "gradle.properties",
+        }, exact)
+        self.assertNotIn("caches/unrelated-mutation", exact)
+
+    def test_final_validation_uses_recorded_c2_not_shared_or_deleted_home(self) -> None:
+        receipt_source = inspect.getsource(collector.collect_receipt)
+        final_source = inspect.getsource(final_validator.validate_data)
+        self.assertIn("verify_current=True", receipt_source)
+        self.assertIn("verify_source_commit=True", receipt_source)
+        self.assertIn("verify_live_toolchain=False", receipt_source)
+        self.assertNotIn(SEED_GRADLE_HOME.as_posix(), final_source)
+        self.assertNotIn("writable_gradle_home_manifest", receipt_source)
 
     def test_final_privacy_scan_is_committed_c2_c3_only(self) -> None:
         calls = []
@@ -641,11 +835,22 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             "scope": "CURRENT_SOURCE_CPU_CONTROLLER_LIFECYCLE_ONLY",
             "commitChain": {"base": BASE_COMMIT, "source": "1" * 40, "artifact": "2" * 40},
             "sourceBinding": {"files": [{"path": f"source-{i}", "sha256": "a" * 64} for i in range(3)], "c1Paths": sorted(C1_PATHS)},
+            "evidenceSource": {"sourceParent": BASE_COMMIT, "c1Paths": sorted(C1_PATHS), "files": [
+                {"path": path, "sha256": "e" * 64} for path in (
+                    "tools/evidence/collect_m09d_controller_lifecycle.py",
+                    "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.schema.json",
+                    "tools/evidence/validate_m09d_controller_lifecycle.py",
+                )
+            ]},
             "artifacts": [{"path": path, "sha256": "b" * 64} for path in sorted(C2_PATHS)],
             "test": {"className": CLASS_NAME, "methods": sorted(METHODS), "tests": 10, "failures": 0, "errors": 0, "skipped": 0, "command": list(COMMAND), "environment": EXEC_ENV},
-            "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialInCommittedEvidence": "NOT_RETAINED", "ignoredLocalBuildOutputsRetention": "NOT_PROVEN", "rawTransformationRevalidation": "NOT_POSSIBLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
+            "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialInCommittedEvidence": "NOT_RETAINED", "ignoredLocalBuildOutputsRetention": "NOT_PROVEN", "rawTransformationRevalidation": "NOT_POSSIBLE", "writableHomeMaterialRetention": "NOT_RETAINED", "postRunLiveRevalidation": "NOT_APPLICABLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
         }
         validate_json_schema(receipt, schema)
+        final_validator.require_recorded_postrun_scope(receipt)
+        changed_scope = copy.deepcopy(receipt); changed_scope["claims"]["postRunLiveRevalidation"] = "REQUIRED"
+        with self.assertRaisesRegex(ValueError, "retention/revalidation"):
+            final_validator.require_recorded_postrun_scope(changed_scope)
         def fake_git(*args: str) -> str:
             mapping = {
                 ("rev-parse", "3333333333333333333333333333333333333333^"): "2" * 40,
@@ -674,10 +879,13 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
                 changed[section][0]["sha256"] = "swapped"
             with self.assertRaises(ValueError):
                 validate_json_schema(changed, schema)
-        for key, value in (("rawSha256", "a" * 64), ("rawBytes", 100), ("rawMaterialRetention", "NOT_RETAINED"), ("rawMaterialInCommittedEvidence", "RETAINED"), ("ignoredLocalBuildOutputsRetention", "PROVEN"), ("rawTransformationRevalidation", "POSSIBLE")):
+        for key, value in (("rawSha256", "a" * 64), ("rawBytes", 100), ("rawMaterialRetention", "NOT_RETAINED"), ("rawMaterialInCommittedEvidence", "RETAINED"), ("ignoredLocalBuildOutputsRetention", "PROVEN"), ("rawTransformationRevalidation", "POSSIBLE"), ("writableHomeMaterialRetention", "RETAINED"), ("postRunLiveRevalidation", "REQUIRED")):
             changed = copy.deepcopy(receipt); changed["claims"][key] = value
             with self.assertRaises(ValueError):
                 validate_json_schema(changed, schema)
+        changed = copy.deepcopy(receipt); changed["evidenceSource"]["files"][0]["sha256"] = "swapped"
+        with self.assertRaises(ValueError):
+            validate_json_schema(changed, schema)
 
     def test_final_validator_cli_bounds_receipt_before_json_parse(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
