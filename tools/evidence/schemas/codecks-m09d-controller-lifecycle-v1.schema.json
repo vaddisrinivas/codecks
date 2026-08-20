@@ -11,15 +11,15 @@
     "commitChain": {
       "type": "object", "additionalProperties": false, "required": ["base", "source", "artifact"],
       "properties": {
-        "base": {"const": "eeb664106fe9a6d6fc7fac74dc977d10583aeb65"},
+        "base": {"const": "5f6b5222ab22eb3bcbadcf49000b6e86703bf48c"},
         "source": {"$ref": "#/$defs/commit"}, "artifact": {"$ref": "#/$defs/commit"}
       }
     },
     "evidenceSource": {
       "type": "object", "additionalProperties": false, "required": ["sourceParent", "c1Paths", "files"],
       "properties": {
-        "sourceParent": {"const": "eeb664106fe9a6d6fc7fac74dc977d10583aeb65"},
-        "c1Paths": {"type": "array", "minItems": 6, "maxItems": 6, "uniqueItems": true, "items": {"$ref": "#/$defs/path"}},
+        "sourceParent": {"const": "5f6b5222ab22eb3bcbadcf49000b6e86703bf48c"},
+        "c1Paths": {"type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true, "items": {"$ref": "#/$defs/path"}},
         "files": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/file"}}
       }
     },
@@ -27,7 +27,7 @@
       "type": "object", "additionalProperties": false, "required": ["files", "c1Paths"],
       "properties": {
         "files": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/file"}},
-        "c1Paths": {"type": "array", "minItems": 6, "maxItems": 6, "uniqueItems": true, "items": {"$ref": "#/$defs/path"}}
+        "c1Paths": {"type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true, "items": {"$ref": "#/$defs/path"}}
       }
     },
     "artifacts": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/file"}},

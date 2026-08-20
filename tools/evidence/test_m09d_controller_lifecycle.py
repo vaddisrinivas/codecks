@@ -38,7 +38,9 @@ from collect_m09d_controller_lifecycle import (
     sanitized_junit_artifact_binding, JUNIT_HOST_TOKEN, JUNIT_SANITIZER_ALGORITHM, JUNIT_SANITIZER_VERSION,
     validate_durable_sanitized_junit,
     bind_independent_captures, capture_summary, create_owned_gradle_home, remove_owned_gradle_home, owned_seed_paths,
-    tool_seed_digest, SEED_GRADLE_HOME,
+    tool_seed_digest, SEED_GRADLE_HOME, canonical_gradle_version_output, validate_canonical_gradle_version_record,
+    GRADLE_FIRST_USE_PREFIX, EXPECTED_GRADLE_VERSION_TEXT, PINNED_GRADLE_VERSION_RECORD,
+    sanitize_gradle_version_output,
     sha_bytes,
 )
 from strict_json_schema import validate_json_schema
@@ -96,7 +98,75 @@ def repeatability_proof(data: dict, junit_semantic_sha: str = "f" * 64) -> dict:
     return {"status": "MATCHED_TWO_INDEPENDENT_CAPTURES", "runCount": 2, "comparison": stable, "runs": runs}
 
 
+def gradle_version_bytes(first_use: bool = False) -> bytes:
+    return ((GRADLE_FIRST_USE_PREFIX if first_use else "") + EXPECTED_GRADLE_VERSION_TEXT).encode()
+
+
 class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
+    def test_collect_toolchain_gradle_version_path_preserves_boundary_whitespace(self) -> None:
+        raw_text = EXPECTED_GRADLE_VERSION_TEXT.replace("$JAVA_HOME", collector.JAVA_HOME)
+        good = (raw_text + "\n").encode()
+        jdk = b'openjdk version "20.0.2"\nOpenJDK Runtime Environment (build 20.0.2+9-78)\n'
+
+        def collect(raw: bytes) -> dict:
+            run_results = [SimpleNamespace(stdout=b"", stderr=jdk), SimpleNamespace(stdout=raw, stderr=b"")]
+            with patch.object(collector, "require_wrapper_checksum_property"), patch.object(
+                collector, "require_no_init_scripts", return_value={"scopedUser": [], "defaultUser": [], "system": [], "distribution": [], "checked": []}
+            ), patch.object(collector, "sha_path", side_effect=lambda path: GRADLE_DISTRIBUTION_SHA256 if path == collector.GRADLE_DISTRIBUTION_ZIP else "a" * 64), patch.object(
+                collector, "require_checksum_receipt", return_value={"url": CHECKSUM_RECEIPT_URL, "bodySha256": CHECKSUM_RECEIPT_SHA256, "acquisitionAuth": "NOT_PROVEN"}
+            ), patch.object(collector, "require_gradle_properties", return_value={"path": "$GRADLE_USER_HOME/gradle.properties", "sha256": GRADLE_PROPERTIES_SHA256}), patch.object(
+                collector, "require_distribution_matches_zip", return_value={"root": "$GRADLE_DISTRIBUTION_ROOT", "sha256": "b" * 64}
+            ), patch.object(collector, "jdk_distribution_manifest", return_value={"root": "$JAVA_HOME"}), patch.object(
+                collector, "sdk_required_manifests", return_value=[]
+            ), patch.object(collector, "local_properties_binding", return_value={"path": "local.properties", "state": "ABSENT"}), patch.object(
+                collector, "dependency_cache_manifest", return_value={"root": "$GRADLE_RO_DEP_CACHE/modules-2/files-2.1"}
+            ), patch.object(collector.subprocess, "run", side_effect=run_results):
+                return collector.collect_toolchain_data()
+
+        self.assertEqual(PINNED_GRADLE_VERSION_RECORD, collect(good)["gradleVersion"])
+        self.assertEqual(EXPECTED_GRADLE_VERSION_TEXT, sanitize_gradle_version_output(good))
+        for changed in (b"\n" + good, good + b"\n", raw_text.encode() + b" \n"):
+            with self.assertRaises(ValueError):
+                collect(changed)
+
+    def test_gradle_version_first_use_banner_canonicalizes_without_weakening_identity(self) -> None:
+        first_use = canonical_gradle_version_output(gradle_version_bytes(True).decode())
+        subsequent = canonical_gradle_version_output(gradle_version_bytes().decode())
+        self.assertEqual(first_use, subsequent)
+        self.assertEqual(PINNED_GRADLE_VERSION_RECORD, first_use)
+        validate_canonical_gradle_version_record(first_use)
+        for key in ("gradle", "buildTime", "revision", "kotlin", "groovy", "ant", "launcherJvm", "daemonJvm"):
+            changed = copy.deepcopy(first_use); changed[key] = "substituted"
+            with self.assertRaises(ValueError):
+                validate_canonical_gradle_version_record(changed)
+        for key in ("name", "version", "arch"):
+            changed = copy.deepcopy(first_use); changed["os"][key] = "substituted"
+            with self.assertRaises(ValueError):
+                validate_canonical_gradle_version_record(changed)
+        substitutions = (
+            (b"Gradle 9.4.1", b"Gradle 9.4.0"),
+            (b"2026-03-19 08:46:28 UTC", b"2026-03-19 08:46:29 UTC"),
+            (b"2d6327017519d23b96af35865dc997fcb544fb40", b"0" * 40),
+            (b"Kotlin:        2.3.0", b"Kotlin:        2.3.1"),
+            (b"Groovy:        4.0.29", b"Groovy:        4.0.28"),
+            (b"Ant:           Apache Ant(TM) version 1.10.15 compiled on August 25 2024", b"Ant:           substituted"),
+            (b"Launcher JVM:  20.0.2", b"Launcher JVM:  21.0.0"),
+            (b"Daemon JVM:    $JAVA_HOME", b"Daemon JVM:    $OTHER_JAVA_HOME"),
+            (b"Mac OS X 26.5.2 aarch64", b"Other OS 1 x86_64"),
+            (b"Picked up JAVA_TOOL_OPTIONS:", b"Picked up JAVA_TOOL_OPTIONS: changed"),
+            (b"Picked up _JAVA_OPTIONS:", b"Picked up _JAVA_OPTIONS: changed"),
+        )
+        for old, new in substitutions:
+            with self.assertRaises(ValueError):
+                canonical_gradle_version_output(gradle_version_bytes().replace(old, new).decode())
+        for marker in (b"Gradle 9.4.1\n", b"Revision:      ", b"OS:            ", b"Picked up JAVA_TOOL_OPTIONS:\n"):
+            with self.assertRaises(ValueError):
+                canonical_gradle_version_output(gradle_version_bytes().replace(marker, marker + b"\n", 1).decode())
+        with self.assertRaisesRegex(ValueError, "output substituted"):
+            canonical_gradle_version_output("arbitrary notification\n" + gradle_version_bytes().decode())
+        with self.assertRaises(ValueError):
+            canonical_gradle_version_output((GRADLE_FIRST_USE_PREFIX.replace("Java 26", "Java 25") + EXPECTED_GRADLE_VERSION_TEXT))
+
     def test_exact_raw_xml_preserves_and_requires_timestamp(self) -> None:
         raw = junit_bytes()
         self.assertEqual(sorted(METHODS), parse_junit(raw))
@@ -271,8 +341,8 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
                 validate_no_shrink(changed)
 
     def test_stale_swapped_and_path_topology_are_rejected(self) -> None:
-        self.assertEqual(6, len(C1_PATHS))
-        self.assertIn("tools/evidence/validate_m09d_controller_lifecycle.py", C1_PATHS)
+        self.assertEqual(5, len(C1_PATHS))
+        self.assertNotIn("tools/evidence/validate_m09d_controller_lifecycle.py", C1_PATHS)
         source, artifact = "1" * 40, "2" * 40
         validate_topology(source, BASE_COMMIT, C1_PATHS, artifact, source, C2_PATHS, artifact, C3_PATHS)
         mutations = (
@@ -339,7 +409,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
                 "jdkDistribution": {"root": "$JAVA_HOME", "files": 1, "bytes": 1, "sha256": manifest_sha(jdk_manifest), "manifest": jdk_manifest},
                 "versions": {"vendor": "Oracle Corporation", "version": "20.0.2", "runtime": "20.0.2+9-78", "gradle": "9.4.1"},
                 "jdkCommand": ["java", "-version"], "jdkVersion": "test-jdk",
-                "gradleVersionCommand": ["$GRADLE_DISTRIBUTION_ROOT/bin/gradle", "--version", "--no-daemon"], "gradleVersion": "test-gradle",
+                "gradleVersionCommand": ["$GRADLE_DISTRIBUTION_ROOT/bin/gradle", "--version", "--no-daemon"], "gradleVersion": canonical_gradle_version_output(gradle_version_bytes().decode()),
                 "initScripts": {"scopedUser": [], "defaultUser": [], "system": [], "distribution": [], "checked": ["$GRADLE_USER_HOME/init.gradle"]},
             },
             "ownedGradleHome": {"initialManifestRef": "gradleHomeBefore", "finalManifestRef": "gradleHomeAfter", "cleanupProof": "ABSENT_AFTER_SAFE_DELETE", "writableHomeMaterialRetention": "NOT_RETAINED", "postRunLiveRevalidation": "NOT_APPLICABLE"},
@@ -405,6 +475,10 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             ("localProperties", {"path": "local.properties", "state": "PRESENT", "sha256": "0" * 64}),
         ):
             changed = copy.deepcopy(data); changed["tools"][key] = value
+            with self.assertRaises(ValueError):
+                validate_artifact_data(changed, source, verify_current=False)
+        for key, value in (("gradle", "9.4.0"), ("launcherJvm", "21.0.0"), ("daemonJvm", "$OTHER_JAVA_HOME")):
+            changed = copy.deepcopy(data); changed["tools"]["gradleVersion"][key] = value
             with self.assertRaises(ValueError):
                 validate_artifact_data(changed, source, verify_current=False)
         for substituted in (1, 0):

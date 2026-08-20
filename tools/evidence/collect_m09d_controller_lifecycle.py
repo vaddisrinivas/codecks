@@ -21,7 +21,7 @@ import zipfile
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[2]
-BASE_COMMIT = "eeb664106fe9a6d6fc7fac74dc977d10583aeb65"
+BASE_COMMIT = "5f6b5222ab22eb3bcbadcf49000b6e86703bf48c"
 CLASS_NAME = "io.codecks.m09d.M09DControllerLifecycleTest"
 METHODS = (
     "aiCreateSurvivesRepositoryBackedControllerRecreationProxy",
@@ -46,7 +46,6 @@ C1_PATHS = frozenset({
     "tools/evidence/collect_m09d_controller_lifecycle.py",
     "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.schema.json",
     "tools/evidence/test_m09d_controller_lifecycle.py",
-    "tools/evidence/validate_m09d_controller_lifecycle.py",
 })
 EVIDENCE_DIR = Path("tasks/test-evidence/m09d-controller-lifecycle")
 SANITIZED_JUNIT_XML = EVIDENCE_DIR / "junit.xml"
@@ -75,6 +74,41 @@ MAX_ZIP_CENTRAL_BYTES = 16 * 1024 * 1024
 JUNIT_SANITIZER_ALGORITHM = "EXACT_HOSTNAME_ATTRIBUTE_REPLACEMENT"
 JUNIT_SANITIZER_VERSION = "1"
 JUNIT_HOST_TOKEN = "$HOST"
+GRADLE_FIRST_USE_PREFIX = """Welcome to Gradle 9.4.1!
+
+Here are the highlights of this release:
+ - Java 26 support
+ - Non-class-based JVM tests
+ - Enhanced console progress bar
+
+For more details see https://docs.gradle.org/9.4.1/release-notes.html
+
+"""
+EXPECTED_GRADLE_VERSION_TEXT = """------------------------------------------------------------
+Gradle 9.4.1
+------------------------------------------------------------
+
+Build time:    2026-03-19 08:46:28 UTC
+Revision:      2d6327017519d23b96af35865dc997fcb544fb40
+
+Kotlin:        2.3.0
+Groovy:        4.0.29
+Ant:           Apache Ant(TM) version 1.10.15 compiled on August 25 2024
+Launcher JVM:  20.0.2 (Oracle Corporation 20.0.2+9-78)
+Daemon JVM:    $JAVA_HOME (no Daemon JVM specified, using current Java home)
+OS:            Mac OS X 26.5.2 aarch64
+
+Picked up JAVA_TOOL_OPTIONS:
+Picked up _JAVA_OPTIONS:"""
+PINNED_GRADLE_VERSION_RECORD = {
+    "gradle": "9.4.1", "buildTime": "2026-03-19 08:46:28 UTC",
+    "revision": "2d6327017519d23b96af35865dc997fcb544fb40",
+    "kotlin": "2.3.0", "groovy": "4.0.29",
+    "ant": "Apache Ant(TM) version 1.10.15 compiled on August 25 2024",
+    "launcherJvm": "20.0.2 (Oracle Corporation 20.0.2+9-78)",
+    "daemonJvm": "$JAVA_HOME (no Daemon JVM specified, using current Java home)",
+    "os": {"name": "Mac OS X", "version": "26.5.2", "arch": "aarch64"},
+}
 GRADLE_DISTRIBUTION_SHA256 = "2ab2958f2a1e51120c326cad6f385153bb11ee93b3c216c5fccebfdfbb7ec6cb"
 CHECKSUM_RECEIPT_SHA256 = "bf1e620f915bcde7c1c09738daecfe332fb59a6ca6b550813c8a41e72cb23782"
 CHECKSUM_RECEIPT_URL = "https://gradle.org/release-checksums/"
@@ -579,6 +613,26 @@ def sanitize_tool_output(data: bytes) -> str:
     return normalized
 
 
+def sanitize_gradle_version_output(data: bytes) -> str:
+    if len(data) > MAX_LOG_BYTES:
+        raise ValueError("Gradle version output exceeds size cap")
+    text = data.decode("utf-8", errors="strict")
+    if "\r" in text or not text.endswith("\n") or text.endswith("\n\n"):
+        raise ValueError("Gradle version output framing substituted")
+    text = text[:-1]
+    if not text or text[0].isspace() or text[-1].isspace():
+        raise ValueError("Gradle version output boundary whitespace substituted")
+    for actual, token in (
+        (str(ROOT), "$REPO_ROOT"), (ANDROID_HOME, "$ANDROID_HOME"),
+        (JAVA_HOME, "$JAVA_HOME"), (ACTUAL_EXEC_ENV["HOME"], "$HOME"),
+        (ISOLATED_GRADLE_HOME, "$GRADLE_USER_HOME"),
+        (GRADLE_READ_ONLY_CACHE.as_posix(), "$GRADLE_RO_DEP_CACHE"),
+    ):
+        text = text.replace(actual, token)
+    validate_private_free(text)
+    return text
+
+
 def _scan_tree(directory: Path, root_label: str, max_bytes: int, include_manifest: bool, max_files: int = MAX_TREE_FILES) -> dict:
     if directory.is_symlink() or not directory.is_dir():
         raise ValueError(f"compiled tree missing: {directory}")
@@ -1026,15 +1080,22 @@ def local_properties_binding() -> dict:
     return {"path": "local.properties", "state": "PRESENT", "sha256": sha_bytes(data.encode())}
 
 
-def parse_runtime_versions(jdk_text: str, gradle_text: str) -> dict:
+def canonical_gradle_version_output(gradle_text: str) -> dict:
+    core = gradle_text[len(GRADLE_FIRST_USE_PREFIX):] if gradle_text.startswith(GRADLE_FIRST_USE_PREFIX) else gradle_text
+    if core != EXPECTED_GRADLE_VERSION_TEXT:
+        raise ValueError("exact Gradle version output substituted")
+    return json.loads(json.dumps(PINNED_GRADLE_VERSION_RECORD))
+
+
+def validate_canonical_gradle_version_record(value: object) -> None:
+    if value != PINNED_GRADLE_VERSION_RECORD:
+        raise ValueError("pinned canonical Gradle identity substituted")
+
+
+def parse_runtime_versions(jdk_text: str, gradle_version: dict) -> dict:
     if 'openjdk version "20.0.2"' not in jdk_text or "OpenJDK Runtime Environment (build 20.0.2+9-78)" not in jdk_text:
         raise ValueError("JDK version/runtime substituted")
-    expected_gradle = (
-        "Gradle 9.4.1", "Launcher JVM:  20.0.2 (Oracle Corporation 20.0.2+9-78)",
-        "Daemon JVM:    $JAVA_HOME (no Daemon JVM specified, using current Java home)",
-    )
-    if any(token not in gradle_text for token in expected_gradle):
-        raise ValueError("Gradle launcher/daemon JVM substituted")
+    validate_canonical_gradle_version_record(gradle_version)
     return {"vendor": "Oracle Corporation", "version": "20.0.2", "runtime": "20.0.2+9-78", "gradle": "9.4.1"}
 
 
@@ -1086,7 +1147,8 @@ def collect_toolchain_data(include_dependency_cache: bool = True) -> dict:
     jdk = subprocess.run(JDK_VERSION_COMMAND, cwd=ROOT, env=closed_environment(), check=True, capture_output=True)
     gradle = subprocess.run(GRADLE_VERSION_COMMAND, cwd=ROOT, env=closed_environment(), check=True, capture_output=True)
     jdk_text = sanitize_tool_output(jdk.stdout + jdk.stderr)
-    gradle_text = sanitize_tool_output(gradle.stdout + gradle.stderr)
+    gradle_text = sanitize_gradle_version_output(gradle.stdout + gradle.stderr)
+    gradle_version = canonical_gradle_version_output(gradle_text)
     return {
         "wrapperProperties": sha_path(WRAPPER_PROPERTIES),
         "officialChecksumContent": checksum_receipt,
@@ -1104,9 +1166,9 @@ def collect_toolchain_data(include_dependency_cache: bool = True) -> dict:
         "javaHome": "$JAVA_HOME",
         "jdkDistribution": jdk_distribution_manifest(),
         "javaExecutable": file_binding(Path(JAVA_HOME) / "bin/java", "$JAVA_HOME/bin/java"),
-        "versions": parse_runtime_versions(jdk_text, gradle_text),
+        "versions": parse_runtime_versions(jdk_text, gradle_version),
         "jdkCommand": list(JDK_VERSION_COMMAND), "jdkVersion": jdk_text,
-        "gradleVersionCommand": ["$GRADLE_DISTRIBUTION_ROOT/bin/gradle", "--version", "--no-daemon"], "gradleVersion": gradle_text,
+        "gradleVersionCommand": ["$GRADLE_DISTRIBUTION_ROOT/bin/gradle", "--version", "--no-daemon"], "gradleVersion": gradle_version,
         "initScripts": init_scripts,
     }
 
@@ -1439,8 +1501,9 @@ def validate_artifact_data(
         raise ValueError("parsed JDK/Gradle runtime substituted")
     if tools["jdkCommand"] != list(JDK_VERSION_COMMAND) or tools["gradleVersionCommand"] != ["$GRADLE_DISTRIBUTION_ROOT/bin/gradle", "--version", "--no-daemon"]:
         raise ValueError("JDK command or version substituted")
-    if not isinstance(tools["jdkVersion"], str) or not tools["jdkVersion"].strip() or not isinstance(tools["gradleVersion"], str) or not tools["gradleVersion"].strip():
-        raise ValueError("empty JDK or Gradle JVM output")
+    if not isinstance(tools["jdkVersion"], str) or not tools["jdkVersion"].strip():
+        raise ValueError("empty JDK output")
+    validate_canonical_gradle_version_record(tools["gradleVersion"])
     init_scripts = tools["initScripts"]
     if set(init_scripts) != {"scopedUser", "defaultUser", "system", "distribution", "checked"} or any(init_scripts[key] for key in ("scopedUser", "defaultUser", "system", "distribution")):
         raise ValueError("Gradle init-script attestation substituted")
