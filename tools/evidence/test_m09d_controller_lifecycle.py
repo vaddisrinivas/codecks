@@ -99,7 +99,7 @@ def repeatability_proof(data: dict, junit_semantic_sha: str = "f" * 64) -> dict:
 
 
 def gradle_version_bytes(first_use: bool = False) -> bytes:
-    text = "\n" + GRADLE_FIRST_USE_PREFIX + EXPECTED_GRADLE_VERSION_TEXT[1:] if first_use else EXPECTED_GRADLE_VERSION_TEXT
+    text = "\n" + GRADLE_FIRST_USE_PREFIX + EXPECTED_GRADLE_VERSION_TEXT if first_use else EXPECTED_GRADLE_VERSION_TEXT
     return text.encode()
 
 
@@ -141,6 +141,8 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
     def test_gradle_version_first_use_banner_canonicalizes_without_weakening_identity(self) -> None:
         first_use = canonical_gradle_version_output(gradle_version_bytes(True).decode())
         subsequent = canonical_gradle_version_output(gradle_version_bytes().decode())
+        captured_boundary = b"release-notes.html\n\n\n------------------------------------------------------------"
+        self.assertIn(captured_boundary, gradle_version_bytes(True))
         self.assertEqual(first_use, subsequent)
         self.assertEqual(PINNED_GRADLE_VERSION_RECORD, first_use)
         validate_canonical_gradle_version_record(first_use)
@@ -175,6 +177,14 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             canonical_gradle_version_output("arbitrary notification\n" + gradle_version_bytes().decode())
         with self.assertRaises(ValueError):
             canonical_gradle_version_output(("\n" + GRADLE_FIRST_USE_PREFIX.replace("Java 26", "Java 25") + EXPECTED_GRADLE_VERSION_TEXT[1:]))
+        first_use_bytes = gradle_version_bytes(True)
+        for substituted in (
+            first_use_bytes.replace(b"release-notes.html\n\n\n-", b"release-notes.html\n\n-", 1),
+            first_use_bytes.replace(b"release-notes.html\n\n\n-", b"release-notes.html\n\n\n\n-", 1),
+            ("\n" + GRADLE_FIRST_USE_PREFIX + GRADLE_FIRST_USE_PREFIX + EXPECTED_GRADLE_VERSION_TEXT).encode(),
+        ):
+            with self.assertRaises(ValueError):
+                canonical_gradle_version_output(substituted.decode() if isinstance(substituted, bytes) else substituted)
 
     def test_exact_raw_xml_preserves_and_requires_timestamp(self) -> None:
         raw = junit_bytes()

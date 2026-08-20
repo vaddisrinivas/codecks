@@ -11,14 +11,14 @@
     "commitChain": {
       "type": "object", "additionalProperties": false, "required": ["base", "source", "artifact"],
       "properties": {
-        "base": {"const": "bf46021f2c8e3ffc3fd9759205ecd3bf07889397"},
+        "base": {"const": "b835a0f855f93fb32ea3f16f843ee56b86771a20"},
         "source": {"$ref": "#/$defs/commit"}, "artifact": {"$ref": "#/$defs/commit"}
       }
     },
     "evidenceSource": {
       "type": "object", "additionalProperties": false, "required": ["sourceParent", "c1Paths", "files"],
       "properties": {
-        "sourceParent": {"const": "bf46021f2c8e3ffc3fd9759205ecd3bf07889397"},
+        "sourceParent": {"const": "b835a0f855f93fb32ea3f16f843ee56b86771a20"},
         "c1Paths": {"type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true, "items": {"$ref": "#/$defs/path"}},
         "files": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/file"}}
       }

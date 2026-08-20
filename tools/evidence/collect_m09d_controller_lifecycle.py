@@ -21,7 +21,7 @@ import zipfile
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[2]
-BASE_COMMIT = "bf46021f2c8e3ffc3fd9759205ecd3bf07889397"
+BASE_COMMIT = "b835a0f855f93fb32ea3f16f843ee56b86771a20"
 CLASS_NAME = "io.codecks.m09d.M09DControllerLifecycleTest"
 METHODS = (
     "aiCreateSurvivesRepositoryBackedControllerRecreationProxy",
@@ -1079,7 +1079,7 @@ def local_properties_binding() -> dict:
 
 
 def canonical_gradle_version_output(gradle_text: str) -> dict:
-    first_use = "\n" + GRADLE_FIRST_USE_PREFIX + EXPECTED_GRADLE_VERSION_TEXT[1:]
+    first_use = "\n" + GRADLE_FIRST_USE_PREFIX + EXPECTED_GRADLE_VERSION_TEXT
     if gradle_text not in (EXPECTED_GRADLE_VERSION_TEXT, first_use):
         raise ValueError("exact Gradle version output substituted")
     return json.loads(json.dumps(PINNED_GRADLE_VERSION_RECORD))

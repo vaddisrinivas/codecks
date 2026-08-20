@@ -1,6 +1,6 @@
 # M09D controller lifecycle TODO
 
-- Gradle producer-framing source phase is direct from `bf46021f2c8e3ffc3fd9759205ecd3bf07889397` and changes exactly five evidence paths.
+- Gradle first-use-framing source phase is direct from `b835a0f855f93fb32ea3f16f843ee56b86771a20` and changes exactly five evidence paths.
 - The bounded CPU controller-recreation proxy is complete only when the exact C1 -> C2 exact-three -> C3 receipt chain passes the final receipt validator.
 - Raw material in committed evidence: `NOT_RETAINED`; ignored local build-output retention: `NOT_PROVEN`; later raw-transformation revalidation: `NOT_POSSIBLE` by design.
 - Invocation-owned writable Gradle-home material: `NOT_RETAINED`; post-run live revalidation: `NOT_APPLICABLE`; final validation binds committed C2 state.
