@@ -11,7 +11,7 @@
     "commitChain": {
       "type": "object", "additionalProperties": false, "required": ["base", "source", "artifact"],
       "properties": {
-        "base": {"const": "08655e7b3b90ec4d5c1cd41bbf05fee0a70528f2"},
+        "base": {"const": "b4482ba03feaceebe09c4fd9690897c93dc92a40"},
         "source": {"$ref": "#/$defs/commit"}, "artifact": {"$ref": "#/$defs/commit"}
       }
     },
@@ -19,7 +19,7 @@
       "type": "object", "additionalProperties": false, "required": ["files", "c1Paths"],
       "properties": {
         "files": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/file"}},
-        "c1Paths": {"type": "array", "minItems": 6, "maxItems": 6, "uniqueItems": true, "items": {"$ref": "#/$defs/path"}}
+        "c1Paths": {"type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true, "items": {"$ref": "#/$defs/path"}}
       }
     },
     "artifacts": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/file"}},
@@ -45,9 +45,9 @@
     },
     "claims": {
       "type": "object", "additionalProperties": false,
-      "required": ["providerNetwork", "networkDenial", "dependencyCacheOrigin", "freshnessAdversaryResistance", "longPressUi", "device", "physicalPhone", "publicRelease", "aiDeleteUndo"],
+      "required": ["providerNetwork", "networkDenial", "dependencyCacheOrigin", "freshnessAdversaryResistance", "rawMaterialRetention", "rawTransformationRevalidation", "longPressUi", "device", "physicalPhone", "publicRelease", "aiDeleteUndo"],
       "properties": {
-        "providerNetwork": {"const": "NOT_RUN"}, "networkDenial": {"const": "NOT_PROVEN"}, "dependencyCacheOrigin": {"const": "NOT_PROVEN"}, "freshnessAdversaryResistance": {"const": "NOT_PROVEN"}, "longPressUi": {"const": "NOT_RUN"},
+        "providerNetwork": {"const": "NOT_RUN"}, "networkDenial": {"const": "NOT_PROVEN"}, "dependencyCacheOrigin": {"const": "NOT_PROVEN"}, "freshnessAdversaryResistance": {"const": "NOT_PROVEN"}, "rawMaterialRetention": {"const": "NOT_RETAINED"}, "rawTransformationRevalidation": {"const": "NOT_POSSIBLE"}, "longPressUi": {"const": "NOT_RUN"},
         "device": {"const": "NOT_RUN"}, "physicalPhone": {"const": "NOT_RUN"},
         "publicRelease": {"const": "NOT_RUN"}, "aiDeleteUndo": {"const": "NOT_AVAILABLE"}
       }

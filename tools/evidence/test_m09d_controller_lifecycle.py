@@ -31,7 +31,10 @@ from collect_m09d_controller_lifecycle import (
     bind_fresh_focused_result, remove_focused_result, validate_source_binding_values, validate_status_bytes,
     validate_topology, validate_working_bytes, zip_manifest, serialize_artifact_manifest,
     validate_bound_manifest, validate_raw_junit_binding, load_bounded_json, validate_private_bytes,
-    validate_manifest_aggregate, preparse_zip_directory,
+    validate_manifest_aggregate, preparse_zip_directory, sanitize_junit_hostname, validate_sanitized_junit,
+    sanitized_junit_artifact_binding, JUNIT_HOST_TOKEN, JUNIT_SANITIZER_ALGORITHM, JUNIT_SANITIZER_VERSION,
+    validate_durable_sanitized_junit,
+    sha_bytes,
 )
 from strict_json_schema import validate_json_schema
 import validate_m09d_controller_lifecycle as final_validator
@@ -119,6 +122,22 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 parse_junit(changed)
 
+    def test_hostname_sanitizer_is_deterministic_and_closed(self) -> None:
+        first_raw = junit_bytes().replace(b'hostname="test-host"', b'hostname="/Users/private-host"')
+        second_raw = junit_bytes().replace(b'hostname="test-host"', b'hostname="other-host"')
+        first = sanitize_junit_hostname(first_raw)
+        second = sanitize_junit_hostname(second_raw)
+        self.assertEqual(first, second)
+        self.assertIn(b'hostname="$HOST"', first)
+        self.assertNotIn(b"/Users/private-host", first)
+        self.assertEqual(sorted(METHODS), validate_sanitized_junit(first))
+        with self.assertRaises(ValueError):
+            validate_sanitized_junit(first_raw)
+        with self.assertRaises(ValueError):
+            validate_sanitized_junit(first.replace(b"$HOST", b"REAL-HOST"))
+        with self.assertRaises(ValueError):
+            sanitize_junit_hostname(first)
+
     def test_class_method_count_and_skip_mutations_are_rejected(self) -> None:
         mutations = (
             junit_bytes(class_name="swapped.Class"),
@@ -162,6 +181,21 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             raw_junit, binding = bind_fresh_focused_result(start, end, path)
             self.assertEqual(current_junit, raw_junit)
             validate_raw_junit_binding(binding, raw_junit)
+            sanitized = sanitize_junit_hostname(raw_junit)
+            durable_binding = sanitized_junit_artifact_binding(binding, raw_junit, sanitized)
+            self.assertEqual(JUNIT_SANITIZER_ALGORITHM, durable_binding["sanitizerAlgorithm"])
+            self.assertEqual(JUNIT_SANITIZER_VERSION, durable_binding["sanitizerVersion"])
+            self.assertEqual("NOT_RETAINED", durable_binding["rawMaterialRetention"])
+            self.assertEqual("NOT_POSSIBLE", durable_binding["rawTransformationRevalidation"])
+            self.assertNotIn("rawSha256", durable_binding)
+            self.assertNotIn("rawBytes", durable_binding)
+            self.assertNotIn("test-host", json.dumps(durable_binding))
+            self.assertNotIn(raw_junit.decode("utf-8"), json.dumps(durable_binding))
+            validate_durable_sanitized_junit(durable_binding, sanitized)
+            other_raw = raw_junit.replace(b'hostname="test-host"', b'hostname="dictionary-candidate"')
+            other_binding = copy.deepcopy(binding); other_binding["sha256"] = sha_bytes(other_raw)
+            self.assertEqual(sanitized, sanitize_junit_hostname(other_raw))
+            self.assertEqual(durable_binding, sanitized_junit_artifact_binding(other_binding, other_raw, sanitized))
             path.unlink()
             validate_raw_junit_binding(binding, raw_junit)
             changed_binding = copy.deepcopy(binding); changed_binding["suiteTimestampNs"] += 1
@@ -201,8 +235,8 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
                 validate_no_shrink(changed)
 
     def test_stale_swapped_and_path_topology_are_rejected(self) -> None:
-        self.assertEqual(6, len(C1_PATHS))
-        self.assertIn("tools/evidence/validate_m09d_controller_lifecycle.py", C1_PATHS)
+        self.assertEqual(5, len(C1_PATHS))
+        self.assertNotIn("tools/evidence/validate_m09d_controller_lifecycle.py", C1_PATHS)
         source, artifact = "1" * 40, "2" * 40
         validate_topology(source, BASE_COMMIT, C1_PATHS, artifact, source, C2_PATHS, artifact, C3_PATHS)
         mutations = (
@@ -237,7 +271,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             "schema": "codecks.m09d.controller-lifecycle-artifacts.v1", "sourceCommit": source,
             "command": list(COMMAND), "environment": EXEC_ENV,
             "className": CLASS_NAME, "methods": sorted(METHODS),
-            "junit": {"path": "tasks/test-evidence/m09d-controller-lifecycle/junit.xml", "sha256": "a" * 64, "executionStartNs": 1, "sourceMtimeNs": 2, "suiteTimestampNs": 2, "executionEndNs": 3, "sourceBirthtimeNs": None, "sourceInode": 1, "newFileProof": "NOT_PROVEN"},
+            "junit": {"path": "tasks/test-evidence/m09d-controller-lifecycle/junit.xml", "sanitizerAlgorithm": JUNIT_SANITIZER_ALGORITHM, "sanitizerVersion": JUNIT_SANITIZER_VERSION, "hostnameToken": JUNIT_HOST_TOKEN, "sanitizedSha256": "b" * 64, "rawMaterialRetention": "NOT_RETAINED", "rawTransformationRevalidation": "NOT_POSSIBLE", "executionStartNs": 1, "sourceMtimeNs": 2, "suiteTimestampNs": 2, "executionEndNs": 3, "sourceBirthtimeNs": None, "sourceInode": 1, "newFileProof": "NOT_PROVEN"},
             "log": {"path": "tasks/test-evidence/m09d-controller-lifecycle/gradle.log", "sha256": "b" * 64, "capture": "DIRECT_SUBPROCESS_STDOUT_STDERR"},
             "compiledTrees": [
                 {"root": "app/build/intermediates/built_in_kotlinc/ossRelease/compileOssReleaseKotlin/classes", "files": 1, "bytes": 1, "digest": "c" * 64},
@@ -265,7 +299,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
                 "gradleVersionCommand": ["$GRADLE_DISTRIBUTION_ROOT/bin/gradle", "--version", "--no-daemon"], "gradleVersion": "test-gradle",
                 "initScripts": {"scopedUser": [], "defaultUser": [], "system": [], "distribution": [], "checked": ["$GRADLE_USER_HOME/init.gradle"]},
             },
-            "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
+            "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialRetention": "NOT_RETAINED", "rawTransformationRevalidation": "NOT_POSSIBLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
         }
         compact_tools, compact_snapshots, tables = dedupe_manifest_tables(data["tools"], data["snapshots"])
         data["tools"] = compact_tools; data["snapshots"] = compact_snapshots; data["manifestTables"] = tables
@@ -279,12 +313,20 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             changed = copy.deepcopy(data); changed[key] = value
             with self.assertRaises(ValueError):
                 validate_artifact_data(changed, source, verify_current=False)
-        for section, key in (("junit", "sha256"), ("log", "sha256"), ("compiledTrees", 0), ("tools", "wrapperProperties")):
+        for section, key in (("junit", "rawSha256"), ("log", "sha256"), ("compiledTrees", 0), ("tools", "wrapperProperties")):
             changed = copy.deepcopy(data)
             if section == "compiledTrees":
                 changed[section][key]["digest"] = "arbitrary"
             else:
                 changed[section][key] = "arbitrary"
+            with self.assertRaises(ValueError):
+                validate_artifact_data(changed, source, verify_current=False)
+        for key, value in (
+            ("rawBytes", False), ("sanitizerAlgorithm", "SWAPPED"), ("sanitizerVersion", "2"),
+            ("hostnameToken", "REAL-HOST"), ("sanitizedSha256", "arbitrary"),
+            ("rawMaterialRetention", "RETAINED"), ("rawTransformationRevalidation", "POSSIBLE"),
+        ):
+            changed = copy.deepcopy(data); changed["junit"][key] = value
             with self.assertRaises(ValueError):
                 validate_artifact_data(changed, source, verify_current=False)
         changed = copy.deepcopy(data); changed["log"]["capture"] = "FILE_REUSED"
@@ -329,6 +371,10 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
         changed = copy.deepcopy(data); changed["claims"]["freshnessAdversaryResistance"] = "PROVEN"
         with self.assertRaises(ValueError):
             validate_artifact_data(changed, source, verify_current=False)
+        for key, value in (("rawMaterialRetention", "RETAINED"), ("rawTransformationRevalidation", "POSSIBLE")):
+            changed = copy.deepcopy(data); changed["claims"][key] = value
+            with self.assertRaises(ValueError):
+                validate_artifact_data(changed, source, verify_current=False)
         changed = copy.deepcopy(data); changed["snapshots"]["sourceAfter"] = {**source_snapshot, "c1": "0" * 64}
         with self.assertRaises(ValueError):
             validate_artifact_data(changed, source, verify_current=False)
@@ -489,7 +535,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             "sourceBinding": {"files": [{"path": f"source-{i}", "sha256": "a" * 64} for i in range(3)], "c1Paths": sorted(C1_PATHS)},
             "artifacts": [{"path": path, "sha256": "b" * 64} for path in sorted(C2_PATHS)],
             "test": {"className": CLASS_NAME, "methods": sorted(METHODS), "tests": 10, "failures": 0, "errors": 0, "skipped": 0, "command": list(COMMAND), "environment": EXEC_ENV},
-            "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
+            "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialRetention": "NOT_RETAINED", "rawTransformationRevalidation": "NOT_POSSIBLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
         }
         validate_json_schema(receipt, schema)
         def fake_git(*args: str) -> str:
@@ -517,6 +563,10 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
                 changed[section]["files"][0]["sha256"] = "swapped"
             else:
                 changed[section][0]["sha256"] = "swapped"
+            with self.assertRaises(ValueError):
+                validate_json_schema(changed, schema)
+        for key, value in (("rawSha256", "a" * 64), ("rawBytes", 100), ("rawMaterialRetention", "RETAINED"), ("rawTransformationRevalidation", "POSSIBLE")):
+            changed = copy.deepcopy(receipt); changed["claims"][key] = value
             with self.assertRaises(ValueError):
                 validate_json_schema(changed, schema)
 

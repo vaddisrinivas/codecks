@@ -20,7 +20,7 @@ import zipfile
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[2]
-BASE_COMMIT = "08655e7b3b90ec4d5c1cd41bbf05fee0a70528f2"
+BASE_COMMIT = "b4482ba03feaceebe09c4fd9690897c93dc92a40"
 CLASS_NAME = "io.codecks.m09d.M09DControllerLifecycleTest"
 METHODS = (
     "aiCreateSurvivesRepositoryBackedControllerRecreationProxy",
@@ -45,14 +45,13 @@ C1_PATHS = frozenset({
     "tools/evidence/collect_m09d_controller_lifecycle.py",
     "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.schema.json",
     "tools/evidence/test_m09d_controller_lifecycle.py",
-    "tools/evidence/validate_m09d_controller_lifecycle.py",
 })
 EVIDENCE_DIR = Path("tasks/test-evidence/m09d-controller-lifecycle")
-RAW_JUNIT_XML = EVIDENCE_DIR / "junit.xml"
+SANITIZED_JUNIT_XML = EVIDENCE_DIR / "junit.xml"
 SANITIZED_LOG = EVIDENCE_DIR / "gradle.log"
 ARTIFACT_MANIFEST = EVIDENCE_DIR / "artifacts.json"
 RECEIPT = EVIDENCE_DIR / "receipt.json"
-C2_PATHS = frozenset({RAW_JUNIT_XML.as_posix(), SANITIZED_LOG.as_posix(), ARTIFACT_MANIFEST.as_posix()})
+C2_PATHS = frozenset({SANITIZED_JUNIT_XML.as_posix(), SANITIZED_LOG.as_posix(), ARTIFACT_MANIFEST.as_posix()})
 C3_PATHS = frozenset({RECEIPT.as_posix()})
 RESULT_XML = Path(f"app/build/test-results/testOssReleaseUnitTest/TEST-{CLASS_NAME}.xml")
 PRODUCTION_CLASSES = Path("app/build/intermediates/built_in_kotlinc/ossRelease/compileOssReleaseKotlin/classes")
@@ -71,6 +70,9 @@ MAX_LOG_BYTES = 256 * 1024
 MAX_ARTIFACT_MANIFEST_BYTES = 1024 * 1024
 MAX_RECEIPT_BYTES = 1024 * 1024
 MAX_ZIP_CENTRAL_BYTES = 16 * 1024 * 1024
+JUNIT_SANITIZER_ALGORITHM = "EXACT_HOSTNAME_ATTRIBUTE_REPLACEMENT"
+JUNIT_SANITIZER_VERSION = "1"
+JUNIT_HOST_TOKEN = "$HOST"
 GRADLE_DISTRIBUTION_SHA256 = "2ab2958f2a1e51120c326cad6f385153bb11ee93b3c216c5fccebfdfbb7ec6cb"
 CHECKSUM_RECEIPT_SHA256 = "bf1e620f915bcde7c1c09738daecfe332fb59a6ca6b550813c8a41e72cb23782"
 CHECKSUM_RECEIPT_URL = "https://gradle.org/release-checksums/"
@@ -228,14 +230,17 @@ def validate_private_bytes(data: bytes) -> None:
         raise ValueError("secret-like value leaked into durable bytes")
 
 
-def validate_xml_privacy(root: ET.Element) -> None:
+def validate_xml_privacy(root: ET.Element, allow_suite_hostname: bool = False) -> None:
     secret_name = re.compile(r"(?i)(?:api[_-]?key|access[_-]?token|password|secret)")
     for element in root.iter():
         values = [element.tag, element.text or "", element.tail or ""]
         for name, value in element.attrib.items():
-            if secret_name.search(name) or secret_name.search(value):
+            hostname_exempt = allow_suite_hostname and element is root and element.tag == "testsuite" and name == "hostname"
+            if secret_name.search(name) or (not hostname_exempt and secret_name.search(value)):
                 raise ValueError("secret-like XML attribute name/value leaked")
-            values.extend((name, value))
+            values.append(name)
+            if not hostname_exempt:
+                values.append(value)
         for value in values:
             validate_private_bytes(value.encode("utf-8"))
 
@@ -286,14 +291,14 @@ def require_source_bindings() -> list[dict]:
     return result
 
 
-def parse_junit(data: bytes) -> list[str]:
+def parse_junit(data: bytes, allow_suite_hostname: bool = False) -> list[str]:
     upper = data.upper()
     declaration = b'<?xml version="1.0" encoding="UTF-8"?>\n'
     lexical = data[len(declaration):] if data.startswith(declaration) else data
     if len(data) > MAX_XML_BYTES or b"<!DOCTYPE" in upper or b"<!ENTITY" in upper or b"<!--" in data or b"<?" in lexical:
         raise ValueError("unsafe JUnit XML")
     root = ET.fromstring(data)
-    validate_xml_privacy(root)
+    validate_xml_privacy(root, allow_suite_hostname=allow_suite_hostname)
     suite_attributes = {"name", "tests", "skipped", "failures", "errors", "timestamp", "hostname", "time"}
     if root.tag != "testsuite" or set(root.attrib) != suite_attributes or root.attrib.get("name") != CLASS_NAME:
         raise ValueError("wrong JUnit class")
@@ -342,6 +347,28 @@ def junit_timestamp_ns(data: bytes) -> int:
     return int(parsed.timestamp() * 1_000_000_000)
 
 
+def sanitize_junit_hostname(raw: bytes) -> bytes:
+    parse_junit(raw, allow_suite_hostname=True)
+    root = ET.fromstring(raw)
+    hostname = root.attrib["hostname"]
+    if hostname == JUNIT_HOST_TOKEN:
+        raise ValueError("raw JUnit already contains sanitizer token")
+    matches = tuple(re.finditer(rb' hostname="([^"<>&]*)"', raw))
+    if len(matches) != 1 or matches[0].group(1).decode("utf-8", errors="strict") != hostname:
+        raise ValueError("raw JUnit hostname lexical form substituted")
+    match = matches[0]
+    sanitized = raw[:match.start(1)] + JUNIT_HOST_TOKEN.encode("utf-8") + raw[match.end(1):]
+    validate_sanitized_junit(sanitized)
+    return sanitized
+
+
+def validate_sanitized_junit(data: bytes) -> list[str]:
+    methods = parse_junit(data)
+    if ET.fromstring(data).attrib.get("hostname") != JUNIT_HOST_TOKEN:
+        raise ValueError("sanitized JUnit hostname token substituted")
+    return methods
+
+
 def remove_focused_result(path: Path = RESULT_XML) -> None:
     target = ROOT / path
     if target.exists() or target.is_symlink():
@@ -360,7 +387,7 @@ def bind_fresh_focused_result(start_ns: int, end_ns: int, path: Path = RESULT_XM
     if not (start_ns <= metadata.st_mtime_ns <= end_ns):
         raise ValueError("focused JUnit result mtime is outside execution interval")
     raw = read_bounded_file(target, MAX_XML_BYTES)
-    parse_junit(raw)
+    parse_junit(raw, allow_suite_hostname=True)
     suite_timestamp_ns = junit_timestamp_ns(raw)
     if not (start_ns <= suite_timestamp_ns <= end_ns):
         raise ValueError("JUnit suite timestamp is outside execution interval")
@@ -370,7 +397,7 @@ def bind_fresh_focused_result(start_ns: int, end_ns: int, path: Path = RESULT_XM
     if birthtime_ns is not None and proof != "BIRTHTIME_IN_INTERVAL":
         raise ValueError("focused JUnit birthtime is outside execution interval")
     return raw, {
-        "path": RAW_JUNIT_XML.as_posix(), "sha256": sha_bytes(raw),
+        "path": SANITIZED_JUNIT_XML.as_posix(), "sha256": sha_bytes(raw),
         "executionStartNs": start_ns, "executionEndNs": end_ns, "sourceMtimeNs": metadata.st_mtime_ns,
         "sourceBirthtimeNs": birthtime_ns, "sourceInode": metadata.st_ino, "newFileProof": proof,
         "suiteTimestampNs": suite_timestamp_ns,
@@ -379,7 +406,7 @@ def bind_fresh_focused_result(start_ns: int, end_ns: int, path: Path = RESULT_XM
 
 def validate_raw_junit_binding(binding: object, raw: bytes) -> None:
     required = {"path", "sha256", "executionStartNs", "executionEndNs", "sourceMtimeNs", "sourceBirthtimeNs", "sourceInode", "newFileProof", "suiteTimestampNs"}
-    if not isinstance(binding, dict) or set(binding) != required or binding["path"] != RAW_JUNIT_XML.as_posix():
+    if not isinstance(binding, dict) or set(binding) != required or binding["path"] != SANITIZED_JUNIT_XML.as_posix():
         raise ValueError("raw focused JUnit binding substituted")
     start, end, mtime, suite = binding["executionStartNs"], binding["executionEndNs"], binding["sourceMtimeNs"], binding["suiteTimestampNs"]
     if not all(type(value) is int and value > 0 for value in (start, end, mtime, suite, binding["sourceInode"])) or not (start <= mtime <= end and start <= suite <= end):
@@ -392,10 +419,33 @@ def validate_raw_junit_binding(binding: object, raw: bytes) -> None:
         raise ValueError("raw focused JUnit birthtime proof substituted")
     if not valid_sha(binding["sha256"]) or sha_bytes(raw) != binding["sha256"]:
         raise ValueError("raw focused JUnit hash substituted")
-    validate_private_bytes(raw)
-    parse_junit(raw)
+    parse_junit(raw, allow_suite_hostname=True)
     if junit_timestamp_ns(raw) != suite:
         raise ValueError("raw focused JUnit suite timestamp substituted")
+
+
+def sanitized_junit_artifact_binding(raw_binding: dict, raw: bytes, sanitized: bytes) -> dict:
+    validate_raw_junit_binding(raw_binding, raw)
+    validate_sanitized_junit(sanitized)
+    result = {key: value for key, value in raw_binding.items() if key not in {"sha256"}}
+    result.update({
+        "sanitizerAlgorithm": JUNIT_SANITIZER_ALGORITHM, "sanitizerVersion": JUNIT_SANITIZER_VERSION,
+        "hostnameToken": JUNIT_HOST_TOKEN, "sanitizedSha256": sha_bytes(sanitized),
+        "rawMaterialRetention": "NOT_RETAINED", "rawTransformationRevalidation": "NOT_POSSIBLE",
+    })
+    return result
+
+
+def validate_durable_sanitized_junit(binding: dict, sanitized: bytes) -> None:
+    if binding.get("sanitizerAlgorithm") != JUNIT_SANITIZER_ALGORITHM or binding.get("sanitizerVersion") != JUNIT_SANITIZER_VERSION or binding.get("hostnameToken") != JUNIT_HOST_TOKEN:
+        raise ValueError("JUnit sanitizer identity substituted")
+    if not valid_sha(binding.get("sanitizedSha256")):
+        raise ValueError("sanitized JUnit hash binding substituted")
+    if binding.get("rawMaterialRetention") != "NOT_RETAINED" or binding.get("rawTransformationRevalidation") != "NOT_POSSIBLE":
+        raise ValueError("raw JUnit retention/revalidation claim substituted")
+    if sha_bytes(sanitized) != binding["sanitizedSha256"]:
+        raise ValueError("durable sanitized JUnit hash substituted")
+    validate_sanitized_junit(sanitized)
 
 
 def sanitize_log(data: bytes) -> bytes:
@@ -1015,9 +1065,18 @@ def validate_artifact_data(
     if set(log_binding) != {"path", "sha256", "capture"} or log_binding["path"] != SANITIZED_LOG.as_posix() or log_binding["capture"] != "DIRECT_SUBPROCESS_STDOUT_STDERR" or not valid_sha(log_binding["sha256"]):
         raise ValueError("artifact log binding substituted")
     junit_binding = data["junit"]
-    required_junit = {"path", "sha256", "executionStartNs", "executionEndNs", "sourceMtimeNs", "sourceBirthtimeNs", "sourceInode", "newFileProof", "suiteTimestampNs"}
-    if not isinstance(junit_binding, dict) or set(junit_binding) != required_junit or junit_binding["path"] != RAW_JUNIT_XML.as_posix() or not valid_sha(junit_binding["sha256"]):
-        raise ValueError("raw focused JUnit metadata substituted")
+    required_junit = {
+        "path", "sanitizerAlgorithm", "sanitizerVersion", "hostnameToken", "sanitizedSha256", "rawMaterialRetention", "rawTransformationRevalidation",
+        "executionStartNs", "executionEndNs", "sourceMtimeNs", "sourceBirthtimeNs", "sourceInode", "newFileProof", "suiteTimestampNs",
+    }
+    if not isinstance(junit_binding, dict) or set(junit_binding) != required_junit or junit_binding["path"] != SANITIZED_JUNIT_XML.as_posix():
+        raise ValueError("sanitized focused JUnit metadata substituted")
+    if not valid_sha(junit_binding["sanitizedSha256"]):
+        raise ValueError("sanitized JUnit byte binding substituted")
+    if junit_binding["sanitizerAlgorithm"] != JUNIT_SANITIZER_ALGORITHM or junit_binding["sanitizerVersion"] != JUNIT_SANITIZER_VERSION or junit_binding["hostnameToken"] != JUNIT_HOST_TOKEN:
+        raise ValueError("JUnit sanitizer identity substituted")
+    if junit_binding["rawMaterialRetention"] != "NOT_RETAINED" or junit_binding["rawTransformationRevalidation"] != "NOT_POSSIBLE":
+        raise ValueError("raw JUnit retention/revalidation claim substituted")
     start, end, mtime, suite = junit_binding["executionStartNs"], junit_binding["executionEndNs"], junit_binding["sourceMtimeNs"], junit_binding["suiteTimestampNs"]
     if not all(type(value) is int and value > 0 for value in (start, end, mtime, suite, junit_binding["sourceInode"])) or not (start <= mtime <= end and start <= suite <= end):
         raise ValueError("raw focused JUnit interval substituted")
@@ -1028,8 +1087,10 @@ def validate_artifact_data(
     elif type(birth) is not int or not start <= birth <= end or junit_binding["newFileProof"] != "BIRTHTIME_IN_INTERVAL":
         raise ValueError("raw focused JUnit birthtime proof substituted")
     if verify_current:
-        raw_junit = read_bounded_file(ROOT / RAW_JUNIT_XML, MAX_XML_BYTES)
-        validate_raw_junit_binding(data["junit"], raw_junit)
+        sanitized_junit = read_bounded_file(ROOT / SANITIZED_JUNIT_XML, MAX_XML_BYTES)
+        validate_durable_sanitized_junit(junit_binding, sanitized_junit)
+        if junit_timestamp_ns(sanitized_junit) != suite:
+            raise ValueError("durable sanitized JUnit bytes substituted")
         if sha_path(ROOT / SANITIZED_LOG) != log_binding["sha256"]:
             raise ValueError("artifact log inner hash mismatch")
         durable_log = read_bounded_file(ROOT / SANITIZED_LOG, MAX_LOG_BYTES)
@@ -1112,7 +1173,7 @@ def validate_artifact_data(
                 raise ValueError("live tool manifest aggregate substituted")
         if tables["executionDependencyCache"] != manifest_aggregate(live["dependencyCache"]):
             raise ValueError("live execution dependency-cache aggregate substituted")
-    if data["claims"] != {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"}:
+    if data["claims"] != {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialRetention": "NOT_RETAINED", "rawTransformationRevalidation": "NOT_POSSIBLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"}:
         raise ValueError("artifact claim substitution")
     validate_private_free(data)
 
@@ -1137,7 +1198,9 @@ def collect_artifacts() -> None:
     log = sanitize_log(process.stdout + process.stderr)
     if process.returncode != 0:
         raise ValueError("focused Gradle command failed")
-    raw_junit, junit_binding = bind_fresh_focused_result(execution_start_ns, execution_end_ns)
+    raw_junit, raw_junit_binding = bind_fresh_focused_result(execution_start_ns, execution_end_ns)
+    sanitized_junit = sanitize_junit_hostname(raw_junit)
+    junit_binding = sanitized_junit_artifact_binding(raw_junit_binding, raw_junit, sanitized_junit)
     validate_pre_post(source_before, repo_source_snapshot(), "repository source/index/worktree")
     tools_after = collect_toolchain_data()
     immutable_before = {key: value for key, value in tools_before.items() if key != "dependencyCache"}
@@ -1150,7 +1213,7 @@ def collect_artifacts() -> None:
     )
     gradle_home_after = writable_gradle_home_manifest()
     source_after = repo_source_snapshot()
-    atomic_write(RAW_JUNIT_XML, raw_junit)
+    atomic_write(SANITIZED_JUNIT_XML, sanitized_junit)
     atomic_write(SANITIZED_LOG, log)
     full_snapshots = {
         "sourceBefore": source_before, "sourceAfter": source_after,
@@ -1170,7 +1233,7 @@ def collect_artifacts() -> None:
         "tools": compact_tools,
         "snapshots": compact_snapshots,
         "manifestTables": manifest_tables,
-        "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
+        "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialRetention": "NOT_RETAINED", "rawTransformationRevalidation": "NOT_POSSIBLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
     }
     validate_artifact_data(manifest, source, verify_live_build_outputs=True)
     serialized = serialize_artifact_manifest(manifest)

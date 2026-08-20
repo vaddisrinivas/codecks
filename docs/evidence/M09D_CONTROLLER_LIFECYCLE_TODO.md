@@ -1,7 +1,8 @@
 # M09D controller lifecycle TODO
 
-- Original C1 `08655e7b3b90ec4d5c1cd41bbf05fee0a70528f2`: committed. Exact-six append-only replacement source review/commit: pending.
-- C2 artifacts and C3 receipt: `NOT_RUN` until their preceding independent reviews pass.
+- Sanitizer source phase direct from `b4482ba03feaceebe09c4fd9690897c93dc92a40`: implementation complete and frozen; exact-five review/commit pending.
+- Future exact-three C2 and receipt-only C3: `NOT_RUN`; when complete they close only the bounded CPU controller-recreation proxy.
+- Durable raw material: `NOT_RETAINED`; later raw-transformation revalidation: `NOT_POSSIBLE` by design.
 - Long-press Compose UI: `NOT_RUN`.
 - Provider live network: `NOT_RUN`.
 - Durable disk/process recreation: `NOT_RUN`; current repository-backed controller recreation is only a proxy.
