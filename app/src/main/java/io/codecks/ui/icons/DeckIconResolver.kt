@@ -14,10 +14,12 @@ import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Computer
 import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.Celebration
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Mouse
+import androidx.compose.material.icons.outlined.Mood
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -84,9 +86,9 @@ private fun resolveActionIcon(icon: ActionIcon, pack: CodecksIconPack): ImageVec
             ActionIcon.Search -> Icons.Outlined.Search
             ActionIcon.Terminal -> Icons.Outlined.Terminal
             ActionIcon.Volume -> Icons.AutoMirrored.Outlined.VolumeUp
-            ActionIcon.Party -> Icons.Outlined.AutoAwesome
+            ActionIcon.Party -> Icons.Outlined.Celebration
             ActionIcon.Sparkle -> Icons.Outlined.AutoAwesome
-            ActionIcon.Emoji -> Icons.Outlined.AutoAwesome
+            ActionIcon.Emoji -> Icons.Outlined.Mood
             ActionIcon.Empty -> Icons.Outlined.Add
         }
 
@@ -97,7 +99,7 @@ private fun resolveActionIcon(icon: ActionIcon, pack: CodecksIconPack): ImageVec
             ActionIcon.Control -> FeatherIcons.Sliders
             ActionIcon.Finder -> FeatherIcons.Monitor
             ActionIcon.Github -> FeatherIcons.Code
-            ActionIcon.Keyboard -> FeatherIcons.Command
+            ActionIcon.Keyboard -> FeatherIcons.Type
             ActionIcon.Lock -> FeatherIcons.Lock
             ActionIcon.Mouse -> FeatherIcons.MousePointer
             ActionIcon.Notifications -> FeatherIcons.Bell
@@ -106,9 +108,9 @@ private fun resolveActionIcon(icon: ActionIcon, pack: CodecksIconPack): ImageVec
             ActionIcon.Search -> FeatherIcons.Search
             ActionIcon.Terminal -> FeatherIcons.Terminal
             ActionIcon.Volume -> FeatherIcons.Volume2
-            ActionIcon.Party -> FeatherIcons.Plus
-            ActionIcon.Sparkle -> FeatherIcons.Plus
-            ActionIcon.Emoji -> FeatherIcons.Plus
+            ActionIcon.Party -> FeatherIcons.Gift
+            ActionIcon.Sparkle -> FeatherIcons.Star
+            ActionIcon.Emoji -> FeatherIcons.Smile
             ActionIcon.Empty -> FeatherIcons.Grid
         }
 
@@ -128,9 +130,9 @@ private fun resolveActionIcon(icon: ActionIcon, pack: CodecksIconPack): ImageVec
             ActionIcon.Search -> TablerIcons.Search
             ActionIcon.Terminal -> TablerIcons.Terminal2
             ActionIcon.Volume -> TablerIcons.Volume2
-            ActionIcon.Party -> TablerIcons.Stars
+            ActionIcon.Party -> TablerIcons.Confetti
             ActionIcon.Sparkle -> TablerIcons.Stars
-            ActionIcon.Emoji -> TablerIcons.Stars
+            ActionIcon.Emoji -> TablerIcons.MoodSmile
             ActionIcon.Empty -> TablerIcons.Plus
         }
 

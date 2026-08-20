@@ -7,6 +7,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
+import java.util.Locale
 
 class DeckIconCatalogTest {
     private val catalog = BundledDeckIconCatalog.catalog
@@ -51,6 +52,17 @@ class DeckIconCatalogTest {
     fun catalogWithoutFallbackIsRejected() {
         assertThrows(IllegalArgumentException::class.java) {
             DeckIconCatalog(catalog.packs, catalog.icons.filterNot { it.id.value == "icon.fallback" })
+        }
+    }
+
+    @Test
+    fun searchCaseFoldingIsStableUnderTurkishLocale() {
+        val prior = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"))
+            assertEquals(listOf("icon.finder"), catalog.search("FINDER").map { it.id.value })
+        } finally {
+            Locale.setDefault(prior)
         }
     }
 }

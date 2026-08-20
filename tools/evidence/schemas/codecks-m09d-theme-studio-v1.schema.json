@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codecks.m09d.theme-studio-managed.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "milestone", "status", "scope", "commitChain", "sourceBinding", "tooling", "targetApk", "testApk", "runs", "detectorGate", "excludedAttempts", "claims"],
+  "properties": {
+    "schema": {"const": "codecks.m09d.theme-studio-managed.v1"},
+    "milestone": {"const": "M09D"},
+    "status": {"const": "PASS"},
+    "scope": {"const": "PLAY_INTERNAL_MANAGED_REPOSITORY_AND_UI_ONLY"},
+    "commitChain": {"$ref": "#/$defs/commitChain"},
+    "sourceBinding": {"$ref": "#/$defs/sourceBinding"},
+    "tooling": {"type": "object", "additionalProperties": false, "required": ["apksigner"], "properties": {"apksigner": {"$ref": "#/$defs/apksigner"}}},
+    "targetApk": {"$ref": "#/$defs/targetApk"},
+    "testApk": {"$ref": "#/$defs/testApk"},
+    "runs": {
+      "type": "array", "minItems": 2, "maxItems": 2,
+      "prefixItems": [
+        {"allOf": [{"$ref": "#/$defs/run"}, {"properties": {"profile": {"const": "phone"}, "device": {"const": "pixel6Api35"}}}]},
+        {"allOf": [{"$ref": "#/$defs/run"}, {"properties": {"profile": {"const": "tablet"}, "device": {"const": "m10TabletApi35"}}}]}
+      ],
+      "items": false
+    },
+    "detectorGate": {"$ref": "#/$defs/detectorGate"},
+    "excludedAttempts": {
+      "type": "array", "minItems": 2, "maxItems": 2,
+      "prefixItems": [
+        {"$ref": "#/$defs/excludedMetadata"},
+        {"$ref": "#/$defs/excludedArtifact"}
+      ],
+      "items": false
+    },
+    "claims": {
+      "type": "object", "additionalProperties": false,
+      "required": ["repositoryLifecycle", "broaderControllerProcessLifecycle", "physicalDevice", "publicRelease"],
+      "properties": {
+        "repositoryLifecycle": {"const": "PASS"},
+        "broaderControllerProcessLifecycle": {"const": "NOT_RUN"},
+        "physicalDevice": {"const": "NOT_RUN"},
+        "publicRelease": {"const": "NOT_RUN"}
+      }
+    }
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "path": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+    "file": {
+      "type": "object", "additionalProperties": false, "required": ["path", "sha256"],
+      "properties": {"path": {"$ref": "#/$defs/path"}, "sha256": {"$ref": "#/$defs/sha"}}
+    },
+    "source": {
+      "type": "object", "additionalProperties": false, "required": ["path", "sha256"],
+      "properties": {"path": {"$ref": "#/$defs/path"}, "sha256": {"$ref": "#/$defs/sha"}}
+    },
+    "sourceBinding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["baseCommit", "sourceCommit", "sources", "sourceTreeSha256", "sourceDiffSha256"],
+      "properties": {
+        "baseCommit": {"const": "28b3e53613b8c0cd189ba58f4a673aafbed653b2"},
+        "sourceCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "sources": {"type": "array", "minItems": 22, "maxItems": 22, "items": {"$ref": "#/$defs/source"}},
+        "sourceTreeSha256": {"$ref": "#/$defs/sha"},
+        "sourceDiffSha256": {"$ref": "#/$defs/sha"}
+      }
+    },
+    "apk": {
+      "type": "object", "additionalProperties": false, "required": ["path", "applicationId", "sha256", "signerSha256", "versionCode", "versionName"],
+      "properties": {"path": {"$ref": "#/$defs/path"}, "applicationId": {"type": "string"}, "sha256": {"$ref": "#/$defs/sha"}, "signerSha256": {"$ref": "#/$defs/sha"}, "versionCode": {"type": "string", "minLength": 1}, "versionName": {"type": "string", "minLength": 1}}
+    },
+    "apksigner": {
+      "type": "object", "additionalProperties": false, "required": ["buildToolsVersion", "sdkRelativePath", "reportedVersion", "sha256"],
+      "properties": {"buildToolsVersion": {"const": "36.0.0"}, "sdkRelativePath": {"const": "build-tools/36.0.0/apksigner"}, "reportedVersion": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha"}}
+    },
+    "commitChain": {
+      "type": "object", "additionalProperties": false, "required": ["baseCommit", "sourceCommit", "artifactCommit", "artifacts", "artifactSetSha256"],
+      "properties": {
+        "baseCommit": {"const": "28b3e53613b8c0cd189ba58f4a673aafbed653b2"},
+        "sourceCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "artifactCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "artifacts": {"type": "array", "minItems": 10, "maxItems": 10, "uniqueItems": true, "items": {"$ref": "#/$defs/file"}},
+        "artifactSetSha256": {"$ref": "#/$defs/sha"}
+      }
+    },
+    "targetApk": {"allOf": [{"$ref": "#/$defs/apk"}, {"properties": {"applicationId": {"const": "app.codecks.internal"}}}]},
+    "testApk": {"allOf": [{"$ref": "#/$defs/apk"}, {"properties": {"applicationId": {"const": "app.codecks.internal.test"}}}]},
+    "result": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256", "className", "methods", "properties", "tests", "failures", "errors", "skipped"],
+      "properties": {
+        "path": {"$ref": "#/$defs/path"}, "sha256": {"$ref": "#/$defs/sha"},
+        "className": {"const": "io.codecks.ui.theme.ThemeStudioInstrumentedTest"},
+        "methods": {"type": "array", "minItems": 13, "maxItems": 13, "uniqueItems": true, "items": {"type": "string"}},
+        "properties": {"type": "object", "additionalProperties": {"type": "string"}, "minProperties": 3, "maxProperties": 3},
+        "tests": {"const": 13}, "failures": {"const": 0}, "errors": {"const": 0}, "skipped": {"const": 0}
+      }
+    },
+    "textproto": {
+      "type": "object", "additionalProperties": false, "required": ["path", "sha256", "sanitized"],
+      "properties": {"path": {"$ref": "#/$defs/path"}, "sha256": {"$ref": "#/$defs/sha"}, "sanitized": {"const": true}}
+    },
+    "topology": {
+      "type": "object", "additionalProperties": false,
+      "required": ["profile", "device", "api", "model", "config", "serial", "resultPathRoot", "deviceInfoPath", "formFactor", "smallestScreenWidthRule", "windowProofMethod", "policyOverride"],
+      "properties": {
+        "profile": {"enum": ["phone", "tablet"]},
+        "device": {"enum": ["pixel6Api35", "m10TabletApi35"]},
+        "api": {"const": 35},
+        "model": {"enum": ["Pixel 6", "Pixel Tablet"]},
+        "config": {"enum": ["dev35_default_arm64-v8a_Pixel_6", "dev35_default_arm64-v8a_Pixel_Tablet"]},
+        "serial": {"type": "string", "pattern": "^emulator-[0-9]{4}$"},
+        "resultPathRoot": {"type": "string", "pattern": "^\\$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/(pixel6Api35|m10TabletApi35)$"},
+        "deviceInfoPath": {"type": "string", "pattern": "^\\$REPO_ROOT/app/build/outputs/androidTest-results/managedDevice/release/flavors/playInternal/(pixel6Api35|m10TabletApi35)/device-info\\.pb$"}
+        ,"formFactor": {"enum": ["phone", "tablet"]}
+        ,"smallestScreenWidthRule": {"enum": ["<600dp", ">=600dp"]}
+        ,"windowProofMethod": {"const": "rtlLandscapePolicyOverrideBindsActualPhoneOrTabletWindow"}
+        ,"policyOverride": {"const": "1280x720_POLICY_ONLY_NOT_DEX_RUNTIME"}
+      }
+    },
+    "detectorGate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256", "schema", "status", "command", "detector", "targets", "result"],
+      "properties": {
+        "path": {"const": "tasks/test-evidence/m09d-theme-studio/impeccable-detector.json"},
+        "sha256": {"$ref": "#/$defs/sha"},
+        "schema": {"const": "codecks.m09d.impeccable-detector.v1"},
+        "status": {"const": "PASS"},
+        "command": {"type": "array", "minItems": 5, "maxItems": 5, "prefixItems": [{"const": "node"}, {"const": "$IMPECCABLE_DETECTOR"}, {"const": "--json"}, {"const": "app/src/main/java/io/codecks/ui/settings/SettingsControlSections.kt"}, {"const": "app/src/main/java/io/codecks/ui/theme/ThemeStudioPanel.kt"}], "items": false},
+        "detector": {"type": "object", "additionalProperties": false, "required": ["name", "sha256"], "properties": {"name": {"const": "detect.mjs"}, "sha256": {"$ref": "#/$defs/sha"}}},
+        "targets": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/source"}},
+        "result": {"type": "array", "maxItems": 0}
+      }
+    },
+    "run": {
+      "type": "object", "additionalProperties": false,
+      "required": ["profile", "device", "status", "result", "deviceInfo", "textproto", "topology", "executionBinding"],
+      "properties": {
+        "profile": {"enum": ["phone", "tablet"]}, "device": {"type": "string"}, "status": {"const": "PASS"},
+        "result": {"$ref": "#/$defs/result"}, "deviceInfo": {"$ref": "#/$defs/file"}, "textproto": {"$ref": "#/$defs/textproto"},
+        "topology": {"$ref": "#/$defs/topology"},
+        "executionBinding": {"$ref": "#/$defs/executionBinding"}
+      }
+    },
+    "executionBinding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["androidTestSourceSha256", "targetApkSha256", "testApkSha256", "resultSha256", "deviceInfoSha256", "textprotoSha256"],
+      "properties": {
+        "androidTestSourceSha256": {"$ref": "#/$defs/sha"}, "targetApkSha256": {"$ref": "#/$defs/sha"}, "testApkSha256": {"$ref": "#/$defs/sha"},
+        "resultSha256": {"$ref": "#/$defs/sha"}, "deviceInfoSha256": {"$ref": "#/$defs/sha"}, "textprotoSha256": {"$ref": "#/$defs/sha"}
+      }
+    },
+    "excludedMetadata": {
+      "type": "object", "additionalProperties": false,
+      "required": ["ordinal", "status", "device", "tests", "passed", "failed", "failure", "artifactRetention", "eligibleForPass"],
+      "properties": {
+        "ordinal": {"const": 1}, "status": {"const": "EXCLUDED"}, "device": {"const": "pixel6Api35"},
+        "tests": {"const": 9}, "passed": {"const": 8}, "failed": {"const": 1}, "failure": {"type": "string", "minLength": 1},
+        "artifactRetention": {"const": "NOT_RETAINED"}, "eligibleForPass": {"const": false}
+      }
+    },
+    "excludedArtifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["ordinal", "status", "device", "tests", "passed", "failed", "failure", "artifactRetention", "artifact", "eligibleForPass"],
+      "properties": {
+        "ordinal": {"const": 2}, "status": {"const": "EXCLUDED"}, "device": {"const": "pixel6Api35"},
+        "tests": {"const": 1}, "passed": {"const": 0}, "failed": {"const": 1}, "failure": {"type": "string", "minLength": 1},
+        "artifactRetention": {"const": "RETAINED"}, "artifact": {"$ref": "#/$defs/file"}, "eligibleForPass": {"const": false}
+      }
+    }
+  }
+}

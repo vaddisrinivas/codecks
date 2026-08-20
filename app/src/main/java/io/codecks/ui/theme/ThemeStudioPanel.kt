@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -45,7 +47,9 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -53,7 +57,9 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 @Composable
 fun ThemeStudioPanel(
@@ -90,6 +96,8 @@ fun ThemeStudioPanel(
     )
     val adaptation = ThemeUiPolicy.resolve(environmentOverride ?: observedEnvironment)
     val repository = remember(context) { ThemeSettingsRepository(context) }
+    val librarySnapshot by repository.themeLibrary.collectAsStateWithLifecycle(initialValue = ThemeLibrarySnapshot())
+    val library = librarySnapshot.state
     val scope = rememberCoroutineScope()
     var savedDraft by rememberSaveable { mutableStateOf(ThemeSchemeCodec.encode(settings.themeBundle)) }
     var editor by remember(settings.themeBundle) {
@@ -102,6 +110,10 @@ fun ThemeStudioPanel(
     var message by rememberSaveable { mutableStateOf<String?>(null) }
     var duplicateCounter by rememberSaveable { mutableStateOf(0) }
     var seedText by rememberSaveable { mutableStateOf("#FF3DDC84") }
+    var activeColorRoleName by rememberSaveable { mutableStateOf(ThemeColorRole.Primary.name) }
+    var advancedOpen by rememberSaveable { mutableStateOf(false) }
+    var libraryName by rememberSaveable { mutableStateOf("") }
+    var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
 
     fun update(next: ThemeEditorState) {
         editor = next
@@ -111,7 +123,7 @@ fun ThemeStudioPanel(
     Surface(modifier = modifier.fillMaxWidth().testTag("theme-studio"), tonalElevation = 1.dp, shape = MaterialTheme.shapes.large) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Theme studio", style = MaterialTheme.typography.titleMedium)
-            Text("Eight offline presets or edit every color. Preview first; Apply is atomic.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Twelve offline presets or build a named custom theme. Preview before applying.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             settings.themeLoadIssue?.let {
                 Text(
                     "Saved theme rejected: ${it.name}. Safe Codecks Green loaded.",
@@ -122,19 +134,41 @@ fun ThemeStudioPanel(
 
             val active = editor.draft.resolve(target)
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).selectableGroup(),
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).selectableGroup(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ThemePresetCatalog.presets.forEach { preset ->
                     val selected = active.preset == preset.preset
-                    FilterChip(
-                        selected = selected,
-                        onClick = {
-                            update(editor.preview(editor.draft.withScheme(target, preset)))
-                        },
-                        label = { Text(preset.label) },
-                        modifier = Modifier.testTag("theme-preset-${preset.id}").semantics { contentDescription = "${preset.label} theme${if (selected) ", selected" else ""}" },
-                    )
+                    Surface(
+                        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+                        contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                        border = androidx.compose.foundation.BorderStroke(
+                            if (selected) 2.dp else 1.dp,
+                            if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                        ),
+                        shape = MaterialTheme.shapes.large,
+                        modifier = Modifier.width(152.dp).heightIn(min = 120.dp)
+                            .testTag("theme-preset-${preset.id}")
+                            .selectable(
+                                selected = selected,
+                                role = Role.RadioButton,
+                                onClick = { update(editor.preview(editor.draft.withScheme(target, preset))) },
+                            )
+                            .semantics { contentDescription = "${preset.label} theme preview${if (selected) ", selected" else ""}" },
+                    ) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                listOf(ThemeColorRole.Primary, ThemeColorRole.Secondary, ThemeColorRole.Tertiary).forEach { role ->
+                                    Box(Modifier.size(32.dp).background(Color(preset[role].value.toInt()), MaterialTheme.shapes.small))
+                                }
+                            }
+                            Text(preset.label, style = MaterialTheme.typography.labelLarge)
+                            Text(
+                                if (preset.preset == ThemePresetId.HighContrast) "Maximum contrast" else "Accessible roles",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
                 }
             }
 
@@ -179,46 +213,63 @@ fun ThemeStudioPanel(
                 ) { Text("Generate") }
             }
 
-            ThemeColorRole.entries.chunked(adaptation.editorColumns).forEach { roles ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    roles.forEach { role ->
-                        var text by remember(active.id, role, active[role]) { mutableStateOf(active[role].toHex()) }
-                        OutlinedTextField(
-                            value = text,
-                            onValueChange = { candidate ->
-                                text = candidate.take(9)
-                                val parsed = ThemeArgb.parse(text)
-                                if (parsed != null) {
-                                    update(editor.edit(target, role, parsed))
-                                    message = null
-                                } else {
-                                    message = "Invalid ${role.name}: use opaque #FFRRGGBB"
-                                }
-                            },
-                            label = { Text(role.name) },
-                            supportingText = {
-                                val parsed = ThemeArgb.parse(text)
-                                if (parsed == null) Text("Use opaque #FFRRGGBB") else {
-                                    val ratio = ThemeContrast.ratio(ThemeContrast.readableForeground(parsed), parsed)
-                                    Text("${"%.1f".format(ratio)}:1")
-                                }
-                            },
-                            isError = ThemeArgb.parse(text) == null,
-                            singleLine = true,
-                            modifier = Modifier.weight(1f).heightIn(min = 64.dp),
-                        )
-                    }
+            Text("Color", style = MaterialTheme.typography.titleSmall)
+            val activeColorRole = ThemeColorRole.entries.firstOrNull { it.name == activeColorRoleName } ?: ThemeColorRole.Primary
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ThemeColorRole.entries.forEach { role ->
+                    FilterChip(
+                        selected = role == activeColorRole,
+                        onClick = { activeColorRoleName = role.name },
+                        label = { Text(role.name) },
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    )
                 }
             }
+            AccessibleColorPicker(
+                selected = active[activeColorRole],
+                target = target,
+                role = activeColorRole,
+                onSelect = { update(editor.edit(target, activeColorRole, it)); message = null },
+            )
 
-            ThemeOpacityRole.entries.forEach { role ->
-                Text("${role.name} strength ${"%.0f".format(active.opacity[role] * 100)}%")
-                Slider(
-                    value = active.opacity[role],
-                    onValueChange = { update(editor.setOpacity(target, role, it)) },
-                    valueRange = .2f..1f,
-                    modifier = Modifier.semantics { contentDescription = "${target.name} ${role.name} strength" },
-                )
+            TextButton(
+                onClick = { advancedOpen = !advancedOpen },
+                modifier = Modifier.heightIn(min = 48.dp).testTag("theme-advanced-toggle").semantics {
+                    stateDescription = if (advancedOpen) "Expanded" else "Collapsed"
+                },
+            ) { Text(if (advancedOpen) "Hide advanced" else "Advanced: hex and opacity") }
+            if (advancedOpen) {
+                ThemeColorRole.entries.chunked(adaptation.editorColumns).forEach { roles ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        roles.forEach { role ->
+                            var text by remember(active.id, role, active[role]) { mutableStateOf(active[role].toHex()) }
+                            OutlinedTextField(
+                                value = text,
+                                onValueChange = { candidate ->
+                                    text = candidate.take(9)
+                                    ThemeArgb.parse(text)?.let { update(editor.edit(target, role, it)); message = null }
+                                        ?: run { message = "Invalid ${role.name}: use opaque #FFRRGGBB" }
+                                },
+                                label = { Text("${target.name} ${role.name} color hex") },
+                                supportingText = { Text(ThemeArgb.parse(text)?.let { "${"%.1f".format(ThemeContrast.ratio(ThemeContrast.readableForeground(it), it))}:1" } ?: "Use opaque #FFRRGGBB") },
+                                isError = ThemeArgb.parse(text) == null,
+                                singleLine = true,
+                                modifier = Modifier.weight(1f).heightIn(min = 64.dp).semantics {
+                                    contentDescription = "${target.name} ${role.name} color hex"
+                                },
+                            )
+                        }
+                    }
+                }
+                ThemeOpacityRole.entries.forEach { role ->
+                    Text("${role.name} strength ${"%.0f".format(active.opacity[role] * 100)}%")
+                    Slider(
+                        value = active.opacity[role],
+                        onValueChange = { update(editor.setOpacity(target, role, it)) },
+                        valueRange = .2f..1f,
+                        modifier = Modifier.semantics { contentDescription = "${target.name} ${role.name} strength" },
+                    )
+                }
             }
 
             ThemePreview(editor.draft.resolve(target), target, adaptation, rtl)
@@ -240,13 +291,74 @@ fun ThemeStudioPanel(
                 )
             }
 
+            Text("My themes", style = MaterialTheme.typography.titleSmall)
+            if (librarySnapshot.quarantined) {
+                Text(
+                    "Saved theme library is unavailable (${librarySnapshot.issue?.name}). Existing data is quarantined.",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
+                )
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            message = if (repository.resetCorruptThemeLibrary()) "Unavailable library reset" else "Library reset failed"
+                        }
+                    },
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("theme-library-reset"),
+                ) { Text("Reset unavailable library") }
+            }
+            OutlinedTextField(
+                value = libraryName,
+                onValueChange = { libraryName = it.take(ThemeLibraryCodec.MAX_NAME_CHARS) },
+                label = { Text("Theme name") },
+                supportingText = { Text("${library.themes.size}/${ThemeLibraryCodec.MAX_THEMES} saved on this device") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().testTag("theme-library-name"),
+            )
+            Button(
+                onClick = {
+                    val clean = ThemeLibraryCodec.cleanName(libraryName)
+                    if (clean == null) message = "Enter a theme name"
+                    else scope.launch {
+                        val id = "theme-${clean.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]+"), "-").trim('-').take(30)}-${System.currentTimeMillis().toString(36)}"
+                        message = if (repository.saveNamedTheme(id.take(48), clean, editor.draft)) "Theme saved" else "Theme library full or name already used"
+                    }
+                },
+                enabled = !librarySnapshot.quarantined && library.themes.size < ThemeLibraryCodec.MAX_THEMES && ThemeLibraryCodec.cleanName(libraryName) != null,
+                modifier = Modifier.heightIn(min = 48.dp).testTag("theme-library-save"),
+            ) { Text("Save current theme") }
+            library.themes.forEach { saved ->
+                var editName by rememberSaveable(saved.id, saved.name) { mutableStateOf(saved.name) }
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(
+                        onClick = { update(editor.preview(saved.bundle)); message = "${saved.name} loaded as preview" },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("theme-library-load-${saved.id}"),
+                    ) { Text("Load ${saved.name}") }
+                    OutlinedTextField(
+                        value = editName,
+                        onValueChange = { editName = it.take(ThemeLibraryCodec.MAX_NAME_CHARS) },
+                        label = { Text("Rename ${saved.name}") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().testTag("theme-library-rename-${saved.id}"),
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        TextButton(onClick = {
+                            scope.launch { message = if (repository.renameNamedTheme(saved.id, editName)) "${saved.name} renamed" else "Choose a unique valid name" }
+                        }, enabled = ThemeLibraryCodec.cleanName(editName) != null, modifier = Modifier.heightIn(min = 48.dp).testTag("theme-library-rename-action-${canonicalThemeName(saved.name).replace(Regex("[^a-z0-9]+"), "-")}")) { Text("Rename ${saved.name}") }
+                        TextButton(onClick = {
+                            pendingDeleteId = saved.id
+                        }, modifier = Modifier.heightIn(min = 48.dp).testTag("theme-library-delete-${canonicalThemeName(saved.name).replace(Regex("[^a-z0-9]+"), "-")}")) { Text("Delete ${saved.name}") }
+                    }
+                }
+            }
+
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = { update(editor.undo()) }, enabled = editor.canUndo) { Text("Undo") }
                     TextButton(onClick = { update(editor.reset()) }) { Text("Reset") }
                     TextButton(onClick = {
                         duplicateCounter += 1
-                        val id = "custom-${target.name.lowercase()}-${System.currentTimeMillis().toString(36)}-$duplicateCounter"
+                        val id = "custom-${target.name.lowercase(Locale.ROOT)}-${System.currentTimeMillis().toString(36)}-$duplicateCounter"
                         update(editor.duplicate(target, id, "${active.label} copy".take(48)))
                         message = "Independent copy ready"
                     }) { Text("Duplicate") }
@@ -311,6 +423,75 @@ fun ThemeStudioPanel(
             dismissButton = { TextButton(onClick = { transferOpen = false }) { Text("Close") } },
         )
     }
+
+    pendingDeleteId?.let { id ->
+        library.themes.firstOrNull { it.id == id }?.let { saved ->
+            AlertDialog(
+                onDismissRequest = { pendingDeleteId = null },
+                title = { Text("Delete ${saved.name}?") },
+                text = { Text("This removes the saved theme from this phone. The applied theme does not change.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        scope.launch {
+                            message = if (repository.deleteNamedTheme(saved.id)) "${saved.name} deleted" else "${saved.name} was not deleted"
+                            pendingDeleteId = null
+                        }
+                    }) { Text("Delete ${saved.name}") }
+                },
+                dismissButton = { TextButton(onClick = { pendingDeleteId = null }) { Text("Keep ${saved.name}") } },
+            )
+        }
+    }
+}
+
+@Composable
+private fun AccessibleColorPicker(
+    selected: ThemeArgb,
+    target: ThemeTarget,
+    role: ThemeColorRole,
+    onSelect: (ThemeArgb) -> Unit,
+) {
+    val choices = remember {
+        listOf(
+            "Green" to 0xFF3DDC84,
+            "Blue" to 0xFF75D7FF,
+            "Violet" to 0xFFD9B8FF,
+            "Rose" to 0xFFFF8CA8,
+            "Amber" to 0xFFFFC857,
+            "White" to 0xFFFFFFFF,
+            "Slate" to 0xFF64748B,
+            "Black" to 0xFF000000,
+        ).map { (name, value) -> name to requireNotNull(ThemeArgb.of(value)) }
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        choices.forEach { (name, color) ->
+            val isSelected = selected == color
+            Column(Modifier.width(72.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Surface(
+                    color = Color(color.value.toInt()),
+                    border = androidx.compose.foundation.BorderStroke(
+                        if (isSelected) 3.dp else 1.dp,
+                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                    ),
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.size(56.dp)
+                        .testTag("theme-color-${role.name.lowercase(Locale.ROOT)}-${name.lowercase(Locale.ROOT)}")
+                        .selectable(
+                        selected = isSelected,
+                        role = Role.RadioButton,
+                        onClick = { onSelect(color) },
+                    ).semantics {
+                        contentDescription = "$name ${target.name} ${role.name} color, ${color.toHex()}, ${if (isSelected) "selected" else "not selected"}"
+                    },
+                ) {}
+                Text(name, style = MaterialTheme.typography.labelSmall)
+                if (isSelected) Text("Selected", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            }
+        }
+    }
 }
 
 @Composable
@@ -336,7 +517,7 @@ private fun ThemePreview(scheme: ThemeScheme, target: ThemeTarget, adaptation: T
             Modifier.background(background).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Live ${target.name.lowercase()} preview", color = foreground)
+            Text("Live ${target.name.lowercase(Locale.ROOT)} preview", color = foreground)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = if (rtl) Arrangement.spacedBy(8.dp, androidx.compose.ui.Alignment.End) else Arrangement.spacedBy(8.dp),

@@ -7,10 +7,13 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.CancellationException
 
-private val Context.themeDataStore by preferencesDataStore(name = "theme_settings")
+internal val Context.themeDataStore by preferencesDataStore(name = "theme_settings")
+internal val THEME_LIBRARY_KEY = stringPreferencesKey("theme_library_v2")
 
 enum class CodecksThemeMode(val label: String, val description: String) {
     System("System", "Follow Android light and dark mode"),
@@ -173,6 +176,20 @@ class ThemeSettingsRepository(private val context: Context) {
         } ?: CodecksThemeMode.Oled
     }
 
+    val themeLibrary: Flow<ThemeLibrarySnapshot> = context.themeDataStore.data
+        .map { preferences -> readThemeLibrary(preferences[THEME_LIBRARY_KEY]) }
+        .onEach { read ->
+            if (read.migrationRaw != null) {
+                context.themeDataStore.edit { preferences ->
+                    if (preferences[THEME_LIBRARY_KEY] == read.migrationRaw) {
+                        preferences[THEME_LIBRARY_KEY] = ThemeLibraryCodec.encode(read.snapshot.state)
+                    }
+                }
+            }
+        }
+        .map { it.snapshot }
+        .distinctUntilChanged()
+
     suspend fun setMode(mode: CodecksThemeMode) {
         context.themeDataStore.edit { it[MODE] = mode.name }
     }
@@ -214,6 +231,42 @@ class ThemeSettingsRepository(private val context: Context) {
         return true
     }
 
+    suspend fun saveNamedTheme(id: String, name: String, bundle: ThemeBundle): Boolean {
+        val cleanName = ThemeLibraryCodec.cleanName(name) ?: return false
+        if (!ThemeContrast.isBundleReadable(bundle)) return false
+        return runThemeLibraryMutation {
+            context.themeDataStore.edit { preferences ->
+                val current = themeLibraryForMutation(preferences[THEME_LIBRARY_KEY])
+                val next = current.save(NamedTheme(id, cleanName, bundle))
+                preferences[THEME_LIBRARY_KEY] = ThemeLibraryCodec.encode(next)
+            }
+        }
+    }
+
+    suspend fun renameNamedTheme(id: String, name: String): Boolean = runThemeLibraryMutation {
+        context.themeDataStore.edit { preferences ->
+            val next = themeLibraryForMutation(preferences[THEME_LIBRARY_KEY]).rename(id, name)
+            preferences[THEME_LIBRARY_KEY] = ThemeLibraryCodec.encode(next)
+        }
+    }
+
+    suspend fun deleteNamedTheme(id: String): Boolean = runThemeLibraryMutation {
+        context.themeDataStore.edit { preferences ->
+            val next = themeLibraryForMutation(preferences[THEME_LIBRARY_KEY]).delete(id)
+            preferences[THEME_LIBRARY_KEY] = ThemeLibraryCodec.encode(next)
+        }
+    }
+
+    suspend fun resetCorruptThemeLibrary(): Boolean = runThemeLibraryMutation {
+        context.themeDataStore.edit { preferences ->
+            val raw = preferences[THEME_LIBRARY_KEY] ?: throw IllegalStateException("theme library is not corrupt")
+            if (ThemeLibraryCodec.decode(raw) !is ThemeLibraryDecodeResult.Rejected) {
+                throw IllegalStateException("theme library is not corrupt")
+            }
+            preferences[THEME_LIBRARY_KEY] = ThemeLibraryCodec.encode(ThemeLibraryState())
+        }
+    }
+
     suspend fun migrateToCurrentVisualSystem() {
         context.themeDataStore.edit { preferences ->
             if ((preferences[VISUAL_SYSTEM_REVISION] ?: 0) >= CURRENT_VISUAL_SYSTEM_REVISION) return@edit
@@ -243,4 +296,46 @@ class ThemeSettingsRepository(private val context: Context) {
         val VISUAL_SYSTEM_REVISION = intPreferencesKey("visual_system_revision")
         val THEME_BUNDLE = stringPreferencesKey("theme_bundle_v1")
     }
+}
+
+data class ThemeLibrarySnapshot(
+    val state: ThemeLibraryState = ThemeLibraryState(),
+    val issue: ThemeLibraryDecodeResult.Reason? = null,
+) {
+    val quarantined: Boolean get() = issue != null
+}
+
+private data class ThemeLibraryRead(
+    val snapshot: ThemeLibrarySnapshot,
+    val migrationRaw: String? = null,
+)
+
+private fun readThemeLibrary(raw: String?): ThemeLibraryRead = when {
+    raw == null -> ThemeLibraryRead(ThemeLibrarySnapshot())
+    else -> when (val decoded = ThemeLibraryCodec.decode(raw)) {
+        is ThemeLibraryDecodeResult.Success -> ThemeLibraryRead(
+            snapshot = ThemeLibrarySnapshot(decoded.state),
+            migrationRaw = raw.takeIf { decoded.migrated },
+        )
+        is ThemeLibraryDecodeResult.Rejected -> ThemeLibraryRead(
+            ThemeLibrarySnapshot(issue = decoded.reason),
+        )
+    }
+}
+
+private fun themeLibraryForMutation(raw: String?): ThemeLibraryState = when {
+    raw == null -> ThemeLibraryState()
+    else -> when (val decoded = ThemeLibraryCodec.decode(raw)) {
+        is ThemeLibraryDecodeResult.Success -> decoded.state
+        is ThemeLibraryDecodeResult.Rejected -> throw IllegalStateException("theme library quarantined: ${decoded.reason}")
+    }
+}
+
+internal suspend fun runThemeLibraryMutation(block: suspend () -> Unit): Boolean = try {
+    block()
+    true
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (_: Exception) {
+    false
 }

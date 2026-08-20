@@ -1,6 +1,7 @@
 package io.codecks.domain.icons
 
 import io.codecks.domain.ActionIcon
+import java.util.Locale
 
 private val SAFE_ID = Regex("[a-z][a-z0-9_.-]{2,63}")
 
@@ -104,7 +105,7 @@ class DeckIconCatalog(
         favoritesOnly: Boolean = false,
         preferences: IconPreferenceState = IconPreferenceState(),
     ): List<SemanticIconDefinition> {
-        val needle = query.trim().lowercase().take(MAX_QUERY)
+        val needle = query.trim().lowercase(Locale.ROOT).take(MAX_QUERY)
         val favorites = preferences.favorites.toSet()
         return icons.filter { icon ->
             (!favoritesOnly || icon.id in favorites) &&
@@ -120,11 +121,11 @@ class DeckIconCatalog(
         byId.getValue(SemanticIconId("icon.fallback"))
 
     private fun SemanticIconDefinition.tokens(): Set<String> =
-        searchTerms.mapTo(mutableSetOf()) { it.lowercase() }.apply {
+        searchTerms.mapTo(mutableSetOf()) { it.lowercase(Locale.ROOT) }.apply {
             add(id.value)
-            add(label.lowercase())
-            add(category.name.lowercase())
-            add(actionIcon.name.lowercase())
+            add(label.lowercase(Locale.ROOT))
+            add(category.name.lowercase(Locale.ROOT))
+            add(actionIcon.name.lowercase(Locale.ROOT))
         }
 
     private companion object { const val MAX_QUERY = 80 }

@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.ContentPaste
@@ -25,17 +27,25 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.codecks.data.clipboard.ClipboardSyncSettings
+import io.codecks.data.icons.BundledDeckIconCatalog
 import io.codecks.data.context.NotificationPrivacySettings
 import io.codecks.core.trackpad.TrackpadClockStyle
 import io.codecks.core.trackpad.TrackpadFloatingMenuLayout
@@ -481,7 +491,10 @@ internal fun DeckStylePanel(
                     )
                 }
             }
-            androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            androidx.compose.foundation.lazy.LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.selectableGroup(),
+            ) {
                 items(
                     CodecksDeckStyle.entries,
                     key = CodecksDeckStyle::name,
@@ -569,18 +582,32 @@ internal fun IconPackPanel(
     iconPack: CodecksIconPack,
     onIconPackChange: (CodecksIconPack) -> Unit,
 ) {
+    var query by rememberSaveable { mutableStateOf("") }
+    val matchingIcons = remember(query) { BundledDeckIconCatalog.catalog.search(query).take(20) }
     CodecksPanel(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(14.dp)) {
             Text("Icon pack", style = MaterialTheme.typography.titleMedium)
-            androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(CodecksIconPack.entries, key = CodecksIconPack::name) { pack ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                    .testTag("icon-pack-selector").selectableGroup(),
+            ) {
+                CodecksIconPack.entries.forEach { pack ->
                     CodecksPanel(
                         selected = iconPack == pack,
                         modifier = Modifier
                             .width(164.dp)
-                            .clickable { onIconPackChange(pack) },
+                            .testTag("icon-pack-${pack.name}")
+                            .selectable(
+                                selected = iconPack == pack,
+                                role = Role.RadioButton,
+                                onClick = { onIconPackChange(pack) },
+                            )
+                            .semantics {
+                                contentDescription = "${pack.label} icon pack${if (iconPack == pack) ", selected" else ""}"
+                            },
                     ) {
                         Column(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -601,6 +628,32 @@ internal fun IconPackPanel(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it.take(80) },
+                label = { Text("Search semantic icons") },
+                supportingText = { Text("${matchingIcons.size} matching previews") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(matchingIcons, key = { it.id.value }) { definition ->
+                    Column(
+                        modifier = Modifier.width(96.dp).heightIn(min = 96.dp).padding(8.dp).semantics(mergeDescendants = true) {
+                            contentDescription = "${definition.label} icon in ${iconPack.label} pack"
+                        },
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            definition.actionIcon.imageVector(iconPack),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(32.dp),
+                        )
+                        Text(definition.label, style = MaterialTheme.typography.labelSmall, maxLines = 2)
+                    }
+                }
+            }
         }
     }
 }

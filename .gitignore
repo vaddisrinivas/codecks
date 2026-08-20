@@ -34,6 +34,7 @@ qa/
 # Release artifacts and local signing material
 release-artifacts/
 *.apk
+!tasks/test-evidence/m09d-theme-studio/runtime/*.apk
 !tasks/test-evidence/m11/runtime/*.apk
 !tasks/test-evidence/m13/runtime/*.apk
 !tasks/test-evidence/m14/runtime/*.apk

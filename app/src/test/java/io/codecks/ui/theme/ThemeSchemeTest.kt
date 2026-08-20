@@ -8,9 +8,9 @@ import org.junit.Test
 
 class ThemeSchemeTest {
     @Test
-    fun `all eight offline presets have complete accessible roles`() {
-        assertEquals(8, ThemePresetCatalog.presets.size)
-        assertEquals(8, ThemePresetCatalog.presets.map { it.id }.toSet().size)
+    fun `all twelve offline presets have complete accessible roles`() {
+        assertEquals(12, ThemePresetCatalog.presets.size)
+        assertEquals(12, ThemePresetCatalog.presets.map { it.id }.toSet().size)
         ThemePresetCatalog.presets.forEach { scheme ->
             assertEquals(ThemeColorRole.entries.toSet(), scheme.colors.keys)
             assertTrue(scheme.label, ThemeContrast.isCriticalReadable(scheme))

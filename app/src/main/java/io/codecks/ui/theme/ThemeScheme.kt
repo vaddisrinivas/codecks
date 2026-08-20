@@ -12,7 +12,11 @@ enum class ThemePresetId(val stableId: String, val label: String) {
     Cyber("cyber", "Cyber"),
     Warm("warm", "Warm"),
     Monochrome("monochrome", "Monochrome"),
-    HighContrast("high-contrast", "High Contrast");
+    HighContrast("high-contrast", "High Contrast"),
+    Ocean("ocean", "Ocean"),
+    Forest("forest", "Forest"),
+    Desert("desert", "Desert"),
+    Lavender("lavender", "Lavender");
 
     companion object {
         fun fromStableId(value: String): ThemePresetId? = entries.firstOrNull { it.stableId == value }
@@ -188,6 +192,10 @@ object ThemePresetCatalog {
         scheme(ThemePresetId.Warm, longArrayOf(0xFFFFB36B,0xFFD7A77B,0xFFF08A7E,0xFF2B201B,0xFF17110E,0xFF8B756A,0xFF74D39A,0xFFFFC857,0xFFFF7A70,0xFF493126,0xFF5A3B2C,0xFFFFA45C)),
         scheme(ThemePresetId.Monochrome, longArrayOf(0xFFFFFFFF,0xFFBDBDBD,0xFF8F8F8F,0xFF171717,0xFF080808,0xFF808080,0xFFE0E0E0,0xFFFFFFFF,0xFFFFFFFF,0xFF292929,0xFF333333,0xFFFFFFFF)),
         scheme(ThemePresetId.HighContrast, longArrayOf(0xFFFFFF00,0xFF00FFFF,0xFFFF66FF,0xFF000000,0xFF000000,0xFFFFFFFF,0xFF00FF66,0xFFFFFF00,0xFFFF4D4D,0xFF111111,0xFF222222,0xFFFFFFFF)),
+        scheme(ThemePresetId.Ocean, longArrayOf(0xFF75D7FF,0xFF8DB9FF,0xFF83E8DE,0xFF102A36,0xFF071B24,0xFF6B8996,0xFF66D99B,0xFFFFD06A,0xFFFF8B8B,0xFF173A48,0xFF1C4655,0xFF75D7FF)),
+        scheme(ThemePresetId.Forest, longArrayOf(0xFF9DE8B4,0xFFB8D99C,0xFFF0D18A,0xFF16271B,0xFF0D1A12,0xFF718D78,0xFF75DC9A,0xFFFFD166,0xFFFF8E82,0xFF213827,0xFF2B4632,0xFF9DE8B4)),
+        scheme(ThemePresetId.Desert, longArrayOf(0xFFFFC078,0xFFE7B890,0xFFF49B8B,0xFF382317,0xFF25170D,0xFFA67E58,0xFF82D69B,0xFFFFD166,0xFFFF8A7A,0xFF4B3020,0xFF5C3C28,0xFFFFC078)),
+        scheme(ThemePresetId.Lavender, longArrayOf(0xFFD9B8FF,0xFFBFC6FF,0xFFFFB5DA,0xFF2A1D35,0xFF1C1326,0xFF8D719F,0xFF81D9A6,0xFFFFD166,0xFFFF8CA8,0xFF382848,0xFF49325D,0xFFD9B8FF)),
     )
 
     val default: ThemeScheme = presets.first()
