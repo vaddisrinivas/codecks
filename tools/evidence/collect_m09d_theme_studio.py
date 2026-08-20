@@ -34,7 +34,7 @@ METHODS = {
     "widgetAndNotificationSurfaceStoreKeepsOpaqueThemeColors",
 }
 SOURCE_COMMIT = "28b3e53613b8c0cd189ba58f4a673aafbed653b2"
-C1B_REVIEWED_COMMIT = "c34ecc6bc63a6f5a9a22699734e9ddb308627b30"
+C1C_REVIEWED_COMMIT = "490c4329b80ec66a541187d89d2d06f779d059e3"
 SOURCE_PATHS = (
     ".gitignore",
     "app/build.gradle.kts",
@@ -92,16 +92,13 @@ C2_ARTIFACT_PATHS = frozenset({
         for name in ("device-info.pb", "result.xml", "test-result.sanitized.textproto")
     ),
 })
-C1C_CHANGED_PATHS = frozenset({
-    "app/build.gradle.kts",
+C1D_CHANGED_PATHS = frozenset({
     "docs/ux/THEME_STUDIO_LIBRARY.md",
     "tools/evidence/collect_m09d_theme_studio.py",
-    "tools/evidence/schemas/codecks-m09d-theme-studio-v1.schema.json",
     "tools/evidence/test_m09d_theme_studio.py",
-    "tools/evidence/validate_m09d_theme_studio.py",
 })
-DIRTY_REVIEW_PATHS = C1C_CHANGED_PATHS | C2_ARTIFACT_PATHS
-DIRTY_REVIEW_MODIFIED_PATHS = C1C_CHANGED_PATHS
+DIRTY_REVIEW_PATHS = C1D_CHANGED_PATHS
+DIRTY_REVIEW_MODIFIED_PATHS = C1D_CHANGED_PATHS
 PINNED_BUILD_TOOLS = "36.0.0"
 MAX_XML = 4 * 1024 * 1024
 MAX_COMPANION = 4 * 1024 * 1024
@@ -292,10 +289,10 @@ def validate_commit_relationship_values(
 ) -> None:
     if not base_is_ancestor:
         raise ValueError("M09D reviewed base is not an ancestor of sourceCommit")
-    if source_parents != (C1B_REVIEWED_COMMIT,):
-        raise ValueError("M09D sourceCommit is not the direct single-parent C1c child")
-    if source_commit_paths != C1C_CHANGED_PATHS:
-        raise ValueError("M09D C1c commit path closure mismatch")
+    if source_parents != (C1C_REVIEWED_COMMIT,):
+        raise ValueError("M09D sourceCommit is not the direct single-parent C1d child")
+    if source_commit_paths != C1D_CHANGED_PATHS:
+        raise ValueError("M09D C1d commit path closure mismatch")
     if source_paths != C1_CHANGED_PATHS:
         raise ValueError("M09D base..sourceCommit path closure mismatch")
     if artifact_parent != source_commit:
@@ -356,10 +353,14 @@ def commit_chain() -> dict:
         ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"],
         cwd=ROOT, check=True, capture_output=True,
     ).stdout
-    allowed = b"" if receipt_commit else f"?? {RECEIPT.as_posix()}\0".encode()
-    if status != allowed:
-        raise ValueError("M09D C2/C3 worktree state is not exact")
+    validate_commit_chain_phase_status(receipt_commit, status)
     return {"baseCommit": SOURCE_COMMIT, "sourceCommit": source_commit, "artifactCommit": artifact_commit}
+
+
+def validate_commit_chain_phase_status(receipt_commit: str | None, status: bytes) -> None:
+    phase = "C3" if receipt_commit is not None else "C2"
+    if status != b"":
+        raise ValueError(f"M09D {phase} worktree must be exact clean before collection")
 
 
 def validate_dirty_review_entries(entries: list[str]) -> None:
@@ -371,7 +372,7 @@ def validate_dirty_review_entries(entries: list[str]) -> None:
         for path in DIRTY_REVIEW_PATHS
     }
     if actual != expected or len(actual) != len(entries):
-        raise ValueError("dirty review path set is not the exact 16-path C1c candidate")
+        raise ValueError("dirty review path set is not the exact 3-path C1d candidate")
 
 
 def validate_dirty_review_scope() -> None:
@@ -882,10 +883,51 @@ def collect_receipt() -> dict:
     }
 
 
-def write_receipt(receipt: dict) -> None:
-    destination = safe_repo_path(RECEIPT)
+def repository_status_bytes() -> bytes:
+    return subprocess.run(
+        ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"],
+        cwd=ROOT, check=True, capture_output=True,
+    ).stdout
+
+
+def validate_clean_c2_receipt_write(status: bytes, receipt_exists: bool) -> None:
+    if status != b"":
+        raise ValueError("M09D receipt write requires an exact clean C2 worktree")
+    if receipt_exists:
+        raise ValueError("M09D receipt already exists; refusing replacement")
+
+
+def write_receipt(
+    receipt: dict,
+    *,
+    destination: Path | None = None,
+    status_reader=repository_status_bytes,
+) -> None:
+    output = safe_repo_path(RECEIPT) if destination is None else destination
+    status = status_reader()
+    if output.is_symlink():
+        raise ValueError("M09D receipt destination symlink forbidden")
+    validate_clean_c2_receipt_write(status, output.exists())
+    atomic_create_bytes(canonical_json(receipt) + b"\n", output)
+
+
+def atomic_create_bytes(raw: bytes, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
-    atomic_copy_bytes(canonical_json(receipt) + b"\n", destination)
+    fd, temporary = tempfile.mkstemp(prefix=f".{destination.name}.", dir=destination.parent)
+    temporary_path = Path(temporary)
+    try:
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(raw)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.link(temporary_path, destination)
+        directory = os.open(destination.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    finally:
+        temporary_path.unlink(missing_ok=True)
 
 
 def atomic_copy_bytes(raw: bytes, destination: Path) -> None:
@@ -917,7 +959,7 @@ def main() -> None:
     args = parser.parse_args()
     if args.verify_dirty_review_scope:
         validate_dirty_review_scope()
-        print("M09D_C1C_DIRTY_REVIEW_SCOPE_PASS_16")
+        print("M09D_C1D_DIRTY_REVIEW_SCOPE_PASS_3")
         return
     if args.capture:
         required = (args.phone_result, args.tablet_result, args.target_apk, args.test_apk)

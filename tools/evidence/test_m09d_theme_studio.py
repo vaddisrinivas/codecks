@@ -15,15 +15,18 @@ import unittest
 from unittest.mock import patch
 
 from collect_m09d_theme_studio import (
-    APK_DEPENDENCY_INFO_BLOCK_ID, APK_SIG_BLOCK_MAGIC, C1B_REVIEWED_COMMIT,
-    C1C_CHANGED_PATHS, C1_CHANGED_PATHS, C2_ARTIFACT_PATHS,
+    APK_DEPENDENCY_INFO_BLOCK_ID, APK_SIG_BLOCK_MAGIC, C1C_REVIEWED_COMMIT,
+    C1D_CHANGED_PATHS, C1_CHANGED_PATHS, C2_ARTIFACT_PATHS,
     DIRTY_REVIEW_MODIFIED_PATHS, DIRTY_REVIEW_PATHS, GIT_TIMEOUT_SECONDS,
     GRADLE_TIMEOUT_SECONDS, MAX_APK_BYTES, MAX_APK_SIGNING_BLOCK_BYTES,
     MAX_APK_SIGNING_BLOCK_PAIRS, REBUILD_PROJECTED_BYTES, REBUILD_RESERVE_BYTES,
     RECEIPT, REPRODUCIBLE_BUILD_COMMAND, ROOT, apk_signing_block_pair_ids,
-    atomic_copy_bytes, execute_detached_rebuild, require_evidence_apk_without_dependency_info,
+    atomic_copy_bytes, commit_chain, execute_detached_rebuild,
+    require_evidence_apk_without_dependency_info,
     sha_bytes, validate_commit_relationship_values, validate_dirty_review_entries,
-    validate_gradle_evidence_contract, verify_rebuilt_apk,
+    validate_clean_c2_receipt_write, validate_commit_chain_phase_status,
+    validate_gradle_evidence_contract,
+    verify_rebuilt_apk, write_receipt,
 )
 from strict_json_schema import validate_json_schema
 from validate_m09d_theme_studio import validate_data
@@ -73,8 +76,8 @@ class M09DSourceContractTest(unittest.TestCase):
             "artifact_commit": "2" * 40,
             "receipt_commit": "3" * 40,
             "base_is_ancestor": True,
-            "source_parents": (C1B_REVIEWED_COMMIT,),
-            "source_commit_paths": C1C_CHANGED_PATHS,
+            "source_parents": (C1C_REVIEWED_COMMIT,),
+            "source_commit_paths": C1D_CHANGED_PATHS,
             "source_paths": C1_CHANGED_PATHS,
             "artifact_parent": "1" * 40,
             "artifact_paths": C2_ARTIFACT_PATHS,
@@ -85,7 +88,7 @@ class M09DSourceContractTest(unittest.TestCase):
         for key, replacement in (
             ("base_is_ancestor", False),
             ("source_parents", ("4" * 40,)),
-            ("source_parents", (C1B_REVIEWED_COMMIT, "4" * 40)),
+            ("source_parents", (C1C_REVIEWED_COMMIT, "4" * 40)),
             ("source_commit_paths", frozenset({"substituted"})),
             ("source_paths", frozenset({"substituted"})),
             ("artifact_parent", "4" * 40),
@@ -212,6 +215,152 @@ class M09DSourceContractTest(unittest.TestCase):
             validate_gradle_evidence_contract(script.replace(".orElse(false)", ".orElse(true)", 1))
         with self.assertRaises(ValueError):
             validate_gradle_evidence_contract(script.replace("includeInApk = !codecksEvidenceBuild.get()", "includeInApk = false"))
+
+    def test_receipt_write_requires_clean_c2_and_atomically_rejects_placeholders(self) -> None:
+        validate_clean_c2_receipt_write(b"", False)
+        for status in (
+            f"?? {RECEIPT.as_posix()}\0".encode(),
+            b" M unrelated.txt\0",
+            b"?? unrelated.txt\0",
+        ):
+            with self.subTest(status=status), self.assertRaisesRegex(ValueError, "clean C2"):
+                validate_clean_c2_receipt_write(status, False)
+        with self.assertRaisesRegex(ValueError, "already exists"):
+            validate_clean_c2_receipt_write(b"", True)
+
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / "receipt.json"
+            write_receipt({"status": "PASS"}, destination=destination, status_reader=lambda: b"")
+            self.assertEqual(b'{"status":"PASS"}\n', destination.read_bytes())
+            self.assertFalse(any(path.name.startswith(".receipt.json.") for path in destination.parent.iterdir()))
+            destination.write_bytes(b"placeholder")
+            with self.assertRaisesRegex(ValueError, "already exists"):
+                write_receipt({"status": "PASS"}, destination=destination, status_reader=lambda: b"")
+            self.assertEqual(b"placeholder", destination.read_bytes())
+
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / "receipt.json"
+            with self.assertRaisesRegex(ValueError, "clean C2"):
+                write_receipt(
+                    {"status": "PASS"}, destination=destination,
+                    status_reader=lambda: b"?? other.txt\0",
+                )
+            self.assertFalse(destination.exists())
+
+    def test_receipt_write_rejects_symlinks_and_concurrent_create_without_clobber(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            destination = root / "receipt.json"
+            missing_target = root / "missing.json"
+            destination.symlink_to(missing_target)
+            with self.assertRaisesRegex(ValueError, "symlink forbidden"):
+                write_receipt({"status": "PASS"}, destination=destination, status_reader=lambda: b"")
+            self.assertTrue(destination.is_symlink())
+            self.assertFalse(missing_target.exists())
+            self.assertFalse(any(path.name.startswith(".receipt.json.") for path in root.iterdir()))
+            destination.unlink()
+
+            attacker = root / "attacker.json"
+            attacker.write_bytes(b"attacker")
+            destination.symlink_to(attacker)
+            with self.assertRaisesRegex(ValueError, "symlink forbidden"):
+                write_receipt({"status": "PASS"}, destination=destination, status_reader=lambda: b"")
+            self.assertEqual(b"attacker", attacker.read_bytes())
+            self.assertFalse(any(path.name.startswith(".receipt.json.") for path in root.iterdir()))
+            destination.unlink()
+
+            def bootstrap_race_status() -> bytes:
+                destination.write_bytes(b"bootstrap attacker")
+                return b""
+
+            with self.assertRaisesRegex(ValueError, "already exists"):
+                write_receipt(
+                    {"status": "PASS"}, destination=destination,
+                    status_reader=bootstrap_race_status,
+                )
+            self.assertEqual(b"bootstrap attacker", destination.read_bytes())
+            self.assertFalse(any(path.name.startswith(".receipt.json.") for path in root.iterdir()))
+            destination.unlink()
+
+            original_link = os.link
+
+            def race_link(source, target) -> None:
+                Path(target).write_bytes(b"link attacker")
+                original_link(source, target)
+
+            with patch("collect_m09d_theme_studio.os.link", side_effect=race_link), self.assertRaises(
+                FileExistsError,
+            ):
+                write_receipt({"status": "PASS"}, destination=destination, status_reader=lambda: b"")
+            self.assertEqual(b"link attacker", destination.read_bytes())
+            self.assertFalse(any(path.name.startswith(".receipt.json.") for path in root.iterdir()))
+
+    def test_clean_c2_real_commit_chain_bootstraps_receipt_in_temp_git_repo(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            def git(*args: str) -> str:
+                return subprocess.run(
+                    ["git", *args], cwd=root, check=True, capture_output=True, text=True,
+                ).stdout.strip()
+
+            git("init", "-q")
+            git("config", "user.name", "M09D Test")
+            git("config", "user.email", "m09d@example.invalid")
+            git("commit", "--allow-empty", "-qm", "reviewed c1c")
+            reviewed = git("rev-parse", "HEAD")
+            source_paths = {
+                "docs/ux/THEME_STUDIO_LIBRARY.md",
+                "tools/evidence/collect_m09d_theme_studio.py",
+                "tools/evidence/test_m09d_theme_studio.py",
+            }
+            for relative in source_paths:
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(relative, encoding="utf-8")
+            git("add", "--", *sorted(source_paths))
+            git("commit", "-qm", "c1d")
+            source = git("rev-parse", "HEAD")
+            for relative in C2_ARTIFACT_PATHS:
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(relative.encode())
+            git("add", "--", *sorted(C2_ARTIFACT_PATHS))
+            git("commit", "-qm", "c2")
+
+            with (
+                patch("collect_m09d_theme_studio.ROOT", root),
+                patch("collect_m09d_theme_studio.SOURCE_COMMIT", reviewed),
+                patch("collect_m09d_theme_studio.C1C_REVIEWED_COMMIT", reviewed),
+                patch("collect_m09d_theme_studio.C1D_CHANGED_PATHS", frozenset(source_paths)),
+                patch("collect_m09d_theme_studio.C1_CHANGED_PATHS", frozenset(source_paths)),
+            ):
+                chain = commit_chain()
+                self.assertEqual(source, chain["sourceCommit"])
+                destination = root / RECEIPT
+                write_receipt({"commitChain": chain}, destination=destination)
+                self.assertTrue(destination.is_file())
+                self.assertFalse(destination.is_symlink())
+                self.assertEqual(
+                    {"commitChain": chain},
+                    json.loads(destination.read_text(encoding="utf-8")),
+                )
+                self.assertFalse(any(path.name.startswith(f".{RECEIPT.name}.") for path in destination.parent.iterdir()))
+
+    def test_commit_chain_requires_clean_c2_and_clean_c3_before_collection(self) -> None:
+        validate_commit_chain_phase_status(None, b"")
+        validate_commit_chain_phase_status("3" * 40, b"")
+        mutations = (
+            f"?? {RECEIPT.as_posix()}\0".encode(),
+            b" M tracked.txt\0",
+            b"?? other.txt\0",
+        )
+        for receipt_commit in (None, "3" * 40):
+            for status in mutations:
+                with self.subTest(receipt_commit=receipt_commit, status=status), self.assertRaisesRegex(
+                    ValueError, "exact clean before collection",
+                ):
+                    validate_commit_chain_phase_status(receipt_commit, status)
 
     def test_final_validator_cannot_skip_live_rebuild(self) -> None:
         data = {
