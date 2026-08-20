@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import struct
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
@@ -33,7 +34,7 @@ METHODS = {
     "widgetAndNotificationSurfaceStoreKeepsOpaqueThemeColors",
 }
 SOURCE_COMMIT = "28b3e53613b8c0cd189ba58f4a673aafbed653b2"
-C1_REVIEWED_COMMIT = "d2924830686cdcf8e388cf0ed653ece78c9ab365"
+C1B_REVIEWED_COMMIT = "c34ecc6bc63a6f5a9a22699734e9ddb308627b30"
 SOURCE_PATHS = (
     ".gitignore",
     "app/build.gradle.kts",
@@ -58,7 +59,7 @@ SOURCE_PATHS = (
     "tools/evidence/strict_json_schema.py",
     "tools/evidence/run_m09d_impeccable_detector.py",
 )
-C1_CHANGED_PATHS = frozenset(SOURCE_PATHS) - {"app/build.gradle.kts"}
+C1_CHANGED_PATHS = frozenset(SOURCE_PATHS)
 RUNTIME = Path("tasks/test-evidence/m09d-theme-studio/runtime")
 RECEIPT = Path("tasks/test-evidence/m09d-theme-studio.json")
 TARGET_APK = RUNTIME / "app-playInternal-release.apk"
@@ -68,7 +69,7 @@ BUILD_TEST_APK = Path("app/build/outputs/apk/androidTest/playInternal/release/ap
 REPRODUCIBLE_BUILD_COMMAND = (
     "./gradlew", ":app:clean", ":app:assemblePlayInternalRelease",
     ":app:assemblePlayInternalReleaseAndroidTest", "--no-daemon", "--no-build-cache",
-    "--no-configuration-cache", "--rerun-tasks",
+    "--no-configuration-cache", "--rerun-tasks", "-PcodecksEvidenceBuild=true",
 )
 PROFILE_DEVICES = {"phone": "pixel6Api35", "tablet": "m10TabletApi35"}
 PROFILE_TOPOLOGY = {
@@ -91,15 +92,16 @@ C2_ARTIFACT_PATHS = frozenset({
         for name in ("device-info.pb", "result.xml", "test-result.sanitized.textproto")
     ),
 })
-C1B_CHANGED_PATHS = frozenset({
+C1C_CHANGED_PATHS = frozenset({
+    "app/build.gradle.kts",
     "docs/ux/THEME_STUDIO_LIBRARY.md",
     "tools/evidence/collect_m09d_theme_studio.py",
     "tools/evidence/schemas/codecks-m09d-theme-studio-v1.schema.json",
     "tools/evidence/test_m09d_theme_studio.py",
     "tools/evidence/validate_m09d_theme_studio.py",
 })
-DIRTY_REVIEW_PATHS = C1B_CHANGED_PATHS | C2_ARTIFACT_PATHS
-DIRTY_REVIEW_MODIFIED_PATHS = C1B_CHANGED_PATHS
+DIRTY_REVIEW_PATHS = C1C_CHANGED_PATHS | C2_ARTIFACT_PATHS
+DIRTY_REVIEW_MODIFIED_PATHS = C1C_CHANGED_PATHS
 PINNED_BUILD_TOOLS = "36.0.0"
 MAX_XML = 4 * 1024 * 1024
 MAX_COMPANION = 4 * 1024 * 1024
@@ -107,6 +109,12 @@ REBUILD_PROJECTED_BYTES = 2 * 1024 * 1024 * 1024
 REBUILD_RESERVE_BYTES = 5 * 1024 * 1024 * 1024
 GIT_TIMEOUT_SECONDS = 120
 GRADLE_TIMEOUT_SECONDS = 15 * 60
+APK_DEPENDENCY_INFO_BLOCK_ID = 0x504B4453
+APK_SIG_BLOCK_MAGIC = b"APK Sig Block 42"
+MAX_APK_BYTES = 128 * 1024 * 1024
+MAX_APK_SIGNING_BLOCK_BYTES = 16 * 1024 * 1024
+MAX_APK_SIGNING_BLOCK_PAIRS = 32
+MAX_CENTRAL_DIRECTORY_ENTRIES = 100_000
 
 
 def sha_bytes(raw: bytes) -> str:
@@ -139,10 +147,102 @@ def safe_repo_path(relative: str | Path) -> Path:
 def require_file(path: Path, label: str, maximum: int | None = None) -> bytes:
     if not path.is_file() or path.is_symlink():
         raise ValueError(f"{label} missing or unsafe: {path}")
+    size = path.stat().st_size
+    if size <= 0 or (maximum is not None and size > maximum):
+        raise ValueError(f"{label} empty or oversized: {path}")
     raw = path.read_bytes()
-    if not raw or (maximum is not None and len(raw) > maximum):
+    if len(raw) != size:
         raise ValueError(f"{label} empty or oversized: {path}")
     return raw
+
+
+def apk_signing_block_pair_ids(raw: bytes) -> tuple[int, ...]:
+    if not raw or len(raw) > MAX_APK_BYTES:
+        raise ValueError("APK empty or oversized")
+    eocd_minimum = 22
+    eocd_start = raw.rfind(b"PK\x05\x06", max(0, len(raw) - 65557))
+    if eocd_start < 0 or eocd_start + eocd_minimum > len(raw):
+        raise ValueError("APK end-of-central-directory record missing")
+    comment_length = struct.unpack_from("<H", raw, eocd_start + 20)[0]
+    if eocd_start + eocd_minimum + comment_length != len(raw):
+        raise ValueError("APK end-of-central-directory record is not terminal")
+    disk_number, central_disk, disk_entries, total_entries = struct.unpack_from(
+        "<HHHH", raw, eocd_start + 4,
+    )
+    if disk_number != 0 or central_disk != 0 or disk_entries != total_entries:
+        raise ValueError("multi-disk APK is forbidden")
+    if total_entries == 0 or total_entries > MAX_CENTRAL_DIRECTORY_ENTRIES:
+        raise ValueError("APK central-directory count invalid")
+    central_size = struct.unpack_from("<I", raw, eocd_start + 12)[0]
+    central_offset = struct.unpack_from("<I", raw, eocd_start + 16)[0]
+    if central_size < 46 or central_offset + central_size != eocd_start:
+        raise ValueError("APK central-directory bounds invalid")
+    cursor, parsed_entries = central_offset, 0
+    while cursor < eocd_start:
+        if cursor + 46 > eocd_start or raw[cursor:cursor + 4] != b"PK\x01\x02":
+            raise ValueError("APK central-directory record invalid")
+        name_size, extra_size, entry_comment_size = struct.unpack_from("<HHH", raw, cursor + 28)
+        record_size = 46 + name_size + extra_size + entry_comment_size
+        if record_size > eocd_start - cursor:
+            raise ValueError("APK central-directory record truncated")
+        cursor += record_size
+        parsed_entries += 1
+        if parsed_entries > MAX_CENTRAL_DIRECTORY_ENTRIES:
+            raise ValueError("APK central-directory count invalid")
+    if cursor != eocd_start or parsed_entries != total_entries:
+        raise ValueError("APK central-directory count mismatch")
+    if central_offset < 32 or raw[central_offset - 16:central_offset] != APK_SIG_BLOCK_MAGIC:
+        raise ValueError("APK signing block missing")
+    footer_size = struct.unpack_from("<Q", raw, central_offset - 24)[0]
+    if (
+        footer_size < 24
+        or footer_size > central_offset - 8
+        or footer_size + 8 > MAX_APK_SIGNING_BLOCK_BYTES
+    ):
+        raise ValueError("APK signing block size invalid")
+    block_start = central_offset - footer_size - 8
+    if struct.unpack_from("<Q", raw, block_start)[0] != footer_size:
+        raise ValueError("APK signing block sizes disagree")
+    cursor, pairs_end = block_start + 8, central_offset - 24
+    pair_ids: list[int] = []
+    while cursor < pairs_end:
+        if len(pair_ids) >= MAX_APK_SIGNING_BLOCK_PAIRS:
+            raise ValueError("APK signing block pair count exceeds bound")
+        if cursor + 8 > pairs_end:
+            raise ValueError("APK signing block pair length truncated")
+        pair_size = struct.unpack_from("<Q", raw, cursor)[0]
+        cursor += 8
+        if pair_size < 4 or pair_size > pairs_end - cursor:
+            raise ValueError("APK signing block pair invalid")
+        pair_ids.append(struct.unpack_from("<I", raw, cursor)[0])
+        cursor += pair_size
+    if cursor != pairs_end or len(pair_ids) != len(set(pair_ids)):
+        raise ValueError("APK signing block pairs invalid or duplicated")
+    return tuple(pair_ids)
+
+
+def require_evidence_apk_without_dependency_info(path: Path, label: str) -> None:
+    raw = require_file(path, label, MAX_APK_BYTES)
+    if APK_DEPENDENCY_INFO_BLOCK_ID in apk_signing_block_pair_ids(raw):
+        raise ValueError(f"{label} contains randomized PKDS dependency metadata")
+
+
+def validate_gradle_evidence_contract(build_script: str) -> None:
+    required = (
+        'providers.gradleProperty("codecksEvidenceBuild")',
+        ".map { value -> value.toBooleanStrict() }",
+        ".orElse(false)",
+        "dependenciesInfo {",
+        "includeInApk = !codecksEvidenceBuild.get()",
+    )
+    if any(fragment not in build_script for fragment in required):
+        raise ValueError("evidence build dependency-metadata contract missing")
+
+
+def validate_checkout_gradle_contract(checkout: Path) -> None:
+    validate_gradle_evidence_contract(
+        (checkout / "app/build.gradle.kts").read_text(encoding="utf-8"),
+    )
 
 
 def commit_paths(commit: str) -> frozenset[str]:
@@ -192,10 +292,10 @@ def validate_commit_relationship_values(
 ) -> None:
     if not base_is_ancestor:
         raise ValueError("M09D reviewed base is not an ancestor of sourceCommit")
-    if source_parents != (C1_REVIEWED_COMMIT,):
-        raise ValueError("M09D sourceCommit is not the direct single-parent C1b child")
-    if source_commit_paths != C1B_CHANGED_PATHS:
-        raise ValueError("M09D C1b commit path closure mismatch")
+    if source_parents != (C1B_REVIEWED_COMMIT,):
+        raise ValueError("M09D sourceCommit is not the direct single-parent C1c child")
+    if source_commit_paths != C1C_CHANGED_PATHS:
+        raise ValueError("M09D C1c commit path closure mismatch")
     if source_paths != C1_CHANGED_PATHS:
         raise ValueError("M09D base..sourceCommit path closure mismatch")
     if artifact_parent != source_commit:
@@ -271,7 +371,7 @@ def validate_dirty_review_entries(entries: list[str]) -> None:
         for path in DIRTY_REVIEW_PATHS
     }
     if actual != expected or len(actual) != len(entries):
-        raise ValueError("dirty review path set is not the exact 15-path C1b candidate")
+        raise ValueError("dirty review path set is not the exact 16-path C1c candidate")
 
 
 def validate_dirty_review_scope() -> None:
@@ -410,6 +510,8 @@ def verify_rebuilt_apk(
     label: str, committed: Path, rebuilt: Path, expected: dict,
     identity_reader=apk_identity,
 ) -> None:
+    require_evidence_apk_without_dependency_info(committed, f"committed {label} APK")
+    require_evidence_apk_without_dependency_info(rebuilt, f"rebuilt {label} APK")
     committed_raw = require_file(committed, f"committed {label} APK")
     rebuilt_raw = require_file(rebuilt, f"rebuilt {label} APK")
     if committed_raw != rebuilt_raw or sha_bytes(rebuilt_raw) != expected.get("sha256"):
@@ -472,6 +574,7 @@ def execute_detached_rebuild(
     make_temp=tempfile.mkdtemp,
     remove_tree=shutil.rmtree,
     admin_root: Path | None = None,
+    contract_checker=validate_checkout_gradle_contract,
 ) -> None:
     temporary_root = Path(tempfile.gettempdir()).resolve(strict=True)
     required_free = REBUILD_PROJECTED_BYTES + REBUILD_RESERVE_BYTES
@@ -488,6 +591,7 @@ def execute_detached_rebuild(
             ["git", "worktree", "add", "--detach", str(checkout), source_commit],
             cwd=ROOT, check=True, timeout=GIT_TIMEOUT_SECONDS,
         )
+        contract_checker(checkout)
         runner(
             list(REPRODUCIBLE_BUILD_COMMAND), cwd=checkout, check=True,
             timeout=GRADLE_TIMEOUT_SECONDS,
@@ -693,6 +797,9 @@ def capture(profile_sources: dict[str, Path], target: Path, test: Path) -> None:
 def collect_receipt() -> dict:
     chain = commit_chain()
     target, test = safe_repo_path(TARGET_APK), safe_repo_path(TEST_APK)
+    validate_gradle_evidence_contract(safe_repo_path("app/build.gradle.kts").read_text(encoding="utf-8"))
+    require_evidence_apk_without_dependency_info(target, "C2 target APK")
+    require_evidence_apk_without_dependency_info(test, "C2 test APK")
     target_identity, test_identity = apk_identity(target), apk_identity(test)
     target_id, test_id = target_identity["applicationId"], test_identity["applicationId"]
     if (target_id, test_id) != ("app.codecks.internal", "app.codecks.internal.test"):
@@ -810,7 +917,7 @@ def main() -> None:
     args = parser.parse_args()
     if args.verify_dirty_review_scope:
         validate_dirty_review_scope()
-        print("M09D_C1B_DIRTY_REVIEW_SCOPE_PASS_15")
+        print("M09D_C1C_DIRTY_REVIEW_SCOPE_PASS_16")
         return
     if args.capture:
         required = (args.phone_result, args.tablet_result, args.target_apk, args.test_apk)

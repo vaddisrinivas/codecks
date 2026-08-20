@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import struct
 import subprocess
 import tempfile
 from types import SimpleNamespace
@@ -14,17 +15,45 @@ import unittest
 from unittest.mock import patch
 
 from collect_m09d_theme_studio import (
-    C1B_CHANGED_PATHS, C1_CHANGED_PATHS, C1_REVIEWED_COMMIT, C2_ARTIFACT_PATHS,
+    APK_DEPENDENCY_INFO_BLOCK_ID, APK_SIG_BLOCK_MAGIC, C1B_REVIEWED_COMMIT,
+    C1C_CHANGED_PATHS, C1_CHANGED_PATHS, C2_ARTIFACT_PATHS,
     DIRTY_REVIEW_MODIFIED_PATHS, DIRTY_REVIEW_PATHS, GIT_TIMEOUT_SECONDS,
-    GRADLE_TIMEOUT_SECONDS, REBUILD_PROJECTED_BYTES, REBUILD_RESERVE_BYTES,
-    RECEIPT, ROOT, atomic_copy_bytes, execute_detached_rebuild, sha_bytes,
-    validate_commit_relationship_values, validate_dirty_review_entries, verify_rebuilt_apk,
+    GRADLE_TIMEOUT_SECONDS, MAX_APK_BYTES, MAX_APK_SIGNING_BLOCK_BYTES,
+    MAX_APK_SIGNING_BLOCK_PAIRS, REBUILD_PROJECTED_BYTES, REBUILD_RESERVE_BYTES,
+    RECEIPT, REPRODUCIBLE_BUILD_COMMAND, ROOT, apk_signing_block_pair_ids,
+    atomic_copy_bytes, execute_detached_rebuild, require_evidence_apk_without_dependency_info,
+    sha_bytes, validate_commit_relationship_values, validate_dirty_review_entries,
+    validate_gradle_evidence_contract, verify_rebuilt_apk,
 )
 from strict_json_schema import validate_json_schema
 from validate_m09d_theme_studio import validate_data
 
 
 class M09DSourceContractTest(unittest.TestCase):
+    @staticmethod
+    def signed_apk(*pair_ids: int) -> bytes:
+        pairs = b"".join(
+            struct.pack("<Q", 5) + struct.pack("<I", pair_id) + b"x"
+            for pair_id in pair_ids
+        )
+        block_size = len(pairs) + 24
+        signing_block = (
+            struct.pack("<Q", block_size) + pairs + struct.pack("<Q", block_size) + APK_SIG_BLOCK_MAGIC
+        )
+        central_offset = len(signing_block)
+        central = b"PK\x01\x02" + bytes(42)
+        eocd = b"PK\x05\x06" + struct.pack(
+            "<HHHHIIH", 0, 0, 1, 1, len(central), central_offset, 0,
+        )
+        return signing_block + central + eocd
+
+    @staticmethod
+    def mutate_eocd(apk: bytes, offset: int, value: int, format_: str) -> bytes:
+        changed = bytearray(apk)
+        eocd = len(changed) - 22
+        struct.pack_into(format_, changed, eocd + offset, value)
+        return bytes(changed)
+
     def test_dirty_review_scope_rejects_extra_and_status_substitution(self) -> None:
         entries = [
             f"{' M' if path in DIRTY_REVIEW_MODIFIED_PATHS else '??'} {path}"
@@ -44,8 +73,8 @@ class M09DSourceContractTest(unittest.TestCase):
             "artifact_commit": "2" * 40,
             "receipt_commit": "3" * 40,
             "base_is_ancestor": True,
-            "source_parents": (C1_REVIEWED_COMMIT,),
-            "source_commit_paths": C1B_CHANGED_PATHS,
+            "source_parents": (C1B_REVIEWED_COMMIT,),
+            "source_commit_paths": C1C_CHANGED_PATHS,
             "source_paths": C1_CHANGED_PATHS,
             "artifact_parent": "1" * 40,
             "artifact_paths": C2_ARTIFACT_PATHS,
@@ -56,7 +85,7 @@ class M09DSourceContractTest(unittest.TestCase):
         for key, replacement in (
             ("base_is_ancestor", False),
             ("source_parents", ("4" * 40,)),
-            ("source_parents", (C1_REVIEWED_COMMIT, "4" * 40)),
+            ("source_parents", (C1B_REVIEWED_COMMIT, "4" * 40)),
             ("source_commit_paths", frozenset({"substituted"})),
             ("source_paths", frozenset({"substituted"})),
             ("artifact_parent", "4" * 40),
@@ -82,9 +111,13 @@ class M09DSourceContractTest(unittest.TestCase):
                 "versionCode": "37",
                 "versionName": "0.1.37-play-internal",
             }
-            verify_rebuilt_apk("target", committed, rebuilt, identity, lambda _: dict(identity))
+            with patch("collect_m09d_theme_studio.require_evidence_apk_without_dependency_info"):
+                verify_rebuilt_apk("target", committed, rebuilt, identity, lambda _: dict(identity))
             rebuilt.write_bytes(b"substituted")
-            with self.assertRaises(ValueError):
+            with (
+                patch("collect_m09d_theme_studio.require_evidence_apk_without_dependency_info"),
+                self.assertRaises(ValueError),
+            ):
                 verify_rebuilt_apk("target", committed, rebuilt, identity, lambda _: dict(identity))
             rebuilt.write_bytes(committed.read_bytes())
             for key, replacement in (
@@ -96,8 +129,89 @@ class M09DSourceContractTest(unittest.TestCase):
             ):
                 actual = dict(identity)
                 actual[key] = replacement
-                with self.subTest(key=key), self.assertRaises(ValueError):
+                with (
+                    self.subTest(key=key),
+                    patch("collect_m09d_theme_studio.require_evidence_apk_without_dependency_info"),
+                    self.assertRaises(ValueError),
+                ):
                     verify_rebuilt_apk("target", committed, rebuilt, identity, lambda _, value=actual: value)
+
+    def test_evidence_apk_rejects_pkds_and_malformed_signing_blocks(self) -> None:
+        without_pkds = self.signed_apk(0x7109871A)
+        with_pkds = self.signed_apk(0x7109871A, APK_DEPENDENCY_INFO_BLOCK_ID)
+        self.assertEqual((0x7109871A,), apk_signing_block_pair_ids(without_pkds))
+        with tempfile.TemporaryDirectory() as directory:
+            apk = Path(directory) / "evidence.apk"
+            apk.write_bytes(without_pkds)
+            require_evidence_apk_without_dependency_info(apk, "fixture")
+            apk.write_bytes(with_pkds)
+            with self.assertRaisesRegex(ValueError, "PKDS"):
+                require_evidence_apk_without_dependency_info(apk, "fixture")
+            apk.write_bytes(without_pkds[:-1])
+            with self.assertRaises(ValueError):
+                require_evidence_apk_without_dependency_info(apk, "fixture")
+
+    def test_apk_bounds_reject_oversize_block_pair_bomb_and_fake_eocd(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            apk = Path(directory) / "oversized.apk"
+            with apk.open("wb") as stream:
+                stream.truncate(MAX_APK_BYTES + 1)
+            with self.assertRaisesRegex(ValueError, "oversized"):
+                require_evidence_apk_without_dependency_info(apk, "fixture")
+
+        pair_bomb = self.signed_apk(*range(MAX_APK_SIGNING_BLOCK_PAIRS + 1))
+        with self.assertRaisesRegex(ValueError, "pair count"):
+            apk_signing_block_pair_ids(pair_bomb)
+
+        oversized_block = bytearray(MAX_APK_SIGNING_BLOCK_BYTES + 76)
+        central_offset = MAX_APK_SIGNING_BLOCK_BYTES + 8
+        footer_size = MAX_APK_SIGNING_BLOCK_BYTES
+        struct.pack_into("<Q", oversized_block, 0, footer_size)
+        struct.pack_into("<Q", oversized_block, central_offset - 24, footer_size)
+        oversized_block[central_offset - 16:central_offset] = APK_SIG_BLOCK_MAGIC
+        oversized_block[central_offset:central_offset + 46] = b"PK\x01\x02" + bytes(42)
+        oversized_block[central_offset + 46:] = b"PK\x05\x06" + struct.pack(
+            "<HHHHIIH", 0, 0, 1, 1, 46, central_offset, 0,
+        )
+        with self.assertRaisesRegex(ValueError, "signing block size"):
+            apk_signing_block_pair_ids(bytes(oversized_block))
+
+        valid = self.signed_apk(0x7109871A)
+        eocd = len(valid) - 22
+        central_offset = struct.unpack_from("<I", valid, eocd + 16)[0]
+        mutations = (
+            valid + b"PK\x05\x06" + bytes(18),
+            self.mutate_eocd(valid, 6, 1, "<H"),
+            self.mutate_eocd(valid, 8, 2, "<H"),
+            self.mutate_eocd(valid, 10, 2, "<H"),
+            self.mutate_eocd(valid, 12, 45, "<I"),
+            self.mutate_eocd(valid, 16, central_offset - 1, "<I"),
+        )
+        for index, mutated in enumerate(mutations):
+            with self.subTest(index=index), self.assertRaises(ValueError):
+                apk_signing_block_pair_ids(mutated)
+
+    def test_gradle_contract_defaults_metadata_on_and_evidence_command_is_explicit(self) -> None:
+        script = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
+        validate_gradle_evidence_contract(script)
+        self.assertIn(".orElse(false)", script)
+        self.assertIn("includeInApk = !codecksEvidenceBuild.get()", script)
+        self.assertEqual("-PcodecksEvidenceBuild=true", REPRODUCIBLE_BUILD_COMMAND[-1])
+        schema = json.loads(
+            (ROOT / "tools/evidence/schemas/codecks-m09d-theme-studio-v1.schema.json")
+            .read_text(encoding="utf-8")
+        )
+        command_schema = schema["properties"]["reproducibleBuild"]["properties"]["command"]
+        self.assertEqual(
+            list(REPRODUCIBLE_BUILD_COMMAND),
+            [item["const"] for item in command_schema["prefixItems"]],
+        )
+        self.assertEqual(len(REPRODUCIBLE_BUILD_COMMAND), command_schema["minItems"])
+        self.assertEqual(len(REPRODUCIBLE_BUILD_COMMAND), command_schema["maxItems"])
+        with self.assertRaises(ValueError):
+            validate_gradle_evidence_contract(script.replace(".orElse(false)", ".orElse(true)", 1))
+        with self.assertRaises(ValueError):
+            validate_gradle_evidence_contract(script.replace("includeInApk = !codecksEvidenceBuild.get()", "includeInApk = false"))
 
     def test_final_validator_cannot_skip_live_rebuild(self) -> None:
         data = {
@@ -107,6 +221,7 @@ class M09DSourceContractTest(unittest.TestCase):
         }
         with (
             patch("validate_m09d_theme_studio.validate_json_schema"),
+            patch("validate_m09d_theme_studio.require_evidence_apk_without_dependency_info"),
             patch("validate_m09d_theme_studio.collect_receipt", return_value=data),
             patch("validate_m09d_theme_studio.verify_detector_live"),
             patch("validate_m09d_theme_studio.verify_reproducible_apk_build") as rebuild,
@@ -181,6 +296,7 @@ class M09DSourceContractTest(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "detached rebuild failed.*cleanup failed") as raised:
                     execute_detached_rebuild(
                         "1" * 40, {}, {}, runner=runner, admin_root=admin,
+                        contract_checker=lambda _: None,
                         make_temp=make_temp, remove_tree=fail_temp_cleanup,
                         disk_usage=lambda _: SimpleNamespace(
                             free=REBUILD_PROJECTED_BYTES + REBUILD_RESERVE_BYTES,
@@ -212,6 +328,7 @@ class M09DSourceContractTest(unittest.TestCase):
             ):
                 execute_detached_rebuild(
                     "1" * 40, {}, {}, runner=runner, admin_root=admin,
+                    contract_checker=lambda _: None,
                     disk_usage=lambda _: SimpleNamespace(
                         free=REBUILD_PROJECTED_BYTES + REBUILD_RESERVE_BYTES,
                     ),
@@ -244,6 +361,7 @@ class M09DSourceContractTest(unittest.TestCase):
             with patch("collect_m09d_theme_studio.verify_rebuilt_apk"):
                 execute_detached_rebuild(
                     "1" * 40, {}, {}, runner=runner, admin_root=admin,
+                    contract_checker=lambda _: None,
                     disk_usage=lambda _: SimpleNamespace(
                         free=REBUILD_PROJECTED_BYTES + REBUILD_RESERVE_BYTES,
                     ),
@@ -277,6 +395,7 @@ class M09DSourceContractTest(unittest.TestCase):
                 ):
                     execute_detached_rebuild(
                         "1" * 40, {}, {}, runner=runner, admin_root=admin,
+                        contract_checker=lambda _: None,
                         make_temp=make_temp,
                         remove_tree=lambda _: (_ for _ in ()).throw(OSError("temp cleanup failed")),
                         disk_usage=lambda _: SimpleNamespace(
@@ -316,6 +435,7 @@ class M09DThemeStudioReceiptTest(unittest.TestCase):
             lambda value: value["reproducibleBuild"].update(sourceMode="CURRENT_HEAD"),
             lambda value: value["reproducibleBuild"]["command"].__setitem__(2, ":app:assembleOssRelease"),
             lambda value: value["reproducibleBuild"]["command"].remove("--no-build-cache"),
+            lambda value: value["reproducibleBuild"]["command"].remove("-PcodecksEvidenceBuild=true"),
             lambda value: value["reproducibleBuild"].update(targetOutput=value["reproducibleBuild"]["testOutput"]),
             lambda value: value["commitChain"].update(artifactCommit="0" * 40),
             lambda value: value["commitChain"]["artifacts"][0].update(sha256="0" * 64),

@@ -21,4 +21,12 @@ The detector path is never persisted; its filename and SHA-256 are. The final va
 
 The managed proof checks the real API 35 emulator resources and actual decor/window bounds: phone is `<600dp` smallest width and tablet is `>=600dp`. The injected `1280x720` editor environment is only a layout-policy input; it is not DeX runtime proof.
 
-Final provenance has three phases: sourceCommit is the direct single-parent C1b child of reviewed C1 `d2924830686cdcf8e388cf0ed653ece78c9ab365`, its five-path commit completes the exact reviewed 21-path diff from base `28b3e53613b8c0cd189ba58f4a673aafbed653b2`; C2 is its direct child and contains only the ten artifacts; C3 is C2's direct child and contains only the receipt. Final validation requires that exact chain, a clean worktree, and a bounded detached clean-source Gradle rebuild with build/configuration caches disabled and all tasks rerun. The temp volume must retain 2 GiB projected build space plus a 5 GiB reserve; Git worktree operations are capped at 120 seconds and Gradle at 900 seconds. Its target/test APK bytes, hashes, packages, versions, and signers must exactly match committed C2.
+Final provenance has three phases: sourceCommit is the direct single-parent C1c child of reviewed C1b `c34ecc6bc63a6f5a9a22699734e9ddb308627b30`; its six-path commit completes the exact reviewed 22-path diff from base `28b3e53613b8c0cd189ba58f4a673aafbed653b2`. C2 is its direct child and contains only the ten artifacts; C3 is C2's direct child and contains only the receipt. Final validation requires that exact chain, a clean worktree, and a bounded detached clean-source Gradle rebuild with build/configuration caches disabled and all tasks rerun. The temp volume must retain 2 GiB projected build space plus a 5 GiB reserve; Git worktree operations are capped at 120 seconds and Gradle at 900 seconds. Its target/test APK bytes, hashes, packages, versions, and signers must exactly match committed C2.
+
+Normal and production builds retain Android SDK dependency metadata. Only exact-byte evidence builds opt out of its randomized encrypted APK signing-block payload, using this mandatory initial C2 and detached-rebuild command:
+
+```sh
+./gradlew :app:clean :app:assemblePlayInternalRelease :app:assemblePlayInternalReleaseAndroidTest --no-daemon --no-build-cache --no-configuration-cache --rerun-tasks -PcodecksEvidenceBuild=true
+```
+
+The validator rejects target or test APKs containing the `PKDS` dependency-info signing-block record. Minification and resource shrinking remain disabled.

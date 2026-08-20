@@ -19,13 +19,13 @@
         "validation": {"const": "MANDATORY_LIVE_CLEAN_REBUILD"},
         "sourceMode": {"const": "DETACHED_SOURCE_COMMIT_WORKTREE"},
         "command": {
-          "type": "array", "minItems": 8, "maxItems": 8,
+          "type": "array", "minItems": 9, "maxItems": 9,
           "prefixItems": [
             {"const": "./gradlew"}, {"const": ":app:clean"},
             {"const": ":app:assemblePlayInternalRelease"},
             {"const": ":app:assemblePlayInternalReleaseAndroidTest"}, {"const": "--no-daemon"},
             {"const": "--no-build-cache"}, {"const": "--no-configuration-cache"},
-            {"const": "--rerun-tasks"}
+            {"const": "--rerun-tasks"}, {"const": "-PcodecksEvidenceBuild=true"}
           ],
           "items": false
         },
