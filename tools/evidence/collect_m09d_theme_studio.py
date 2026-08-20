@@ -33,6 +33,7 @@ METHODS = {
     "widgetAndNotificationSurfaceStoreKeepsOpaqueThemeColors",
 }
 SOURCE_COMMIT = "28b3e53613b8c0cd189ba58f4a673aafbed653b2"
+C1_REVIEWED_COMMIT = "d2924830686cdcf8e388cf0ed653ece78c9ab365"
 SOURCE_PATHS = (
     ".gitignore",
     "app/build.gradle.kts",
@@ -62,6 +63,13 @@ RUNTIME = Path("tasks/test-evidence/m09d-theme-studio/runtime")
 RECEIPT = Path("tasks/test-evidence/m09d-theme-studio.json")
 TARGET_APK = RUNTIME / "app-playInternal-release.apk"
 TEST_APK = RUNTIME / "app-playInternal-release-androidTest.apk"
+BUILD_TARGET_APK = Path("app/build/outputs/apk/playInternal/release/app-playInternal-release.apk")
+BUILD_TEST_APK = Path("app/build/outputs/apk/androidTest/playInternal/release/app-playInternal-release-androidTest.apk")
+REPRODUCIBLE_BUILD_COMMAND = (
+    "./gradlew", ":app:clean", ":app:assemblePlayInternalRelease",
+    ":app:assemblePlayInternalReleaseAndroidTest", "--no-daemon", "--no-build-cache",
+    "--no-configuration-cache", "--rerun-tasks",
+)
 PROFILE_DEVICES = {"phone": "pixel6Api35", "tablet": "m10TabletApi35"}
 PROFILE_TOPOLOGY = {
     "phone": {
@@ -83,24 +91,22 @@ C2_ARTIFACT_PATHS = frozenset({
         for name in ("device-info.pb", "result.xml", "test-result.sanitized.textproto")
     ),
 })
-DIRTY_REVIEW_PATHS = C1_CHANGED_PATHS | C2_ARTIFACT_PATHS | {RECEIPT.as_posix()}
-DIRTY_REVIEW_MODIFIED_PATHS = frozenset({
-    ".gitignore",
-    "app/src/androidTest/java/io/codecks/ui/theme/ThemeStudioInstrumentedTest.kt",
-    "app/src/main/java/io/codecks/domain/icons/DeckIconCatalog.kt",
-    "app/src/main/java/io/codecks/ui/icons/DeckIconResolver.kt",
-    "app/src/main/java/io/codecks/ui/settings/SettingsControlSections.kt",
-    "app/src/main/java/io/codecks/ui/theme/ThemeScheme.kt",
-    "app/src/main/java/io/codecks/ui/theme/ThemeSettingsRepository.kt",
-    "app/src/main/java/io/codecks/ui/theme/ThemeStudioPanel.kt",
-    "app/src/test/java/io/codecks/domain/icons/DeckIconCatalogTest.kt",
-    "app/src/test/java/io/codecks/ui/icons/RoundedDeckIconResolverTest.kt",
-    "app/src/test/java/io/codecks/ui/settings/DeckStyleGalleryPolicyTest.kt",
-    "app/src/test/java/io/codecks/ui/theme/ThemeSchemeTest.kt",
+C1B_CHANGED_PATHS = frozenset({
+    "docs/ux/THEME_STUDIO_LIBRARY.md",
+    "tools/evidence/collect_m09d_theme_studio.py",
+    "tools/evidence/schemas/codecks-m09d-theme-studio-v1.schema.json",
+    "tools/evidence/test_m09d_theme_studio.py",
+    "tools/evidence/validate_m09d_theme_studio.py",
 })
+DIRTY_REVIEW_PATHS = C1B_CHANGED_PATHS | C2_ARTIFACT_PATHS
+DIRTY_REVIEW_MODIFIED_PATHS = C1B_CHANGED_PATHS
 PINNED_BUILD_TOOLS = "36.0.0"
 MAX_XML = 4 * 1024 * 1024
 MAX_COMPANION = 4 * 1024 * 1024
+REBUILD_PROJECTED_BYTES = 2 * 1024 * 1024 * 1024
+REBUILD_RESERVE_BYTES = 5 * 1024 * 1024 * 1024
+GIT_TIMEOUT_SECONDS = 120
+GRADLE_TIMEOUT_SECONDS = 15 * 60
 
 
 def sha_bytes(raw: bytes) -> str:
@@ -147,6 +153,92 @@ def commit_paths(commit: str) -> frozenset[str]:
     return frozenset(line for line in result.stdout.splitlines() if line)
 
 
+def range_paths(base: str, head: str) -> frozenset[str]:
+    result = subprocess.run(
+        ["git", "diff", "--name-only", f"{base}..{head}"],
+        cwd=ROOT, check=True, capture_output=True, text=True,
+    )
+    return frozenset(line for line in result.stdout.splitlines() if line)
+
+
+def commit_parent(commit: str) -> str:
+    return subprocess.run(
+        ["git", "rev-parse", f"{commit}^"], cwd=ROOT,
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+
+
+def commit_parents(commit: str) -> tuple[str, ...]:
+    line = subprocess.run(
+        ["git", "rev-list", "--parents", "-n", "1", commit], cwd=ROOT,
+        check=True, capture_output=True, text=True,
+    ).stdout.split()
+    return tuple(line[1:])
+
+
+def validate_commit_relationship_values(
+    source_commit: str,
+    artifact_commit: str,
+    receipt_commit: str | None,
+    *,
+    base_is_ancestor: bool,
+    source_parents: tuple[str, ...],
+    source_commit_paths: frozenset[str],
+    source_paths: frozenset[str],
+    artifact_parent: str,
+    artifact_paths: frozenset[str],
+    receipt_parent: str | None = None,
+    receipt_paths: frozenset[str] = frozenset(),
+) -> None:
+    if not base_is_ancestor:
+        raise ValueError("M09D reviewed base is not an ancestor of sourceCommit")
+    if source_parents != (C1_REVIEWED_COMMIT,):
+        raise ValueError("M09D sourceCommit is not the direct single-parent C1b child")
+    if source_commit_paths != C1B_CHANGED_PATHS:
+        raise ValueError("M09D C1b commit path closure mismatch")
+    if source_paths != C1_CHANGED_PATHS:
+        raise ValueError("M09D base..sourceCommit path closure mismatch")
+    if artifact_parent != source_commit:
+        raise ValueError("M09D C2 is not a direct child of sourceCommit")
+    if artifact_paths != C2_ARTIFACT_PATHS:
+        raise ValueError("M09D C2 artifact path closure mismatch")
+    if receipt_commit is not None:
+        if receipt_parent != artifact_commit:
+            raise ValueError("M09D C3 is not a direct child of C2")
+        if receipt_paths != {RECEIPT.as_posix()}:
+            raise ValueError("M09D C3 receipt-only path closure mismatch")
+
+
+def validate_commit_relationships(
+    source_commit: str, artifact_commit: str, receipt_commit: str | None,
+) -> None:
+    identities = [("base", SOURCE_COMMIT), ("source", source_commit), ("artifact", artifact_commit)]
+    if receipt_commit is not None:
+        identities.append(("receipt", receipt_commit))
+    for label, commit in identities:
+        probe = subprocess.run(
+            ["git", "cat-file", "-t", commit], cwd=ROOT, capture_output=True, text=True,
+        )
+        if probe.returncode or probe.stdout.strip() != "commit":
+            raise ValueError(f"M09D {label} identity is not a commit")
+    base_is_ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", SOURCE_COMMIT, source_commit], cwd=ROOT,
+    ).returncode == 0
+    validate_commit_relationship_values(
+        source_commit,
+        artifact_commit,
+        receipt_commit,
+        base_is_ancestor=base_is_ancestor,
+        source_parents=commit_parents(source_commit),
+        source_commit_paths=commit_paths(source_commit),
+        source_paths=range_paths(SOURCE_COMMIT, source_commit),
+        artifact_parent=commit_parent(artifact_commit),
+        artifact_paths=commit_paths(artifact_commit),
+        receipt_parent=commit_parent(receipt_commit) if receipt_commit else None,
+        receipt_paths=commit_paths(receipt_commit) if receipt_commit else frozenset(),
+    )
+
+
 def commit_chain() -> dict:
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, check=True, capture_output=True, text=True).stdout.strip()
     head_paths = commit_paths(head)
@@ -159,11 +251,7 @@ def commit_chain() -> dict:
         source_commit = subprocess.run(["git", "rev-parse", "HEAD^^"], cwd=ROOT, check=True, capture_output=True, text=True).stdout.strip()
     else:
         raise ValueError("M09D must be collected at C2 or validated at receipt-only C3")
-    if commit_paths(artifact_commit) != C2_ARTIFACT_PATHS or commit_paths(source_commit) != C1_CHANGED_PATHS:
-        raise ValueError("M09D C1/C2 commit path closure mismatch")
-    parent = subprocess.run(["git", "rev-parse", f"{source_commit}^"], cwd=ROOT, check=True, capture_output=True, text=True).stdout.strip()
-    if parent != SOURCE_COMMIT:
-        raise ValueError("M09D C1 is not directly based on the reviewed base")
+    validate_commit_relationships(source_commit, artifact_commit, receipt_commit)
     status = subprocess.run(
         ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"],
         cwd=ROOT, check=True, capture_output=True,
@@ -183,7 +271,7 @@ def validate_dirty_review_entries(entries: list[str]) -> None:
         for path in DIRTY_REVIEW_PATHS
     }
     if actual != expected or len(actual) != len(entries):
-        raise ValueError("dirty review path set is not the exact 32-path candidate")
+        raise ValueError("dirty review path set is not the exact 15-path C1b candidate")
 
 
 def validate_dirty_review_scope() -> None:
@@ -306,6 +394,163 @@ def apksigner_binding() -> dict:
     tool = (sdk / "build-tools" / PINNED_BUILD_TOOLS / "apksigner").resolve(strict=True)
     version = subprocess.run([str(tool), "version"], check=True, capture_output=True, text=True).stdout.strip()
     return {"buildToolsVersion": PINNED_BUILD_TOOLS, "sdkRelativePath": f"build-tools/{PINNED_BUILD_TOOLS}/apksigner", "reportedVersion": version, "sha256": sha(tool)}
+
+
+def reproducible_build_contract() -> dict:
+    return {
+        "validation": "MANDATORY_LIVE_CLEAN_REBUILD",
+        "sourceMode": "DETACHED_SOURCE_COMMIT_WORKTREE",
+        "command": list(REPRODUCIBLE_BUILD_COMMAND),
+        "targetOutput": BUILD_TARGET_APK.as_posix(),
+        "testOutput": BUILD_TEST_APK.as_posix(),
+    }
+
+
+def verify_rebuilt_apk(
+    label: str, committed: Path, rebuilt: Path, expected: dict,
+    identity_reader=apk_identity,
+) -> None:
+    committed_raw = require_file(committed, f"committed {label} APK")
+    rebuilt_raw = require_file(rebuilt, f"rebuilt {label} APK")
+    if committed_raw != rebuilt_raw or sha_bytes(rebuilt_raw) != expected.get("sha256"):
+        raise ValueError(f"live rebuilt {label} APK bytes differ from committed C2")
+    actual = identity_reader(rebuilt)
+    identity_keys = ("applicationId", "sha256", "signerSha256", "versionCode", "versionName")
+    if {key: actual.get(key) for key in identity_keys} != {
+        key: expected.get(key) for key in identity_keys
+    }:
+        raise ValueError(f"live rebuilt {label} APK identity differs from committed C2")
+
+
+def raise_rebuild_errors(
+    primary: BaseException | None, cleanup: BaseException | None,
+) -> None:
+    if primary is not None and cleanup is not None:
+        raise RuntimeError(f"detached rebuild failed: {primary}; cleanup failed: {cleanup}") from primary
+    if primary is not None:
+        raise primary
+    if cleanup is not None:
+        raise cleanup
+
+
+def common_worktree_admin_root() -> Path:
+    common = subprocess.run(
+        ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        cwd=ROOT, check=True, capture_output=True, text=True,
+        timeout=GIT_TIMEOUT_SECONDS,
+    ).stdout.strip()
+    root = Path(common).resolve(strict=True) / "worktrees"
+    if root.exists() and (not root.is_dir() or root.is_symlink()):
+        raise ValueError("unsafe Git worktree administration root")
+    return root
+
+
+def worktree_admin_entries(root: Path) -> frozenset[Path]:
+    if not root.exists():
+        return frozenset()
+    return frozenset(path.resolve(strict=True) for path in root.iterdir())
+
+
+def admin_entry_matches_checkout(entry: Path, checkout: Path) -> bool:
+    pointer = entry / "gitdir"
+    if not pointer.is_file() or pointer.is_symlink():
+        return False
+    try:
+        target = Path(pointer.read_text(encoding="utf-8").strip()).resolve(strict=False)
+    except (OSError, UnicodeError):
+        return False
+    return target == (checkout / ".git").resolve(strict=False)
+
+
+def execute_detached_rebuild(
+    source_commit: str,
+    target_expected: dict,
+    test_expected: dict,
+    *,
+    runner=subprocess.run,
+    disk_usage=shutil.disk_usage,
+    make_temp=tempfile.mkdtemp,
+    remove_tree=shutil.rmtree,
+    admin_root: Path | None = None,
+) -> None:
+    temporary_root = Path(tempfile.gettempdir()).resolve(strict=True)
+    required_free = REBUILD_PROJECTED_BYTES + REBUILD_RESERVE_BYTES
+    if disk_usage(temporary_root).free < required_free:
+        raise ValueError("detached rebuild temp volume lacks projected build bytes plus reserve")
+    worktree_root = admin_root if admin_root is not None else common_worktree_admin_root()
+    before_admin = worktree_admin_entries(worktree_root)
+    temporary = Path(make_temp(prefix="codecks-m09d-rebuild-")).resolve(strict=True)
+    checkout = temporary / "source"
+    primary_error: BaseException | None = None
+    cleanup_errors: list[BaseException] = []
+    try:
+        runner(
+            ["git", "worktree", "add", "--detach", str(checkout), source_commit],
+            cwd=ROOT, check=True, timeout=GIT_TIMEOUT_SECONDS,
+        )
+        runner(
+            list(REPRODUCIBLE_BUILD_COMMAND), cwd=checkout, check=True,
+            timeout=GRADLE_TIMEOUT_SECONDS,
+        )
+        verify_rebuilt_apk(
+            "target", safe_repo_path(TARGET_APK), checkout / BUILD_TARGET_APK, target_expected,
+        )
+        verify_rebuilt_apk(
+            "test", safe_repo_path(TEST_APK), checkout / BUILD_TEST_APK, test_expected,
+        )
+    except BaseException as error:
+        primary_error = error
+    finally:
+        try:
+            after_add = worktree_admin_entries(worktree_root)
+            owned_admin = after_add - before_admin
+            if len(owned_admin) > 1 or any(
+                not admin_entry_matches_checkout(entry, checkout) for entry in owned_admin
+            ):
+                cleanup_errors.append(RuntimeError("unexpected Git worktree administration mutation"))
+        except BaseException as error:
+            cleanup_errors.append(error)
+            owned_admin = frozenset()
+        if checkout.exists() or owned_admin:
+            try:
+                removed = runner(
+                    ["git", "worktree", "remove", "--force", str(checkout)],
+                    cwd=ROOT, check=False, capture_output=True, text=True,
+                    timeout=GIT_TIMEOUT_SECONDS,
+                )
+                if removed.returncode or checkout.exists():
+                    raise RuntimeError("exact detached worktree removal failed")
+            except BaseException as error:
+                cleanup_errors.append(error)
+        try:
+            if worktree_admin_entries(worktree_root) != before_admin:
+                cleanup_errors.append(RuntimeError("owned worktree admin metadata remains or sibling changed"))
+        except BaseException as error:
+            cleanup_errors.append(error)
+        try:
+            remove_tree(temporary)
+            if temporary.exists():
+                raise RuntimeError("owned rebuild temp path remains")
+        except BaseException as error:
+            cleanup_errors.append(error)
+    cleanup_error = RuntimeError(
+        "; ".join(str(error) for error in cleanup_errors)
+    ) if cleanup_errors else None
+    raise_rebuild_errors(primary_error, cleanup_error)
+
+
+def verify_reproducible_apk_build(
+    source_commit: str, target_expected: dict, test_expected: dict,
+) -> None:
+    if subprocess.run(
+        ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+        cwd=ROOT, check=True, capture_output=True,
+    ).stdout:
+        raise ValueError("live APK rebuild requires an exact clean C3 worktree")
+    gradlew = safe_repo_path("gradlew")
+    if not gradlew.is_file() or gradlew.is_symlink():
+        raise ValueError("unsafe Gradle wrapper")
+    execute_detached_rebuild(source_commit, target_expected, test_expected)
 
 
 def sanitize_textproto(raw: bytes) -> bytes:
@@ -488,6 +733,7 @@ def collect_receipt() -> dict:
         "commitChain": {**chain, "artifacts": artifact_set(), "artifactSetSha256": sha_bytes(canonical_json(artifact_set()))},
         "sourceBinding": source_binding(chain["sourceCommit"]),
         "tooling": {"apksigner": apksigner_binding()},
+        "reproducibleBuild": reproducible_build_contract(),
         "targetApk": {"path": TARGET_APK.as_posix(), **target_identity},
         "testApk": {"path": TEST_APK.as_posix(), **test_identity},
         "runs": runs,
@@ -564,7 +810,7 @@ def main() -> None:
     args = parser.parse_args()
     if args.verify_dirty_review_scope:
         validate_dirty_review_scope()
-        print("M09D_DIRTY_REVIEW_SCOPE_PASS_32")
+        print("M09D_C1B_DIRTY_REVIEW_SCOPE_PASS_15")
         return
     if args.capture:
         required = (args.phone_result, args.tablet_result, args.target_apk, args.test_apk)

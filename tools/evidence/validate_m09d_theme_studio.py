@@ -7,7 +7,9 @@ import argparse
 import json
 from pathlib import Path
 
-from collect_m09d_theme_studio import RECEIPT, ROOT, collect_receipt, verify_detector_live
+from collect_m09d_theme_studio import (
+    RECEIPT, ROOT, collect_receipt, verify_detector_live, verify_reproducible_apk_build,
+)
 from strict_json_schema import validate_json_schema
 
 SCHEMA = ROOT / "tools/evidence/schemas/codecks-m09d-theme-studio-v1.schema.json"
@@ -20,6 +22,9 @@ def validate_data(data: dict, detector: Path) -> None:
     if data != expected:
         raise ValueError("M09D receipt does not exactly match current source and artifact bytes")
     verify_detector_live(detector)
+    verify_reproducible_apk_build(
+        data["sourceBinding"]["sourceCommit"], data["targetApk"], data["testApk"],
+    )
 
 
 def main() -> None:

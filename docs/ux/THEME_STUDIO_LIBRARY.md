@@ -11,7 +11,7 @@ Theme Studio is an offline, preview-first appearance tool. It ships twelve acces
 
 M09D proof is bounded to the Play-internal repository lifecycle test. It does not prove a broader controller, process lifecycle, physical device, or public release; those remain `NOT_RUN`.
 
-The durable M09D receipt binds the exact source diff, target/test APKs, final 13-test XML, device-info, sanitized textproto, API 35 phone/tablet topology, and the final empty Impeccable result. Reproduce the detector gate after the last UI edit with:
+The durable M09D receipt contains exactly eight fresh runtime artifacts (two APKs plus XML, device-info, and sanitized textproto for phone and tablet), one fresh detector artifact, and one retained excluded-attempt XML. It binds the exact source diff, APKs, final 13-test results, API 35 topology, and empty Impeccable result. Reproduce the detector gate after the last UI edit with:
 
 ```sh
 python3 -B tools/evidence/run_m09d_impeccable_detector.py --detector /absolute/path/to/detect.mjs
@@ -21,4 +21,4 @@ The detector path is never persisted; its filename and SHA-256 are. The final va
 
 The managed proof checks the real API 35 emulator resources and actual decor/window bounds: phone is `<600dp` smallest width and tablet is `>=600dp`. The injected `1280x720` editor environment is only a layout-policy input; it is not DeX runtime proof.
 
-Final provenance is three commits: C1 contains only the reviewed product/tests/tools/docs, C2 contains only the ten rebuilt runtime/detector artifacts, and C3 contains only the receipt. Validation requires the exact `C3 -> C2 -> C1 -> reviewed base` chain and a clean worktree.
+Final provenance has three phases: sourceCommit is the direct single-parent C1b child of reviewed C1 `d2924830686cdcf8e388cf0ed653ece78c9ab365`, its five-path commit completes the exact reviewed 21-path diff from base `28b3e53613b8c0cd189ba58f4a673aafbed653b2`; C2 is its direct child and contains only the ten artifacts; C3 is C2's direct child and contains only the receipt. Final validation requires that exact chain, a clean worktree, and a bounded detached clean-source Gradle rebuild with build/configuration caches disabled and all tasks rerun. The temp volume must retain 2 GiB projected build space plus a 5 GiB reserve; Git worktree operations are capped at 120 seconds and Gradle at 900 seconds. Its target/test APK bytes, hashes, packages, versions, and signers must exactly match committed C2.

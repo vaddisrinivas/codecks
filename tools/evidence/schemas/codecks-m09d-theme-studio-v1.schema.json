@@ -3,7 +3,7 @@
   "$id": "codecks.m09d.theme-studio-managed.v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "milestone", "status", "scope", "commitChain", "sourceBinding", "tooling", "targetApk", "testApk", "runs", "detectorGate", "excludedAttempts", "claims"],
+  "required": ["schema", "milestone", "status", "scope", "commitChain", "sourceBinding", "tooling", "reproducibleBuild", "targetApk", "testApk", "runs", "detectorGate", "excludedAttempts", "claims"],
   "properties": {
     "schema": {"const": "codecks.m09d.theme-studio-managed.v1"},
     "milestone": {"const": "M09D"},
@@ -12,6 +12,27 @@
     "commitChain": {"$ref": "#/$defs/commitChain"},
     "sourceBinding": {"$ref": "#/$defs/sourceBinding"},
     "tooling": {"type": "object", "additionalProperties": false, "required": ["apksigner"], "properties": {"apksigner": {"$ref": "#/$defs/apksigner"}}},
+    "reproducibleBuild": {
+      "type": "object", "additionalProperties": false,
+      "required": ["validation", "sourceMode", "command", "targetOutput", "testOutput"],
+      "properties": {
+        "validation": {"const": "MANDATORY_LIVE_CLEAN_REBUILD"},
+        "sourceMode": {"const": "DETACHED_SOURCE_COMMIT_WORKTREE"},
+        "command": {
+          "type": "array", "minItems": 8, "maxItems": 8,
+          "prefixItems": [
+            {"const": "./gradlew"}, {"const": ":app:clean"},
+            {"const": ":app:assemblePlayInternalRelease"},
+            {"const": ":app:assemblePlayInternalReleaseAndroidTest"}, {"const": "--no-daemon"},
+            {"const": "--no-build-cache"}, {"const": "--no-configuration-cache"},
+            {"const": "--rerun-tasks"}
+          ],
+          "items": false
+        },
+        "targetOutput": {"const": "app/build/outputs/apk/playInternal/release/app-playInternal-release.apk"},
+        "testOutput": {"const": "app/build/outputs/apk/androidTest/playInternal/release/app-playInternal-release-androidTest.apk"}
+      }
+    },
     "targetApk": {"$ref": "#/$defs/targetApk"},
     "testApk": {"$ref": "#/$defs/testApk"},
     "runs": {
