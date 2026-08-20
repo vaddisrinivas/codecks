@@ -34,7 +34,7 @@ METHODS = {
     "widgetAndNotificationSurfaceStoreKeepsOpaqueThemeColors",
 }
 SOURCE_COMMIT = "28b3e53613b8c0cd189ba58f4a673aafbed653b2"
-C1C_REVIEWED_COMMIT = "490c4329b80ec66a541187d89d2d06f779d059e3"
+C1D_REVIEWED_COMMIT = "6d04c51c19c8cc64becfc80c950eb53d558b68c2"
 SOURCE_PATHS = (
     ".gitignore",
     "app/build.gradle.kts",
@@ -92,13 +92,13 @@ C2_ARTIFACT_PATHS = frozenset({
         for name in ("device-info.pb", "result.xml", "test-result.sanitized.textproto")
     ),
 })
-C1D_CHANGED_PATHS = frozenset({
+C1E_CHANGED_PATHS = frozenset({
     "docs/ux/THEME_STUDIO_LIBRARY.md",
     "tools/evidence/collect_m09d_theme_studio.py",
     "tools/evidence/test_m09d_theme_studio.py",
 })
-DIRTY_REVIEW_PATHS = C1D_CHANGED_PATHS
-DIRTY_REVIEW_MODIFIED_PATHS = C1D_CHANGED_PATHS
+DIRTY_REVIEW_PATHS = C1E_CHANGED_PATHS
+DIRTY_REVIEW_MODIFIED_PATHS = C1E_CHANGED_PATHS
 PINNED_BUILD_TOOLS = "36.0.0"
 MAX_XML = 4 * 1024 * 1024
 MAX_COMPANION = 4 * 1024 * 1024
@@ -289,10 +289,10 @@ def validate_commit_relationship_values(
 ) -> None:
     if not base_is_ancestor:
         raise ValueError("M09D reviewed base is not an ancestor of sourceCommit")
-    if source_parents != (C1C_REVIEWED_COMMIT,):
-        raise ValueError("M09D sourceCommit is not the direct single-parent C1d child")
-    if source_commit_paths != C1D_CHANGED_PATHS:
-        raise ValueError("M09D C1d commit path closure mismatch")
+    if source_parents != (C1D_REVIEWED_COMMIT,):
+        raise ValueError("M09D sourceCommit is not the direct single-parent C1e child")
+    if source_commit_paths != C1E_CHANGED_PATHS:
+        raise ValueError("M09D C1e commit path closure mismatch")
     if source_paths != C1_CHANGED_PATHS:
         raise ValueError("M09D base..sourceCommit path closure mismatch")
     if artifact_parent != source_commit:
@@ -372,7 +372,7 @@ def validate_dirty_review_entries(entries: list[str]) -> None:
         for path in DIRTY_REVIEW_PATHS
     }
     if actual != expected or len(actual) != len(entries):
-        raise ValueError("dirty review path set is not the exact 3-path C1d candidate")
+        raise ValueError("dirty review path set is not the exact 3-path C1e candidate")
 
 
 def validate_dirty_review_scope() -> None:
@@ -542,16 +542,29 @@ def common_worktree_admin_root() -> Path:
         cwd=ROOT, check=True, capture_output=True, text=True,
         timeout=GIT_TIMEOUT_SECONDS,
     ).stdout.strip()
-    root = Path(common).resolve(strict=True) / "worktrees"
-    if root.exists() and (not root.is_dir() or root.is_symlink()):
+    common_root = Path(common)
+    return validate_worktree_admin_root(common_root / "worktrees", require_exists=False)
+
+
+def validate_worktree_admin_root(root: Path, *, require_exists: bool) -> Path:
+    if not root.is_absolute() or not root.parent.is_dir() or root.is_symlink():
         raise ValueError("unsafe Git worktree administration root")
+    ancestor = root.parent
+    while True:
+        if ancestor.is_symlink():
+            raise ValueError("Git worktree administration root has a symlink ancestor")
+        if ancestor == ancestor.parent:
+            break
+        ancestor = ancestor.parent
+    canonical = root.parent.resolve(strict=True) / root.name
+    if canonical != root:
+        raise ValueError("Git worktree administration root escapes its canonical parent")
+    if root.exists():
+        if not root.is_dir() or root.resolve(strict=True) != root:
+            raise ValueError("unsafe Git worktree administration root")
+    elif require_exists:
+        raise ValueError("Git worktree administration root was not created")
     return root
-
-
-def worktree_admin_entries(root: Path) -> frozenset[Path]:
-    if not root.exists():
-        return frozenset()
-    return frozenset(path.resolve(strict=True) for path in root.iterdir())
 
 
 def admin_entry_matches_checkout(entry: Path, checkout: Path) -> bool:
@@ -563,6 +576,50 @@ def admin_entry_matches_checkout(entry: Path, checkout: Path) -> bool:
     except (OSError, UnicodeError):
         return False
     return target == (checkout / ".git").resolve(strict=False)
+
+
+def lexical_path_exists(path: Path) -> bool:
+    try:
+        path.lstat()
+        return True
+    except FileNotFoundError:
+        return False
+
+
+def owned_admin_from_checkout(checkout: Path, root: Path) -> Path:
+    pointer = checkout / ".git"
+    if not pointer.is_file() or pointer.is_symlink() or pointer.stat().st_size > 4096:
+        raise RuntimeError("detached worktree gitdir pointer is missing or unsafe")
+    lines = pointer.read_text(encoding="utf-8").splitlines()
+    if len(lines) != 1 or not lines[0].startswith("gitdir: "):
+        raise RuntimeError("detached worktree gitdir pointer is malformed")
+    root_canonical = root.resolve(strict=True)
+    candidate = Path(lines[0][len("gitdir: "):])
+    if not candidate.is_absolute() or candidate.parent != root_canonical:
+        raise RuntimeError("detached worktree gitdir is outside the administration root")
+    if not candidate.is_dir() or candidate.is_symlink() or candidate.resolve(strict=True) != candidate:
+        raise RuntimeError("detached worktree administration entry is unsafe")
+    if not admin_entry_matches_checkout(candidate, checkout):
+        raise RuntimeError("detached worktree administration entry does not bind checkout")
+    return candidate
+
+
+def matching_admin_entries(
+    root: Path, checkout: Path, owned_admin: Path | None = None,
+) -> frozenset[Path]:
+    if root.is_symlink():
+        raise ValueError("unsafe Git worktree administration root during cleanup")
+    if not root.exists():
+        return frozenset()
+    validate_worktree_admin_root(root, require_exists=True)
+    matches = []
+    for entry in root.iterdir():
+        if owned_admin is not None and entry == owned_admin and lexical_path_exists(entry):
+            matches.append(entry)
+            continue
+        if entry.is_dir() and not entry.is_symlink() and admin_entry_matches_checkout(entry, checkout):
+            matches.append(entry)
+    return frozenset(matches)
 
 
 def execute_detached_rebuild(
@@ -582,9 +639,10 @@ def execute_detached_rebuild(
     if disk_usage(temporary_root).free < required_free:
         raise ValueError("detached rebuild temp volume lacks projected build bytes plus reserve")
     worktree_root = admin_root if admin_root is not None else common_worktree_admin_root()
-    before_admin = worktree_admin_entries(worktree_root)
+    worktree_root = validate_worktree_admin_root(worktree_root, require_exists=False)
     temporary = Path(make_temp(prefix="codecks-m09d-rebuild-")).resolve(strict=True)
     checkout = temporary / "source"
+    owned_admin: Path | None = None
     primary_error: BaseException | None = None
     cleanup_errors: list[BaseException] = []
     try:
@@ -592,6 +650,8 @@ def execute_detached_rebuild(
             ["git", "worktree", "add", "--detach", str(checkout), source_commit],
             cwd=ROOT, check=True, timeout=GIT_TIMEOUT_SECONDS,
         )
+        validate_worktree_admin_root(worktree_root, require_exists=True)
+        owned_admin = owned_admin_from_checkout(checkout, worktree_root)
         contract_checker(checkout)
         runner(
             list(REPRODUCIBLE_BUILD_COMMAND), cwd=checkout, check=True,
@@ -606,17 +666,15 @@ def execute_detached_rebuild(
     except BaseException as error:
         primary_error = error
     finally:
-        try:
-            after_add = worktree_admin_entries(worktree_root)
-            owned_admin = after_add - before_admin
-            if len(owned_admin) > 1 or any(
-                not admin_entry_matches_checkout(entry, checkout) for entry in owned_admin
-            ):
-                cleanup_errors.append(RuntimeError("unexpected Git worktree administration mutation"))
-        except BaseException as error:
-            cleanup_errors.append(error)
-            owned_admin = frozenset()
-        if checkout.exists() or owned_admin:
+        if owned_admin is None:
+            try:
+                matches = matching_admin_entries(worktree_root, checkout)
+                if len(matches) > 1:
+                    raise RuntimeError("ambiguous detached worktree administration entries")
+                owned_admin = next(iter(matches), None)
+            except BaseException as error:
+                cleanup_errors.append(error)
+        if checkout.exists() or owned_admin is not None:
             try:
                 removed = runner(
                     ["git", "worktree", "remove", "--force", str(checkout)],
@@ -628,8 +686,11 @@ def execute_detached_rebuild(
             except BaseException as error:
                 cleanup_errors.append(error)
         try:
-            if worktree_admin_entries(worktree_root) != before_admin:
-                cleanup_errors.append(RuntimeError("owned worktree admin metadata remains or sibling changed"))
+            owned_residue = owned_admin is not None and lexical_path_exists(owned_admin)
+            if owned_residue:
+                cleanup_errors.append(RuntimeError("owned worktree admin metadata remains"))
+            if matching_admin_entries(worktree_root, checkout, owned_admin):
+                cleanup_errors.append(RuntimeError("owned worktree admin binding remains"))
         except BaseException as error:
             cleanup_errors.append(error)
         try:
@@ -959,7 +1020,7 @@ def main() -> None:
     args = parser.parse_args()
     if args.verify_dirty_review_scope:
         validate_dirty_review_scope()
-        print("M09D_C1D_DIRTY_REVIEW_SCOPE_PASS_3")
+        print("M09D_C1E_DIRTY_REVIEW_SCOPE_PASS_3")
         return
     if args.capture:
         required = (args.phone_result, args.tablet_result, args.target_apk, args.test_apk)

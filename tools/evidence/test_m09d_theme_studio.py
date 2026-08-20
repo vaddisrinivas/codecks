@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+from contextlib import nullcontext
 import json
 import os
 from pathlib import Path
@@ -15,8 +16,8 @@ import unittest
 from unittest.mock import patch
 
 from collect_m09d_theme_studio import (
-    APK_DEPENDENCY_INFO_BLOCK_ID, APK_SIG_BLOCK_MAGIC, C1C_REVIEWED_COMMIT,
-    C1D_CHANGED_PATHS, C1_CHANGED_PATHS, C2_ARTIFACT_PATHS,
+    APK_DEPENDENCY_INFO_BLOCK_ID, APK_SIG_BLOCK_MAGIC, C1D_REVIEWED_COMMIT,
+    C1E_CHANGED_PATHS, C1_CHANGED_PATHS, C2_ARTIFACT_PATHS,
     DIRTY_REVIEW_MODIFIED_PATHS, DIRTY_REVIEW_PATHS, GIT_TIMEOUT_SECONDS,
     GRADLE_TIMEOUT_SECONDS, MAX_APK_BYTES, MAX_APK_SIGNING_BLOCK_BYTES,
     MAX_APK_SIGNING_BLOCK_PAIRS, REBUILD_PROJECTED_BYTES, REBUILD_RESERVE_BYTES,
@@ -33,6 +34,15 @@ from validate_m09d_theme_studio import validate_data
 
 
 class M09DSourceContractTest(unittest.TestCase):
+    @staticmethod
+    def create_fake_worktree(checkout: Path, admin: Path, name: str = "owned") -> Path:
+        checkout.mkdir(parents=True)
+        owned = admin / name
+        owned.mkdir()
+        (checkout / ".git").write_text(f"gitdir: {owned.resolve(strict=True)}\n", encoding="utf-8")
+        (owned / "gitdir").write_text(f"{checkout / '.git'}\n", encoding="utf-8")
+        return owned
+
     @staticmethod
     def signed_apk(*pair_ids: int) -> bytes:
         pairs = b"".join(
@@ -76,8 +86,8 @@ class M09DSourceContractTest(unittest.TestCase):
             "artifact_commit": "2" * 40,
             "receipt_commit": "3" * 40,
             "base_is_ancestor": True,
-            "source_parents": (C1C_REVIEWED_COMMIT,),
-            "source_commit_paths": C1D_CHANGED_PATHS,
+            "source_parents": (C1D_REVIEWED_COMMIT,),
+            "source_commit_paths": C1E_CHANGED_PATHS,
             "source_paths": C1_CHANGED_PATHS,
             "artifact_parent": "1" * 40,
             "artifact_paths": C2_ARTIFACT_PATHS,
@@ -88,7 +98,7 @@ class M09DSourceContractTest(unittest.TestCase):
         for key, replacement in (
             ("base_is_ancestor", False),
             ("source_parents", ("4" * 40,)),
-            ("source_parents", (C1C_REVIEWED_COMMIT, "4" * 40)),
+            ("source_parents", (C1D_REVIEWED_COMMIT, "4" * 40)),
             ("source_commit_paths", frozenset({"substituted"})),
             ("source_paths", frozenset({"substituted"})),
             ("artifact_parent", "4" * 40),
@@ -331,8 +341,8 @@ class M09DSourceContractTest(unittest.TestCase):
             with (
                 patch("collect_m09d_theme_studio.ROOT", root),
                 patch("collect_m09d_theme_studio.SOURCE_COMMIT", reviewed),
-                patch("collect_m09d_theme_studio.C1C_REVIEWED_COMMIT", reviewed),
-                patch("collect_m09d_theme_studio.C1D_CHANGED_PATHS", frozenset(source_paths)),
+                patch("collect_m09d_theme_studio.C1D_REVIEWED_COMMIT", reviewed),
+                patch("collect_m09d_theme_studio.C1E_CHANGED_PATHS", frozenset(source_paths)),
                 patch("collect_m09d_theme_studio.C1_CHANGED_PATHS", frozenset(source_paths)),
             ):
                 chain = commit_chain()
@@ -389,6 +399,208 @@ class M09DSourceContractTest(unittest.TestCase):
             )
         self.assertEqual([], calls)
 
+    def test_absent_admin_root_is_created_then_removed_on_success_and_failure(self) -> None:
+        for build_failure in (False, True):
+            with self.subTest(build_failure=build_failure), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory).resolve()
+                common = root / "common"
+                common.mkdir()
+                admin = common / "worktrees"
+                owned_temp = root / "owned-temp"
+
+                def make_temp(**_):
+                    owned_temp.mkdir()
+                    return str(owned_temp)
+
+                def runner(command, **kwargs):
+                    if command[:3] == ["git", "worktree", "add"]:
+                        admin.mkdir()
+                        self.create_fake_worktree(Path(command[-2]), admin)
+                        return subprocess.CompletedProcess(command, 0)
+                    if command[0] == "./gradlew" and build_failure:
+                        raise RuntimeError("fixture build failed")
+                    if command[:3] == ["git", "worktree", "remove"]:
+                        shutil.rmtree(command[-1])
+                        shutil.rmtree(admin / "owned")
+                        admin.rmdir()
+                        return subprocess.CompletedProcess(command, 0, "", "")
+                    return subprocess.CompletedProcess(command, 0)
+
+                context = self.assertRaisesRegex(RuntimeError, "fixture build failed") if build_failure else nullcontext()
+                with patch("collect_m09d_theme_studio.verify_rebuilt_apk"), context:
+                    execute_detached_rebuild(
+                        "1" * 40, {}, {}, runner=runner, admin_root=admin,
+                        contract_checker=lambda _: None, make_temp=make_temp,
+                        disk_usage=lambda _: SimpleNamespace(
+                            free=REBUILD_PROJECTED_BYTES + REBUILD_RESERVE_BYTES,
+                        ),
+                    )
+                self.assertFalse(admin.exists())
+                self.assertFalse(owned_temp.exists())
+
+    def test_admin_root_symlink_ancestor_and_escape_fail_before_runner(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            real = root / "real"
+            real.mkdir()
+            linked = root / "linked"
+            linked.symlink_to(real, target_is_directory=True)
+            escaped_parent = root / "parent"
+            escaped_parent.mkdir()
+            calls = []
+            candidates = (
+                linked / "worktrees",
+                escaped_parent / ".." / "real" / "worktrees",
+            )
+            for candidate in candidates:
+                with self.subTest(candidate=candidate), self.assertRaisesRegex(
+                    ValueError, "symlink ancestor|escapes",
+                ):
+                    execute_detached_rebuild(
+                        "1" * 40, {}, {}, admin_root=candidate,
+                        runner=lambda *args, **kwargs: calls.append((args, kwargs)),
+                        disk_usage=lambda _: SimpleNamespace(
+                            free=REBUILD_PROJECTED_BYTES + REBUILD_RESERVE_BYTES,
+                        ),
+                    )
+            self.assertEqual([], calls)
+
+    def test_dangling_admin_root_symlink_fails_before_runner(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            common = Path(directory).resolve() / "common"
+            common.mkdir()
+            admin = common / "worktrees"
+            admin.symlink_to(common / "missing", target_is_directory=True)
+            calls = []
+            with self.assertRaisesRegex(ValueError, "unsafe Git worktree administration root"):
+                execute_detached_rebuild(
+                    "1" * 40, {}, {}, admin_root=admin,
+                    runner=lambda *args, **kwargs: calls.append((args, kwargs)),
+                    disk_usage=lambda _: SimpleNamespace(
+                        free=REBUILD_PROJECTED_BYTES + REBUILD_RESERVE_BYTES,
+                    ),
+                )
+            self.assertEqual([], calls)
+            self.assertTrue(admin.is_symlink())
+
+    def test_post_add_dangling_admin_root_replacement_is_cleanup_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            common = root / "common"
+            common.mkdir()
+            admin = common / "worktrees"
+            owned_temp = root / "owned-temp"
+
+            def make_temp(**_):
+                owned_temp.mkdir()
+                return str(owned_temp)
+
+            def runner(command, **kwargs):
+                if command[:3] == ["git", "worktree", "add"]:
+                    admin.mkdir()
+                    self.create_fake_worktree(Path(command[-2]), admin)
+                    return subprocess.CompletedProcess(command, 0)
+                if command[0] == "./gradlew":
+                    shutil.rmtree(admin)
+                    admin.symlink_to(common / "missing", target_is_directory=True)
+                    return subprocess.CompletedProcess(command, 0)
+                if command[:3] == ["git", "worktree", "remove"]:
+                    shutil.rmtree(command[-1])
+                    return subprocess.CompletedProcess(command, 0, "", "")
+                return subprocess.CompletedProcess(command, 0)
+
+            with (
+                patch("collect_m09d_theme_studio.verify_rebuilt_apk"),
+                self.assertRaisesRegex(RuntimeError, "during cleanup"),
+            ):
+                execute_detached_rebuild(
+                    "1" * 40, {}, {}, runner=runner, admin_root=admin,
+                    contract_checker=lambda _: None, make_temp=make_temp,
+                    disk_usage=lambda _: SimpleNamespace(
+                        free=REBUILD_PROJECTED_BYTES + REBUILD_RESERVE_BYTES,
+                    ),
+                )
+            self.assertTrue(admin.is_symlink())
+            self.assertFalse(owned_temp.exists())
+
+    def test_post_add_dangling_owned_entry_is_lexical_cleanup_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            admin = root / "worktrees"
+            admin.mkdir()
+            sibling = admin / "sibling"
+            sibling.mkdir()
+            marker = sibling / "marker"
+            marker.write_text("unchanged", encoding="utf-8")
+            owned_temp = root / "owned-temp"
+
+            def make_temp(**_):
+                owned_temp.mkdir()
+                return str(owned_temp)
+
+            def runner(command, **kwargs):
+                if command[:3] == ["git", "worktree", "add"]:
+                    self.create_fake_worktree(Path(command[-2]), admin)
+                    return subprocess.CompletedProcess(command, 0)
+                if command[0] == "./gradlew":
+                    shutil.rmtree(admin / "owned")
+                    (admin / "owned").symlink_to(root / "missing", target_is_directory=True)
+                    return subprocess.CompletedProcess(command, 0)
+                if command[:3] == ["git", "worktree", "remove"]:
+                    shutil.rmtree(command[-1])
+                    return subprocess.CompletedProcess(command, 0, "", "")
+                return subprocess.CompletedProcess(command, 0)
+
+            with (
+                patch("collect_m09d_theme_studio.verify_rebuilt_apk"),
+                self.assertRaisesRegex(RuntimeError, "owned worktree admin metadata remains"),
+            ):
+                execute_detached_rebuild(
+                    "1" * 40, {}, {}, runner=runner, admin_root=admin,
+                    contract_checker=lambda _: None, make_temp=make_temp,
+                    disk_usage=lambda _: SimpleNamespace(
+                        free=REBUILD_PROJECTED_BYTES + REBUILD_RESERVE_BYTES,
+                    ),
+                )
+            self.assertTrue((admin / "owned").is_symlink())
+            self.assertEqual("unchanged", marker.read_text(encoding="utf-8"))
+            self.assertFalse(owned_temp.exists())
+
+    def test_absent_admin_root_partial_add_timeout_cleans_exact_owned_entry(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            common = root / "common"
+            common.mkdir()
+            admin = common / "worktrees"
+            owned_temp = root / "owned-temp"
+
+            def make_temp(**_):
+                owned_temp.mkdir()
+                return str(owned_temp)
+
+            def runner(command, **kwargs):
+                if command[:3] == ["git", "worktree", "add"]:
+                    admin.mkdir()
+                    self.create_fake_worktree(Path(command[-2]), admin)
+                    raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+                if command[:3] == ["git", "worktree", "remove"]:
+                    shutil.rmtree(command[-1])
+                    shutil.rmtree(admin / "owned")
+                    admin.rmdir()
+                    return subprocess.CompletedProcess(command, 0, "", "")
+                return subprocess.CompletedProcess(command, 0)
+
+            with self.assertRaises(subprocess.TimeoutExpired):
+                execute_detached_rebuild(
+                    "1" * 40, {}, {}, runner=runner, admin_root=admin,
+                    make_temp=make_temp,
+                    disk_usage=lambda _: SimpleNamespace(
+                        free=REBUILD_PROJECTED_BYTES + REBUILD_RESERVE_BYTES,
+                    ),
+                )
+            self.assertFalse(admin.exists())
+            self.assertFalse(owned_temp.exists())
+
     def test_partial_add_timeout_is_cleaned_with_bounded_commands(self) -> None:
         calls = []
 
@@ -402,7 +614,7 @@ class M09DSourceContractTest(unittest.TestCase):
             return subprocess.CompletedProcess(command, 0, "", "")
 
         with tempfile.TemporaryDirectory() as directory:
-            admin = Path(directory) / "admin"
+            admin = Path(directory).resolve() / "admin"
             admin.mkdir()
             with self.assertRaises(subprocess.TimeoutExpired):
                 execute_detached_rebuild(
@@ -421,7 +633,7 @@ class M09DSourceContractTest(unittest.TestCase):
         def runner(command, **kwargs):
             calls.append((command, kwargs))
             if command[:3] == ["git", "worktree", "add"]:
-                Path(command[-2]).mkdir(parents=True)
+                self.create_fake_worktree(Path(command[-2]), admin)
                 return subprocess.CompletedProcess(command, 0)
             if command[0] == "./gradlew":
                 raise subprocess.TimeoutExpired(command, kwargs["timeout"])
@@ -430,7 +642,7 @@ class M09DSourceContractTest(unittest.TestCase):
             return subprocess.CompletedProcess(command, 0, "", "")
 
         with tempfile.TemporaryDirectory() as directory:
-            admin = Path(directory) / "admin"
+            admin = Path(directory).resolve() / "admin"
             admin.mkdir()
             owned_temp = Path(directory) / "owned-temp"
 
@@ -463,14 +675,14 @@ class M09DSourceContractTest(unittest.TestCase):
     def test_cleanup_failure_alone_fails(self) -> None:
         def runner(command, **kwargs):
             if command[:3] == ["git", "worktree", "add"]:
-                Path(command[-2]).mkdir(parents=True)
+                self.create_fake_worktree(Path(command[-2]), admin)
                 return subprocess.CompletedProcess(command, 0)
             if command[:3] == ["git", "worktree", "remove"]:
                 return subprocess.CompletedProcess(command, 1, "", "busy")
             return subprocess.CompletedProcess(command, 0, "", "")
 
         with tempfile.TemporaryDirectory() as directory:
-            admin = Path(directory) / "admin"
+            admin = Path(directory).resolve() / "admin"
             admin.mkdir()
             with patch("collect_m09d_theme_studio.verify_rebuilt_apk"), self.assertRaisesRegex(
                 RuntimeError, "exact detached worktree removal failed",
@@ -483,10 +695,10 @@ class M09DSourceContractTest(unittest.TestCase):
                     ),
                 )
 
-    def test_unrelated_admin_entry_is_unchanged_and_global_prune_is_never_run(self) -> None:
+    def test_unrelated_admin_marker_is_unchanged_and_command_target_is_exact(self) -> None:
         commands = []
         with tempfile.TemporaryDirectory() as directory:
-            admin = Path(directory) / "admin"
+            admin = Path(directory).resolve() / "admin"
             unrelated = admin / "unrelated"
             unrelated.mkdir(parents=True)
             marker = unrelated / "marker"
@@ -496,10 +708,7 @@ class M09DSourceContractTest(unittest.TestCase):
                 commands.append(command)
                 if command[:3] == ["git", "worktree", "add"]:
                     checkout = Path(command[-2])
-                    checkout.mkdir(parents=True)
-                    owned = admin / "owned"
-                    owned.mkdir()
-                    (owned / "gitdir").write_text(str(checkout / ".git"), encoding="utf-8")
+                    self.create_fake_worktree(checkout, admin)
                     return subprocess.CompletedProcess(command, 0)
                 if command[:3] == ["git", "worktree", "remove"]:
                     shutil.rmtree(command[-1])
@@ -517,19 +726,92 @@ class M09DSourceContractTest(unittest.TestCase):
                 )
             self.assertEqual("unchanged", marker.read_text(encoding="utf-8"))
             self.assertFalse(any(command[:3] == ["git", "worktree", "prune"] for command in commands))
+            add = next(command for command in commands if command[:3] == ["git", "worktree", "add"])
+            remove = next(command for command in commands if command[:3] == ["git", "worktree", "remove"])
+            self.assertEqual(add[-2], remove[-1])
+
+    def test_concurrent_sibling_add_and_remove_are_tolerated(self) -> None:
+        for operation in ("add", "remove"):
+            with self.subTest(operation=operation), tempfile.TemporaryDirectory() as directory:
+                admin = Path(directory).resolve() / "admin"
+                admin.mkdir()
+                sibling = admin / "sibling"
+                if operation == "remove":
+                    sibling.mkdir()
+                    (sibling / "marker").write_text("external", encoding="utf-8")
+
+                def runner(command, **kwargs):
+                    if command[:3] == ["git", "worktree", "add"]:
+                        checkout = Path(command[-2])
+                        self.create_fake_worktree(checkout, admin)
+                        if operation == "add":
+                            sibling.mkdir()
+                            (sibling / "marker").write_text("external", encoding="utf-8")
+                        else:
+                            shutil.rmtree(sibling)
+                        return subprocess.CompletedProcess(command, 0)
+                    if command[:3] == ["git", "worktree", "remove"]:
+                        shutil.rmtree(command[-1])
+                        shutil.rmtree(admin / "owned")
+                        return subprocess.CompletedProcess(command, 0, "", "")
+                    return subprocess.CompletedProcess(command, 0)
+
+                with patch("collect_m09d_theme_studio.verify_rebuilt_apk"):
+                    execute_detached_rebuild(
+                        "1" * 40, {}, {}, runner=runner, admin_root=admin,
+                        contract_checker=lambda _: None,
+                        disk_usage=lambda _: SimpleNamespace(
+                            free=REBUILD_PROJECTED_BYTES + REBUILD_RESERVE_BYTES,
+                        ),
+                    )
+                if operation == "add":
+                    self.assertEqual("external", (sibling / "marker").read_text(encoding="utf-8"))
+                else:
+                    self.assertFalse(sibling.exists())
+
+    def test_owned_admin_leak_fails_without_removing_siblings(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            admin = Path(directory).resolve() / "admin"
+            sibling = admin / "sibling"
+            sibling.mkdir(parents=True)
+            marker = sibling / "marker"
+            marker.write_text("unchanged", encoding="utf-8")
+
+            def runner(command, **kwargs):
+                if command[:3] == ["git", "worktree", "add"]:
+                    self.create_fake_worktree(Path(command[-2]), admin)
+                    return subprocess.CompletedProcess(command, 0)
+                if command[:3] == ["git", "worktree", "remove"]:
+                    shutil.rmtree(command[-1])
+                    return subprocess.CompletedProcess(command, 0, "", "")
+                return subprocess.CompletedProcess(command, 0)
+
+            with (
+                patch("collect_m09d_theme_studio.verify_rebuilt_apk"),
+                self.assertRaisesRegex(RuntimeError, "owned worktree admin metadata remains"),
+            ):
+                execute_detached_rebuild(
+                    "1" * 40, {}, {}, runner=runner, admin_root=admin,
+                    contract_checker=lambda _: None,
+                    disk_usage=lambda _: SimpleNamespace(
+                        free=REBUILD_PROJECTED_BYTES + REBUILD_RESERVE_BYTES,
+                    ),
+                )
+            self.assertEqual("unchanged", marker.read_text(encoding="utf-8"))
 
     def test_temp_cleanup_failure_alone_fails_after_exact_worktree_remove(self) -> None:
         def runner(command, **kwargs):
             if command[:3] == ["git", "worktree", "add"]:
-                Path(command[-2]).mkdir(parents=True)
+                self.create_fake_worktree(Path(command[-2]), admin)
                 return subprocess.CompletedProcess(command, 0)
             if command[:3] == ["git", "worktree", "remove"]:
                 shutil.rmtree(command[-1])
+                shutil.rmtree(admin / "owned")
                 return subprocess.CompletedProcess(command, 0, "", "")
             return subprocess.CompletedProcess(command, 0)
 
         with tempfile.TemporaryDirectory() as directory:
-            admin = Path(directory) / "admin"
+            admin = Path(directory).resolve() / "admin"
             admin.mkdir()
             owned_temp = Path(directory) / "owned-temp"
 
