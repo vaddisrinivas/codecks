@@ -2,15 +2,15 @@
   "artifacts": [
     {
       "path": "tasks/test-evidence/m09d-controller-lifecycle/artifacts.json",
-      "sha256": "2c4b4b30a05f9985a1756b4df4c637bba68a5fcd06bd4d031b59c1c0b07c2521"
+      "sha256": "802e1bf80e7eba782e315d31fd28f9ed44d98ed7f4def15285abe174e719701c"
     },
     {
       "path": "tasks/test-evidence/m09d-controller-lifecycle/gradle.log",
-      "sha256": "759d27678ab86691a515b5e190a0558020f5c3533734f30c9d71959c07d46ae2"
+      "sha256": "b4291c0195e326dfb48cc8a7112ce8a881ebd181ad3127e9ab8fd880254b9a82"
     },
     {
       "path": "tasks/test-evidence/m09d-controller-lifecycle/junit.xml",
-      "sha256": "64e5f5ee5e6725f4bb3a067e4be0372d1ce96d5f824b83308cab09854a2c085c"
+      "sha256": "918aa79ff330c38b9b8e489fba3f704cd12a87e6d804032d3c969f221337ef23"
     }
   ],
   "claims": {
@@ -22,15 +22,41 @@
     "longPressUi": "NOT_RUN",
     "networkDenial": "NOT_PROVEN",
     "physicalPhone": "NOT_RUN",
+    "postRunLiveRevalidation": "NOT_APPLICABLE",
     "providerNetwork": "NOT_RUN",
     "publicRelease": "NOT_RUN",
     "rawMaterialInCommittedEvidence": "NOT_RETAINED",
-    "rawTransformationRevalidation": "NOT_POSSIBLE"
+    "rawTransformationRevalidation": "NOT_POSSIBLE",
+    "writableHomeMaterialRetention": "NOT_RETAINED"
   },
   "commitChain": {
-    "artifact": "c376971d4bc4e1118beb0998ce0a6c13608478d7",
-    "base": "f3b2a29a2c98ddace4ac9d4ad87122197c49d745",
-    "source": "7c8f959546999b1e7cfab5d469da36816e9e1ae3"
+    "artifact": "c63e2555afba8739540bd03752100f6d7af339ad",
+    "base": "d49bc52fadded536dad947a3ea76fcd58d7f2a58",
+    "source": "b7579e9d999311bd160510710f3e4a3b3091aeb7"
+  },
+  "evidenceSource": {
+    "c1Paths": [
+      "docs/evidence/M09D_CONTROLLER_LIFECYCLE.md",
+      "docs/evidence/M09D_CONTROLLER_LIFECYCLE_TODO.md",
+      "tools/evidence/collect_m09d_controller_lifecycle.py",
+      "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.schema.json",
+      "tools/evidence/test_m09d_controller_lifecycle.py"
+    ],
+    "files": [
+      {
+        "path": "tools/evidence/collect_m09d_controller_lifecycle.py",
+        "sha256": "13b5bfc6c32b92d3150f0bae457d8b4c109ae9e81ad70ce40ac4b24ce405c720"
+      },
+      {
+        "path": "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.schema.json",
+        "sha256": "a478c9092033333502e71003e9967e5ff0aca14215f8e8ad1ad2f3f4e595cf6f"
+      },
+      {
+        "path": "tools/evidence/validate_m09d_controller_lifecycle.py",
+        "sha256": "0b714887846219b1719ce4df159a802e59f11cfaa95c71a93070fe595d0eaf11"
+      }
+    ],
+    "sourceParent": "d49bc52fadded536dad947a3ea76fcd58d7f2a58"
   },
   "schema": "codecks.m09d.controller-lifecycle.v1",
   "scope": "CURRENT_SOURCE_CPU_CONTROLLER_LIFECYCLE_ONLY",
@@ -40,8 +66,7 @@
       "docs/evidence/M09D_CONTROLLER_LIFECYCLE_TODO.md",
       "tools/evidence/collect_m09d_controller_lifecycle.py",
       "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.schema.json",
-      "tools/evidence/test_m09d_controller_lifecycle.py",
-      "tools/evidence/validate_m09d_controller_lifecycle.py"
+      "tools/evidence/test_m09d_controller_lifecycle.py"
     ],
     "files": [
       {
@@ -60,6 +85,7 @@
   },
   "status": "PASS",
   "test": {
+    "captureRuns": 2,
     "className": "io.codecks.m09d.M09DControllerLifecycleTest",
     "command": [
       "$GRADLE_DISTRIBUTION_ROOT/bin/gradle",
