@@ -946,13 +946,17 @@ internal fun CodecksApp(
                                 }
                             },
                             onSaveArtifact = { artifact ->
-                                if (automationsViewModel.saveArtifact(artifact)) {
-                                    aiPlacementSlot = null
-                                } else {
-                                    homeViewModel.requestArtifactPlacement(artifact, aiPlacementSlot)
-                                    aiPlacementSlot = null
-                                    navigate(HomeRoute, topLevel = true)
-                                }
+                                routeAiArtifactPlacement(
+                                    artifact = artifact,
+                                    preferredDeckSlot = aiPlacementSlot,
+                                    saveAutomation = automationsViewModel::saveArtifact,
+                                    placeOnDeck = homeViewModel::requestArtifactPlacement,
+                                    onAutomationSaved = { aiPlacementSlot = null },
+                                    onDeckPlacementRequested = {
+                                        aiPlacementSlot = null
+                                        navigate(HomeRoute, topLevel = true)
+                                    },
+                                )
                             },
                         )
                     }
@@ -995,3 +999,22 @@ internal fun CodecksApp(
         }
     }
 }
+
+internal enum class AiArtifactPlacementRoute { AUTOMATION, DECK }
+
+internal fun routeAiArtifactPlacement(
+    artifact: io.codecks.domain.ai.AiArtifact,
+    preferredDeckSlot: Int?,
+    saveAutomation: (io.codecks.domain.ai.AiArtifact) -> Boolean,
+    placeOnDeck: (io.codecks.domain.ai.AiArtifact, Int?) -> Unit,
+    onAutomationSaved: () -> Unit,
+    onDeckPlacementRequested: () -> Unit,
+): AiArtifactPlacementRoute =
+    if (saveAutomation(artifact)) {
+        onAutomationSaved()
+        AiArtifactPlacementRoute.AUTOMATION
+    } else {
+        placeOnDeck(artifact, preferredDeckSlot)
+        onDeckPlacementRequested()
+        AiArtifactPlacementRoute.DECK
+    }
