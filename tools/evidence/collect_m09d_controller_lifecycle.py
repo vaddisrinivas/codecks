@@ -20,7 +20,7 @@ import zipfile
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[2]
-BASE_COMMIT = "4e05521e0f30d662182e9f13cbf30ff50eb6ab01"
+BASE_COMMIT = "f3b2a29a2c98ddace4ac9d4ad87122197c49d745"
 CLASS_NAME = "io.codecks.m09d.M09DControllerLifecycleTest"
 METHODS = (
     "aiCreateSurvivesRepositoryBackedControllerRecreationProxy",
@@ -498,7 +498,8 @@ def sanitized_junit_artifact_binding(raw_binding: dict, raw: bytes, sanitized: b
     result.update({
         "sanitizerAlgorithm": JUNIT_SANITIZER_ALGORITHM, "sanitizerVersion": JUNIT_SANITIZER_VERSION,
         "hostnameToken": JUNIT_HOST_TOKEN, "sanitizedSha256": sha_bytes(sanitized),
-        "rawMaterialRetention": "NOT_RETAINED", "rawTransformationRevalidation": "NOT_POSSIBLE",
+        "rawMaterialInCommittedEvidence": "NOT_RETAINED", "ignoredLocalBuildOutputsRetention": "NOT_PROVEN",
+        "rawTransformationRevalidation": "NOT_POSSIBLE",
     })
     return result
 
@@ -508,7 +509,7 @@ def validate_durable_sanitized_junit(binding: dict, sanitized: bytes) -> None:
         raise ValueError("JUnit sanitizer identity substituted")
     if not valid_sha(binding.get("sanitizedSha256")):
         raise ValueError("sanitized JUnit hash binding substituted")
-    if binding.get("rawMaterialRetention") != "NOT_RETAINED" or binding.get("rawTransformationRevalidation") != "NOT_POSSIBLE":
+    if binding.get("rawMaterialInCommittedEvidence") != "NOT_RETAINED" or binding.get("ignoredLocalBuildOutputsRetention") != "NOT_PROVEN" or binding.get("rawTransformationRevalidation") != "NOT_POSSIBLE":
         raise ValueError("raw JUnit retention/revalidation claim substituted")
     if sha_bytes(sanitized) != binding["sanitizedSha256"]:
         raise ValueError("durable sanitized JUnit hash substituted")
@@ -1133,7 +1134,7 @@ def validate_artifact_data(
         raise ValueError("artifact log binding substituted")
     junit_binding = data["junit"]
     required_junit = {
-        "path", "sanitizerAlgorithm", "sanitizerVersion", "hostnameToken", "sanitizedSha256", "rawMaterialRetention", "rawTransformationRevalidation",
+        "path", "sanitizerAlgorithm", "sanitizerVersion", "hostnameToken", "sanitizedSha256", "rawMaterialInCommittedEvidence", "ignoredLocalBuildOutputsRetention", "rawTransformationRevalidation",
         "executionStartNs", "executionEndNs", "sourceMtimeNs", "sourceBirthtimeNs", "sourceInode", "newFileProof", "suiteTimestampNs",
     }
     if not isinstance(junit_binding, dict) or set(junit_binding) != required_junit or junit_binding["path"] != SANITIZED_JUNIT_XML.as_posix():
@@ -1142,7 +1143,7 @@ def validate_artifact_data(
         raise ValueError("sanitized JUnit byte binding substituted")
     if junit_binding["sanitizerAlgorithm"] != JUNIT_SANITIZER_ALGORITHM or junit_binding["sanitizerVersion"] != JUNIT_SANITIZER_VERSION or junit_binding["hostnameToken"] != JUNIT_HOST_TOKEN:
         raise ValueError("JUnit sanitizer identity substituted")
-    if junit_binding["rawMaterialRetention"] != "NOT_RETAINED" or junit_binding["rawTransformationRevalidation"] != "NOT_POSSIBLE":
+    if junit_binding["rawMaterialInCommittedEvidence"] != "NOT_RETAINED" or junit_binding["ignoredLocalBuildOutputsRetention"] != "NOT_PROVEN" or junit_binding["rawTransformationRevalidation"] != "NOT_POSSIBLE":
         raise ValueError("raw JUnit retention/revalidation claim substituted")
     start, end, mtime, suite = junit_binding["executionStartNs"], junit_binding["executionEndNs"], junit_binding["sourceMtimeNs"], junit_binding["suiteTimestampNs"]
     if not all(type(value) is int and value > 0 for value in (start, end, mtime, suite, junit_binding["sourceInode"])) or not (start <= mtime <= end and start <= suite <= end):
@@ -1241,7 +1242,7 @@ def validate_artifact_data(
                 raise ValueError("live tool manifest aggregate substituted")
         if tables["executionDependencyCache"] != manifest_aggregate(live["dependencyCache"]):
             raise ValueError("live execution dependency-cache aggregate substituted")
-    if data["claims"] != {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialRetention": "NOT_RETAINED", "rawTransformationRevalidation": "NOT_POSSIBLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"}:
+    if data["claims"] != {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialInCommittedEvidence": "NOT_RETAINED", "ignoredLocalBuildOutputsRetention": "NOT_PROVEN", "rawTransformationRevalidation": "NOT_POSSIBLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"}:
         raise ValueError("artifact claim substitution")
     validate_private_free(data)
 
@@ -1301,7 +1302,7 @@ def _collect_artifacts_with_raw_result() -> None:
         "tools": compact_tools,
         "snapshots": compact_snapshots,
         "manifestTables": manifest_tables,
-        "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialRetention": "NOT_RETAINED", "rawTransformationRevalidation": "NOT_POSSIBLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
+        "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialInCommittedEvidence": "NOT_RETAINED", "ignoredLocalBuildOutputsRetention": "NOT_PROVEN", "rawTransformationRevalidation": "NOT_POSSIBLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
     }
     validate_artifact_data(manifest, source, verify_live_build_outputs=True)
     serialized = serialize_artifact_manifest(manifest)

@@ -11,7 +11,7 @@
     "commitChain": {
       "type": "object", "additionalProperties": false, "required": ["base", "source", "artifact"],
       "properties": {
-        "base": {"const": "4e05521e0f30d662182e9f13cbf30ff50eb6ab01"},
+        "base": {"const": "f3b2a29a2c98ddace4ac9d4ad87122197c49d745"},
         "source": {"$ref": "#/$defs/commit"}, "artifact": {"$ref": "#/$defs/commit"}
       }
     },
@@ -45,9 +45,9 @@
     },
     "claims": {
       "type": "object", "additionalProperties": false,
-      "required": ["providerNetwork", "networkDenial", "dependencyCacheOrigin", "freshnessAdversaryResistance", "rawMaterialRetention", "rawTransformationRevalidation", "longPressUi", "device", "physicalPhone", "publicRelease", "aiDeleteUndo"],
+      "required": ["providerNetwork", "networkDenial", "dependencyCacheOrigin", "freshnessAdversaryResistance", "rawMaterialInCommittedEvidence", "ignoredLocalBuildOutputsRetention", "rawTransformationRevalidation", "longPressUi", "device", "physicalPhone", "publicRelease", "aiDeleteUndo"],
       "properties": {
-        "providerNetwork": {"const": "NOT_RUN"}, "networkDenial": {"const": "NOT_PROVEN"}, "dependencyCacheOrigin": {"const": "NOT_PROVEN"}, "freshnessAdversaryResistance": {"const": "NOT_PROVEN"}, "rawMaterialRetention": {"const": "NOT_RETAINED"}, "rawTransformationRevalidation": {"const": "NOT_POSSIBLE"}, "longPressUi": {"const": "NOT_RUN"},
+        "providerNetwork": {"const": "NOT_RUN"}, "networkDenial": {"const": "NOT_PROVEN"}, "dependencyCacheOrigin": {"const": "NOT_PROVEN"}, "freshnessAdversaryResistance": {"const": "NOT_PROVEN"}, "rawMaterialInCommittedEvidence": {"const": "NOT_RETAINED"}, "ignoredLocalBuildOutputsRetention": {"const": "NOT_PROVEN"}, "rawTransformationRevalidation": {"const": "NOT_POSSIBLE"}, "longPressUi": {"const": "NOT_RUN"},
         "device": {"const": "NOT_RUN"}, "physicalPhone": {"const": "NOT_RUN"},
         "publicRelease": {"const": "NOT_RUN"}, "aiDeleteUndo": {"const": "NOT_AVAILABLE"}
       }

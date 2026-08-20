@@ -6,15 +6,35 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import subprocess
 
 from collect_m09d_controller_lifecycle import (
-    C1_PATHS, C2_PATHS, C3_PATHS, MAX_RECEIPT_BYTES, RECEIPT, ROOT, changed_paths, collect_receipt, git,
+    ARTIFACT_MANIFEST, C1_PATHS, C2_PATHS, C3_PATHS, MAX_ARTIFACT_MANIFEST_BYTES, MAX_LOG_BYTES, MAX_RECEIPT_BYTES,
+    MAX_XML_BYTES, RECEIPT, ROOT, SANITIZED_JUNIT_XML, SANITIZED_LOG, changed_paths, collect_receipt, git,
     load_bounded_json,
-    require_clean_status, require_focused_result_absent, require_worktree_matches_commit, validate_topology,
+    require_clean_status, require_focused_result_absent, require_worktree_matches_commit, validate_private_bytes, validate_topology,
 )
 from strict_json_schema import validate_json_schema
 
 SCHEMA = ROOT / "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.schema.json"
+
+
+def validate_committed_evidence_privacy(artifact_commit: str, receipt_commit: str) -> None:
+    """Scan only committed C2/C3 evidence; ignored local build outputs are outside this proof."""
+    limits = {
+        SANITIZED_JUNIT_XML.as_posix(): MAX_XML_BYTES,
+        SANITIZED_LOG.as_posix(): MAX_LOG_BYTES,
+        ARTIFACT_MANIFEST.as_posix(): MAX_ARTIFACT_MANIFEST_BYTES,
+        RECEIPT.as_posix(): MAX_RECEIPT_BYTES,
+    }
+    for commit, paths in ((artifact_commit, C2_PATHS), (receipt_commit, C3_PATHS)):
+        for path in sorted(paths):
+            payload = subprocess.run(
+                ["git", "show", f"{commit}:{path}"], cwd=ROOT, check=True, capture_output=True,
+            ).stdout
+            if len(payload) > limits[path]:
+                raise ValueError("committed evidence exceeds privacy scan bound")
+            validate_private_bytes(payload)
 
 
 def validate_data(data: dict, receipt_commit: str | None = None) -> None:
@@ -37,6 +57,7 @@ def validate_data(data: dict, receipt_commit: str | None = None) -> None:
     require_worktree_matches_commit(source, C1_PATHS)
     require_worktree_matches_commit(artifact, C2_PATHS)
     require_worktree_matches_commit(receipt, C3_PATHS)
+    validate_committed_evidence_privacy(artifact, receipt)
     if data != collect_receipt(artifact):
         raise ValueError("receipt does not exactly match current C1/C2 bytes and topology")
     require_focused_result_absent()

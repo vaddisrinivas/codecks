@@ -188,7 +188,8 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             durable_binding = sanitized_junit_artifact_binding(binding, raw_junit, sanitized)
             self.assertEqual(JUNIT_SANITIZER_ALGORITHM, durable_binding["sanitizerAlgorithm"])
             self.assertEqual(JUNIT_SANITIZER_VERSION, durable_binding["sanitizerVersion"])
-            self.assertEqual("NOT_RETAINED", durable_binding["rawMaterialRetention"])
+            self.assertEqual("NOT_RETAINED", durable_binding["rawMaterialInCommittedEvidence"])
+            self.assertEqual("NOT_PROVEN", durable_binding["ignoredLocalBuildOutputsRetention"])
             self.assertEqual("NOT_POSSIBLE", durable_binding["rawTransformationRevalidation"])
             self.assertNotIn("rawSha256", durable_binding)
             self.assertNotIn("rawBytes", durable_binding)
@@ -274,7 +275,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             "schema": "codecks.m09d.controller-lifecycle-artifacts.v1", "sourceCommit": source,
             "command": list(COMMAND), "environment": EXEC_ENV,
             "className": CLASS_NAME, "methods": sorted(METHODS),
-            "junit": {"path": "tasks/test-evidence/m09d-controller-lifecycle/junit.xml", "sanitizerAlgorithm": JUNIT_SANITIZER_ALGORITHM, "sanitizerVersion": JUNIT_SANITIZER_VERSION, "hostnameToken": JUNIT_HOST_TOKEN, "sanitizedSha256": "b" * 64, "rawMaterialRetention": "NOT_RETAINED", "rawTransformationRevalidation": "NOT_POSSIBLE", "executionStartNs": 1, "sourceMtimeNs": 2, "suiteTimestampNs": 2, "executionEndNs": 3, "sourceBirthtimeNs": None, "sourceInode": 1, "newFileProof": "NOT_PROVEN"},
+            "junit": {"path": "tasks/test-evidence/m09d-controller-lifecycle/junit.xml", "sanitizerAlgorithm": JUNIT_SANITIZER_ALGORITHM, "sanitizerVersion": JUNIT_SANITIZER_VERSION, "hostnameToken": JUNIT_HOST_TOKEN, "sanitizedSha256": "b" * 64, "rawMaterialInCommittedEvidence": "NOT_RETAINED", "ignoredLocalBuildOutputsRetention": "NOT_PROVEN", "rawTransformationRevalidation": "NOT_POSSIBLE", "executionStartNs": 1, "sourceMtimeNs": 2, "suiteTimestampNs": 2, "executionEndNs": 3, "sourceBirthtimeNs": None, "sourceInode": 1, "newFileProof": "NOT_PROVEN"},
             "log": {"path": "tasks/test-evidence/m09d-controller-lifecycle/gradle.log", "sha256": "b" * 64, "capture": "DIRECT_SUBPROCESS_STDOUT_STDERR"},
             "compiledTrees": [
                 {"root": "app/build/intermediates/built_in_kotlinc/ossRelease/compileOssReleaseKotlin/classes", "files": 1, "bytes": 1, "digest": "c" * 64},
@@ -302,7 +303,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
                 "gradleVersionCommand": ["$GRADLE_DISTRIBUTION_ROOT/bin/gradle", "--version", "--no-daemon"], "gradleVersion": "test-gradle",
                 "initScripts": {"scopedUser": [], "defaultUser": [], "system": [], "distribution": [], "checked": ["$GRADLE_USER_HOME/init.gradle"]},
             },
-            "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialRetention": "NOT_RETAINED", "rawTransformationRevalidation": "NOT_POSSIBLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
+            "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialInCommittedEvidence": "NOT_RETAINED", "ignoredLocalBuildOutputsRetention": "NOT_PROVEN", "rawTransformationRevalidation": "NOT_POSSIBLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
         }
         compact_tools, compact_snapshots, tables = dedupe_manifest_tables(data["tools"], data["snapshots"])
         data["tools"] = compact_tools; data["snapshots"] = compact_snapshots; data["manifestTables"] = tables
@@ -327,7 +328,8 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
         for key, value in (
             ("rawBytes", False), ("sanitizerAlgorithm", "SWAPPED"), ("sanitizerVersion", "2"),
             ("hostnameToken", "REAL-HOST"), ("sanitizedSha256", "arbitrary"),
-            ("rawMaterialRetention", "RETAINED"), ("rawTransformationRevalidation", "POSSIBLE"),
+            ("rawMaterialRetention", "NOT_RETAINED"), ("rawMaterialInCommittedEvidence", "RETAINED"),
+            ("ignoredLocalBuildOutputsRetention", "PROVEN"), ("rawTransformationRevalidation", "POSSIBLE"),
         ):
             changed = copy.deepcopy(data); changed["junit"][key] = value
             with self.assertRaises(ValueError):
@@ -378,7 +380,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
         changed = copy.deepcopy(data); changed["claims"]["freshnessAdversaryResistance"] = "PROVEN"
         with self.assertRaises(ValueError):
             validate_artifact_data(changed, source, verify_current=False)
-        for key, value in (("rawMaterialRetention", "RETAINED"), ("rawTransformationRevalidation", "POSSIBLE")):
+        for key, value in (("rawMaterialRetention", "NOT_RETAINED"), ("rawMaterialInCommittedEvidence", "RETAINED"), ("ignoredLocalBuildOutputsRetention", "PROVEN"), ("rawTransformationRevalidation", "POSSIBLE")):
             changed = copy.deepcopy(data); changed["claims"][key] = value
             with self.assertRaises(ValueError):
                 validate_artifact_data(changed, source, verify_current=False)
@@ -576,7 +578,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             final_validator, "changed_paths", side_effect=[C1_PATHS, C2_PATHS, C3_PATHS]
         ), patch.object(final_validator, "validate_topology"), patch.object(final_validator, "require_clean_status"), patch.object(
             final_validator, "require_worktree_matches_commit"
-        ), patch.object(final_validator, "collect_receipt", return_value=data):
+        ), patch.object(final_validator, "validate_committed_evidence_privacy"), patch.object(final_validator, "collect_receipt", return_value=data):
             final_validator.validate_data(data, receipt_commit="3" * 40)
         self.assertEqual(["absent", "absent"], calls)
 
@@ -587,6 +589,20 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
         for substituted in (1, 0):
             with self.assertRaises(ValueError):
                 validate_json_schema(substituted, boolean_schema)
+
+    def test_final_privacy_scan_is_committed_c2_c3_only(self) -> None:
+        calls = []
+        def safe_show(command, **kwargs):
+            calls.append(command[-1])
+            return SimpleNamespace(stdout=b"safe committed evidence")
+        with patch.object(final_validator.subprocess, "run", side_effect=safe_show):
+            final_validator.validate_committed_evidence_privacy("2" * 40, "3" * 40)
+        self.assertEqual(4, len(calls))
+        self.assertTrue(all(path.split(":", 1)[1] in C2_PATHS | C3_PATHS for path in calls))
+        self.assertTrue(all(RESULT_XML.as_posix() not in path for path in calls))
+        with patch.object(final_validator.subprocess, "run", return_value=SimpleNamespace(stdout=b"/Users/private/leak")):
+            with self.assertRaisesRegex(ValueError, "private filesystem path"):
+                final_validator.validate_committed_evidence_privacy("2" * 40, "3" * 40)
 
     def test_compiled_tree_digest_rejects_empty_tree_and_binds_bytes(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -627,7 +643,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             "sourceBinding": {"files": [{"path": f"source-{i}", "sha256": "a" * 64} for i in range(3)], "c1Paths": sorted(C1_PATHS)},
             "artifacts": [{"path": path, "sha256": "b" * 64} for path in sorted(C2_PATHS)],
             "test": {"className": CLASS_NAME, "methods": sorted(METHODS), "tests": 10, "failures": 0, "errors": 0, "skipped": 0, "command": list(COMMAND), "environment": EXEC_ENV},
-            "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialRetention": "NOT_RETAINED", "rawTransformationRevalidation": "NOT_POSSIBLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
+            "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialInCommittedEvidence": "NOT_RETAINED", "ignoredLocalBuildOutputsRetention": "NOT_PROVEN", "rawTransformationRevalidation": "NOT_POSSIBLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
         }
         validate_json_schema(receipt, schema)
         def fake_git(*args: str) -> str:
@@ -643,6 +659,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             patch.object(final_validator, "changed_paths", side_effect=lambda commit: paths[commit]),
             patch.object(final_validator, "require_clean_status"),
             patch.object(final_validator, "require_worktree_matches_commit"),
+            patch.object(final_validator, "validate_committed_evidence_privacy"),
             patch.object(final_validator, "collect_receipt", return_value=receipt),
         ):
             final_validator.validate_data(receipt, receipt_commit="3" * 40)
@@ -657,7 +674,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
                 changed[section][0]["sha256"] = "swapped"
             with self.assertRaises(ValueError):
                 validate_json_schema(changed, schema)
-        for key, value in (("rawSha256", "a" * 64), ("rawBytes", 100), ("rawMaterialRetention", "RETAINED"), ("rawTransformationRevalidation", "POSSIBLE")):
+        for key, value in (("rawSha256", "a" * 64), ("rawBytes", 100), ("rawMaterialRetention", "NOT_RETAINED"), ("rawMaterialInCommittedEvidence", "RETAINED"), ("ignoredLocalBuildOutputsRetention", "PROVEN"), ("rawTransformationRevalidation", "POSSIBLE")):
             changed = copy.deepcopy(receipt); changed["claims"][key] = value
             with self.assertRaises(ValueError):
                 validate_json_schema(changed, schema)
