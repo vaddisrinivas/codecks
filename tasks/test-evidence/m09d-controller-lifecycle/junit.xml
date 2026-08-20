@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.codecks.m09d.M09DControllerLifecycleTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-08-20T10:56:50.998Z" hostname="$HOST" time="0.173">
+  <properties/>
+  <testcase name="aiCreateSurvivesRepositoryBackedControllerRecreationProxy" classname="io.codecks.m09d.M09DControllerLifecycleTest" time="0.121"/>
+  <testcase name="aiDeleteIsNonUndoableAcrossRepositoryBackedControllerRecreationProxy" classname="io.codecks.m09d.M09DControllerLifecycleTest" time="0.004"/>
+  <testcase name="homeEditAssignPersistsExactSavePath" classname="io.codecks.m09d.M09DControllerLifecycleTest" time="0.007"/>
+  <testcase name="compositionPlacementBridgeDrivesHomePreferredSlotAndExactSavePath" classname="io.codecks.m09d.M09DControllerLifecycleTest" time="0.013"/>
+  <testcase name="homeRemoveUndoRestoresExactActionAndSavePath" classname="io.codecks.m09d.M09DControllerLifecycleTest" time="0.002"/>
+  <testcase name="aiTestSurvivesRepositoryBackedControllerRecreationProxy" classname="io.codecks.m09d.M09DControllerLifecycleTest" time="0.002"/>
+  <testcase name="homeMoveUndoRestoresExactLayoutAndSavePath" classname="io.codecks.m09d.M09DControllerLifecycleTest" time="0.001"/>
+  <testcase name="aiRefinePreservesSourceAcrossRepositoryBackedControllerRecreationProxy" classname="io.codecks.m09d.M09DControllerLifecycleTest" time="0.009"/>
+  <testcase name="homeReassignClearsPriorUndoPolicy" classname="io.codecks.m09d.M09DControllerLifecycleTest" time="0.002"/>
+  <testcase name="aiSaveOnlySurvivesRepositoryBackedControllerRecreationProxy" classname="io.codecks.m09d.M09DControllerLifecycleTest" time="0.008"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
