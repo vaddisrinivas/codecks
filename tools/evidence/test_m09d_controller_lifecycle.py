@@ -99,13 +99,14 @@ def repeatability_proof(data: dict, junit_semantic_sha: str = "f" * 64) -> dict:
 
 
 def gradle_version_bytes(first_use: bool = False) -> bytes:
-    return ((GRADLE_FIRST_USE_PREFIX if first_use else "") + EXPECTED_GRADLE_VERSION_TEXT).encode()
+    text = "\n" + GRADLE_FIRST_USE_PREFIX + EXPECTED_GRADLE_VERSION_TEXT[1:] if first_use else EXPECTED_GRADLE_VERSION_TEXT
+    return text.encode()
 
 
 class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
     def test_collect_toolchain_gradle_version_path_preserves_boundary_whitespace(self) -> None:
         raw_text = EXPECTED_GRADLE_VERSION_TEXT.replace("$JAVA_HOME", collector.JAVA_HOME)
-        good = (raw_text + "\n").encode()
+        good = raw_text.encode()
         jdk = b'openjdk version "20.0.2"\nOpenJDK Runtime Environment (build 20.0.2+9-78)\n'
 
         def collect(raw: bytes) -> dict:
@@ -125,7 +126,15 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
 
         self.assertEqual(PINNED_GRADLE_VERSION_RECORD, collect(good)["gradleVersion"])
         self.assertEqual(EXPECTED_GRADLE_VERSION_TEXT, sanitize_gradle_version_output(good))
-        for changed in (b"\n" + good, good + b"\n", raw_text.encode() + b" \n"):
+        framing_substitutions = (
+            good[1:], b"\n" + good,
+            good.replace(b"JAVA_TOOL_OPTIONS: \n", b"JAVA_TOOL_OPTIONS:\n"),
+            good.replace(b"JAVA_TOOL_OPTIONS: \n", b"JAVA_TOOL_OPTIONS:  \n"),
+            good.replace(b"_JAVA_OPTIONS: \n", b"_JAVA_OPTIONS:\n"),
+            good.replace(b"_JAVA_OPTIONS: \n", b"_JAVA_OPTIONS:  \n"),
+            good + b"\n", good + b"content",
+        )
+        for changed in framing_substitutions:
             with self.assertRaises(ValueError):
                 collect(changed)
 
@@ -159,13 +168,13 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
         for old, new in substitutions:
             with self.assertRaises(ValueError):
                 canonical_gradle_version_output(gradle_version_bytes().replace(old, new).decode())
-        for marker in (b"Gradle 9.4.1\n", b"Revision:      ", b"OS:            ", b"Picked up JAVA_TOOL_OPTIONS:\n"):
+        for marker in (b"Gradle 9.4.1\n", b"Revision:      ", b"OS:            ", b"Picked up JAVA_TOOL_OPTIONS: \n"):
             with self.assertRaises(ValueError):
                 canonical_gradle_version_output(gradle_version_bytes().replace(marker, marker + b"\n", 1).decode())
         with self.assertRaisesRegex(ValueError, "output substituted"):
             canonical_gradle_version_output("arbitrary notification\n" + gradle_version_bytes().decode())
         with self.assertRaises(ValueError):
-            canonical_gradle_version_output((GRADLE_FIRST_USE_PREFIX.replace("Java 26", "Java 25") + EXPECTED_GRADLE_VERSION_TEXT))
+            canonical_gradle_version_output(("\n" + GRADLE_FIRST_USE_PREFIX.replace("Java 26", "Java 25") + EXPECTED_GRADLE_VERSION_TEXT[1:]))
 
     def test_exact_raw_xml_preserves_and_requires_timestamp(self) -> None:
         raw = junit_bytes()

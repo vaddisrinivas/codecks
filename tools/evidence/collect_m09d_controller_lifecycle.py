@@ -21,7 +21,7 @@ import zipfile
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[2]
-BASE_COMMIT = "5f6b5222ab22eb3bcbadcf49000b6e86703bf48c"
+BASE_COMMIT = "bf46021f2c8e3ffc3fd9759205ecd3bf07889397"
 CLASS_NAME = "io.codecks.m09d.M09DControllerLifecycleTest"
 METHODS = (
     "aiCreateSurvivesRepositoryBackedControllerRecreationProxy",
@@ -84,7 +84,8 @@ Here are the highlights of this release:
 For more details see https://docs.gradle.org/9.4.1/release-notes.html
 
 """
-EXPECTED_GRADLE_VERSION_TEXT = """------------------------------------------------------------
+EXPECTED_GRADLE_VERSION_TEXT = ("""
+------------------------------------------------------------
 Gradle 9.4.1
 ------------------------------------------------------------
 
@@ -98,8 +99,7 @@ Launcher JVM:  20.0.2 (Oracle Corporation 20.0.2+9-78)
 Daemon JVM:    $JAVA_HOME (no Daemon JVM specified, using current Java home)
 OS:            Mac OS X 26.5.2 aarch64
 
-Picked up JAVA_TOOL_OPTIONS:
-Picked up _JAVA_OPTIONS:"""
+""" + "Picked up JAVA_TOOL_OPTIONS: \nPicked up _JAVA_OPTIONS: \n")
 PINNED_GRADLE_VERSION_RECORD = {
     "gradle": "9.4.1", "buildTime": "2026-03-19 08:46:28 UTC",
     "revision": "2d6327017519d23b96af35865dc997fcb544fb40",
@@ -617,11 +617,8 @@ def sanitize_gradle_version_output(data: bytes) -> str:
     if len(data) > MAX_LOG_BYTES:
         raise ValueError("Gradle version output exceeds size cap")
     text = data.decode("utf-8", errors="strict")
-    if "\r" in text or not text.endswith("\n") or text.endswith("\n\n"):
+    if "\r" in text:
         raise ValueError("Gradle version output framing substituted")
-    text = text[:-1]
-    if not text or text[0].isspace() or text[-1].isspace():
-        raise ValueError("Gradle version output boundary whitespace substituted")
     for actual, token in (
         (str(ROOT), "$REPO_ROOT"), (ANDROID_HOME, "$ANDROID_HOME"),
         (JAVA_HOME, "$JAVA_HOME"), (ACTUAL_EXEC_ENV["HOME"], "$HOME"),
@@ -630,6 +627,7 @@ def sanitize_gradle_version_output(data: bytes) -> str:
     ):
         text = text.replace(actual, token)
     validate_private_free(text)
+    canonical_gradle_version_output(text)
     return text
 
 
@@ -1081,8 +1079,8 @@ def local_properties_binding() -> dict:
 
 
 def canonical_gradle_version_output(gradle_text: str) -> dict:
-    core = gradle_text[len(GRADLE_FIRST_USE_PREFIX):] if gradle_text.startswith(GRADLE_FIRST_USE_PREFIX) else gradle_text
-    if core != EXPECTED_GRADLE_VERSION_TEXT:
+    first_use = "\n" + GRADLE_FIRST_USE_PREFIX + EXPECTED_GRADLE_VERSION_TEXT[1:]
+    if gradle_text not in (EXPECTED_GRADLE_VERSION_TEXT, first_use):
         raise ValueError("exact Gradle version output substituted")
     return json.loads(json.dumps(PINNED_GRADLE_VERSION_RECORD))
 
