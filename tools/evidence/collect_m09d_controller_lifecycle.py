@@ -21,7 +21,7 @@ import zipfile
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[2]
-BASE_COMMIT = "b835a0f855f93fb32ea3f16f843ee56b86771a20"
+BASE_COMMIT = "d49bc52fadded536dad947a3ea76fcd58d7f2a58"
 CLASS_NAME = "io.codecks.m09d.M09DControllerLifecycleTest"
 METHODS = (
     "aiCreateSurvivesRepositoryBackedControllerRecreationProxy",
@@ -585,7 +585,7 @@ def sanitize_log(data: bytes) -> bytes:
     if lines.count(actionable) != 1 or sum(re.fullmatch(r"\d+ actionable tasks:.*", line) is not None for line in lines) != 1:
         raise ValueError("exact release/test task execution markers missing")
     header = "COMMAND\t" + json.dumps(list(COMMAND), separators=(",", ":")) + "\n"
-    canonical_lines = (*required_tasks, actionable, "BUILD SUCCESSFUL")
+    canonical_lines = ("CAPTURE RUNS\t2", *required_tasks, actionable, "BUILD SUCCESSFUL")
     result = (header + "\n".join(canonical_lines) + "\n").encode("utf-8")
     if len(result) > MAX_LOG_BYTES or b"/Users/" in result or b"/private/" in result or b"/tmp/" in result:
         raise ValueError("sanitized Gradle log privacy/size bound failed")
@@ -1407,7 +1407,7 @@ def validate_artifact_data(
     if verify_live_build_outputs and tables["gradleHomeAfter"] != manifest_aggregate(writable_gradle_home_manifest()):
         raise ValueError("post-execution writable Gradle home changed")
     log_binding = data["log"]
-    if set(log_binding) != {"path", "sha256", "capture"} or log_binding["path"] != SANITIZED_LOG.as_posix() or log_binding["capture"] != "DIRECT_SUBPROCESS_STDOUT_STDERR" or not valid_sha(log_binding["sha256"]):
+    if set(log_binding) != {"path", "sha256", "capture", "captureRuns"} or log_binding["path"] != SANITIZED_LOG.as_posix() or log_binding["capture"] != "DIRECT_SUBPROCESS_STDOUT_STDERR" or type(log_binding["captureRuns"]) is not int or log_binding["captureRuns"] != 2 or not valid_sha(log_binding["sha256"]):
         raise ValueError("artifact log binding substituted")
     junit_binding = data["junit"]
     required_junit = {
@@ -1574,7 +1574,7 @@ def _collect_artifacts_with_raw_result() -> tuple[bytes, bytes, dict]:
         "sourceCommit": source, "evidenceSource": evidence_source_binding(source),
         "command": list(COMMAND), "environment": EXEC_ENV, "className": CLASS_NAME, "methods": sorted(METHODS),
         "junit": junit_binding,
-        "log": {"path": SANITIZED_LOG.as_posix(), "sha256": sha_bytes(log), "capture": "DIRECT_SUBPROCESS_STDOUT_STDERR"},
+        "log": {"path": SANITIZED_LOG.as_posix(), "sha256": sha_bytes(log), "capture": "DIRECT_SUBPROCESS_STDOUT_STDERR", "captureRuns": 2},
         "compiledTrees": [tree_digest(PRODUCTION_CLASSES), tree_digest(TEST_CLASSES)],
         "tools": compact_tools,
         "snapshots": compact_snapshots,
@@ -1657,7 +1657,7 @@ def collect_receipt(artifact_commit: str | None = None) -> dict:
         "sourceBinding": {"files": require_source_bindings(), "c1Paths": sorted(C1_PATHS)},
         "evidenceSource": artifact_data["evidenceSource"],
         "artifacts": [{"path": path, "sha256": sha_path(ROOT / path)} for path in sorted(C2_PATHS)],
-        "test": {"className": CLASS_NAME, "methods": sorted(METHODS), "tests": 10, "failures": 0, "errors": 0, "skipped": 0, "command": list(COMMAND), "environment": EXEC_ENV},
+        "test": {"className": CLASS_NAME, "methods": sorted(METHODS), "tests": 10, "failures": 0, "errors": 0, "skipped": 0, "captureRuns": 2, "command": list(COMMAND), "environment": EXEC_ENV},
         "claims": artifact_data["claims"],
     }
     require_focused_result_absent()

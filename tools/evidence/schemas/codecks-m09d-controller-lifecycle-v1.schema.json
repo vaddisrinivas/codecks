@@ -11,14 +11,14 @@
     "commitChain": {
       "type": "object", "additionalProperties": false, "required": ["base", "source", "artifact"],
       "properties": {
-        "base": {"const": "b835a0f855f93fb32ea3f16f843ee56b86771a20"},
+        "base": {"const": "d49bc52fadded536dad947a3ea76fcd58d7f2a58"},
         "source": {"$ref": "#/$defs/commit"}, "artifact": {"$ref": "#/$defs/commit"}
       }
     },
     "evidenceSource": {
       "type": "object", "additionalProperties": false, "required": ["sourceParent", "c1Paths", "files"],
       "properties": {
-        "sourceParent": {"const": "b835a0f855f93fb32ea3f16f843ee56b86771a20"},
+        "sourceParent": {"const": "d49bc52fadded536dad947a3ea76fcd58d7f2a58"},
         "c1Paths": {"type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true, "items": {"$ref": "#/$defs/path"}},
         "files": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/file"}}
       }
@@ -33,11 +33,11 @@
     "artifacts": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/file"}},
     "test": {
       "type": "object", "additionalProperties": false,
-      "required": ["className", "methods", "tests", "failures", "errors", "skipped", "command", "environment"],
+      "required": ["className", "methods", "tests", "failures", "errors", "skipped", "captureRuns", "command", "environment"],
       "properties": {
         "className": {"const": "io.codecks.m09d.M09DControllerLifecycleTest"},
         "methods": {"type": "array", "minItems": 10, "maxItems": 10, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
-        "tests": {"type": "integer", "const": 10}, "failures": {"type": "integer", "const": 0}, "errors": {"type": "integer", "const": 0}, "skipped": {"type": "integer", "const": 0},
+        "tests": {"type": "integer", "const": 10}, "failures": {"type": "integer", "const": 0}, "errors": {"type": "integer", "const": 0}, "skipped": {"type": "integer", "const": 0}, "captureRuns": {"type": "integer", "const": 2},
         "command": {
           "type": "array", "minItems": 10, "maxItems": 10,
           "prefixItems": [

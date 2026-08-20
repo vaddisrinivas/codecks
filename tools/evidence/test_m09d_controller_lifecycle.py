@@ -275,6 +275,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
 
     def test_command_header_substitution_is_rejected(self) -> None:
         good = sanitize_log(b"> Task :app:validateReleaseSurface\n> Task :app:testOssReleaseUnitTest\nBUILD SUCCESSFUL in 1s\n50 actionable tasks: 50 executed\n")
+        self.assertIn(b"CAPTURE RUNS\t2\n", good)
         validate_command_header(good)
         with self.assertRaises(ValueError):
             validate_command_header(good.replace(b"--no-daemon", b"--daemon"))
@@ -288,6 +289,11 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             good.replace(b"> Task :app:testOssReleaseUnitTest\n", b"> Task :app:testOssReleaseUnitTest\n> Task :app:testOssReleaseUnitTest\n"),
             good.replace(b"> Task :app:validateReleaseSurface\n> Task :app:testOssReleaseUnitTest", b"> Task :app:testOssReleaseUnitTest\n> Task :app:validateReleaseSurface"),
             good + b"warning: extra\n",
+            good.replace(b"CAPTURE RUNS\t2\n", b""),
+            good.replace(b"CAPTURE RUNS\t2", b"CAPTURE RUNS\t1"),
+            good.replace(b"CAPTURE RUNS\t2", b"CAPTURE RUNS\t3"),
+            good.replace(b"CAPTURE RUNS\t2\n", b"CAPTURE RUNS\t2\nCAPTURE RUNS\t2\n"),
+            good.replace(b"CAPTURE RUNS\t2\n> Task :app:validateReleaseSurface", b"> Task :app:validateReleaseSurface\nCAPTURE RUNS\t2"),
         ):
             with self.assertRaises(ValueError):
                 validate_command_header(changed)
@@ -404,7 +410,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             "command": list(COMMAND), "environment": EXEC_ENV,
             "className": CLASS_NAME, "methods": sorted(METHODS),
             "junit": {"path": "tasks/test-evidence/m09d-controller-lifecycle/junit.xml", "sanitizerAlgorithm": JUNIT_SANITIZER_ALGORITHM, "sanitizerVersion": JUNIT_SANITIZER_VERSION, "hostnameToken": JUNIT_HOST_TOKEN, "sanitizedSha256": "b" * 64, "rawMaterialInCommittedEvidence": "NOT_RETAINED", "ignoredLocalBuildOutputsRetention": "NOT_PROVEN", "rawTransformationRevalidation": "NOT_POSSIBLE", "executionStartNs": 1, "sourceMtimeNs": 2, "suiteTimestampNs": 2, "executionEndNs": 3, "sourceBirthtimeNs": None, "sourceInode": 1, "newFileProof": "NOT_PROVEN"},
-            "log": {"path": "tasks/test-evidence/m09d-controller-lifecycle/gradle.log", "sha256": "b" * 64, "capture": "DIRECT_SUBPROCESS_STDOUT_STDERR"},
+            "log": {"path": "tasks/test-evidence/m09d-controller-lifecycle/gradle.log", "sha256": "b" * 64, "capture": "DIRECT_SUBPROCESS_STDOUT_STDERR", "captureRuns": 2},
             "compiledTrees": [
                 {"root": "app/build/intermediates/built_in_kotlinc/ossRelease/compileOssReleaseKotlin/classes", "files": 1, "bytes": 1, "digest": "c" * 64},
                 {"root": "app/build/intermediates/built_in_kotlinc/ossReleaseUnitTest/compileOssReleaseUnitTestKotlin/classes", "files": 1, "bytes": 1, "digest": "d" * 64},
@@ -467,6 +473,10 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
         changed = copy.deepcopy(data); changed["log"]["capture"] = "FILE_REUSED"
         with self.assertRaises(ValueError):
             validate_artifact_data(changed, source, verify_current=False)
+        for substituted in (1, 3, True):
+            changed = copy.deepcopy(data); changed["log"]["captureRuns"] = substituted
+            with self.assertRaises(ValueError):
+                validate_artifact_data(changed, source, verify_current=False)
 
         tool_mutations = (
             ("distributionZip", "sha256", "0" * 64),
@@ -936,7 +946,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
                 )
             ]},
             "artifacts": [{"path": path, "sha256": "b" * 64} for path in sorted(C2_PATHS)],
-            "test": {"className": CLASS_NAME, "methods": sorted(METHODS), "tests": 10, "failures": 0, "errors": 0, "skipped": 0, "command": list(COMMAND), "environment": EXEC_ENV},
+            "test": {"className": CLASS_NAME, "methods": sorted(METHODS), "tests": 10, "failures": 0, "errors": 0, "skipped": 0, "captureRuns": 2, "command": list(COMMAND), "environment": EXEC_ENV},
             "claims": {"providerNetwork": "NOT_RUN", "networkDenial": "NOT_PROVEN", "dependencyCacheOrigin": "NOT_PROVEN", "freshnessAdversaryResistance": "NOT_PROVEN", "rawMaterialInCommittedEvidence": "NOT_RETAINED", "ignoredLocalBuildOutputsRetention": "NOT_PROVEN", "rawTransformationRevalidation": "NOT_POSSIBLE", "writableHomeMaterialRetention": "NOT_RETAINED", "postRunLiveRevalidation": "NOT_APPLICABLE", "longPressUi": "NOT_RUN", "device": "NOT_RUN", "physicalPhone": "NOT_RUN", "publicRelease": "NOT_RUN", "aiDeleteUndo": "NOT_AVAILABLE"},
         }
         validate_json_schema(receipt, schema)
@@ -964,6 +974,10 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
         bool_counts = copy.deepcopy(receipt); bool_counts["test"]["failures"] = False
         with self.assertRaisesRegex(ValueError, "exact integers"):
             final_validator.validate_data(bool_counts, receipt_commit="3" * 40)
+        for substituted in (1, 3, True):
+            changed_runs = copy.deepcopy(receipt); changed_runs["test"]["captureRuns"] = substituted
+            with self.assertRaises(ValueError):
+                validate_json_schema(changed_runs, schema)
         for section in ("sourceBinding", "artifacts"):
             changed = copy.deepcopy(receipt)
             if section == "sourceBinding":
