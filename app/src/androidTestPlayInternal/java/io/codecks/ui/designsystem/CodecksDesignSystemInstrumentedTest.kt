@@ -461,6 +461,29 @@ class CodecksDesignSystemInstrumentedTest {
     }
 
     @Test
+    fun streamDeckProRendersAConsoleFaceWithDangerStateSemantics() {
+        rule.setContent {
+            CodecksTheme {
+                DeckControlTile(
+                    label = "Lock Mac",
+                    icon = Icons.Outlined.CheckCircle,
+                    onClick = {},
+                    danger = true,
+                    deckStyle = io.codecks.ui.theme.CodecksDeckStyle.StreamDeckPro,
+                    modifier = Modifier.size(width = 180.dp, height = 120.dp).testTag("console-key"),
+                )
+            }
+        }
+
+        val key = rule.onNodeWithTag("console-key")
+        key.assertHeightIsAtLeast(CodecksDesignTokens.Size.controlTileMinHeight)
+        assertEquals("Confirmation required", key.fetchSemanticsNode().config[SemanticsProperties.StateDescription])
+        rule.onNodeWithTag("deck-console-backplate", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithTag("deck-console-status-light", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithTag("deck-key-state-marker", useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test
     fun customThemeAndReducedMotionOverlayRenderWithoutDecorativeSemantics() {
         val custom = ThemePresetCatalog.default.withColor(
             ThemeColorRole.Primary,

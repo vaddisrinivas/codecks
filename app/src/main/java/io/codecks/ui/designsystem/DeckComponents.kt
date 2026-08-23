@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,6 +26,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Block
@@ -55,8 +61,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
@@ -225,52 +233,72 @@ private fun FlatDeckTile(
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val colors = codecksDeckTileVisual(state, pressed, danger, enabled, accentColor)
+    val semantic = codecksSemanticColorTokens()
     val motionPolicy = LocalCodecksMotionPolicy.current
+    val density = LocalDensity.current
     val shape = MaterialTheme.shapes.large
     val haptics = LocalHapticFeedback.current
     var focused by remember { mutableStateOf(false) }
+    val consoleTreatment = deckStyle == CodecksDeckStyle.StreamDeckPro
     val pressScale by animateFloatAsState(
-        targetValue = if (pressed) CodecksDesignTokens.Motion.pressedScale else CodecksDesignTokens.Motion.restingScale,
-        animationSpec = androidx.compose.animation.core.tween(
+        targetValue = if (!consoleTreatment && pressed) CodecksDesignTokens.Motion.pressedScale else CodecksDesignTokens.Motion.restingScale,
+        animationSpec = tween(
             durationMillis = motionPolicy.duration(
                 if (pressed) CodecksDesignTokens.Motion.pressMillis else CodecksDesignTokens.Motion.stateChangeMillis,
             ),
         ),
         label = "flatDeckTilePressScale",
     )
+    val faceTravelTarget = with(density) {
+        if (consoleTreatment && pressed) CodecksDesignTokens.Spacing.xxs.toPx() else 0f
+    }
+    val faceTravel by animateFloatAsState(
+        targetValue = faceTravelTarget,
+        animationSpec = tween(
+            durationMillis = motionPolicy.duration(
+                if (pressed) CodecksDesignTokens.Motion.pressMillis else CodecksDesignTokens.Motion.stateChangeMillis,
+            ),
+        ),
+        label = "consoleDeckTileFaceTravel",
+    )
+    val runningLightAlpha = if (state == DeckComponentState.Running && motionPolicy.allowsContinuousMotion) {
+        val transition = rememberInfiniteTransition(label = "consoleDeckTileRunning")
+        val alpha by transition.animateFloat(
+            initialValue = CodecksDesignTokens.Opacity.low,
+            targetValue = CodecksDesignTokens.Opacity.full,
+            animationSpec = infiniteRepeatable(
+                animation = tween(CodecksDesignTokens.Motion.screenTransitionMillis * 4),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "consoleDeckTileRunningLight",
+        )
+        alpha
+    } else {
+        when {
+            danger || state == DeckComponentState.Failure -> CodecksDesignTokens.Opacity.emphasized
+            state == DeckComponentState.Succeeded || state == DeckComponentState.Selected -> CodecksDesignTokens.Opacity.high
+            else -> CodecksDesignTokens.Opacity.low
+        }
+    }
     Box(
         modifier = modifier
-            .graphicsLayer {
-                scaleX = pressScale
-                scaleY = pressScale
-                shadowElevation = if (enabled) CodecksDesignTokens.Elevation.medium.toPx() else CodecksDesignTokens.Elevation.flat.toPx()
-                this.shape = shape
-                clip = false
+            .semantics(mergeDescendants = true) {
+                contentDescription = label
+                stateDescription = when {
+                    danger && state == DeckComponentState.Idle -> "Confirmation required"
+                    else -> state.defaultLabel()
+                }
+                role = Role.Button
+                if (!enabled && onLongClick == null) disabled()
             }
-            .clip(shape)
-            .background(colors.container)
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        colors.glow.copy(alpha = colors.glowAlpha),
-                        codecksSemanticColorTokens().transparent,
-                    ),
-                ),
-            )
-            .border(
-                BorderStroke(
-                    if (focused) CodecksDesignTokens.Focus.ringWidth else colors.borderWidth,
-                    if (focused) codecksSemanticColorTokens().focus.copy(alpha = CodecksDesignTokens.Focus.ringAlpha) else colors.border,
-                ),
-                shape,
-            )
             .onFocusChanged { focused = it.isFocused }
-            .focusable(enabled)
+            .focusable(enabled = enabled || onLongClick != null, interactionSource = interactionSource)
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = LocalIndication.current,
                 enabled = (enabled || onLongClick != null) && state != DeckComponentState.Running,
                 role = Role.Button,
+                onClickLabel = if (danger) "Review $label before running" else "Run $label",
                 onClick = {
                     if (enabled) {
                         haptics.performCodecksHaptic(CodecksHapticToken.Confirm)
@@ -286,52 +314,122 @@ private fun FlatDeckTile(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(if (showLabel) CodecksDesignTokens.Spacing.sm else CodecksDesignTokens.Spacing.xxs, Alignment.CenterVertically),
-            modifier = Modifier.fillMaxSize().padding(horizontal = CodecksDesignTokens.Spacing.sm, vertical = CodecksDesignTokens.Spacing.sm),
+        if (consoleTreatment) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(CodecksDesignTokens.Spacing.xxs)
+                    .graphicsLayer {
+                        translationY = CodecksDesignTokens.Spacing.xs.toPx()
+                        shadowElevation = CodecksDesignTokens.Elevation.flat.toPx()
+                        this.shape = shape
+                        clip = true
+                    }
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                semantic.surface,
+                                semantic.canvas,
+                            ),
+                        ),
+                    )
+                    .border(
+                        BorderStroke(CodecksDesignTokens.Stroke.hairline, colors.border.copy(alpha = CodecksDesignTokens.Opacity.disabled)),
+                        shape,
+                    )
+                    .testTag("deck-console-backplate"),
+            )
+        }
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (consoleTreatment) Modifier.padding(CodecksDesignTokens.Spacing.xxs) else Modifier)
+                .graphicsLayer {
+                    scaleX = pressScale
+                    scaleY = pressScale
+                    translationY = faceTravel
+                    shadowElevation = if (enabled && !pressed) CodecksDesignTokens.Elevation.medium.toPx() else CodecksDesignTokens.Elevation.low.toPx()
+                    this.shape = shape
+                    clip = false
+                }
+                .clip(shape)
+                .background(colors.container)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            colors.glow.copy(alpha = colors.glowAlpha),
+                            semantic.transparent,
+                        ),
+                    ),
+                )
+                .border(
+                    BorderStroke(
+                        if (focused) CodecksDesignTokens.Focus.ringWidth else colors.borderWidth,
+                        if (focused) semantic.focus.copy(alpha = CodecksDesignTokens.Focus.ringAlpha) else colors.border,
+                    ),
+                    shape,
+                ),
         ) {
-            if (icon != null) Surface(
-                color = colors.iconContainer,
-                contentColor = colors.icon,
-                shape = MaterialTheme.shapes.medium,
-                border = if (deckStyle == CodecksDeckStyle.NothingMonoDeck) {
-                    BorderStroke(CodecksDesignTokens.Stroke.hairline, colors.border.copy(alpha = CodecksDesignTokens.Opacity.muted))
-                } else {
-                    null
-                },
-                modifier = Modifier.size(if (showLabel) CodecksDesignTokens.Size.deckIconContainer else CodecksDesignTokens.Size.deckIconContainerLarge),
-                shadowElevation = CodecksDesignTokens.Elevation.flat,
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(if (showLabel) CodecksDesignTokens.Spacing.sm else CodecksDesignTokens.Spacing.xxs, Alignment.CenterVertically),
+                modifier = Modifier.fillMaxSize().padding(horizontal = CodecksDesignTokens.Spacing.sm, vertical = CodecksDesignTokens.Spacing.sm),
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = colors.icon,
-                        modifier = Modifier
-                            .size(if (showLabel) CodecksDesignTokens.Size.deckGlyph else CodecksDesignTokens.Size.deckGlyphLarge)
-                            .testTag("deck-control-icon"),
+                if (icon != null) Surface(
+                    color = colors.iconContainer,
+                    contentColor = colors.icon,
+                    shape = MaterialTheme.shapes.medium,
+                    border = if (deckStyle == CodecksDeckStyle.NothingMonoDeck) {
+                        BorderStroke(CodecksDesignTokens.Stroke.hairline, colors.border.copy(alpha = CodecksDesignTokens.Opacity.muted))
+                    } else {
+                        null
+                    },
+                    modifier = Modifier.size(if (showLabel) CodecksDesignTokens.Size.deckIconContainer else CodecksDesignTokens.Size.deckIconContainerLarge),
+                    shadowElevation = CodecksDesignTokens.Elevation.flat,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = colors.icon,
+                            modifier = Modifier
+                                .size(if (showLabel) CodecksDesignTokens.Size.deckGlyph else CodecksDesignTokens.Size.deckGlyphLarge)
+                                .testTag("deck-control-icon"),
+                        )
+                    }
+                }
+                if (showLabel) {
+                    Text(
+                        text = label,
+                        color = colors.content,
+                        style = MaterialTheme.typography.labelSmall,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
-            if (showLabel) {
-                Text(
-                    text = label,
-                    color = colors.content,
-                    style = MaterialTheme.typography.labelSmall,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth(),
+            if (consoleTreatment) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth(CodecksDesignTokens.Opacity.disabled)
+                        .padding(top = CodecksDesignTokens.Spacing.xs)
+                        .height(CodecksDesignTokens.Stroke.emphasized)
+                        .clip(CircleShape)
+                        .background(colors.glow.copy(alpha = runningLightAlpha))
+                        .testTag("deck-console-status-light"),
                 )
             }
-        }
-        if (state != DeckComponentState.Idle && state != DeckComponentState.Disabled) {
-            DeckKeyStateMarker(
-                state = state.toDeckKeyVisualState(),
-                dangerous = danger,
-                modifier = Modifier.align(Alignment.TopEnd).padding(CodecksDesignTokens.Spacing.sm),
-            )
+            if ((state != DeckComponentState.Idle && state != DeckComponentState.Disabled) || danger) {
+                DeckKeyStateMarker(
+                    state = state.toDeckKeyVisualState(),
+                    dangerous = danger,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(CodecksDesignTokens.Spacing.sm),
+                )
+            }
         }
     }
 }

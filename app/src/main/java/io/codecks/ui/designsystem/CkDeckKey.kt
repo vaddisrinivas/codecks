@@ -360,6 +360,7 @@ fun DeckKeyStateMarker(
     val markerIcon = when {
         state == DeckKeyVisualState.Success -> Icons.Outlined.CheckCircle
         state == DeckKeyVisualState.Failure -> Icons.Outlined.ErrorOutline
+        dangerous && state == DeckKeyVisualState.Idle -> Icons.Outlined.PriorityHigh
         state == DeckKeyVisualState.Waiting || state == DeckKeyVisualState.DangerousArmed -> Icons.Outlined.PriorityHigh
         else -> null
     }
@@ -368,7 +369,7 @@ fun DeckKeyStateMarker(
         color = deckKeyStateColor(state, dangerous).copy(alpha = CodecksDesignTokens.Focus.ringAlpha),
         contentColor = codecksSemanticColorTokens().canvas,
         shape = CircleShape,
-        modifier = modifier.size(CodecksDesignTokens.Size.stateMarker),
+        modifier = modifier.size(CodecksDesignTokens.Size.stateMarker).testTag("deck-key-state-marker"),
         shadowElevation = CodecksDesignTokens.Elevation.flat,
     ) {
         Icon(

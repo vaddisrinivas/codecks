@@ -1,6 +1,10 @@
 package io.codecks
 
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
@@ -12,11 +16,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation3.runtime.NavKey
 import io.codecks.domain.ActionKind
 import io.codecks.domain.ActionStatus
 import io.codecks.domain.DeckAction
 import io.codecks.domain.LocalActionResult
+import io.codecks.core.design.CodecksHapticToken
+import io.codecks.ui.designsystem.performCodecksHaptic
 import io.codecks.ui.app.LocalActionDispatcher
 import io.codecks.ui.automations.AutomationsUiState
 import io.codecks.ui.automations.AutomationsViewModel
@@ -60,6 +67,22 @@ internal data class AppActionRuntime(
     val clearCelebration: () -> Unit,
 )
 
+internal data class DangerousActionConfirmationCopy(
+    val title: String,
+    val body: String,
+    val confirmLabel: String,
+)
+
+internal fun dangerousActionConfirmationCopy(action: DeckAction): DangerousActionConfirmationCopy =
+    DangerousActionConfirmationCopy(
+        title = action.confirmationTitle?.trim()?.takeIf(String::isNotEmpty) ?: "Run ${action.label}?",
+        body = action.confirmationBody?.trim()?.takeIf(String::isNotEmpty)
+            ?: action.riskReason?.trim()?.takeIf(String::isNotEmpty)
+            ?: action.description.trim().takeIf(String::isNotEmpty)
+            ?: "This button requires confirmation before it runs.",
+        confirmLabel = "Run ${action.label}",
+    )
+
 @Composable
 internal fun rememberAppActionRuntime(context: AppActionContext): AppActionRuntime {
     var pendingDangerousAction by remember { mutableStateOf<DeckAction?>(null) }
@@ -68,6 +91,7 @@ internal fun rememberAppActionRuntime(context: AppActionContext): AppActionRunti
     val currentNavigate by rememberUpdatedState(context.navigate)
     val currentMacInputConnected by rememberUpdatedState(context.macInputConnected)
     val currentMacCommandsReady by rememberUpdatedState(context.macCommandsReady)
+    val haptics = LocalHapticFeedback.current
     val localActionDispatcher = remember(context.hidRepository, context.scope, context.snackbarHostState) {
         LocalActionDispatcher(
             onTrackpad = { currentNavigate(MouseRoute, true) },
@@ -204,20 +228,29 @@ internal fun rememberAppActionRuntime(context: AppActionContext): AppActionRunti
     }
 
     pendingDangerousAction?.let { action ->
+        val copy = dangerousActionConfirmationCopy(action)
         AlertDialog(
             onDismissRequest = {
                 pendingDangerousAction = null
                 context.smartDeckViewModel?.cancelDangerousSuggestion()
             },
-            title = { Text(action.label) },
-            text = { Text(action.description) },
+            icon = {
+                Icon(
+                    imageVector = Icons.Outlined.WarningAmber,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            },
+            title = { Text(copy.title) },
+            text = { Text(copy.body) },
             confirmButton = {
                 TextButton(onClick = {
+                    haptics.performCodecksHaptic(CodecksHapticToken.Confirm)
                     val smart = context.smartDeckViewModel?.pendingDangerousSuggestion?.value != null
                     pendingDangerousAction = null
                     if (smart) context.smartDeckViewModel.confirmDangerousSuggestion()
                     else execute(action, true)
-                }) { Text("Run") }
+                }) { Text(copy.confirmLabel) }
             },
             dismissButton = {
                 TextButton(onClick = {
