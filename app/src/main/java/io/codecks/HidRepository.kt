@@ -287,6 +287,16 @@ class DefaultHidRepository @Inject constructor(
     }
     override fun send(command: HidCommand) {
         if (_state.value.inputAccess != HidInputAccess.Full) return
+        sendUnchecked(command)
+    }
+    override fun sendRestrictedMedia(command: HidCommand): Boolean {
+        if (_state.value.inputAccess != HidInputAccess.PointerOnly || !_state.value.isConnected || !command.isRestrictedMediaCommand()) {
+            return false
+        }
+        sendUnchecked(command)
+        return true
+    }
+    private fun sendUnchecked(command: HidCommand) {
         when (command) {
             HidCommand.Copy -> key(HidReports.MOD_GUI, HidReports.KEY_C)
             HidCommand.Paste -> key(HidReports.MOD_GUI, HidReports.KEY_V)

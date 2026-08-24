@@ -55,6 +55,10 @@ import androidx.compose.ui.unit.dp
 import io.codecks.domain.ActionStatus
 import io.codecks.core.design.CodecksDesignTokens
 import io.codecks.domain.DeckAction
+import io.codecks.domain.contextdeck.AppDeckOffer
+import io.codecks.domain.contextdeck.AnalogControlKind
+import io.codecks.domain.contextdeck.ContextDeckPolicy
+import io.codecks.domain.device.DeviceId
 import io.codecks.domain.deck.DeckLayout
 import io.codecks.ui.home.smart.SmartDeckSuggestionUi
 import io.codecks.ui.designsystem.DeckComponentState
@@ -104,6 +108,20 @@ fun HomeScreen(
     onExplainSmartSuggestion: (SmartDeckSuggestionUi) -> Unit = {},
     onSuppressSmartSuggestionForContext: (SmartDeckSuggestionUi) -> Unit = {},
     onNeverSmartSuggestionForAction: (SmartDeckSuggestionUi) -> Unit = {},
+    onApplyAppDeckOffer: () -> Unit = {},
+    onDismissAppDeckOffer: () -> Unit = {},
+    onSetAnalogControl: (AnalogControlKind, Int) -> Unit = { _, _ -> },
+    onModifierLayerPressed: (Boolean) -> Unit = {},
+    onRefreshWindowSpaceMap: () -> Unit = {},
+    onFocusWindow: (String) -> Unit = {},
+    onRefreshMacTargets: () -> Unit = {},
+    onRunOnTargets: (DeckAction, List<DeviceId>, Boolean) -> Unit = { _, _, _ -> },
+    onStartWorkflowRecording: () -> Unit = {},
+    onStopWorkflowRecording: () -> Unit = {},
+    onRenameWorkflowDraft: (String) -> Unit = {},
+    onRemoveWorkflowDraftStep: (Int) -> Unit = {},
+    onDiscardWorkflowDraft: () -> Unit = {},
+    onPickFileDrop: (DeviceId) -> Unit = {},
     onPlacePendingDeckPlacement: (List<Int>) -> Unit = {},
     onCancelPendingDeckPlacement: () -> Unit = {},
     onRemoveSlot: (Int) -> Unit = { slot ->
@@ -113,8 +131,14 @@ fun HomeScreen(
     deckStyle: CodecksDeckStyle = CodecksDeckStyle.StreamDeckPro,
     modifier: Modifier = Modifier,
 ) {
-    val renderLayout = remember(state.deckLayout, state.actions) {
-        state.deckLayout.takeIf { it.slots.isNotEmpty() } ?: DeckLayout.fromActions(state.actions)
+    val renderLayout = remember(state.deckLayout, state.actions, state.modifierLayer, state.pressedModifierActionId) {
+        val baseLayout = state.deckLayout.takeIf { it.slots.isNotEmpty() } ?: DeckLayout.fromActions(state.actions)
+        val visibleActions = ContextDeckPolicy.actionsForLayer(
+            base = baseLayout.actions,
+            layer = state.modifierLayer,
+            pressedModifierActionId = state.pressedModifierActionId,
+        )
+        if (visibleActions == baseLayout.actions) baseLayout else DeckLayout.fromActions(visibleActions)
     }
     val deckActionSlots = remember(renderLayout, visibleSlotIndices) {
         buildHomeDeckSlots(renderLayout, visibleSlotIndices)
@@ -130,6 +154,9 @@ fun HomeScreen(
     var customizationMode by rememberSaveable { mutableStateOf(false) }
     var pendingForgetAction by remember { mutableStateOf<DeckAction?>(null) }
     var selectedPlacementSlots by remember { mutableStateOf<List<Int>>(emptyList()) }
+    var contextToolsOpen by rememberSaveable { mutableStateOf(false) }
+    var handoffAction by remember { mutableStateOf<DeckAction?>(null) }
+    var selectedHandoffTargets by remember { mutableStateOf<List<DeviceId>>(emptyList()) }
     val availableActions = remember(state.allActions) {
         state.allActions.filterNot { it.id in bottomNavShortcutIds || it.id in OPEN_SLOT_IDS }
     }
@@ -244,6 +271,10 @@ fun HomeScreen(
             else -> activeTemplateTitle(state.activeTemplateId, state.deckTemplates)
         },
         activeApp = state.activeMacApp,
+        appDeckOffer = state.appDeckOffer,
+        liveSignals = state.liveSignals,
+        analogControls = state.analogControls,
+        contextDeckStatus = state.contextDeckStatus,
         connectionHealth = connectionHealth,
         slots = deckActionSlots,
         runningActionId = runningActionId,
@@ -267,6 +298,21 @@ fun HomeScreen(
         onExplainSmartSuggestion = onExplainSmartSuggestion,
         onSuppressSmartSuggestionForContext = onSuppressSmartSuggestionForContext,
         onNeverSmartSuggestionForAction = onNeverSmartSuggestionForAction,
+        onApplyAppDeckOffer = onApplyAppDeckOffer,
+        onDismissAppDeckOffer = onDismissAppDeckOffer,
+        onSetAnalogControl = onSetAnalogControl,
+        modifierLayerAvailable = state.modifierLayer != null,
+        modifierLayerActive = state.pressedModifierActionId != null,
+        onModifierLayerPressed = onModifierLayerPressed,
+        workflowRecording = state.workflowRecording.recording,
+        onToggleWorkflowRecording = {
+            if (state.workflowRecording.recording) onStopWorkflowRecording() else onStartWorkflowRecording()
+        },
+        onOpenContextTools = {
+            contextToolsOpen = true
+            onRefreshWindowSpaceMap()
+            onRefreshMacTargets()
+        },
         onOpenOptions = { slot ->
             if (shouldShowActionOptions(slot.action, locked = false)) optionsSlot = slot
         },
@@ -343,6 +389,12 @@ fun HomeScreen(
                 optionsSlot = null
                 onOpenRunLog(action.id)
             },
+            onRunOnMacs = {
+                optionsSlot = null
+                selectedHandoffTargets = emptyList()
+                handoffAction = action
+                onRefreshMacTargets()
+            },
         )
     }
     if (resizingSlot >= 0) {
@@ -399,12 +451,57 @@ fun HomeScreen(
             },
         )
     }
+    if (contextToolsOpen) {
+        ContextDeckToolsDialog(
+            windowSpaceMap = state.windowSpaceMap,
+            windowSpaceStatus = state.windowSpaceStatus,
+            workflowRecording = state.workflowRecording,
+            workflowDraft = state.workflowDraft,
+            targets = state.availableMacTargets,
+            onRefreshWindows = onRefreshWindowSpaceMap,
+            onFocusWindow = onFocusWindow,
+            onStartRecording = onStartWorkflowRecording,
+            onStopRecording = onStopWorkflowRecording,
+            onRenameDraft = onRenameWorkflowDraft,
+            onRemoveDraftStep = onRemoveWorkflowDraftStep,
+            onDiscardDraft = onDiscardWorkflowDraft,
+            onPickFileDrop = onPickFileDrop,
+            onDismiss = { contextToolsOpen = false },
+        )
+    }
+    handoffAction?.let { action ->
+        MultiMacHandoffDialog(
+            action = action,
+            targets = state.availableMacTargets,
+            selectedTargetIds = selectedHandoffTargets,
+            onTargetToggle = { targetId ->
+                selectedHandoffTargets = if (targetId in selectedHandoffTargets) {
+                    selectedHandoffTargets - targetId
+                } else {
+                    selectedHandoffTargets + targetId
+                }
+            },
+            onRun = {
+                onRunOnTargets(action, selectedHandoffTargets, selectedHandoffTargets.size > 1)
+                handoffAction = null
+                selectedHandoffTargets = emptyList()
+            },
+            onDismiss = {
+                handoffAction = null
+                selectedHandoffTargets = emptyList()
+            },
+        )
+    }
 }
 
 @Composable
 private fun CodecksKeybedDeck(
     activeDeckLabel: String,
     activeApp: String?,
+    appDeckOffer: AppDeckOffer?,
+    liveSignals: List<io.codecks.domain.contextdeck.LiveSignal>,
+    analogControls: List<io.codecks.domain.contextdeck.AnalogControl>,
+    contextDeckStatus: String?,
     connectionHealth: ConnectionHealth,
     slots: List<HomeDeckSlot>,
     runningActionId: String?,
@@ -425,6 +522,15 @@ private fun CodecksKeybedDeck(
     onExplainSmartSuggestion: (SmartDeckSuggestionUi) -> Unit,
     onSuppressSmartSuggestionForContext: (SmartDeckSuggestionUi) -> Unit,
     onNeverSmartSuggestionForAction: (SmartDeckSuggestionUi) -> Unit,
+    onApplyAppDeckOffer: () -> Unit,
+    onDismissAppDeckOffer: () -> Unit,
+    onSetAnalogControl: (AnalogControlKind, Int) -> Unit,
+    modifierLayerAvailable: Boolean,
+    modifierLayerActive: Boolean,
+    onModifierLayerPressed: (Boolean) -> Unit,
+    workflowRecording: Boolean,
+    onToggleWorkflowRecording: () -> Unit,
+    onOpenContextTools: () -> Unit,
     onOpenOptions: (HomeDeckSlot) -> Unit,
     movingFromSlot: Int?,
     onMoveTarget: (HomeDeckSlot) -> Unit,
@@ -457,13 +563,19 @@ private fun CodecksKeybedDeck(
         val suggestionHeight = if (smartSuggestions.isNotEmpty()) {
             if (largeText) CodecksDesignTokens.Size.HomeDeck.suggestionRowHeightLargeText else 104.dp
         } else 0.dp
+        val appOfferHeight = if (appDeckOffer != null) {
+            if (largeText) 112.dp else 62.dp
+        } else 0.dp
+        val liveRailHeight = if (modifierLayerAvailable || liveSignals.isNotEmpty() || analogControls.isNotEmpty() || contextDeckStatus != null) {
+            if (largeText) 164.dp else 118.dp
+        } else 0.dp
         val gapX = when {
             maxWidth >= 900.dp -> 12.dp
             maxWidth >= 600.dp -> 10.dp
             else -> 6.dp
         }
         val usableWidth = (maxWidth - framePadding * 2f).coerceAtLeast(280.dp)
-        val usableHeight = (maxHeight - framePadding * 2f - headerHeight - suggestionHeight - 8.dp).coerceAtLeast(280.dp)
+        val usableHeight = (maxHeight - framePadding * 2f - headerHeight - suggestionHeight - appOfferHeight - liveRailHeight - 8.dp).coerceAtLeast(280.dp)
         val keyWidth = ((usableWidth - gapX * (deckColumns - 1).toFloat()) / deckColumns.toFloat()).coerceAtLeast(68.dp)
         val gapY = when {
             maxHeight >= 900.dp -> 12.dp
@@ -523,6 +635,20 @@ private fun CodecksKeybedDeck(
                                 onClick = {
                                     deckMenuExpanded = false
                                     onCustomizationModeChange(!customizationMode)
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(if (workflowRecording) "Stop workflow recording" else "Record workflow") },
+                                onClick = {
+                                    deckMenuExpanded = false
+                                    onToggleWorkflowRecording()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Context tools") },
+                                onClick = {
+                                    deckMenuExpanded = false
+                                    onOpenContextTools()
                                 },
                             )
                         }
@@ -592,6 +718,20 @@ private fun CodecksKeybedDeck(
                                 onCustomizationModeChange(!customizationMode)
                             },
                         )
+                        DropdownMenuItem(
+                            text = { Text(if (workflowRecording) "Stop workflow recording" else "Record workflow") },
+                            onClick = {
+                                deckMenuExpanded = false
+                                onToggleWorkflowRecording()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Context tools") },
+                            onClick = {
+                                deckMenuExpanded = false
+                                onOpenContextTools()
+                            },
+                        )
                     }
                 }
                 Surface(
@@ -628,6 +768,24 @@ private fun CodecksKeybedDeck(
                 onWhy = onExplainSmartSuggestion,
                 onSuppressForContext = onSuppressSmartSuggestionForContext,
                 onNeverForAction = onNeverSmartSuggestionForAction,
+                modifier = Modifier.width(keybedWidth),
+            )
+            appDeckOffer?.let { offer ->
+                AppDeckOfferCard(
+                    offer = offer,
+                    onApply = onApplyAppDeckOffer,
+                    onDismiss = onDismissAppDeckOffer,
+                    modifier = Modifier.width(keybedWidth),
+                )
+            }
+            ContextDeckLiveRail(
+                signals = liveSignals,
+                controls = analogControls,
+                statusMessage = contextDeckStatus,
+                onCommit = onSetAnalogControl,
+                modifierLayerAvailable = modifierLayerAvailable,
+                modifierLayerActive = modifierLayerActive,
+                onModifierLayerPressed = onModifierLayerPressed,
                 modifier = Modifier.width(keybedWidth),
             )
             Column(

@@ -116,31 +116,6 @@ import io.codecks.ui.home.smart.SmartDeckViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 
-internal fun Throwable.rethrowIfCancellationOrFatalForUi() {
-    when (this) {
-        is kotlinx.coroutines.CancellationException,
-        is VirtualMachineError,
-        is ThreadDeath,
-        is LinkageError,
-        -> throw this
-    }
-}
-
-internal fun Map<FeatureFlag, Boolean>.focusedEnabled(flag: FeatureFlag): Boolean =
-    this[flag] ?: (DEFAULT_FEATURE_FLAGS[flag] == true)
-
-private fun DeckAction.visibleForFlags(flags: Map<FeatureFlag, Boolean>): Boolean = when (kind) {
-    ActionKind.Ssh -> true
-    ActionKind.Local -> id in setOf("add_button", "blank", "blank_spacer", "magic_blank", "confetti", "sparkle", "emoji_heart", "emoji_fire", "emoji_focus", "emoji_coffee") ||
-        route in setOf("trackpad", "automations", "ai", "button_picker", "empty_slot", "layout_builder", "celebrate", "decor") ||
-        (route in setOf("keyboard", "text") && flags.focusedEnabled(FeatureFlag.Keyboard)) ||
-        (route == "clipboard" && flags.focusedEnabled(FeatureFlag.Clipboard)) ||
-        (id == "clipboard" && flags.focusedEnabled(FeatureFlag.Clipboard)) ||
-        (route == "settings" && flags.focusedEnabled(FeatureFlag.Settings)) ||
-        (route == "setup_scan" && flags.focusedEnabled(FeatureFlag.Connection)) ||
-        false
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CodecksApp(
@@ -339,24 +314,16 @@ internal fun CodecksApp(
         } else {
             null
         }
-    LaunchedEffect(
-        smartSelectedMacId,
-        runtimeReadiness.macCommandsReady,
-        hidState.isConnected,
-        homeState.activeMacApp,
-    ) {
-        reactiveMacStateRepository?.update(
-            LiveMacStateInputs(
-                selectedMacId = smartSelectedMacId?.value,
-                macCommandsReady = runtimeReadiness.macCommandsReady,
-                macInputConnected = hidState.isConnected,
-                activeMacApp = homeState.activeMacApp,
-            ),
-        )
-    }
-    LaunchedEffect(currentRoute, reactiveTrackpadEnabled) {
-        reactiveTrackpadViewModel?.setVisible(reactiveTrackpadEnabled && currentRoute == MouseRoute)
-    }
+    AppContextEffects(
+        reactiveInputs = listOf(smartSelectedMacId, runtimeReadiness.macCommandsReady, hidState.isConnected, homeState.activeMacApp),
+        reactiveTrackpadVisible = reactiveTrackpadEnabled && currentRoute == MouseRoute,
+        contextDeckPolling = currentRoute == HomeRoute && homeState.connectionReady,
+        updateReactiveInputs = { reactiveMacStateRepository?.update(LiveMacStateInputs(smartSelectedMacId?.value, runtimeReadiness.macCommandsReady, hidState.isConnected, homeState.activeMacApp)) },
+        setReactiveTrackpadVisible = { reactiveTrackpadViewModel?.setVisible(it) },
+        refreshContextDeck = {
+            homeViewModel.refreshContextDeckLiveState()
+        },
+    )
     val smartSuggestions by (smartDeckViewModel?.suggestions ?: flowOf(emptyList())).collectAsStateWithLifecycle(emptyList())
     val smartRunPending by (smartDeckViewModel?.runPending ?: flowOf(false)).collectAsStateWithLifecycle(false)
     LaunchedEffect(
@@ -492,6 +459,7 @@ internal fun CodecksApp(
         )
     }
     Box(modifier = Modifier.fillMaxSize()) {
+        val openFileDrop = rememberFileDropLauncher(appContext, connectionRepository, scope, snackbarHostState)
         CodecksAppShell(
             snackbarHostState = snackbarHostState,
             currentRoute = currentRoute,
@@ -581,6 +549,22 @@ internal fun CodecksApp(
                             onNeverSmartSuggestionForAction = { suggestion ->
                                 smartDeckViewModel?.never(suggestion)
                             },
+                            onApplyAppDeckOffer = homeViewModel::applyAppDeckOffer,
+                            onDismissAppDeckOffer = homeViewModel::dismissAppDeckOffer,
+                            onSetAnalogControl = homeViewModel::setAnalogControl,
+                            onModifierLayerPressed = homeViewModel::setModifierLayerPressed,
+                            onRefreshWindowSpaceMap = homeViewModel::refreshWindowSpaceMap,
+                            onFocusWindow = homeViewModel::focusWindow,
+                            onRefreshMacTargets = homeViewModel::refreshMacTargets,
+                            onRunOnTargets = { action, targets, confirmed ->
+                                homeViewModel.runOnTargets(action, targets, confirmed)
+                            },
+                            onStartWorkflowRecording = homeViewModel::startWorkflowRecording,
+                            onStopWorkflowRecording = homeViewModel::stopWorkflowRecording,
+                            onRenameWorkflowDraft = homeViewModel::renameWorkflowDraft,
+                            onRemoveWorkflowDraftStep = homeViewModel::removeWorkflowDraftStep,
+                            onDiscardWorkflowDraft = homeViewModel::discardWorkflowDraft,
+                            onPickFileDrop = openFileDrop,
                             focusedActionId = focusedDeckActionId,
                             deckStyle = themeSettings.deckStyle,
                         )
@@ -999,22 +983,3 @@ internal fun CodecksApp(
         }
     }
 }
-
-internal enum class AiArtifactPlacementRoute { AUTOMATION, DECK }
-
-internal fun routeAiArtifactPlacement(
-    artifact: io.codecks.domain.ai.AiArtifact,
-    preferredDeckSlot: Int?,
-    saveAutomation: (io.codecks.domain.ai.AiArtifact) -> Boolean,
-    placeOnDeck: (io.codecks.domain.ai.AiArtifact, Int?) -> Unit,
-    onAutomationSaved: () -> Unit,
-    onDeckPlacementRequested: () -> Unit,
-): AiArtifactPlacementRoute =
-    if (saveAutomation(artifact)) {
-        onAutomationSaved()
-        AiArtifactPlacementRoute.AUTOMATION
-    } else {
-        placeOnDeck(artifact, preferredDeckSlot)
-        onDeckPlacementRequested()
-        AiArtifactPlacementRoute.DECK
-    }

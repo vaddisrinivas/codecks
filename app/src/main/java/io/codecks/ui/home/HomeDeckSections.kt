@@ -1,6 +1,7 @@
 package io.codecks.ui.home
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,21 +39,29 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import io.codecks.core.design.CodecksDesignTokens
 import io.codecks.domain.ActionKind
 import io.codecks.domain.CommandOrigin
@@ -60,6 +69,12 @@ import io.codecks.domain.DeckAction
 import io.codecks.domain.isRunnableFromSmartSuggestion
 import io.codecks.domain.deck.DeckLayout
 import io.codecks.domain.deck.DeckTemplate
+import io.codecks.domain.contextdeck.AppDeckOffer
+import io.codecks.domain.contextdeck.AnalogControl
+import io.codecks.domain.contextdeck.AnalogControlKind
+import io.codecks.domain.contextdeck.LiveSignal
+import io.codecks.domain.contextdeck.LiveSignalValue
+import io.codecks.domain.reactive.ObservationStatus
 import io.codecks.ui.home.smart.SmartDeckSuggestionUi
 import io.codecks.ui.designsystem.DeckComponentState
 import io.codecks.ui.designsystem.DeckControlTile
@@ -70,6 +85,7 @@ import io.codecks.ui.designsystem.codecksSemanticColorTokens
 import io.codecks.ui.icons.deckImageVector
 import io.codecks.ui.icons.deckImageVectorOrNull
 import io.codecks.ui.icons.imageVector
+import io.codecks.ui.theme.LocalCodecksSemanticColors
 
 @Composable
 internal fun SmartSuggestionRow(
@@ -108,13 +124,13 @@ internal fun SmartSuggestionRow(
                     .semantics { heading() },
             ) {
                 Text(
-                    text = "Suggested",
+                    text = "Context",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "Local only",
+                    text = "3 local predictions",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -204,6 +220,52 @@ internal fun SmartSuggestionRow(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun AppDeckOfferCard(
+    offer: AppDeckOffer,
+    onApply: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = CodecksDesignTokens.Opacity.emphasized),
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        border = BorderStroke(
+            CodecksDesignTokens.Stroke.hairline,
+            MaterialTheme.colorScheme.primary.copy(alpha = CodecksDesignTokens.Opacity.soft),
+        ),
+        shape = MaterialTheme.shapes.large,
+        modifier = modifier.testTag("app-deck-offer"),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = CodecksDesignTokens.Spacing.md, vertical = CodecksDesignTokens.Spacing.xs),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "${offer.templateTitle} Deck for ${offer.appName}",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "Offered only · your Deck stays put",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = CodecksDesignTokens.Opacity.muted),
+                )
+            }
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = CodecksDesignTokens.Size.minTouchTarget)) {
+                Text("Not now")
+            }
+            TextButton(onClick = onApply, modifier = Modifier.heightIn(min = CodecksDesignTokens.Size.minTouchTarget)) {
+                Text("Use Deck")
             }
         }
     }
@@ -641,6 +703,7 @@ internal fun ActionOptionsDialog(
     onRemoveFromDeck: () -> Unit,
     onForget: () -> Unit,
     onViewLog: () -> Unit,
+    onRunOnMacs: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -657,6 +720,9 @@ internal fun ActionOptionsDialog(
                     )
                 }
                 item { DialogActionButton("Run", onRun) }
+                if (action.kind == ActionKind.Ssh) {
+                    item { DialogActionButton("Run on Mac…", onRunOnMacs) }
+                }
                 item { DialogActionButton("Reassign this slot", onReassign) }
                 item { DialogActionButton("Move this button", onMove) }
                 item { DialogActionButton("Resize this button", onResize) }

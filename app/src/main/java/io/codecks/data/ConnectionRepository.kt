@@ -157,6 +157,7 @@ interface ConnectionRepository {
     suspend fun runReviewedCommandOnTarget(targetId: String, command: String): Result<String> =
         runCommandOnTarget(targetId, command)
     suspend fun runBundledCommand(command: String): Result<String> = runCommand(command)
+    suspend fun runBundledCommandRaw(command: String): Result<String> = runBundledCommand(command)
     suspend fun runBundledCommandOnTarget(targetId: String, command: String): Result<String> =
         runCommandOnTarget(targetId, command)
     suspend fun runSftpTransferOnTarget(targetId: String, request: SafeSftpTransferRequest): Result<String> =
@@ -490,6 +491,19 @@ class DefaultConnectionRepository @Inject constructor(
             val result = runSsh(current, null, readPrivateKey(), command)
             check(result.isSuccess) { result.summary }
             result.summary
+        }
+    }
+
+    override suspend fun runBundledCommandRaw(command: String): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val current = currentConfig()
+            terminalProofExecutionGuard.requireVerified(current)
+            require(current.isReady) { "Connect your Mac first" }
+            require(command.isNotBlank()) { "Command is empty" }
+            RawCommandPolicy.requireAllowed(command)
+            val result = runSsh(current, null, readPrivateKey(), command)
+            check(result.isSuccess) { result.summary }
+            result.stdout.trim()
         }
     }
 

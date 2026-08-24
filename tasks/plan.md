@@ -1208,3 +1208,9 @@ eligibility, production-access approval, and policy review are external.
 The implementation program is done when T01–T25 and all checkpoints have
 evidence. Account, sync, Billing, premium enforcement, and ads still remain off.
 T26 is not automatic execution: each surface may remain disabled indefinitely.
+
+## Product expansion addendum
+
+The approved Context Deck product expansion is specified separately in
+[`CONTEXT_DECK_PLAN.md`](CONTEXT_DECK_PLAN.md). It does not activate commercial
+surfaces or weaken any release, transport, lock-screen, signer, or no-shrink gate.

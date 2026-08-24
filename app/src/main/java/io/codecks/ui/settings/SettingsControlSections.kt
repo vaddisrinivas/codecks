@@ -186,8 +186,13 @@ internal fun TrackpadSettingsPanel(
                 checked = settings.lockscreenTrackpadEnabled,
                 onCheckedChange = { value -> onChange { it.copy(lockscreenTrackpadEnabled = value) } },
             )
+            SettingSwitch(
+                label = "Lockscreen Mini Deck",
+                checked = settings.lockscreenMiniDeckEnabled,
+                onCheckedChange = { value -> onChange { it.copy(lockscreenMiniDeckEnabled = value) } },
+            )
             Text(
-                "Only works after Trackpad is already connected and this toggle is on. While locked, Codecks never reconnects HID or exposes keyboard, deck, settings, or SSH.",
+                "Only works after Trackpad is already connected. Mini Deck exposes only play/pause, mute, and volume. Codecks never reconnects HID or exposes keyboard, custom Deck actions, settings, or SSH while locked.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

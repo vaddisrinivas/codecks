@@ -31,6 +31,7 @@ data class TrackpadSettings(
     val hapticsEnabled: Boolean = true,
     val pointerTraceEnabled: Boolean = false,
     val lockscreenTrackpadEnabled: Boolean = false,
+    val lockscreenMiniDeckEnabled: Boolean = false,
     val quietModeEnabled: Boolean = true,
     val idleBlankTimeoutMillis: Int = 120_000,
     val backgroundOpacity: Float = 0.48f,
@@ -108,6 +109,7 @@ class TrackpadSettingsRepository @Inject constructor(
             hapticsEnabled = preferences[HAPTICS_ENABLED] ?: true,
             pointerTraceEnabled = preferences[POINTER_TRACE_ENABLED] ?: false,
             lockscreenTrackpadEnabled = preferences[LOCKSCREEN_TRACKPAD_ENABLED] ?: false,
+            lockscreenMiniDeckEnabled = preferences[LOCKSCREEN_MINI_DECK_ENABLED] ?: false,
             quietModeEnabled = preferences[QUIET_MODE_ENABLED] ?: true,
             idleBlankTimeoutMillis = preferences[IDLE_BLANK_TIMEOUT_MS]?.coerceIn(30_000, 600_000) ?: 120_000,
             backgroundOpacity = preferences[BACKGROUND_OPACITY]?.coerceIn(0.05f, 0.72f) ?: 0.48f,
@@ -157,6 +159,7 @@ class TrackpadSettingsRepository @Inject constructor(
                 hapticsEnabled = preferences[HAPTICS_ENABLED] ?: true,
                 pointerTraceEnabled = preferences[POINTER_TRACE_ENABLED] ?: false,
                 lockscreenTrackpadEnabled = preferences[LOCKSCREEN_TRACKPAD_ENABLED] ?: false,
+                lockscreenMiniDeckEnabled = preferences[LOCKSCREEN_MINI_DECK_ENABLED] ?: false,
                 quietModeEnabled = preferences[QUIET_MODE_ENABLED] ?: true,
                 idleBlankTimeoutMillis = preferences[IDLE_BLANK_TIMEOUT_MS]?.coerceIn(30_000, 600_000) ?: 120_000,
                 backgroundOpacity = preferences[BACKGROUND_OPACITY]?.coerceIn(0.05f, 0.72f) ?: 0.48f,
@@ -202,6 +205,7 @@ class TrackpadSettingsRepository @Inject constructor(
             preferences[HAPTICS_ENABLED] = next.hapticsEnabled
             preferences[POINTER_TRACE_ENABLED] = next.pointerTraceEnabled
             preferences[LOCKSCREEN_TRACKPAD_ENABLED] = next.lockscreenTrackpadEnabled
+            preferences[LOCKSCREEN_MINI_DECK_ENABLED] = next.lockscreenMiniDeckEnabled
             preferences[QUIET_MODE_ENABLED] = next.quietModeEnabled
             preferences[IDLE_BLANK_TIMEOUT_MS] = next.idleBlankTimeoutMillis.coerceIn(30_000, 600_000)
             preferences[BACKGROUND_OPACITY] = next.backgroundOpacity.coerceIn(0.05f, 0.72f)
@@ -248,6 +252,7 @@ class TrackpadSettingsRepository @Inject constructor(
         val HAPTICS_ENABLED = booleanPreferencesKey("haptics_enabled")
         val POINTER_TRACE_ENABLED = booleanPreferencesKey("pointer_trace_enabled")
         val LOCKSCREEN_TRACKPAD_ENABLED = booleanPreferencesKey("lockscreen_trackpad_enabled")
+        val LOCKSCREEN_MINI_DECK_ENABLED = booleanPreferencesKey("lockscreen_mini_deck_enabled")
         val QUIET_MODE_ENABLED = booleanPreferencesKey("quiet_mode_enabled")
         val IDLE_BLANK_TIMEOUT_MS = intPreferencesKey("idle_blank_timeout_ms")
         val BACKGROUND_OPACITY = floatPreferencesKey("background_opacity")

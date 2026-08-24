@@ -7,6 +7,14 @@ import io.codecks.domain.DeckAction
 import io.codecks.domain.ai.AiArtifact
 import io.codecks.domain.deck.DeckLayout
 import io.codecks.domain.deck.DeckTemplate
+import io.codecks.domain.contextdeck.AppDeckOffer
+import io.codecks.domain.contextdeck.AnalogControl
+import io.codecks.domain.contextdeck.LiveSignal
+import io.codecks.domain.contextdeck.ModifierLayer
+import io.codecks.domain.contextdeck.ContextMacTarget
+import io.codecks.domain.contextdeck.WindowSpaceMap
+import io.codecks.domain.contextdeck.WorkflowDraft
+import io.codecks.domain.contextdeck.WorkflowRecording
 
 data class HomeUiState(
     val actions: List<DeckAction> = emptyList(),
@@ -15,7 +23,20 @@ data class HomeUiState(
     val deckTemplates: List<DeckTemplate> = emptyList(),
     val activeTemplateId: String = CUSTOM_TEMPLATE_ID,
     val activeMacApp: String? = null,
-    val dynamicDeckEnabled: Boolean = false,
+    val activeMacBundleId: String? = null,
+    val activeAppObservedAtMillis: Long? = null,
+    val appDeckOffer: AppDeckOffer? = null,
+    val dynamicDeckEnabled: Boolean = true,
+    val liveSignals: List<LiveSignal> = emptyList(),
+    val analogControls: List<AnalogControl> = emptyList(),
+    val contextDeckStatus: String? = null,
+    val modifierLayer: ModifierLayer? = null,
+    val pressedModifierActionId: String? = null,
+    val windowSpaceMap: WindowSpaceMap? = null,
+    val windowSpaceStatus: String? = null,
+    val availableMacTargets: List<ContextMacTarget> = emptyList(),
+    val workflowRecording: WorkflowRecording = WorkflowRecording(),
+    val workflowDraft: WorkflowDraft? = null,
     val activity: List<ActionEvent> = emptyList(),
     val actionStatus: ActionStatus = ActionStatus.Idle,
     val connectionReady: Boolean = false,

@@ -76,6 +76,16 @@ class LockscreenTrackpadPolicyTest {
     }
 
     @Test
+    fun miniDeckAllowsOnlyHidShortcutAfterSeparateOptIn() {
+        val state = baseState().copy(miniDeckEnabled = true)
+
+        assertTrue(LockscreenTrackpadPolicy.allows(LockscreenCapability.HidShortcut, state))
+        assertFalse(LockscreenTrackpadPolicy.allows(LockscreenCapability.DeckAction, state))
+        assertFalse(LockscreenTrackpadPolicy.allows(LockscreenCapability.Keyboard, state))
+        assertFalse(LockscreenTrackpadPolicy.allows(LockscreenCapability.HidShortcut, state.copy(miniDeckEnabled = false)))
+    }
+
+    @Test
     fun missingOptInFailsClosed() {
         val state = baseState().copy(featureEnabled = false)
         assertEquals(LockscreenDecision.RequireUnlock, LockscreenTrackpadPolicy.decision(state))

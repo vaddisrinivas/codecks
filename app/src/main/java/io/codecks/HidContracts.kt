@@ -443,6 +443,13 @@ enum class HidCommand {
     MediaVolumeUp,
 }
 
+fun HidCommand.isRestrictedMediaCommand(): Boolean = this in setOf(
+    HidCommand.MediaPlayPause,
+    HidCommand.MediaMute,
+    HidCommand.MediaVolumeDown,
+    HidCommand.MediaVolumeUp,
+)
+
 interface HidRepository {
     val state: StateFlow<HidState>
     fun start()
@@ -458,6 +465,7 @@ interface HidRepository {
     fun releaseButtons()
     fun typeText(text: String)
     fun send(command: HidCommand)
+    fun sendRestrictedMedia(command: HidCommand): Boolean = false
     suspend fun deliverText(text: String): Result<HidDeliveryReceipt> =
         Result.failure(UnsupportedOperationException("Confirmed HID text delivery unavailable"))
     suspend fun deliver(command: HidCommand): Result<HidDeliveryReceipt> =

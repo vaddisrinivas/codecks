@@ -21,11 +21,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.codecks.core.design.CodecksDesignTokens
 import io.codecks.core.trackpad.LockscreenDecision
+import io.codecks.domain.contextdeck.MiniDeckCommand
 import io.codecks.ui.mouse.RawTrackpadTouchLayer
 import io.codecks.ui.app.accessibilityTraversalOrder
 import kotlin.math.roundToInt
@@ -42,6 +44,7 @@ fun LockscreenTrackpadScreen(
     onClick: (Int) -> Unit,
     onPress: (Int) -> Unit,
     onReleaseButtons: () -> Unit,
+    onMiniDeckCommand: (MiniDeckCommand) -> Unit = {},
     onUnlock: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
@@ -66,7 +69,11 @@ fun LockscreenTrackpadScreen(
                 Text("Lockscreen Trackpad", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
                 Text(
                     if (canUsePointer) {
-                        "Pointer-only mode. Codecks keeps keyboard, deck, settings, and SSH locked away."
+                        if (settings.lockscreenMiniDeckEnabled) {
+                            "Restricted pointer plus four approved media controls. Keyboard, custom Deck actions, settings, and SSH stay locked."
+                        } else {
+                            "Pointer-only mode. Codecks keeps keyboard, deck, settings, and SSH locked away."
+                        }
                     } else {
                         "Unlock for full Codecks or to reconnect before using Trackpad."
                     },
@@ -157,6 +164,12 @@ fun LockscreenTrackpadScreen(
                     Button(onClick = { onClick(RIGHT_BUTTON) }, modifier = Modifier.weight(1f).heightIn(min = CodecksDesignTokens.Size.minTouchTarget).accessibilityTraversalOrder(3f)) { Text("Right") }
                     Button(onClick = { onClick(MIDDLE_BUTTON) }, modifier = Modifier.weight(1f).heightIn(min = CodecksDesignTokens.Size.minTouchTarget).accessibilityTraversalOrder(4f)) { Text("Middle") }
                 }
+                if (settings.lockscreenMiniDeckEnabled) {
+                    LockscreenMiniDeck(
+                        onCommand = onMiniDeckCommand,
+                        modifier = Modifier.accessibilityTraversalOrder(4.5f),
+                    )
+                }
             } else {
                 Surface(
                     tonalElevation = CodecksDesignTokens.Elevation.low,
@@ -211,6 +224,42 @@ fun LockscreenTrackpadScreen(
             ) {
                 OutlinedButton(onClick = onClose, modifier = Modifier.weight(1f).heightIn(min = CodecksDesignTokens.Size.minTouchTarget).accessibilityTraversalOrder(5f)) { Text("Close") }
                 Button(onClick = onUnlock, modifier = Modifier.weight(1f).heightIn(min = CodecksDesignTokens.Size.minTouchTarget).accessibilityTraversalOrder(6f)) { Text("Unlock for full Codecks") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LockscreenMiniDeck(
+    onCommand: (MiniDeckCommand) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val columns = if (LocalDensity.current.fontScale >= 2f) 2 else 4
+    Column(
+        verticalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Spacing.sm),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Text("Mini Deck", style = MaterialTheme.typography.titleSmall, modifier = Modifier.semantics { heading() })
+        MiniDeckCommand.entries.chunked(columns).forEach { commands ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(CodecksDesignTokens.Grid.standardGap),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                commands.forEach { command ->
+                    OutlinedButton(
+                        onClick = { onCommand(command) },
+                        modifier = Modifier.weight(1f).heightIn(min = CodecksDesignTokens.Size.minTouchTarget).testTag("mini-deck-${command.name}"),
+                    ) {
+                        Text(
+                            when (command) {
+                                MiniDeckCommand.PlayPause -> "Play"
+                                MiniDeckCommand.Mute -> "Mute"
+                                MiniDeckCommand.VolumeDown -> "Vol −"
+                                MiniDeckCommand.VolumeUp -> "Vol +"
+                            },
+                        )
+                    }
+                }
             }
         }
     }

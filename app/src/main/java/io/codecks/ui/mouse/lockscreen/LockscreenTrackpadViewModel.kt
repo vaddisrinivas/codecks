@@ -13,6 +13,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.codecks.HidRepository
+import io.codecks.HidCommand
 import io.codecks.core.trackpad.LockscreenCapability
 import io.codecks.core.trackpad.LockscreenControlState
 import io.codecks.core.trackpad.LockscreenDecision
@@ -21,6 +22,8 @@ import io.codecks.core.trackpad.PointerDeltaAccumulator
 import io.codecks.core.trackpad.TrackpadEntryOrigin
 import io.codecks.core.trackpad.TrackpadSettings
 import io.codecks.core.trackpad.TrackpadSettingsRepository
+import io.codecks.domain.contextdeck.ContextDeckPolicy
+import io.codecks.domain.contextdeck.MiniDeckCommand
 import javax.inject.Inject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -97,6 +100,7 @@ class LockscreenTrackpadViewModel @Inject constructor(
             bluetoothPermissionGranted = deviceState.bluetoothPermissionGranted,
             featureEnabled = settings.lockscreenTrackpadEnabled,
             entryOrigin = entryOrigin,
+            miniDeckEnabled = settings.lockscreenMiniDeckEnabled,
         )
         LockscreenTrackpadUiState(
             controlState = controlState,
@@ -160,6 +164,26 @@ class LockscreenTrackpadViewModel @Inject constructor(
 
     fun releaseButtons() {
         pointerPort.releaseButtons()
+    }
+
+    fun sendMiniDeck(command: MiniDeckCommand) {
+        val admitted = MiniDeckCommand.entries
+        val state = uiState.value
+        if (!ContextDeckPolicy.canDispatchMiniDeckCommand(
+                admittedCommands = admitted,
+                command = command,
+                restrictedPointerAllowed = canDispatch(LockscreenCapability.PointerMove),
+                hidConnected = hidRepository.state.value.isConnected,
+            ) || !canDispatch(LockscreenCapability.HidShortcut)
+        ) return
+        hidRepository.sendRestrictedMedia(
+            when (command) {
+                MiniDeckCommand.PlayPause -> HidCommand.MediaPlayPause
+                MiniDeckCommand.Mute -> HidCommand.MediaMute
+                MiniDeckCommand.VolumeDown -> HidCommand.MediaVolumeDown
+                MiniDeckCommand.VolumeUp -> HidCommand.MediaVolumeUp
+            },
+        )
     }
 
     fun requestUnlock() {

@@ -22,6 +22,11 @@ import io.codecks.domain.ai.AiArtifact
 import io.codecks.domain.ai.AiArtifactKind
 import io.codecks.domain.ai.GeneratedDraft
 import io.codecks.domain.deck.DeckLayout
+import io.codecks.domain.contextdeck.ContextDeckPolicy
+import io.codecks.domain.contextdeck.AnalogControlKind
+import io.codecks.domain.contextdeck.ModifierLayer
+import io.codecks.domain.device.DeviceId
+import io.codecks.domain.device.TargetSelector
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,6 +49,7 @@ class HomeViewModel @Inject constructor(
             deckLayout = actionRepository.layout(),
             allActions = actionRepository.allActions(),
             deckTemplates = actionRepository.deckTemplates(),
+            modifierLayer = contextModifierLayer(actionRepository.allActions()),
         ),
     )
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -53,6 +59,16 @@ class HomeViewModel @Inject constructor(
     private var aiArtifactsById: Map<String, AiArtifact> = emptyMap()
     private var terminalProofReady = false
     private var connectionConfigured = false
+    private val contextDeck = HomeContextDeckCoordinator(
+        scope = viewModelScope,
+        connectionRepository = connectionRepository,
+        actionRunner = actionRunner,
+        state = { _uiState.value },
+        stateFlow = _uiState,
+        templateForApp = { app -> actionRepository.templateForActiveApp(app)?.let { it.id to it.title } },
+        applyTemplate = ::applyTemplate,
+        recordRun = ::recordRun,
+    )
 
     init {
         viewModelScope.launch {
@@ -105,8 +121,7 @@ class HomeViewModel @Inject constructor(
     }
 
     fun setDynamicDeckEnabled(enabled: Boolean) {
-        _uiState.update { it.copy(dynamicDeckEnabled = enabled) }
-        if (!enabled) applyTemplate(CUSTOM_TEMPLATE_ID)
+        _uiState.update { it.copy(dynamicDeckEnabled = enabled, appDeckOffer = if (enabled) it.appDeckOffer else null) }
     }
 
     fun applyTemplate(templateId: String) {
@@ -123,6 +138,7 @@ class HomeViewModel @Inject constructor(
                 activeTemplateId = templateId,
                 actions = layout.actions,
                 deckLayout = layout,
+                appDeckOffer = null,
                 actionStatus = ActionStatus.Succeeded(
                     templateId,
                     if (templateId == CUSTOM_TEMPLATE_ID) "Custom deck active" else "${templateTitle(templateId)} deck active",
@@ -131,48 +147,22 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun refreshActiveMacApp() {
-        if (!_uiState.value.connectionReady) return
-        viewModelScope.launch {
-            connectionRepository.runCommand(
-                "osascript -e 'tell application \"System Events\" to get name of first application process whose frontmost is true'",
-            ).onSuccess { appName ->
-                val activeApp = appName.trim().lineSequence().firstOrNull().orEmpty()
-                val matchedTemplate = actionRepository.templateForActiveApp(activeApp)
-                _uiState.update { state ->
-                    val nextTemplateId = if (state.dynamicDeckEnabled) {
-                        matchedTemplate?.id ?: state.activeTemplateId
-                    } else {
-                        state.activeTemplateId
-                    }
-                    val nextActions = if (state.dynamicDeckEnabled && matchedTemplate != null) {
-                        actionRepository.actionsForTemplate(nextTemplateId).ifEmpty { state.actions }
-                    } else {
-                        state.actions
-                    }
-                    state.copy(
-                        activeMacApp = activeApp.ifBlank { null },
-                        activeTemplateId = nextTemplateId,
-                        actions = nextActions,
-                        deckLayout = if (state.dynamicDeckEnabled && matchedTemplate != null) {
-                            DeckLayout.fromActions(nextActions)
-                        } else {
-                            state.deckLayout
-                        },
-                    )
-                }
-            }.onFailure { error ->
-                _uiState.update {
-                    it.copy(
-                        activeMacApp = null,
-                        activity = listOf(
-                            ActionEvent("active_app", "Dynamic deck", error.message ?: "Could not read active app", false),
-                        ) + it.activity.take(49),
-                    )
-                }
-            }
-        }
-    }
+    fun refreshActiveMacApp() = contextDeck.refreshActiveMacApp()
+    fun refreshContextDeckLiveState() = contextDeck.refreshLiveState()
+    fun setAnalogControl(kind: AnalogControlKind, valuePercent: Int) = contextDeck.setAnalog(kind, valuePercent)
+    fun setModifierLayerPressed(pressed: Boolean) = contextDeck.setModifierPressed(pressed)
+    fun refreshWindowSpaceMap() = contextDeck.refreshWindows()
+    fun focusWindow(windowId: String) = contextDeck.focusWindow(windowId)
+    fun refreshMacTargets() = contextDeck.refreshTargets()
+    fun runOnTargets(action: DeckAction, targetIds: List<DeviceId>, explicitMultiTargetConfirmation: Boolean, allowDangerous: Boolean = false) =
+        contextDeck.runOnTargets(action, targetIds, explicitMultiTargetConfirmation, allowDangerous)
+    fun startWorkflowRecording() = contextDeck.startRecording()
+    fun stopWorkflowRecording() = contextDeck.stopRecording()
+    fun discardWorkflowDraft() = contextDeck.discardDraft()
+    fun renameWorkflowDraft(title: String) = contextDeck.renameDraft(title)
+    fun removeWorkflowDraftStep(index: Int) = contextDeck.removeDraftStep(index)
+    fun applyAppDeckOffer() = contextDeck.applyOffer()
+    fun dismissAppDeckOffer() = contextDeck.dismissOffer()
 
     fun run(action: DeckAction, allowDangerous: Boolean = false): HomeActionDispatchResult {
         if (_uiState.value.actionStatus is ActionStatus.Running) return HomeActionDispatchResult.Busy
@@ -196,6 +186,11 @@ class HomeViewModel @Inject constructor(
                 ActionResultStatus.Succeeded -> {
                     _uiState.update {
                         it.copy(
+                            workflowRecording = ContextDeckPolicy.recordSuccessfulAction(
+                                it.workflowRecording,
+                                action,
+                                succeeded = true,
+                            ),
                             actionStatus = ActionStatus.Succeeded(action.id, result.message),
                             activity = listOf(result.toActionEvent()) + it.activity.take(49),
                         )
@@ -978,3 +973,9 @@ class HomeViewModel @Inject constructor(
 }
 
 const val CUSTOM_TEMPLATE_ID = "custom"
+
+private fun contextModifierLayer(actions: List<DeckAction>): ModifierLayer? {
+    val preferredIds = listOf("copy", "paste", "screenshot", "spotlight", "mute", "vol_down", "vol_up", "play_pause")
+    val secondary = preferredIds.mapNotNull { id -> actions.firstOrNull { it.id == id } }
+    return secondary.takeIf { it.isNotEmpty() }?.let { ModifierLayer("context_fn", it) }
+}

@@ -45,6 +45,7 @@ class LockscreenTrackpadActivity : ComponentActivity() {
                     onClick = viewModel::click,
                     onPress = viewModel::press,
                     onReleaseButtons = viewModel::releaseButtons,
+                    onMiniDeckCommand = viewModel::sendMiniDeck,
                     onUnlock = viewModel::requestUnlock,
                     onClose = { finish() },
                 )
