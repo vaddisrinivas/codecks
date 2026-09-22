@@ -484,6 +484,10 @@ internal fun CodecksApp(
                 hidRepository.disconnect()
                 fullscreenOverride = false
             },
+            visibleDeckActions = visibleDeckActions,
+            selectedActionId = (homeState.actionStatus as? ActionStatus.Running)?.actionId,
+            actionRunning = homeState.actionStatus is ActionStatus.Running,
+            onAction = ::executeAction,
         ) { contentPadding ->
             BackHandler(enabled = fullscreen) {
                 fullscreenOverride = false

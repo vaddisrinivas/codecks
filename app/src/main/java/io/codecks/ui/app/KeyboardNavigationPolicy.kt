@@ -43,6 +43,11 @@ enum class ShellNavigationMode {
     Rail,
 }
 
+enum class ShellDrawerMode {
+    Modal,
+    Permanent,
+}
+
 data class ShellAccessibilityLayout(
     val navigationMode: ShellNavigationMode,
     val navigationVisible: Boolean,
@@ -66,4 +71,18 @@ fun shellAccessibilityLayout(
         navigationVisible = !fullscreen,
         stopInputVisible = fullscreen,
     )
+}
+
+fun shellDrawerMode(
+    widthDp: Int,
+    fontScale: Float,
+    fullscreen: Boolean,
+): ShellDrawerMode {
+    require(widthDp > 0)
+    require(fontScale.isFinite() && fontScale > 0f)
+    return if (!fullscreen && widthDp >= 1200 && fontScale < 2f) {
+        ShellDrawerMode.Permanent
+    } else {
+        ShellDrawerMode.Modal
+    }
 }

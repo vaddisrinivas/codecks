@@ -622,10 +622,12 @@ fun DeckActionButton(
             .semantics {
                 if (!enabled) {
                     disabled()
-                    stateDescription = "Disabled"
-                } else if (selected) {
+                }
+                if (selected) {
                     this.selected = true
-                    stateDescription = "Selected"
+                    stateDescription = if (enabled) "Selected" else "Selected, disabled"
+                } else if (!enabled) {
+                    stateDescription = "Disabled"
                 }
             }
             .clickable(

@@ -1,7 +1,9 @@
 package io.codecks
 
 import java.io.File
+import io.codecks.ui.app.ShellDrawerMode
 import io.codecks.ui.app.ShellNavigationMode
+import io.codecks.ui.app.shellDrawerMode
 import io.codecks.ui.app.shellAccessibilityLayout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -63,6 +65,7 @@ class DexAdaptivePolicyTest {
     @Test
     fun largeWindowShellUsesDedicatedRailThreshold() {
         val shell = File("src/main/java/io/codecks/ui/app/CodecksAppShell.kt").readText()
+        val drawer = File("src/main/java/io/codecks/ui/app/CodecksNavigationDrawer.kt").readText()
         val routeRegistry = File("src/main/java/io/codecks/ui/app/RouteRegistry.kt").readText()
         assertEquals(
             ShellNavigationMode.BottomBar,
@@ -78,10 +81,17 @@ class DexAdaptivePolicyTest {
         )
         assertTrue(shell.contains("val accessibilityLayout = shellAccessibilityLayout("))
         assertTrue(shell.contains(".verticalScroll(rememberScrollState())"))
-        assertTrue(shell.contains("ModalBottomSheet(onDismissRequest"))
+        assertTrue(shell.contains("ModalNavigationDrawer("))
+        assertTrue(shell.contains("PermanentNavigationDrawer("))
+        assertTrue(shell.contains("gesturesEnabled = false"))
+        assertTrue(shell.contains("shellDrawerMode("))
+        assertTrue(drawer.contains("take(8)"))
+        assertTrue(drawer.contains("groupedNavigationDestinations"))
+        assertEquals(ShellDrawerMode.Modal, shellDrawerMode(1199, 1f, fullscreen = false))
+        assertEquals(ShellDrawerMode.Permanent, shellDrawerMode(1200, 1f, fullscreen = false))
+        assertEquals(ShellDrawerMode.Modal, shellDrawerMode(1200, 2f, fullscreen = false))
         assertTrue(shell.contains("Text(currentRoute.title())"))
-        assertTrue(shell.contains("sortedBy { destination -> destination.moreOrder }"))
         assertTrue(routeRegistry.contains("AiBuilderRoute, \"ai_builder\", \"AI Builder\""))
-        assertTrue(routeRegistry.contains("navigationOrder = 5, moreOrder = 0"))
+        assertTrue(routeRegistry.contains("navigationOrder = 5"))
     }
 }

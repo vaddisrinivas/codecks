@@ -1,32 +1,28 @@
 package io.codecks.ui.app
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.FullscreenExit
-import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.StopCircle
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.PermanentNavigationDrawer
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationRail
@@ -40,10 +36,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -60,9 +55,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
+import io.codecks.domain.DeckAction
 import io.codecks.navigation.AppRoute
 import io.codecks.navigation.HomeRoute
 import io.codecks.navigation.SettingsRoute
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,12 +76,20 @@ fun CodecksAppShell(
     onRequestFullscreen: () -> Unit,
     onExitFullscreen: () -> Unit,
     onStopInput: () -> Unit = {},
+    visibleDeckActions: List<DeckAction> = emptyList(),
+    selectedActionId: String? = null,
+    actionRunning: Boolean = false,
+    onAction: (DeckAction) -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
     val shellDestinations = remember(tabs, buildExposure) { shellDestinations(tabs, buildExposure) }
     val currentDestination = shellDestinations.firstOrNull { it.route == currentRoute }
     val showNavigation = !fullscreen && currentDestination != null
     val focusManager = LocalFocusManager.current
+    val drawerState = androidx.compose.material3.rememberDrawerState(DrawerValue.Closed)
+    val drawerScope = rememberCoroutineScope()
+    val openDrawer = { drawerScope.launch { drawerState.open() } }
+    val closeDrawer = { drawerScope.launch { drawerState.close() } }
 
     Box(
         modifier = Modifier
@@ -108,7 +113,15 @@ fun CodecksAppShell(
                 fontScale = fontScale,
                 fullscreen = fullscreen,
             )
-            val useRail = accessibilityLayout.navigationMode == ShellNavigationMode.Rail
+            val drawerMode = shellDrawerMode(
+                widthDp = maxWidth.value.toInt().coerceAtLeast(1),
+                fontScale = fontScale,
+                fullscreen = fullscreen,
+            )
+            val useRail = accessibilityLayout.navigationMode == ShellNavigationMode.Rail &&
+                drawerMode == ShellDrawerMode.Modal
+            @Composable
+            fun ShellScaffold() {
             Scaffold(
                 topBar = if (fullscreen || currentRoute == HomeRoute) {
                     {}
@@ -124,11 +137,12 @@ fun CodecksAppShell(
                     }
                 },
                 bottomBar = {
-                    if (showNavigation && !useRail) {
+                    if (showNavigation && !useRail && drawerMode == ShellDrawerMode.Modal) {
                         CodecksBottomBar(
                             currentRoute = currentRoute,
                             destinations = shellDestinations,
                             onDestinationSelected = onDestinationSelected,
+                            onOpenDrawer = { openDrawer() },
                         )
                     }
                 },
@@ -145,6 +159,7 @@ fun CodecksAppShell(
                                 currentRoute = currentRoute,
                                 destinations = shellDestinations,
                                 onDestinationSelected = onDestinationSelected,
+                                onOpenDrawer = { openDrawer() },
                                 modifier = Modifier.padding(top = if (currentRoute == HomeRoute) 0.dp else 64.dp),
                             )
                             Box(modifier = Modifier.weight(1f).fillMaxSize()) {
@@ -153,6 +168,48 @@ fun CodecksAppShell(
                         }
                     } else {
                         content(contentPadding)
+                    }
+                }
+            }
+            }
+            key(currentRoute) {
+                if (showNavigation && drawerMode == ShellDrawerMode.Permanent) {
+                    PermanentNavigationDrawer(
+                        drawerContent = {
+                            CodecksPermanentNavigationDrawerContent(
+                                currentRoute = currentRoute,
+                                destinations = shellDestinations,
+                                actions = visibleDeckActions,
+                                selectedActionId = selectedActionId,
+                                actionRunning = actionRunning,
+                                onDestinationSelected = onDestinationSelected,
+                                onAction = onAction,
+                                onDismiss = {},
+                            )
+                        },
+                    ) {
+                        ShellScaffold()
+                    }
+                } else {
+                    ModalNavigationDrawer(
+                        drawerState = drawerState,
+                        gesturesEnabled = false,
+                        drawerContent = {
+                            if (showNavigation) {
+                                CodecksNavigationDrawerContent(
+                                    currentRoute = currentRoute,
+                                    destinations = shellDestinations,
+                                    actions = visibleDeckActions,
+                                    selectedActionId = selectedActionId,
+                                    actionRunning = actionRunning,
+                                    onDestinationSelected = onDestinationSelected,
+                                    onAction = onAction,
+                                    onDismiss = { closeDrawer() },
+                                )
+                            }
+                        },
+                    ) {
+                        ShellScaffold()
                     }
                 }
             }
@@ -186,15 +243,13 @@ private fun CodecksBottomBar(
     currentRoute: NavKey,
     destinations: List<ShellDestination>,
     onDestinationSelected: (NavKey) -> Unit,
+    onOpenDrawer: () -> Unit,
 ) {
     val largeText = LocalDensity.current.fontScale >= 2f
-    var moreOpen by rememberSaveable { mutableStateOf(false) }
-    val pinned = destinations.filter { it.clearsBackStack }
-        .ifEmpty { destinations.take(4) }
-    val moreDestinations = destinations
-        .filterNot { destination -> pinned.any { it.route == destination.route } }
-        .sortedBy { destination -> destination.moreOrder }
-    val moreSelected = moreDestinations.any { it.route == currentRoute }
+    val pinned = destinations
+        .filter { it.visibility == RouteVisibility.PRIMARY }
+        .sortedBy { it.navigationOrder }
+        .take(4)
 
     NavigationBar(
         tonalElevation = 3.dp,
@@ -212,54 +267,12 @@ private fun CodecksBottomBar(
             )
         }
         NavigationBarItem(
-            selected = moreSelected,
-            onClick = { moreOpen = true },
-            icon = { Icon(Icons.Outlined.MoreHoriz, contentDescription = if (largeText) "More" else null) },
-            label = if (largeText) null else {{ Text("More") }},
+            selected = currentRoute !in pinned.map { it.route },
+            onClick = onOpenDrawer,
+            icon = { Icon(Icons.Outlined.Menu, contentDescription = if (largeText) "All" else null) },
+            label = if (largeText) null else {{ Text("All") }},
+            modifier = Modifier.testTag("navigation-all"),
         )
-    }
-    if (moreOpen) {
-        ModalBottomSheet(onDismissRequest = { moreOpen = false }) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onPreviewKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyDown &&
-                            (event.key == Key.Escape || event.key == Key.Back)
-                        ) {
-                            moreOpen = false
-                            true
-                        } else {
-                            false
-                        }
-                    }
-                    .verticalScroll(rememberScrollState())
-                    .padding(bottom = 24.dp),
-            ) {
-                Text(
-                    "More",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-                )
-                Text(
-                    "Create and manage Codecks",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-                )
-                moreDestinations.forEach { destination ->
-                    ListItem(
-                        headlineContent = { Text(destination.label) },
-                        supportingContent = { Text(destination.group.label) },
-                        leadingContent = { Icon(destination.icon, contentDescription = null) },
-                        modifier = Modifier.testTag(destination.testTag).clickable {
-                            moreOpen = false
-                            onDestinationSelected(destination.route)
-                        },
-                    )
-                }
-            }
-        }
     }
 }
 
@@ -304,6 +317,7 @@ private fun CodecksNavigationRail(
     currentRoute: NavKey,
     destinations: List<ShellDestination>,
     onDestinationSelected: (NavKey) -> Unit,
+    onOpenDrawer: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     NavigationRail(
@@ -338,6 +352,13 @@ private fun CodecksNavigationRail(
                 modifier = Modifier.testTag(destination.testTag),
             )
         }
+        NavigationRailItem(
+            selected = false,
+            onClick = onOpenDrawer,
+            icon = { Icon(Icons.Outlined.Menu, contentDescription = "All") },
+            label = { Text("All") },
+            modifier = Modifier.testTag("navigation-all"),
+        )
     }
 }
 

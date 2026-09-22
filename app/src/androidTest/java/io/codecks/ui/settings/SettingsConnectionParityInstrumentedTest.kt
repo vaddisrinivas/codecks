@@ -1,12 +1,13 @@
 package io.codecks.ui.settings
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import io.codecks.MainActivity
 import org.junit.Rule
@@ -18,11 +19,11 @@ class SettingsConnectionParityInstrumentedTest {
 
     @Test
     fun settingsRoute_exposesActiveMacSetupFlow() {
-        rule.onNodeWithText("More").performClick()
-        rule.onNodeWithTag("more-destination-settings").performClick()
+        rule.onNodeWithText("All").performClick()
+        rule.onNodeWithTag("drawer-destination-settings").performScrollTo().performClick()
 
         rule.onNodeWithText("Setup").assertIsDisplayed()
-        val settingsList = rule.onNode(hasScrollAction())
+        val settingsList = rule.onNode(hasScrollToIndexAction())
         settingsList.performScrollToNode(hasText("Mac input"))
         rule.onNodeWithText("Mac input").assertIsDisplayed()
 
