@@ -20,6 +20,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -212,7 +213,10 @@ class M11DexProxyInstrumentedTest {
             assertEquals("M11 Trackpad surface", activity.probeView.contentDescription)
         }
         compose.onNodeWithTag("m11-deck-action").assertHasClickAction().performClick()
-        compose.onNodeWithTag("destination-trackpad").assertHasClickAction().performClick()
+        compose.onNodeWithTag("drawer-destination-trackpad")
+            .performScrollTo()
+            .assertHasClickAction()
+            .performClick()
         scenario.onActivity { activity ->
             assertEquals(1, activity.deckEvents)
             assertEquals(1, activity.navigationEvents)

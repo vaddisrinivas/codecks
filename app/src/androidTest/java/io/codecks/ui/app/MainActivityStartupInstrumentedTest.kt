@@ -7,6 +7,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import io.codecks.MainActivity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -47,14 +48,19 @@ class MainActivityStartupInstrumentedTest {
     }
 
     private fun assertPairingIntentCleared(intent: Intent) {
-        val scenario = ActivityScenario.launch<MainActivity>(intent)
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        val activity = instrumentation.startActivitySync(intent) as MainActivity
         try {
-            scenario.onActivity { activity ->
+            instrumentation.runOnMainSync {
                 assertEquals(Intent.ACTION_MAIN, activity.intent.action)
                 assertEquals(null, activity.intent.data)
                 assertTrue(activity.intent.extras == null || activity.intent.extras!!.isEmpty)
             }
-        } finally { scenario.close() }
+        } finally {
+            instrumentation.runOnMainSync { activity.finishAndRemoveTask() }
+            instrumentation.waitForIdleSync()
+        }
     }
 
     private fun pairingIntent(uri: String) = Intent(Intent.ACTION_VIEW, Uri.parse(uri), context, MainActivity::class.java)
