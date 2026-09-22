@@ -58,6 +58,21 @@ class M10ManagedReceiptTest(unittest.TestCase):
         receipt = MODULE.create(self.args)
         MODULE.validate(receipt, self.root, self.sdk)
 
+    def test_host_native_x86_64_receipt_round_trips(self):
+        x86_image = self.sdk / "system-images/android-35/default/x86_64/package.xml"
+        x86_image.parent.mkdir(parents=True)
+        x86_image.write_text(
+            "<localPackage path='system-images;android-35;default;x86_64'/>",
+            encoding="utf-8",
+        )
+        self.args.image_package = x86_image
+        receipt = MODULE.create(self.args)
+        MODULE.validate(receipt, self.root, self.sdk)
+        self.assertEqual(
+            "system-images/android-35/default/x86_64/package.xml",
+            receipt["device"]["packagePath"],
+        )
+
     def test_source_artifact_device_and_package_mutations_fail_closed(self):
         original = MODULE.create(self.args)
         mutations = []

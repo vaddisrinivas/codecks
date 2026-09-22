@@ -163,10 +163,14 @@ def validate(receipt: dict, root: Path, sdk: Path) -> None:
     device = receipt["device"]
     if device.get("managedName") != device_name or device.get("systemImageSource") != "aosp":
         raise ValueError("receipt managed device mismatch")
-    expected_image_path = f"system-images/android-{api}/default/arm64-v8a/package.xml"
-    if device.get("packagePath") != expected_image_path:
+    image_path = device.get("packagePath")
+    expected_image = re.fullmatch(
+        rf"system-images/android-{api}/default/(arm64-v8a|x86_64)/package\.xml",
+        image_path if isinstance(image_path, str) else "",
+    )
+    if expected_image is None:
         raise ValueError("receipt system image coordinate mismatch")
-    image = require_file(sdk / expected_image_path, "system image package")
+    image = require_file(sdk / image_path, "system image package")
     if digest(image) != device.get("packageXmlSha256"):
         raise ValueError("receipt system image binding is stale")
     device_info = require_file(root / device.get("deviceInfoPath", ""), "device info")
