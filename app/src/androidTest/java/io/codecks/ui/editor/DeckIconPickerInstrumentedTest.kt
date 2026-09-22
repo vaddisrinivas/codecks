@@ -59,8 +59,14 @@ class DeckIconPickerInstrumentedTest {
 
         rule.onNodeWithText("Rounded").performScrollTo().performClick()
         rule.onNodeWithText("Find icon").performTextInput("terminal")
-        rule.onNodeWithContentDescription("Favorite Terminal").performScrollTo().performClick()
-        rule.onNodeWithContentDescription("Remove Terminal from favorites").assertExists()
+        rule.onNodeWithContentDescription(
+            "Favorite Terminal",
+            useUnmergedTree = true,
+        ).performScrollTo().performClick()
+        rule.onNodeWithContentDescription(
+            "Remove Terminal from favorites",
+            useUnmergedTree = true,
+        ).assertExists()
         rule.onNodeWithContentDescription("Use Terminal icon").performClick()
         rule.runOnIdle { assertEquals(ActionIcon.Terminal, selected.value) }
     }
