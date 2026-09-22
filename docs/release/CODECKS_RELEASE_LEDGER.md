@@ -1,13 +1,13 @@
 # Codecks local-only release ledger
 
-Updated: August 10, 2026
+Updated: September 22, 2026
 
 | Contract | Public-release value |
 | --- | --- |
 | Product | Codecks |
 | Application ID | `app.codecks` |
-| Version | `0.1.37` (`versionCode` 37) |
-| Public tag | `v0.1.37` |
+| Version | `0.1.40` (`versionCode` 40) |
+| Public tag | `v0.1.40` |
 | Current candidate | Unreleased working state; next version unassigned; no artifact admitted |
 | Minimum Android | 9 / API 28 |
 | Target Android | API 37 |
@@ -32,7 +32,7 @@ Updated: August 10, 2026
 
 - [`production-state.json`](production-state.json) is the closed,
   machine-checked public release/commercial-state record.
-- [`RELEASE_NOTES_v0.1.37.md`](RELEASE_NOTES_v0.1.37.md) records the published
+- [`RELEASE_NOTES_v0.1.40.md`](RELEASE_NOTES_v0.1.40.md) records the published
   artifact's scope and validation.
 - [`PRODUCTION_LAUNCH_PLAN.md`](PRODUCTION_LAUNCH_PLAN.md) separates implemented
   foundations from external, physical, human, and exact-artifact GA gates.

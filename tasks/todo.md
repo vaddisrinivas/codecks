@@ -1,10 +1,10 @@
 # Codecks production-dark commercial checklist
 
-Updated: August 10, 2026
+Updated: September 22, 2026
 
 Canonical contracts: [`tasks/plan.md`](plan.md)
 
-Public release: `v0.1.37`
+Public release: `v0.1.40`
 
 Machine truth: [`docs/release/production-state.json`](../docs/release/production-state.json)
 

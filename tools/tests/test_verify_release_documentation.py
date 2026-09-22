@@ -15,30 +15,30 @@ assert SPEC and SPEC.loader
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
-RELEASE_COMMIT = "0dc3cac1f7e6b02fa4d5f069eda8664789852370"
+RELEASE_COMMIT = "a65415a790b2517108fee9f47fa95404ae511bdd"
 OTHER_COMMIT = "1" * 40
 
 
 def public_state() -> dict[str, object]:
     return {
-        "version": "0.1.37",
-        "version_code": 37,
-        "tag": "v0.1.37",
+        "version": "0.1.40",
+        "version_code": 40,
+        "tag": "v0.1.40",
         "commit": RELEASE_COMMIT,
         "status": "public_beta",
-        "release_notes": "docs/release/RELEASE_NOTES_v0.1.37.md",
+        "release_notes": "docs/release/RELEASE_NOTES_v0.1.40.md",
     }
 
 
 def git_runner(*, peel: tuple[int, str] = (0, RELEASE_COMMIT), head: str = OTHER_COMMIT, ancestor: int = 0):
     responses = {
-        ("rev-parse", "--verify", "refs/tags/v0.1.37^{commit}"): peel,
+        ("rev-parse", "--verify", "refs/tags/v0.1.40^{commit}"): peel,
         ("rev-parse", "HEAD"): (0, head),
         ("merge-base", "--is-ancestor", RELEASE_COMMIT, head): (ancestor, ""),
-        ("show", "v0.1.37:app/build.gradle.kts"): (0, 'versionCode = 37\nversionName = "0.1.37"'),
-        ("show", "v0.1.37:docs/release/RELEASE_NOTES_v0.1.37.md"): (
+        ("show", "v0.1.40:app/build.gradle.kts"): (0, 'versionCode = 40\nversionName = "0.1.40"'),
+        ("show", "v0.1.40:docs/release/RELEASE_NOTES_v0.1.40.md"): (
             0,
-            "# Codecks v0.1.37 release notes\nhttps://github.com/vaddisrinivas/codecks/releases/tag/v0.1.37",
+            "# Codecks v0.1.40 release notes\nhttps://github.com/vaddisrinivas/codecks/releases/tag/v0.1.40",
         ),
     }
     return lambda arguments: responses[tuple(arguments)]
@@ -118,39 +118,39 @@ class ReleaseDocumentationTest(unittest.TestCase):
 
     def test_stale_launch_version_fails_closed(self) -> None:
         docs = {
-            "README.md": "v0.1.37 :app:testOssReleaseUnitTest :app:lintOssDebug :app:assembleOssDebug",
-            "launch plan": "v0.1.37 Current release is `v0.1.36`",
-            "release ledger": "v0.1.37 | Version | `0.1.37` (`versionCode` 37) |",
-            "feature guide": "v0.1.37 Applies to: public beta v0.1.37",
-            "commercial plan": "v0.1.37",
-            "commercial checklist": "v0.1.37",
-            "FOSS readiness": "v0.1.37",
+            "README.md": "v0.1.40 :app:testOssReleaseUnitTest :app:lintOssDebug :app:assembleOssDebug",
+            "launch plan": "v0.1.40 Current release is `v0.1.36`",
+            "release ledger": "v0.1.40 | Version | `0.1.40` (`versionCode` 40) |",
+            "feature guide": "v0.1.40 Applies to: public beta v0.1.40",
+            "commercial plan": "v0.1.40",
+            "commercial checklist": "v0.1.40",
+            "FOSS readiness": "v0.1.40",
         }
         errors: list[str] = []
-        MODULE.validate_document_truth(docs, "0.1.37", 37, errors)
+        MODULE.validate_document_truth(docs, "0.1.40", 40, errors)
         self.assertIn("stale v0.1.36 launch baseline returned", errors)
 
     def test_missing_release_tag_fails_closed(self) -> None:
         errors: list[str] = []
-        MODULE.validate_git_release(public_state(), "0.1.37", 37, errors, git_runner(peel=(128, "")))
-        self.assertIn("release tag missing: v0.1.37", errors)
+        MODULE.validate_git_release(public_state(), "0.1.40", 40, errors, git_runner(peel=(128, "")))
+        self.assertIn("release tag missing: v0.1.40", errors)
 
     def test_moved_release_tag_fails_closed(self) -> None:
         errors: list[str] = []
-        MODULE.validate_git_release(public_state(), "0.1.37", 37, errors, git_runner(peel=(0, OTHER_COMMIT)))
-        self.assertIn("release tag moved: v0.1.37", errors)
+        MODULE.validate_git_release(public_state(), "0.1.40", 40, errors, git_runner(peel=(0, OTHER_COMMIT)))
+        self.assertIn("release tag moved: v0.1.40", errors)
 
     def test_nonancestor_release_fails_closed(self) -> None:
         errors: list[str] = []
-        MODULE.validate_git_release(public_state(), "0.1.37", 37, errors, git_runner(ancestor=1))
+        MODULE.validate_git_release(public_state(), "0.1.40", 40, errors, git_runner(ancestor=1))
         self.assertIn("release commit is not an ancestor of HEAD", errors)
 
     def test_head_equal_to_release_fails_closed(self) -> None:
         errors: list[str] = []
         MODULE.validate_git_release(
             public_state(),
-            "0.1.37",
-            37,
+            "0.1.40",
+            40,
             errors,
             git_runner(head=RELEASE_COMMIT),
         )

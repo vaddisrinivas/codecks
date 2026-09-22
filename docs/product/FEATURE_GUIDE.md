@@ -1,6 +1,6 @@
 # Codecks Feature Guide
 
-Applies to: public beta v0.1.37
+Applies to: public beta v0.1.40
 
 This guide explains what the shipped features do, why they exist, what they
 require, and where their boundaries are. It is a product guide, not a promise
@@ -10,7 +10,7 @@ that every feature fits every workflow.
 
 | # | Feature | What it does and why it is useful | Needs | Important limit |
 | --- | --- | --- | --- | --- |
-| 1 | Command Deck | Large persistent buttons run common Finder, Terminal, Spaces, media, screenshot, browser, and reviewed custom actions. It replaces memorized shortcuts and repeated menu navigation. | Mac connection for Mac actions | Custom commands can affect the Mac; review them before use. |
+| 1 | Command Deck | Large persistent buttons run common Finder, Terminal, Spaces, media, screenshot, browser, and reviewed custom actions. Adaptive drawer navigation and Quick Deck keep frequent controls close without crowding the main Deck. | Mac connection for Mac actions | Custom commands can affect the Mac; review them before use. |
 | 2 | Bluetooth Trackpad | Moves, clicks, drags, and scrolls through Android's Bluetooth HID profile. Haptics, sensitivity, rotation, scroll rail, fullscreen, and screen pinning adapt it to a desk position. | Bluetooth permission and paired compatible host | Touch input differs from a dedicated mouse and needs learning. |
 | 3 | Restricted lockscreen Trackpad and desk entry | A widget, HID notification, exact `codecks://trackpad` URI, NFC tag, or Tasker profile opens Trackpad quickly. When explicitly enabled and already connected, the locked surface exposes pointer input only. | Existing HID connection; explicit lockscreen opt-in; Tasker or NFC only for automation | It cannot pair, reconnect, type, run commands, read clipboard, or open settings while locked. Android may block background launches. |
 | 4 | Remote Keyboard | Sends text, navigation keys, media/function controls, Enter, and Command+Enter. Snippets reduce repeated typing. Auto mode uses Bluetooth for short text and Mac clipboard paste for longer or Unicode text. | Bluetooth for HID keys; configured Mac connection for clipboard paste | Send clears text only after success. Clipboard-paste delivery temporarily uses the Mac clipboard. |
@@ -19,7 +19,7 @@ that every feature fits every workflow.
 | 7 | Deck Editor and local backup | Reorders, resizes, replaces, duplicates, tests, and styles buttons. JSON backup preserves Deck and Rules while deliberately excluding API keys, SSH keys, passwords, and connection secrets. | No connection for editing; Mac connection to test Mac actions | Restore replaces current Deck and Rules. Keep the exported file private. |
 | 8 | Command Palette and Run History | Searches across actions and Rules instead of consuming permanent Deck space. Run History shows outcomes and supports diagnosis and review. | Same connection as the selected action | Search does not bypass action safety, approval, or connection requirements. |
 | 9 | AI Builder | Sends an optional prompt directly to a selected AI provider to draft a button, Deck, or Rule. It saves setup time while keeping generated actions disabled until tested and reviewed. | User-supplied provider key and internet access | AI output can be wrong. No generated command runs merely because it was generated. |
-| 10 | Adaptive layouts and appearance | Reflows navigation and controls for phones, tablets, landscape, freeform windows, and Samsung DeX. Fullscreen, themes, Deck styles, shapes, borders, and icon packs make the persistent control surface readable in its actual placement. | None | Layout adaptation does not make every Mac action available without its transport setup. |
+| 10 | Adaptive layouts and appearance | Reflows navigation and controls for phones, tablets, landscape, freeform windows, and Samsung DeX. Theme Studio, named themes, Deck styles, shapes, borders, and launcher icon packs make the persistent control surface readable in its actual placement. | None | Layout adaptation does not make every Mac action available without its transport setup. |
 
 ## Which connection does a feature use?
 
@@ -82,19 +82,18 @@ flag and validating the exact build.
 
 ## Infrastructure, not a public-release feature
 
-Post-v0.1.37 working source includes a Kotlin Multiplatform shared module, typed
-authenticated protocol models, an Android Mac-helper client/session, a native
-Swift menu-bar helper, a launchd installer scaffold, and buildable iOS framework
-targets. Phase B replaces normal manual JSON setup with a 120-second, one-use QR
-offer, a per-phone HKDF/HMAC credential, and matching-code confirmation on both
-screens. The system Camera/deep link enters the Android flow; Codecks does not
-embed a third-party scanner. Legacy JSON export is restricted to the explicit
-`--unsafe-legacy` CLI recovery flag.
+`v0.1.40` includes the Android-side experimental Mac-helper client/session and
+120-second, one-use QR pairing flow. The repository also includes a Kotlin
+Multiplatform shared module, typed authenticated protocol models, native Swift
+menu-bar helper source, a launchd installer scaffold, and buildable iOS
+framework targets. The system Camera/deep link enters the Android flow; Codecks
+does not embed a third-party scanner. Legacy JSON export is restricted to the
+explicit `--unsafe-legacy` CLI recovery flag.
 
-These are experimental Reactive foundations, not `v0.1.37` shipped behavior or
-an admitted helper release. Authentication protects integrity but does not
-encrypt the local TCP payload. App-private Keychain storage is fail-closed until
-the helper has the required real signing entitlement.
+No signed/notarized Mac helper is admitted with `v0.1.40`, and live phone-to-Mac
+helper pairing remains unverified. Authentication protects integrity but does
+not encrypt the local TCP payload. App-private Keychain storage is fail-closed
+until the helper has the required real signing entitlement.
 
 ## Deferred
 

@@ -1,12 +1,12 @@
 {
   "schema": "codecks.production-state.v1",
   "public_release": {
-    "version": "0.1.37",
-    "version_code": 37,
-    "tag": "v0.1.37",
-    "commit": "0dc3cac1f7e6b02fa4d5f069eda8664789852370",
+    "version": "0.1.40",
+    "version_code": 40,
+    "tag": "v0.1.40",
+    "commit": "a65415a790b2517108fee9f47fa95404ae511bdd",
     "status": "public_beta",
-    "release_notes": "docs/release/RELEASE_NOTES_v0.1.37.md"
+    "release_notes": "docs/release/RELEASE_NOTES_v0.1.40.md"
   },
   "candidate": {
     "version_assigned": false,

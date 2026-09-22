@@ -203,7 +203,7 @@ def main() -> int:
         "version": version,
         "version_code": code,
         "tag": f"v{version}",
-        "commit": "0dc3cac1f7e6b02fa4d5f069eda8664789852370",
+        "commit": "a65415a790b2517108fee9f47fa95404ae511bdd",
         "status": "public_beta",
         "release_notes": f"docs/release/RELEASE_NOTES_v{version}.md",
     }, "public_release does not exactly match Gradle/release-note truth", errors)

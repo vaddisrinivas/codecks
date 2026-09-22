@@ -1,10 +1,10 @@
 # Codecks production launch plan
 
-Updated: August 10, 2026
+Updated: September 22, 2026
 
 ## Release decision
 
-Current public release is `v0.1.37` (`versionCode` 37). The current working
+Current public release is `v0.1.40` (`versionCode` 40). The current working
 state has no assigned next version and is not an admitted release artifact. The
 planned Google Play commercial transition adds optional
 account, configuration sync, verified purchases, typed rollout controls, and
@@ -19,10 +19,10 @@ separate staged rollout.
 The machine-checked release truth is
 [`production-state.json`](production-state.json). The commercial plan
 supersedes the prior implementation schedule, not the released behavior or its
-evidence. Post-release working source now contains the native Mac helper shell
-and Phase B 120-second, one-use QR pairing with per-phone credentials and
-matching-code confirmation. This is source/unit evidence, not `v0.1.37` or
-release admission. A signed helper artifact, app entitlement/Keychain probe,
+evidence. `v0.1.40` includes the Android-side experimental helper client and
+120-second, one-use QR pairing surfaces with per-phone credentials and
+matching-code confirmation. The native Mac helper remains source infrastructure,
+not an admitted signed helper release. A signed helper artifact, app entitlement/Keychain probe,
 real Mac-to-phone pairing, consumer-scale first run, full helper transport and
 unified live Mac state, provider/receipt/undo completion, full iOS, DeskDock,
 Shortcuts, Spotlight/SFTP, brightness, Accessibility discovery, and complete
@@ -91,7 +91,7 @@ signing migration, and release gates are in
 - [x] Public privacy, security, contribution, and release-signing documentation added.
 - [x] CI runs privacy scan, unit tests, lint, and debug build on every change.
 - [x] Tag/manual workflow rebuilds and publishes signed APK/checksum from public source.
-- [x] `v0.1.37` release publishes a single signed, unshrunk APK with checksum.
+- [x] `v0.1.40` release publishes a single signed, unshrunk APK with checksum.
 
 ## GA gates
 

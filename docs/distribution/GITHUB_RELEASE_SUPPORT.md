@@ -2,7 +2,7 @@
 
 Codecks public beta is distributed only through the repository's
 [GitHub Releases](https://github.com/vaddisrinivas/codecks/releases). The current
-public release is `v0.1.37`. This repository does not authorize Google Play
+public release is `v0.1.40`. This repository does not authorize Google Play
 publication; external Play Console state is `NOT_VERIFIED` here.
 
 ## Requirements
@@ -13,10 +13,10 @@ publication; external Play Console state is `NOT_VERIFIED` here.
 
 ## Fresh install
 
-1. Open the exact `v0.1.37` release page. Download only
+1. Open the exact [`v0.1.40` release page](https://github.com/vaddisrinivas/codecks/releases/tag/v0.1.40). Download only
    `codecks-release.apk` and `SHA256SUMS.txt`.
 2. Verify the APK SHA-256 is
-   `8c8eca1b3e4b0f56a2128185c42a062687011e68a9d3fd16fe24851616baa9f2`.
+   `ceb53f6d061deeae9a8b151bb4f6303547bc5a08e5db23d578b6105c6bde83c3`.
    On macOS: `shasum -a 256 -c SHA256SUMS.txt`.
 3. The expected signing-certificate SHA-256 is
    `07a642e758f394b6aeaecfe35c64ca84d891ca4e6de4b6cc010702c0e52e2df6`.
