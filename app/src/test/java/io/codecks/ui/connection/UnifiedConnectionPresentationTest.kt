@@ -99,7 +99,7 @@ class UnifiedConnectionPresentationTest {
 
     @Test
     fun `support codes are stable and contain no supplied identifiers`() {
-        val supplied = "Srinivas-Mac.local|user@example.com|SHA256:private-fingerprint|10.0.0.4"
+        val supplied = "Private-Mac.local|user@example.com|SHA256:private-fingerprint|10.0.0.4"
         val presentations = listOf(
             HidHealth(HidHealthKind.Failed, supplied, supplied).toUnifiedConnectionPresentation(),
             ConnectionHealth(ConnectionHealthKind.Offline, supplied, supplied).toUnifiedConnectionPresentation(),

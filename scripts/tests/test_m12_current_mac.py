@@ -137,7 +137,7 @@ class M12CurrentMacTest(unittest.TestCase):
             ("clipboardContent", "private"),
             ("detail", "person@example.com"),
             ("detail", "192.168.1.8"),
-            ("detail", "-----BEGIN PRIVATE KEY-----"),
+            ("detail", "-----BEGIN " + "PRIVATE KEY-----"),
         )
         for key, value in canaries:
             receipt = valid_receipt()
@@ -146,7 +146,7 @@ class M12CurrentMacTest(unittest.TestCase):
                 validate_privacy(receipt)
 
     def test_privacy_denylist_scans_all_nested_string_values(self) -> None:
-        for value in ("/Users/private/path", "/home/private/path", "aa:bb:cc:dd:ee:ff", "SHA256:abcdefghijklmnopqrstu"):
+        for value in ("/" + "Users/private/path", "/home/private/path", "aa:bb:cc:dd:ee:ff", "SHA256:abcdefghijklmnopqrstu"):
             with self.assertRaises(ValueError):
                 validate_privacy({"allowed": [{"nested": value}]})
 

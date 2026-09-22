@@ -20,7 +20,7 @@ Signing is an explicit operator step. Required values are loaded only at the
 execution boundary; the repository script never sources or prints them:
 
 ```sh
-/Users/srinivasvaddi/.codex/skills/agent-env/scripts/run-with-agent-env.sh \
+~/.codex/skills/agent-env/scripts/run-with-agent-env.sh \
   macHelper/scripts/sign-local-app.sh
 ```
 

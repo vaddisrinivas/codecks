@@ -24,7 +24,7 @@ SIGNING_NAMES = (
     "CODECKS_RELEASE_STORE_FILE", "CODECKS_RELEASE_KEY_ALIAS",
     "CODECKS_RELEASE_STORE_PASSWORD", "CODECKS_RELEASE_KEY_PASSWORD",
 )
-AGENT_ENV_WRAPPER = Path("/Users/srinivasvaddi/.codex/skills/agent-env/scripts/run-with-agent-env.sh")
+AGENT_ENV_WRAPPER = Path.home() / ".codex/skills/agent-env/scripts/run-with-agent-env.sh"
 SOURCE_PATHS = (
     ".github/workflows/release.yml",
     "app/build.gradle.kts",

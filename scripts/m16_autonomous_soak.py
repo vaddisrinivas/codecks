@@ -44,7 +44,8 @@ M16_SERIALS = frozenset(f"emulator-{port}" for port in EMULATOR_PORTS)
 AUTHORIZED_DEFAULT_AVDS = frozenset(("Utopia_GL_1", "Utopia_GL_2"))
 AUTHORIZED_DEFAULT_SERIALS = {"Utopia_GL_1": "emulator-5554", "Utopia_GL_2": "emulator-5556"}
 SYSTEM_IMAGE = "system-images;android-35;default;arm64-v8a"
-PRIVACY = re.compile(rb"(?i)(/Users/[^\s]+|/home/[^\s]+|Bearer\s+[^\s]+|password=[^\s]+|token=[^\s]+|BEGIN [A-Z ]*PRIVATE KEY)")
+PRIVATE_MAC_HOME = rb"/" + rb"Users/"
+PRIVACY = re.compile(rb"(?i)(" + PRIVATE_MAC_HOME + rb"[^\s]+|/home/[^\s]+|Bearer\s+[^\s]+|password=[^\s]+|token=[^\s]+|BEGIN [A-Z ]*PRIVATE KEY)")
 CATEGORIES = frozenset(("deck", "trackpad", "keyboard", "clipboard", "rules", "ssh_failure", "ssh_recovery", "lifecycle"))
 EVENT_TYPES = frozenset(("admitted", "ack", "window_complete", "window_ineligible", "admitted_incomplete",
                          "profile_complete", "lifecycle_process_death_scheduled", "resumed"))

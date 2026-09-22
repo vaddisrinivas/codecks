@@ -4,7 +4,8 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-: "${ANDROID_HOME:=/Users/srinivasvaddi/Library/Android/sdk}"
+DEFAULT_ANDROID_SDK="${HOME:?}/Library/Android/sdk"
+: "${ANDROID_HOME:=$DEFAULT_ANDROID_SDK}"
 export ANDROID_HOME
 
 raw="build/ga-evidence/M14/first_run_repair_benchmark.raw.json"

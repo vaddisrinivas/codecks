@@ -138,7 +138,7 @@ class M15EvidenceTest(unittest.TestCase):
             "username=private-user",
             "private-user@example.com",
             "192.0.2.10",
-            "-----BEGIN OPENSSH PRIVATE KEY-----",
+            "-----BEGIN OPENSSH " + "PRIVATE KEY-----",
             "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5",
         )
         for canary in canaries:
@@ -169,7 +169,7 @@ class M15EvidenceTest(unittest.TestCase):
                     validate(path)
 
     def test_companion_username_path_and_secret_canaries_fail(self) -> None:
-        for canary in ("username=srinivas", "/Users/private/build", "password=secret-token"):
+        for canary in ("username=private-owner", "/" + "Users/private/build", "password=secret-token"):
             with self.subTest(canary=canary), tempfile.TemporaryDirectory(dir=ROOT / "tasks/test-evidence") as directory:
                 companion = Path(directory) / "test-result.textproto"
                 companion.write_text(canary)

@@ -11,13 +11,13 @@ Implemented:
 
 CPU command:
 
-`ANDROID_HOME=/Users/srinivasvaddi/Library/Android/sdk ./gradlew :app:testOssReleaseUnitTest --tests 'io.codecks.ui.clipboard.M15ClipboardCharacterizationTest' :app:compileOssReleaseAndroidTestSources --no-daemon --stacktrace`
+`ANDROID_HOME="$ANDROID_HOME" ./gradlew :app:testOssReleaseUnitTest --tests 'io.codecks.ui.clipboard.M15ClipboardCharacterizationTest' :app:compileOssReleaseAndroidTestSources --no-daemon --stacktrace`
 
 Result: 10/10 unit tests passed; OSS release Android-test sources compiled.
 
 Managed proxy command:
 
-`ANDROID_HOME=/Users/srinivasvaddi/Library/Android/sdk ./gradlew :app:pixel6Api35PlayInternalReleaseAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=io.codecks.ui.clipboard.M15ClipboardPrivacyInstrumentedTest --no-daemon --stacktrace`
+`ANDROID_HOME="$ANDROID_HOME" ./gradlew :app:pixel6Api35PlayInternalReleaseAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=io.codecks.ui.clipboard.M15ClipboardPrivacyInstrumentedTest --no-daemon --stacktrace`
 
 Result metadata records 2/2 passed on the isolated `app.codecks.internal` API-35 managed device. The checked-in artifact is sanitized JUnit metadata; APK and executed-binary digests are not bound. It does not prove Samsung clipboard UI behavior.
 

@@ -20,7 +20,7 @@
     "reason": "A standalone AAR proves resolution and compilation but cannot honestly isolate production APK, startup, memory, or API 28 runtime deltas."
   },
   "test_receipt": {
-    "command": "ANDROID_HOME=/Users/srinivasvaddi/Library/Android/sdk ../../gradlew testDebugUnitTest assembleDebug --no-daemon",
+    "command": "ANDROID_HOME=$ANDROID_HOME ../../gradlew testDebugUnitTest assembleDebug --no-daemon",
     "result": "PASS",
     "tests": 6,
     "failures": 0,

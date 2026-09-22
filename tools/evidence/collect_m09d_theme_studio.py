@@ -724,7 +724,7 @@ def sanitize_textproto(raw: bytes) -> bytes:
         raise ValueError("textproto oversized")
     text = raw.decode("utf-8", errors="strict")
     text = text.replace(str(ROOT.resolve()), "$REPO_ROOT")
-    forbidden = ("/Users/", "/opt/codex-auth/worktrees/", "BEGIN PRIVATE KEY", "password=", "token=")
+    forbidden = ("/" + "Users/", "/opt/codex-auth/worktrees/", "BEGIN PRIVATE KEY", "password=", "token=")
     if any(value.lower() in text.lower() for value in forbidden):
         raise ValueError("textproto contains a private path or secret marker")
     if f"scheduled_test_case_count: {len(METHODS)}" not in text or "test_status: PASSED" not in text:

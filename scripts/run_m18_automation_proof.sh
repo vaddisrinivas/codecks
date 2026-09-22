@@ -4,7 +4,8 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-export ANDROID_HOME="${ANDROID_HOME:-/Users/srinivasvaddi/Library/Android/sdk}"
+DEFAULT_ANDROID_SDK="${HOME:?}/Library/Android/sdk"
+export ANDROID_HOME="${ANDROID_HOME:-$DEFAULT_ANDROID_SDK}"
 
 ./gradlew --no-daemon --max-workers=2 \
   :app:testOssReleaseUnitTest \

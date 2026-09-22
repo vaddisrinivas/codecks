@@ -24,6 +24,6 @@ Canonical measurements and proof statuses are in
 
 ```sh
 python3 tools/evidence/validate_m02a_dependency_spikes.py
-ANDROID_HOME=/Users/srinivasvaddi/Library/Android/sdk ./gradlew \
+ANDROID_HOME="$ANDROID_HOME" ./gradlew \
   -p spikes/dependency-replacements testDebugUnitTest assembleDebug --no-daemon
 ```

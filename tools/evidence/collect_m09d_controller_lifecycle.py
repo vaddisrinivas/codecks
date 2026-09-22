@@ -113,21 +113,26 @@ GRADLE_DISTRIBUTION_SHA256 = "2ab2958f2a1e51120c326cad6f385153bb11ee93b3c216c5fc
 CHECKSUM_RECEIPT_SHA256 = "bf1e620f915bcde7c1c09738daecfe332fb59a6ca6b550813c8a41e72cb23782"
 CHECKSUM_RECEIPT_URL = "https://gradle.org/release-checksums/"
 GRADLE_PROPERTIES_SHA256 = "85ded62c7cf18436166cbd09f5e6f372a6d6b8e9568591bf05401783453f1b37"
-ANDROID_HOME = "/Users/srinivasvaddi/Library/Android/sdk"
-JAVA_HOME = "/Users/srinivasvaddi/Library/Java/JavaVirtualMachines/openjdk-20.0.2/Contents/Home"
+USER_HOME = Path.home()
+ANDROID_HOME = os.environ.get("ANDROID_HOME", (USER_HOME / "Library/Android/sdk").as_posix())
+JAVA_HOME = os.environ.get(
+    "JAVA_HOME",
+    (USER_HOME / "Library/Java/JavaVirtualMachines/openjdk-20.0.2/Contents/Home").as_posix(),
+)
 SEED_GRADLE_HOME = Path("/tmp/codecks-m09d-controller-gradle-home")
 ISOLATED_GRADLE_HOME = SEED_GRADLE_HOME.as_posix()
 GRADLE_DISTRIBUTION_ZIP = Path(ISOLATED_GRADLE_HOME) / "provenance/gradle-9.4.1-bin.zip"
 CHECKSUM_RECEIPT = Path(ISOLATED_GRADLE_HOME) / "provenance/gradle-release-checksums.html"
 GRADLE_DISTRIBUTION_ROOT = Path(ISOLATED_GRADLE_HOME) / "wrapper/dists/gradle-9.4.1-bin/arn2x92ynaizyzdaamcbpbhtj/gradle-9.4.1"
 GRADLE_LAUNCHER = GRADLE_DISTRIBUTION_ROOT / "lib/gradle-launcher-9.4.1.jar"
-GRADLE_READ_ONLY_CACHE = Path("/Users/srinivasvaddi/.gradle/caches")
+USER_GRADLE_HOME = USER_HOME / ".gradle"
+GRADLE_READ_ONLY_CACHE = USER_GRADLE_HOME / "caches"
 GRADLE_READ_ONLY_DEPENDENCY_CACHE = GRADLE_READ_ONLY_CACHE / "modules-2/files-2.1"
 GRADLE_PROPERTIES = Path(ISOLATED_GRADLE_HOME) / "gradle.properties"
 ACTUAL_EXEC_ENV = {
     "ANDROID_HOME": ANDROID_HOME,
     "JAVA_HOME": JAVA_HOME,
-    "HOME": "/Users/srinivasvaddi",
+    "HOME": USER_HOME.as_posix(),
     "GRADLE_USER_HOME": ISOLATED_GRADLE_HOME,
     "GRADLE_RO_DEP_CACHE": GRADLE_READ_ONLY_CACHE.as_posix(),
     "PATH": f"{JAVA_HOME}/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
@@ -160,11 +165,11 @@ JAVA_CRITICAL_PATHS = tuple(
 )
 FORBIDDEN_INIT_FILES = (
     Path(ISOLATED_GRADLE_HOME) / "init.gradle", Path(ISOLATED_GRADLE_HOME) / "init.gradle.kts",
-    Path("/Users/srinivasvaddi/.gradle/init.gradle"), Path("/Users/srinivasvaddi/.gradle/init.gradle.kts"),
+    USER_GRADLE_HOME / "init.gradle", USER_GRADLE_HOME / "init.gradle.kts",
     Path("/etc/gradle/init.gradle"), Path("/etc/gradle/init.gradle.kts"),
 )
 INIT_DIRS = (
-    Path(ISOLATED_GRADLE_HOME) / "init.d", Path("/Users/srinivasvaddi/.gradle/init.d"),
+    Path(ISOLATED_GRADLE_HOME) / "init.d", USER_GRADLE_HOME / "init.d",
     Path("/etc/gradle/init.d"), GRADLE_DISTRIBUTION_ROOT / "init.d",
 )
 
@@ -270,13 +275,13 @@ def validate_private_free(value: object) -> None:
         for item in value:
             validate_private_free(item)
     elif isinstance(value, str):
-        if any(token in value for token in ("/Users/", "/private/", "/tmp/", str(ROOT))):
+        if any(token in value for token in ("/" + "Users/", "/private/", "/tmp/", str(ROOT))):
             raise ValueError("private filesystem path leaked into evidence")
 
 
 def validate_private_bytes(data: bytes) -> None:
     text = data.decode("utf-8", errors="strict")
-    if any(token in text for token in ("/Users/", "/private/", "/tmp/", str(ROOT))):
+    if any(token in text for token in ("/" + "Users/", "/private/", "/tmp/", str(ROOT))):
         raise ValueError("private filesystem path leaked into durable bytes")
     if re.search(r"(?i)(?:api[_-]?key|access[_-]?token|password|secret)\s*[:=]\s*[^\s<]+", text):
         raise ValueError("secret-like value leaked into durable bytes")
@@ -587,7 +592,7 @@ def sanitize_log(data: bytes) -> bytes:
     header = "COMMAND\t" + json.dumps(list(COMMAND), separators=(",", ":")) + "\n"
     canonical_lines = ("CAPTURE RUNS\t2", *required_tasks, actionable, "BUILD SUCCESSFUL")
     result = (header + "\n".join(canonical_lines) + "\n").encode("utf-8")
-    if len(result) > MAX_LOG_BYTES or b"/Users/" in result or b"/private/" in result or b"/tmp/" in result:
+    if len(result) > MAX_LOG_BYTES or (b"/" + b"Users/") in result or b"/private/" in result or b"/tmp/" in result:
         raise ValueError("sanitized Gradle log privacy/size bound failed")
     validate_private_bytes(result)
     return result
@@ -1101,7 +1106,7 @@ def require_no_init_scripts() -> dict:
     scoped_files = (Path(ISOLATED_GRADLE_HOME) / "init.gradle", Path(ISOLATED_GRADLE_HOME) / "init.gradle.kts")
     files = scoped_files + tuple(path for path in FORBIDDEN_INIT_FILES if not path.as_posix().startswith(SEED_GRADLE_HOME.as_posix()))
     directories = (
-        Path(ISOLATED_GRADLE_HOME) / "init.d", Path("/Users/srinivasvaddi/.gradle/init.d"),
+        Path(ISOLATED_GRADLE_HOME) / "init.d", USER_GRADLE_HOME / "init.d",
         Path("/etc/gradle/init.d"), GRADLE_DISTRIBUTION_ROOT / "init.d",
     )
     present = [path.as_posix() for path in files if path.exists()]

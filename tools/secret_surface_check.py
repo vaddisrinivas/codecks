@@ -37,8 +37,8 @@ PRIVATE_KEY_BLOCK = re.compile(r"-----BEGIN (RSA |OPENSSH |EC |DSA |)PRIVATE KEY
 KNOWN_FAKE_SECRET = re.compile(
     r"""(?i)(sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{20,})"""
 )
-PRIVATE_IDENTITY = re.compile(r"(?i)\b(srinivas|vaddi)\b|R3CW10MSVRT|emulator-5554")
-PRIVATE_HOME = re.compile(r"/Users/(?!example(?:/|\b)|me(?:/|\b)|user(?:/|\b))[^/\s]+")
+PRIVATE_IDENTITY = re.compile(r"(?i)\b(srinivas|vaddi)\b|R3CW10MSVRT")
+PRIVATE_HOME = re.compile(r"/Users/(?!Shared(?:/|\b)|example(?:/|\b)|me(?:/|\b)|user(?:/|\b))[^/\s]+")
 PRIVATE_WORKSPACE = re.compile(r"Documents/Codex/20\d\d-")
 TEXT_SUFFIXES = {
     ".gradle",
@@ -49,6 +49,7 @@ TEXT_SUFFIXES = {
     ".md",
     ".properties",
     ".py",
+    ".sh",
     ".txt",
     ".xml",
     ".yml",

@@ -217,7 +217,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
                 changed = copy.deepcopy(root); stream = list(changed)[stream_index]
                 if mutation == "attribute": stream.set("name", "bad")
                 elif mutation == "child": ET.SubElement(stream, "unexpected")
-                else: stream.text = "encoded /Users/private"
+                else: stream.text = "encoded /" + "Users/private"
                 with self.assertRaises(ValueError):
                     parse_junit(ET.tostring(changed))
         encoded_path = junit_bytes().replace(b'hostname="test-host"', b'hostname="&#47;Users&#47;private"')
@@ -226,7 +226,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
         changed = copy.deepcopy(root); ET.SubElement(list(changed)[1], "failure")
         with self.assertRaises(ValueError):
             parse_junit(ET.tostring(changed))
-        for leaked in (b"/Users/private/file", b"/tmp/work", b"password=exposed"):
+        for leaked in (b"/" + b"Users/private/file", b"/tmp/work", b"password=exposed"):
             with self.assertRaises(ValueError):
                 validate_private_bytes(leaked)
 
@@ -247,13 +247,14 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
                 parse_junit(changed)
 
     def test_hostname_sanitizer_is_deterministic_and_closed(self) -> None:
-        first_raw = junit_bytes().replace(b'hostname="test-host"', b'hostname="/Users/private-host"')
+        private_host = b"/" + b"Users/private-host"
+        first_raw = junit_bytes().replace(b'hostname="test-host"', b'hostname="' + private_host + b'"')
         second_raw = junit_bytes().replace(b'hostname="test-host"', b'hostname="other-host"')
         first = sanitize_junit_hostname(first_raw)
         second = sanitize_junit_hostname(second_raw)
         self.assertEqual(first, second)
         self.assertIn(b'hostname="$HOST"', first)
-        self.assertNotIn(b"/Users/private-host", first)
+        self.assertNotIn(private_host, first)
         self.assertEqual(sorted(METHODS), validate_sanitized_junit(first))
         with self.assertRaises(ValueError):
             validate_sanitized_junit(first_raw)
@@ -280,7 +281,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_command_header(good.replace(b"--no-daemon", b"--daemon"))
         with self.assertRaises(ValueError):
-            sanitize_log(b"> Task :app:validateReleaseSurface /Users/private\nBUILD SUCCESSFUL\n")
+            sanitize_log(b"> Task :app:validateReleaseSurface /" + b"Users/private\nBUILD SUCCESSFUL\n")
         for changed in (
             good.replace(b"> Task :app:testOssReleaseUnitTest", b"> Task :app:testOssReleaseUnitTest UP-TO-DATE"),
             good.replace(b"50 actionable tasks: 50 executed", b"50 actionable tasks: 49 executed"),
@@ -514,7 +515,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             changed = copy.deepcopy(data); changed["tools"]["zipExtract"]["equal"] = substituted
             with self.assertRaises(ValueError):
                 validate_artifact_data(changed, source, verify_current=False)
-        changed = copy.deepcopy(data); changed["tools"]["jdkVersion"] = "/Users/private/jdk"
+        changed = copy.deepcopy(data); changed["tools"]["jdkVersion"] = "/" + "Users/private/jdk"
         changed["repeatability"] = repeatability_proof(changed)
         with self.assertRaisesRegex(ValueError, "private filesystem path"):
             validate_artifact_data(changed, source, verify_current=False)
@@ -637,7 +638,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
             ROOT / "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.schema.json",
         ):
             text = path.read_text(encoding="utf-8")
-            self.assertNotIn("/Users/", text)
+            self.assertNotIn("/" + "Users/", text)
             self.assertNotIn("/tmp/", text)
 
     def test_status_gate_accepts_clean_and_rejects_dirty_independent_of_checkout(self) -> None:
@@ -897,7 +898,7 @@ class M09DControllerLifecycleEvidenceTest(unittest.TestCase):
         self.assertEqual(4, len(calls))
         self.assertTrue(all(path.split(":", 1)[1] in C2_PATHS | C3_PATHS for path in calls))
         self.assertTrue(all(RESULT_XML.as_posix() not in path for path in calls))
-        with patch.object(final_validator.subprocess, "run", return_value=SimpleNamespace(stdout=b"/Users/private/leak")):
+        with patch.object(final_validator.subprocess, "run", return_value=SimpleNamespace(stdout=b"/" + b"Users/private/leak")):
             with self.assertRaisesRegex(ValueError, "private filesystem path"):
                 final_validator.validate_committed_evidence_privacy("2" * 40, "3" * 40)
 

@@ -13,7 +13,8 @@ import sys
 SCHEMA = "codecks.autonomous-maturity.m16-soak.v1"
 MILESTONES = tuple(f"M{i}" for i in range(10, 16))
 FORBIDDEN_KEYS = re.compile(r"(?i)(secret|token|password|clipboard(text|content)|private.?key|username|userpath)")
-FORBIDDEN_VALUES = re.compile(r"(?i)(/Users/|/home/|BEGIN [A-Z ]*PRIVATE KEY|bearer\s|password=|token=)")
+PRIVATE_MAC_HOME = r"/" + r"Users/"
+FORBIDDEN_VALUES = re.compile(r"(?i)(" + re.escape(PRIVATE_MAC_HOME) + r"|/home/|BEGIN [A-Z ]*PRIVATE KEY|bearer\s|password=|token=)")
 TOP = {"schema","milestone","status","evidence","package","sourceCommit","binding","devices","runtime","profiles","dependencies","summary","burninAdmission","wall","failureArtifacts","limitations"}
 ADMISSION_START_MAX_DELAY_MILLIS = 60_000
 

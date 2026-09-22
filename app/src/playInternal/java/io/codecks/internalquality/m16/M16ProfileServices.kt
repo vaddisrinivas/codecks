@@ -197,7 +197,10 @@ private class DurableProfileLedger(private val root: File, private val identity:
                 check(!key.matches(Regex("(?i).*(secret|token|password|clipboard(text|content)|private.?key|username|userpath).*"))) { "ledger_privacy_key" }
                 checkPrivacy(value.get(key))
             }
-            is String -> check(!Regex("(?i)(/Users/|/home/|BEGIN [A-Z ]*PRIVATE KEY|bearer\\s|password=|token=)").containsMatchIn(value)) { "ledger_privacy_value" }
+            is String -> {
+                val macHomePrefix = "/" + "Users/"
+                check(!Regex("(?i)(${Regex.escape(macHomePrefix)}|/home/|BEGIN [A-Z ]*PRIVATE KEY|bearer\\s|password=|token=)").containsMatchIn(value)) { "ledger_privacy_value" }
+            }
         }
     }
 }

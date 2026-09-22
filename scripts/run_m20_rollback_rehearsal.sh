@@ -4,8 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-if [[ -z "${ANDROID_HOME:-}" && -d /Users/srinivasvaddi/Library/Android/sdk ]]; then
-  export ANDROID_HOME=/Users/srinivasvaddi/Library/Android/sdk
+DEFAULT_ANDROID_SDK="${HOME:?}/Library/Android/sdk"
+if [[ -z "${ANDROID_HOME:-}" && -d "$DEFAULT_ANDROID_SDK" ]]; then
+  export ANDROID_HOME="$DEFAULT_ANDROID_SDK"
 fi
 export PYTHONDONTWRITEBYTECODE=1
 

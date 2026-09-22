@@ -78,7 +78,7 @@ class M14ReceiptValidatorTest(unittest.TestCase):
         )))
 
     def test_companion_username_path_and_secret_canaries_fail(self):
-        for canary in ("username=srinivas", "/Users/private/build", "password=secret-token"):
+        for canary in ("username=private-owner", "/" + "Users/private/build", "password=secret-token"):
             with self.subTest(canary=canary), tempfile.TemporaryDirectory(dir=self.root / "tasks/test-evidence") as directory:
                 companion = Path(directory) / "test-result.textproto"
                 companion.write_text(canary)

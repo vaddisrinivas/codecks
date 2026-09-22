@@ -161,12 +161,18 @@ Legend: `[x]` implemented with repository evidence; `[ ]` incomplete or
 
 ## Context Deck expansion
 
-- [x] Closed Context Deck contracts and reducers.
-- [x] App-follow offer, local three-item context strip, and modifier layer.
-- [x] Live-state rail and analog controls.
-- [x] Current-Space window map, File Drop, workflow recorder, and Multi-Mac handoff.
-- [x] Opt-in four-control lock-screen Mini Deck.
-- [x] Focused/full JVM, managed-phone semantics, privacy, no-shrink, lint, and clean-diff gates.
+- [x] Closed Context Deck contracts and reducers —
+  [`ContextDeckPolicyTest.kt`](../app/src/test/java/io/codecks/domain/contextdeck/ContextDeckPolicyTest.kt).
+- [x] App-follow offer, local three-item context strip, and modifier layer —
+  [`HomeContextDeckCoordinator.kt`](../app/src/main/java/io/codecks/ui/home/HomeContextDeckCoordinator.kt).
+- [x] Live-state rail and analog controls —
+  [`ContextDeckLiveRail.kt`](../app/src/main/java/io/codecks/ui/home/ContextDeckLiveRail.kt).
+- [x] Current-Space window map, File Drop, workflow recorder, and Multi-Mac handoff —
+  [`ContextDeckDialogs.kt`](../app/src/main/java/io/codecks/ui/home/ContextDeckDialogs.kt).
+- [x] Opt-in four-control lock-screen Mini Deck —
+  [`LockscreenMiniDeckInstrumentedTest.kt`](../app/src/androidTest/java/io/codecks/ui/mouse/lockscreen/LockscreenMiniDeckInstrumentedTest.kt).
+- [x] Focused/full JVM, managed-phone semantics, privacy, no-shrink, lint, and clean-diff gates —
+  [`ContextDeckInstrumentedTest.kt`](../app/src/androidTest/java/io/codecks/ui/home/ContextDeckInstrumentedTest.kt).
 - [ ] Tablet, RTL, 200% text, live Mac transfer/window-state, and physical-device proof remain `NOT_RUN`.
 
 Exact acceptance criteria and stop conditions: [`CONTEXT_DECK_PLAN.md`](CONTEXT_DECK_PLAN.md).
