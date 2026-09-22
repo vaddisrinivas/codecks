@@ -1,5 +1,6 @@
 package io.codecks.ui.mouse
 
+import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -9,24 +10,28 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.codecks.MainActivity
 import io.codecks.ui.theme.CodecksTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
 
+@RunWith(AndroidJUnit4::class)
 class M05SplitSurfaceSemanticsInstrumentedTest {
     @get:Rule
-    val rule = createComposeRule()
+    val rule = createAndroidComposeRule<MainActivity>()
 
     @Test
     fun selectedTrackpadMenu_exposesButtonActionAndState() {
         var clicks = 0
-        rule.setContent {
+        rule.activity.setContent {
             CodecksTheme {
                 Box(Modifier.size(64.dp)) {
                     TrackpadMenuIcon(

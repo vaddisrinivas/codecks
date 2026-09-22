@@ -1,14 +1,12 @@
-# Codecks v0.1.38 release notes
+# Codecks v0.1.39 release notes
 
 Date: September 22, 2026
 
-Status: Superseded before publication by v0.1.39.
-
-Release URL: https://github.com/vaddisrinivas/codecks/releases/tag/v0.1.38
+Release URL: https://github.com/vaddisrinivas/codecks/releases/tag/v0.1.39
 
 ## Summary
 
-Codecks v0.1.38 makes the Android control deck faster to navigate, more
+Codecks v0.1.39 makes the Android control deck faster to navigate, more
 personal, and more context-aware. It adds adaptive drawer navigation, Quick
 Deck, deeper theme and icon customization, and a broad local-first Context Deck
 toolkit.
@@ -46,6 +44,8 @@ toolkit.
 - The managed Android matrix passed on compact, standard, and tablet profiles
   across API 31 through API 36: 18 shards, 0 failures.
 - The adaptive drawer and Quick Deck managed-emulator suite passed.
+- The full release-flavor Pixel 6 API 35 suite passed: 46 tests, 0 failures,
+  with one intentional live-Mac skip.
 - Release privacy, documentation, commercial-boundary, bundled Mac action, and
   no-shrink guardrails passed.
 - Production code minification and resource shrinking remain disabled.
@@ -62,4 +62,4 @@ toolkit.
 - `codecks-release.apk`: production-signed, unshrunk Codecks APK.
 - `SHA256SUMS.txt`: checksum for the signed APK.
 
-**Full diff:** https://github.com/vaddisrinivas/codecks/compare/v0.1.37...v0.1.38
+**Full diff:** https://github.com/vaddisrinivas/codecks/compare/v0.1.37...v0.1.39
