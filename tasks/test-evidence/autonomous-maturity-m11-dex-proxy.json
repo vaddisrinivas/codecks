@@ -1,0 +1,162 @@
+{
+  "schema": "codecks.autonomous-maturity.m11-dex-proxy.v1",
+  "milestone": "M11",
+  "status": "PASS",
+  "scope": "EMULATOR_PROXY_ONLY",
+  "artifacts": [
+    {
+      "path": "tasks/test-evidence/m11/runtime/TEST-pixel6Api35-playInternalRelease.xml",
+      "sha256": "9d3e5965a7db1572d7db67d6f3f8e71e60dc25d89062142f0db858b0ae45e353",
+      "timestamp": "2026-08-18T00:13:30",
+      "passedMethods": [
+        "freeformWindow1280x720",
+        "freeformWindow1920x1080",
+        "managedWindow1280x720",
+        "managedWindow1920x1080",
+        "secondaryDisplay1280x720",
+        "secondaryDisplay1920x1080"
+      ],
+      "failedMethods": [],
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "profiles": [
+    {
+      "resolution": "1280x720",
+      "status": "PASS",
+      "checks": [
+        "managed_window",
+        "actual_deck_action",
+        "actual_trackpad_mouse_down_up",
+        "product_support_dialog",
+        "bounded_dialog_content",
+        "product_app_shell_navigation",
+        "secondary_display_presentation_proxy",
+        "rotation",
+        "keyboard",
+        "focus",
+        "window_restore",
+        "cold_activity_restart_proxy"
+      ]
+    },
+    {
+      "resolution": "1920x1080",
+      "status": "PASS",
+      "checks": [
+        "managed_window",
+        "actual_deck_action",
+        "actual_trackpad_mouse_down_up",
+        "product_support_dialog",
+        "bounded_dialog_content",
+        "product_app_shell_navigation",
+        "secondary_display_presentation_proxy",
+        "rotation",
+        "keyboard",
+        "focus",
+        "window_restore",
+        "cold_activity_restart_proxy"
+      ]
+    }
+  ],
+  "external": [
+    {
+      "id": "samsung_dex_physical",
+      "status": "NOT_RUN",
+      "reason": "No physical Samsung device or vendor DeX environment was used; emulator proxies cannot prove Samsung window-manager behavior."
+    }
+  ],
+  "limitations": [
+    "The production support dialog is bounded at both display sizes; Android and Samsung task freeform mode remain NOT_RUN.",
+    "Overlay-display Presentation proves a secondary-display context proxy, not task-host movement on Samsung DeX.",
+    "Activity recreation and cold activity restart are process/window restoration proxies, not low-memory process death.",
+    "Real mouse DOWN/UP and keyboard events are emulator-injected through production input surfaces in an internal-only host."
+  ],
+  "managedExecution": {
+    "sourceCommit": "0aa92c2b40a0939d78d58d813158051bbea78343",
+    "sources": [
+      {
+        "path": "app/src/androidTestPlayInternal/java/io/codecks/internalquality/M11DexProxyInstrumentedTest.kt",
+        "sha256": "e3d1cffe85b385de4e751f5285daa5de4e9e04d4bbad4f82eae3d4530a5acbbb"
+      },
+      {
+        "path": "app/src/playInternal/java/io/codecks/internalquality/M11DexProxyActivity.kt",
+        "sha256": "a2faaf7448bd0cbd63eba8b89ebb1b5713e6fab2d49f202d956e1cdc44a28e22"
+      },
+      {
+        "path": "scripts/run_m11_dex_proxy.sh",
+        "sha256": "c322de1b83be464c3c1ba9fe9e24948f4258f44949d7070cd70c511887292bb0"
+      },
+      {
+        "path": "tools/evidence/collect_m11_dex_proxy.py",
+        "sha256": "736a177e932388be57c053fe4b98c0e4402daf7f1f26ee65589f8437bf1e3190"
+      },
+      {
+        "path": "tools/evidence/managed_execution_binding.py",
+        "sha256": "a297048fc75861c4e896aa2c8deb1932d4197fab331808f440c835241123e837"
+      },
+      {
+        "path": "tools/evidence/schemas/autonomous-maturity-m11-dex-proxy-v1.schema.json",
+        "sha256": "e776d04b66946e42a8edd43cf3a5b5501aeb66383b843067557087a71995e854"
+      },
+      {
+        "path": "tools/evidence/test_m11_dex_proxy.py",
+        "sha256": "c74ef0802fe641e0d0941c93ff7409f67a0a54abfe64782da0fb12997946356a"
+      },
+      {
+        "path": "tools/evidence/validate_m11_dex_proxy.py",
+        "sha256": "9143f9a3069de1c3cc6e29905a93ac8a4cad57706dd5c63c8c47b463c9169dee"
+      }
+    ],
+    "sourceTreeSha256": "4921f0a2112b236c318696182d80ad88c3ba9de94db0183d8cd3944486313665",
+    "sourceDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "result": {
+      "path": "tasks/test-evidence/m11/runtime/TEST-pixel6Api35-playInternalRelease.xml",
+      "sha256": "9d3e5965a7db1572d7db67d6f3f8e71e60dc25d89062142f0db858b0ae45e353",
+      "className": "io.codecks.internalquality.M11DexProxyInstrumentedTest",
+      "methods": [
+        "freeformWindow1280x720",
+        "freeformWindow1920x1080",
+        "managedWindow1280x720",
+        "managedWindow1920x1080",
+        "secondaryDisplay1280x720",
+        "secondaryDisplay1920x1080"
+      ],
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "properties": {
+        "device": "pixel6Api35",
+        "flavor": "playInternal",
+        "project": ":app"
+      }
+    },
+    "device": {
+      "name": "pixel6Api35",
+      "api": 35,
+      "source": "AOSP_MANAGED_EMULATOR",
+      "properties": {
+        "device": "pixel6Api35",
+        "flavor": "playInternal",
+        "project": ":app"
+      },
+      "deviceInfoPath": "tasks/test-evidence/m11/runtime/device-info.pb",
+      "deviceInfoSha256": "197c6c5a263e276976af71c9238eb2b754109679f562f07efd98b73acce601dd",
+      "textprotoPath": "tasks/test-evidence/m11/runtime/test-result.textproto",
+      "textprotoSha256": "d2853e2b67fc464fd7ffebf45e730353735250bb32509cf281e89bb732ae51aa"
+    },
+    "targetApk": {
+      "path": "tasks/test-evidence/m11/runtime/app-playInternal-release.apk",
+      "applicationId": "app.codecks.internal",
+      "sha256": "ed969090ff6e14d9a4c96742e4daedadc6a8c91dd8ce6d011395812dbc55b8ac"
+    },
+    "testApk": {
+      "path": "tasks/test-evidence/m11/runtime/app-playInternal-release-androidTest.apk",
+      "applicationId": "app.codecks.internal.test",
+      "sha256": "d9046a6c20ebb47cf585e7d506fc82241c792253d58a4b6c4d5bef3dcd8190aa"
+    }
+  }
+}

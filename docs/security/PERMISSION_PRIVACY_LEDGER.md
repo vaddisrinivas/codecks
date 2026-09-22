@@ -1,6 +1,6 @@
 # Permission and privacy ledger
 
-Updated: July 27, 2026
+Updated: August 23, 2026
 
 | Permission or access | Purpose | Trigger | Data touched | Stored | Shared |
 | --- | --- | --- | --- | --- | --- |
@@ -12,6 +12,7 @@ Updated: July 27, 2026
 | `android.permission.RECEIVE_BOOT_COMPLETED` | Restore enabled WorkManager schedules after restart | Device boot after user enabled an automation | Local schedule metadata | WorkManager state | Not shared |
 | `android.permission.FOREGROUND_SERVICE` | WorkManager compatibility for bounded background work | Android promotes qualifying worker execution | Local worker status | No | Android system only |
 | `android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE` | Keep the Bluetooth HID mouse/keyboard session registered while Codecks is active in background | User has granted Bluetooth permission and opens Codecks HID/Trackpad setup | Paired target connection state only | Last HID target address may be remembered locally | Paired host only |
+| `android.permission.POST_NOTIFICATIONS` | Show and refresh the user-visible Bluetooth HID foreground-service notification | User grants notification permission and enables the HID session | Local HID readiness and app navigation only | Android notification state | Android system only |
 | `android.permission.USE_BIOMETRIC` | Allow the selected Android credential provider to authenticate access to a saved Mac password | User taps Save password or Use saved password | Authentication result only; Codecks never receives biometric data | No biometric data | Selected system credential provider |
 | `android.permission.USE_FINGERPRINT` | Compatibility permission for credential providers on older Android versions | Same as above | Authentication result only | No biometric data | Selected system credential provider |
 | Notification listener special access | Incubator Context Deck input | No trigger in default release; Android Settings opt-in only in incubator builds | App identity and notification preview fields | Privacy preferences; live previews in memory | Not uploaded by the default build |

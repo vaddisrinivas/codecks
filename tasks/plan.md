@@ -1,15 +1,16 @@
 # Implementation Plan: Codecks Play GA, Accounts, Flags, Commerce, and Ads
 
-Updated: August 8, 2026
+Updated: August 10, 2026
 
-Status: governing implementation plan. This supersedes the pre-commercial
-local-product plan captured at Codecks `v0.1.36` / commit `b6fc0ce`; it does not
-erase that baseline or convert its deferred Reactive Platform work into a GA
-dependency.
+Status: governing implementation plan. `v0.1.37` is the current public beta.
+The working state is an unversioned, unadmitted candidate.
+Implementation status and proof boundaries are reconciled in
+[`tasks/todo.md`](todo.md); machine-checked public/commercial truth is in
+[`production-state.json`](../docs/release/production-state.json).
 
 ## Baseline preservation and supersession
 
-- `v0.1.36` / `b6fc0ce` is the protected local-only reference behavior.
+- `v0.1.37` is the protected public local-first reference behavior.
 - Existing Deck, Trackpad, Keyboard, Clipboard, SSH, HID, automation, backup,
   AI-drafting, and settings behavior must survive every migration.
 - The following Reactive work remains deferred and independently scoped:
@@ -1207,3 +1208,9 @@ eligibility, production-access approval, and policy review are external.
 The implementation program is done when T01–T25 and all checkpoints have
 evidence. Account, sync, Billing, premium enforcement, and ads still remain off.
 T26 is not automatic execution: each surface may remain disabled indefinitely.
+
+## Product expansion addendum
+
+The approved Context Deck product expansion is specified separately in
+[`CONTEXT_DECK_PLAN.md`](CONTEXT_DECK_PLAN.md). It does not activate commercial
+surfaces or weaken any release, transport, lock-screen, signer, or no-shrink gate.

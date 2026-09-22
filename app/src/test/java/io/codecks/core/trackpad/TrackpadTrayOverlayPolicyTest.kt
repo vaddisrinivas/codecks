@@ -7,7 +7,7 @@ import org.junit.Test
 class TrackpadTrayOverlayPolicyTest {
     @Test
     fun expandedTrackpadTrayConsumesDeadSpaceTouches() {
-        val source = File("src/main/java/io/codecks/ui/mouse/MouseScreen.kt").readText()
+        val source = File("src/main/java/io/codecks/ui/mouse/MouseControls.kt").readText()
 
         assertTrue(source.contains("consumeOverlayTouches()"))
         assertTrue(source.contains("val down = awaitFirstDown(requireUnconsumed = false)"))

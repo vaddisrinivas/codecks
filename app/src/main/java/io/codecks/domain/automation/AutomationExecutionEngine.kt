@@ -3,6 +3,8 @@ package io.codecks.domain.automation
 import io.codecks.core.actions.ActionResult
 import io.codecks.core.actions.ActionResultStatus
 import io.codecks.core.actions.ActionRunner
+import io.codecks.core.actions.withAssuranceSource
+import io.codecks.domain.assurance.AssuranceSource
 import io.codecks.domain.device.DeviceId
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.NonCancellable
@@ -42,6 +44,7 @@ class AutomationExecutionEngine(
                     "Automation or Mac target changed before dispatch",
                 )
                 last = actionRunner.run(step, allowDangerous = allowDangerous)
+                    .withAssuranceSource(AssuranceSource.Rule)
                 if (!last.succeeded) {
                     return finish(recipe, last, AutomationCleanupTrigger.FAILURE, validatePinned)
                 }
@@ -101,7 +104,10 @@ class AutomationExecutionEngine(
                     "Automation or Mac target changed before cleanup",
                 )
             }
-            runCatching { actionRunner.run(action, allowDangerous = false) }
+            runCatching {
+                actionRunner.run(action, allowDangerous = false)
+                    .withAssuranceSource(AssuranceSource.Rule)
+            }
                 .getOrElse {
                     ActionResult(
                         actionId = action.id,

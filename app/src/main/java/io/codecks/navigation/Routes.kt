@@ -3,50 +3,37 @@ package io.codecks.navigation
 import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
 
-@Serializable
-data object HomeRoute : NavKey
+sealed interface AppRoute : NavKey
 
 @Serializable
-data object MouseRoute : NavKey
+data object HomeRoute : AppRoute
 
 @Serializable
-data object KeyboardRoute : NavKey
+data object MouseRoute : AppRoute
 
 @Serializable
-data object ClipboardRoute : NavKey
+data object KeyboardRoute : AppRoute
 
 @Serializable
-data object AutomationsRoute : NavKey
+data object ClipboardRoute : AppRoute
 
 @Serializable
-data object SettingsRoute : NavKey
+data object AutomationsRoute : AppRoute
 
 @Serializable
-data object EditorRoute : NavKey
+data object SettingsRoute : AppRoute
 
 @Serializable
-data object AiBuilderRoute : NavKey
+data object EditorRoute : AppRoute
 
 @Serializable
-data object AiProviderRoute : NavKey
+data object AiBuilderRoute : AppRoute
 
 @Serializable
-data object RunLogRoute : NavKey
+data object AiProviderRoute : AppRoute
 
 @Serializable
-data object CommandPaletteRoute : NavKey
+data object RunLogRoute : AppRoute
 
-fun NavKey.title(): String = when (this) {
-    HomeRoute -> "Deck"
-    MouseRoute -> "Trackpad"
-    KeyboardRoute -> "Keyboard"
-    ClipboardRoute -> "Clipboard"
-    AutomationsRoute -> "Rules"
-    SettingsRoute -> "Settings"
-    EditorRoute -> "Edit Deck"
-    AiBuilderRoute -> "AI"
-    AiProviderRoute -> "AI settings"
-    RunLogRoute -> "Run Log"
-    CommandPaletteRoute -> "Command Palette"
-    else -> "Codecks"
-}
+@Serializable
+data object CommandPaletteRoute : AppRoute

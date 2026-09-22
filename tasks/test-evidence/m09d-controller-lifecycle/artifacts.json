@@ -1,0 +1,433 @@
+{
+  "claims": {
+    "aiDeleteUndo": "NOT_AVAILABLE",
+    "dependencyCacheOrigin": "NOT_PROVEN",
+    "device": "NOT_RUN",
+    "freshnessAdversaryResistance": "NOT_PROVEN",
+    "ignoredLocalBuildOutputsRetention": "NOT_PROVEN",
+    "longPressUi": "NOT_RUN",
+    "networkDenial": "NOT_PROVEN",
+    "physicalPhone": "NOT_RUN",
+    "postRunLiveRevalidation": "NOT_APPLICABLE",
+    "providerNetwork": "NOT_RUN",
+    "publicRelease": "NOT_RUN",
+    "rawMaterialInCommittedEvidence": "NOT_RETAINED",
+    "rawTransformationRevalidation": "NOT_POSSIBLE",
+    "writableHomeMaterialRetention": "NOT_RETAINED"
+  },
+  "className": "io.codecks.m09d.M09DControllerLifecycleTest",
+  "command": [
+    "$GRADLE_DISTRIBUTION_ROOT/bin/gradle",
+    ":app:validateReleaseSurface",
+    ":app:testOssReleaseUnitTest",
+    "--tests",
+    "io.codecks.m09d.M09DControllerLifecycleTest",
+    "--rerun-tasks",
+    "--no-build-cache",
+    "--no-configuration-cache",
+    "--no-daemon",
+    "--offline"
+  ],
+  "compiledTrees": [
+    {
+      "bytes": 16618289,
+      "digest": "c4eafd880fcc6e86f25a202760ea8633ac9219316a1ac7f7c52e196d30d042ec",
+      "files": 2872,
+      "root": "app/build/intermediates/built_in_kotlinc/ossRelease/compileOssReleaseKotlin/classes"
+    },
+    {
+      "bytes": 5088860,
+      "digest": "5b19310e8487bccd87932646079d2d4abeba7fc70308fa6c789780f87c4cab3c",
+      "files": 822,
+      "root": "app/build/intermediates/built_in_kotlinc/ossReleaseUnitTest/compileOssReleaseUnitTestKotlin/classes"
+    }
+  ],
+  "environment": {
+    "ANDROID_HOME": "$ANDROID_HOME",
+    "GRADLE_OPTS": "",
+    "GRADLE_RO_DEP_CACHE": "$GRADLE_RO_DEP_CACHE",
+    "GRADLE_USER_HOME": "$GRADLE_USER_HOME",
+    "HOME": "$HOME",
+    "JAVA_HOME": "$JAVA_HOME",
+    "JAVA_TOOL_OPTIONS": "",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "PATH": "$JAVA_HOME/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "_JAVA_OPTIONS": ""
+  },
+  "evidenceSource": {
+    "c1Paths": [
+      "docs/evidence/M09D_CONTROLLER_LIFECYCLE.md",
+      "docs/evidence/M09D_CONTROLLER_LIFECYCLE_TODO.md",
+      "tools/evidence/collect_m09d_controller_lifecycle.py",
+      "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.schema.json",
+      "tools/evidence/test_m09d_controller_lifecycle.py"
+    ],
+    "files": [
+      {
+        "path": "tools/evidence/collect_m09d_controller_lifecycle.py",
+        "sha256": "13b5bfc6c32b92d3150f0bae457d8b4c109ae9e81ad70ce40ac4b24ce405c720"
+      },
+      {
+        "path": "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.schema.json",
+        "sha256": "a478c9092033333502e71003e9967e5ff0aca14215f8e8ad1ad2f3f4e595cf6f"
+      },
+      {
+        "path": "tools/evidence/validate_m09d_controller_lifecycle.py",
+        "sha256": "0b714887846219b1719ce4df159a802e59f11cfaa95c71a93070fe595d0eaf11"
+      }
+    ],
+    "sourceParent": "d49bc52fadded536dad947a3ea76fcd58d7f2a58"
+  },
+  "junit": {
+    "executionEndNs": 1787228673654096000,
+    "executionStartNs": 1787228520079726000,
+    "hostnameToken": "$HOST",
+    "ignoredLocalBuildOutputsRetention": "NOT_PROVEN",
+    "newFileProof": "BIRTHTIME_IN_INTERVAL",
+    "path": "tasks/test-evidence/m09d-controller-lifecycle/junit.xml",
+    "rawMaterialInCommittedEvidence": "NOT_RETAINED",
+    "rawTransformationRevalidation": "NOT_POSSIBLE",
+    "sanitizedSha256": "918aa79ff330c38b9b8e489fba3f704cd12a87e6d804032d3c969f221337ef23",
+    "sanitizerAlgorithm": "EXACT_HOSTNAME_ATTRIBUTE_REPLACEMENT",
+    "sanitizerVersion": "1",
+    "sourceBirthtimeNs": 1787228673122348288,
+    "sourceInode": 502708943,
+    "sourceMtimeNs": 1787228673124959516,
+    "suiteTimestampNs": 1787228672719000064
+  },
+  "log": {
+    "capture": "DIRECT_SUBPROCESS_STDOUT_STDERR",
+    "captureRuns": 2,
+    "path": "tasks/test-evidence/m09d-controller-lifecycle/gradle.log",
+    "sha256": "b4291c0195e326dfb48cc8a7112ce8a881ebd181ad3127e9ab8fd880254b9a82"
+  },
+  "manifestTables": {
+    "distribution": {
+      "bytes": 152833874,
+      "digest": "4f1a5269c964c76d8863388fa9dda293ef69d5e0b99e1909022b9bd2ffa53d31",
+      "files": 639,
+      "root": "$GRADLE_DISTRIBUTION_ROOT"
+    },
+    "executionDependencyCache": {
+      "bytes": 4111440086,
+      "digest": "20e069d07968340e0f5b976c2a8477de07381ba5b18dded7fb6452fbf2ec7b37",
+      "files": 3838,
+      "root": "$GRADLE_RO_DEP_CACHE/modules-2/files-2.1"
+    },
+    "gradleHomeAfter": {
+      "bytes": 1248490989,
+      "digest": "05d232dda4dea6795909bd362d7e72a17b2889ac57ef82f1b40c375e670938c8",
+      "files": 11534,
+      "root": "$GRADLE_USER_HOME"
+    },
+    "gradleHomeBefore": {
+      "bytes": 290869604,
+      "digest": "8a2ecc41c530a33413dd0fbc6a59af0a40bfa2cfb2ea60a08db64b18ea130dcf",
+      "files": 642,
+      "root": "$GRADLE_USER_HOME"
+    },
+    "jdkDistribution": {
+      "bytes": 332732576,
+      "digest": "24e9aad5c9730757a77f843e16e125d26253784f8b77835eaa86203533d501c7",
+      "files": 427,
+      "root": "$JAVA_HOME"
+    },
+    "sdkBuildTools": {
+      "bytes": 197107408,
+      "digest": "2fc594fb3b0e318130dc338d921f2e0058e1ccac1c542bd4b1e3b7ea26c9005b",
+      "files": 170,
+      "root": "$ANDROID_HOME/build-tools/36.0.0"
+    },
+    "sdkPlatform": {
+      "bytes": 125005198,
+      "digest": "abd5f2b06913df576802140a49f658b72610b931dc1adc0afea0c0aa541b1a4e",
+      "files": 11385,
+      "root": "$ANDROID_HOME/platforms/android-37.0"
+    },
+    "sdkPlatformTools": {
+      "bytes": 39399989,
+      "digest": "32c68851406285731ea90e399eaa5caff970d995a07194abda1d66e9c00e8ec0",
+      "files": 13,
+      "root": "$ANDROID_HOME/platform-tools"
+    },
+    "wrapperDirectory": {
+      "bytes": 152833874,
+      "digest": "b54f73ef33a775e048dd0ec115b56e0824e6d6ca14d9008f0e319295a26e3bc5",
+      "files": 639,
+      "root": "$GRADLE_USER_HOME/wrapper/dists/gradle-9.4.1-bin/arn2x92ynaizyzdaamcbpbhtj"
+    }
+  },
+  "methods": [
+    "aiCreateSurvivesRepositoryBackedControllerRecreationProxy",
+    "aiDeleteIsNonUndoableAcrossRepositoryBackedControllerRecreationProxy",
+    "aiRefinePreservesSourceAcrossRepositoryBackedControllerRecreationProxy",
+    "aiSaveOnlySurvivesRepositoryBackedControllerRecreationProxy",
+    "aiTestSurvivesRepositoryBackedControllerRecreationProxy",
+    "compositionPlacementBridgeDrivesHomePreferredSlotAndExactSavePath",
+    "homeEditAssignPersistsExactSavePath",
+    "homeMoveUndoRestoresExactLayoutAndSavePath",
+    "homeReassignClearsPriorUndoPolicy",
+    "homeRemoveUndoRestoresExactActionAndSavePath"
+  ],
+  "ownedGradleHome": {
+    "cleanupProof": "ABSENT_AFTER_SAFE_DELETE",
+    "finalManifestRef": "gradleHomeAfter",
+    "initialManifestRef": "gradleHomeBefore",
+    "postRunLiveRevalidation": "NOT_APPLICABLE",
+    "writableHomeMaterialRetention": "NOT_RETAINED"
+  },
+  "repeatability": {
+    "comparison": {
+      "compiledTreesSha256": "a00539f7d0bd55967d6529bb211de649db6007dbde1c8e7012718663dcdf4223",
+      "errors": 0,
+      "failures": 0,
+      "junitSemanticSha256": "443595423ad16faf4dbd7f1c63ea9156a66d8055019a59eccf356644cffe7f39",
+      "logSha256": "b4291c0195e326dfb48cc8a7112ce8a881ebd181ad3127e9ab8fd880254b9a82",
+      "methodsSha256": "b00f5f1158ec68f0779066f5ebc60230d99926ebc7ca4a247d412d7f1238c88b",
+      "skipped": 0,
+      "tests": 10,
+      "toolSeedSha256": "823517cc5d1626ffbb869edc9af9ac00ad4943280b5b19a23219c3803c9c8efb"
+    },
+    "runCount": 2,
+    "runs": [
+      {
+        "junitTiming": {
+          "executionEndNs": 1787228673654096000,
+          "executionStartNs": 1787228520079726000,
+          "newFileProof": "BIRTHTIME_IN_INTERVAL",
+          "sourceBirthtimeNs": 1787228673122348288,
+          "sourceInode": 502708943,
+          "sourceMtimeNs": 1787228673124959516,
+          "suiteTimestampNs": 1787228672719000064
+        },
+        "ordinal": 1,
+        "ownedHomeFinal": {
+          "bytes": 1248490989,
+          "digest": "05d232dda4dea6795909bd362d7e72a17b2889ac57ef82f1b40c375e670938c8",
+          "files": 11534,
+          "root": "$GRADLE_USER_HOME"
+        },
+        "ownedHomeIdentitySha256": "3d9dda8a5dc7b4029cc945ec1ce075e0ce5cb18efb4773614eb43f11b2d95217",
+        "ownedHomeInitial": {
+          "bytes": 290869604,
+          "digest": "8a2ecc41c530a33413dd0fbc6a59af0a40bfa2cfb2ea60a08db64b18ea130dcf",
+          "files": 642,
+          "root": "$GRADLE_USER_HOME"
+        },
+        "ownedHomeToken": "$INVOCATION_GRADLE_USER_HOME_1",
+        "stable": {
+          "compiledTreesSha256": "a00539f7d0bd55967d6529bb211de649db6007dbde1c8e7012718663dcdf4223",
+          "errors": 0,
+          "failures": 0,
+          "junitSemanticSha256": "443595423ad16faf4dbd7f1c63ea9156a66d8055019a59eccf356644cffe7f39",
+          "logSha256": "b4291c0195e326dfb48cc8a7112ce8a881ebd181ad3127e9ab8fd880254b9a82",
+          "methodsSha256": "b00f5f1158ec68f0779066f5ebc60230d99926ebc7ca4a247d412d7f1238c88b",
+          "skipped": 0,
+          "tests": 10,
+          "toolSeedSha256": "823517cc5d1626ffbb869edc9af9ac00ad4943280b5b19a23219c3803c9c8efb"
+        }
+      },
+      {
+        "junitTiming": {
+          "executionEndNs": 1787228838937637000,
+          "executionStartNs": 1787228697634513000,
+          "newFileProof": "BIRTHTIME_IN_INTERVAL",
+          "sourceBirthtimeNs": 1787228838396317952,
+          "sourceInode": 502738518,
+          "sourceMtimeNs": 1787228838400351211,
+          "suiteTimestampNs": 1787228837846999808
+        },
+        "ordinal": 2,
+        "ownedHomeFinal": {
+          "bytes": 1248477227,
+          "digest": "7cef92b9adfd8f0eac191dc370cecbc6b7228ddddcf3993177c8c439a263a25e",
+          "files": 11534,
+          "root": "$GRADLE_USER_HOME"
+        },
+        "ownedHomeIdentitySha256": "e2058ec5dec3ef35433b7879ef55945b931be8e282d04c508818b464dd178861",
+        "ownedHomeInitial": {
+          "bytes": 290869604,
+          "digest": "8a2ecc41c530a33413dd0fbc6a59af0a40bfa2cfb2ea60a08db64b18ea130dcf",
+          "files": 642,
+          "root": "$GRADLE_USER_HOME"
+        },
+        "ownedHomeToken": "$INVOCATION_GRADLE_USER_HOME_2",
+        "stable": {
+          "compiledTreesSha256": "a00539f7d0bd55967d6529bb211de649db6007dbde1c8e7012718663dcdf4223",
+          "errors": 0,
+          "failures": 0,
+          "junitSemanticSha256": "443595423ad16faf4dbd7f1c63ea9156a66d8055019a59eccf356644cffe7f39",
+          "logSha256": "b4291c0195e326dfb48cc8a7112ce8a881ebd181ad3127e9ab8fd880254b9a82",
+          "methodsSha256": "b00f5f1158ec68f0779066f5ebc60230d99926ebc7ca4a247d412d7f1238c88b",
+          "skipped": 0,
+          "tests": 10,
+          "toolSeedSha256": "823517cc5d1626ffbb869edc9af9ac00ad4943280b5b19a23219c3803c9c8efb"
+        }
+      }
+    ],
+    "status": "MATCHED_TWO_INDEPENDENT_CAPTURES"
+  },
+  "schema": "codecks.m09d.controller-lifecycle-artifacts.v1",
+  "snapshots": {
+    "dependencyCacheAfter": {
+      "manifestRef": "executionDependencyCache"
+    },
+    "dependencyCacheBefore": {
+      "manifestRef": "executionDependencyCache"
+    },
+    "gradleHomeAfter": {
+      "manifestRef": "gradleHomeAfter"
+    },
+    "gradleHomeBefore": {
+      "manifestRef": "gradleHomeBefore"
+    },
+    "sdkAfter": [
+      {
+        "manifestRef": "sdkPlatform"
+      },
+      {
+        "manifestRef": "sdkBuildTools"
+      },
+      {
+        "manifestRef": "sdkPlatformTools"
+      }
+    ],
+    "sdkBefore": [
+      {
+        "manifestRef": "sdkPlatform"
+      },
+      {
+        "manifestRef": "sdkBuildTools"
+      },
+      {
+        "manifestRef": "sdkPlatformTools"
+      }
+    ],
+    "sourceAfter": {
+      "c1": "e25981859d3c707b0cbaef8ff095e42700d6fc9730b029d4f65e98dd9262e178",
+      "head": "b7579e9d999311bd160510710f3e4a3b3091aeb7",
+      "headTree": "208063fbf1a2aad5bd495e67a9588277167977ad",
+      "indexTree": "208063fbf1a2aad5bd495e67a9588277167977ad",
+      "status": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "sourceBefore": {
+      "c1": "e25981859d3c707b0cbaef8ff095e42700d6fc9730b029d4f65e98dd9262e178",
+      "head": "b7579e9d999311bd160510710f3e4a3b3091aeb7",
+      "headTree": "208063fbf1a2aad5bd495e67a9588277167977ad",
+      "indexTree": "208063fbf1a2aad5bd495e67a9588277167977ad",
+      "status": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "sourceCommit": "b7579e9d999311bd160510710f3e4a3b3091aeb7",
+  "tools": {
+    "dependencyCache": {
+      "manifestRef": "executionDependencyCache"
+    },
+    "dependencyCacheOrigin": "NOT_PROVEN",
+    "distribution": {
+      "manifestRef": "distribution"
+    },
+    "distributionZip": {
+      "path": "$GRADLE_DISTRIBUTION_ZIP",
+      "sha256": "2ab2958f2a1e51120c326cad6f385153bb11ee93b3c216c5fccebfdfbb7ec6cb"
+    },
+    "gradleBinary": {
+      "path": "$GRADLE_DISTRIBUTION_ROOT/bin/gradle",
+      "sha256": "d995438d2583976188015a46642bd2e66f7aec23d1a1bf00267a6a27e4a4155b"
+    },
+    "gradleProperties": {
+      "path": "$GRADLE_USER_HOME/gradle.properties",
+      "sha256": "85ded62c7cf18436166cbd09f5e6f372a6d6b8e9568591bf05401783453f1b37"
+    },
+    "gradleVersion": {
+      "ant": "Apache Ant(TM) version 1.10.15 compiled on August 25 2024",
+      "buildTime": "2026-03-19 08:46:28 UTC",
+      "daemonJvm": "$JAVA_HOME (no Daemon JVM specified, using current Java home)",
+      "gradle": "9.4.1",
+      "groovy": "4.0.29",
+      "kotlin": "2.3.0",
+      "launcherJvm": "20.0.2 (Oracle Corporation 20.0.2+9-78)",
+      "os": {
+        "arch": "aarch64",
+        "name": "Mac OS X",
+        "version": "26.5.2"
+      },
+      "revision": "2d6327017519d23b96af35865dc997fcb544fb40"
+    },
+    "gradleVersionCommand": [
+      "$GRADLE_DISTRIBUTION_ROOT/bin/gradle",
+      "--version",
+      "--no-daemon"
+    ],
+    "initScripts": {
+      "checked": [
+        "$GRADLE_USER_HOME/init.gradle",
+        "$GRADLE_USER_HOME/init.gradle.kts",
+        "$HOME/.gradle/init.gradle",
+        "$HOME/.gradle/init.gradle.kts",
+        "/etc/gradle/init.gradle",
+        "/etc/gradle/init.gradle.kts",
+        "$GRADLE_USER_HOME/init.d",
+        "$HOME/.gradle/init.d",
+        "/etc/gradle/init.d",
+        "$GRADLE_USER_HOME/wrapper/dists/gradle-9.4.1-bin/arn2x92ynaizyzdaamcbpbhtj/gradle-9.4.1/init.d"
+      ],
+      "defaultUser": [],
+      "distribution": [],
+      "scopedUser": [],
+      "system": []
+    },
+    "javaExecutable": {
+      "path": "$JAVA_HOME/bin/java",
+      "sha256": "aa1e2de08f9ac2efe8c47ad261a9fec033588bde0f2ab7691817ae191379610f"
+    },
+    "javaHome": "$JAVA_HOME",
+    "jdkCommand": [
+      "java",
+      "-version"
+    ],
+    "jdkDistribution": {
+      "manifestRef": "jdkDistribution"
+    },
+    "jdkVersion": "Picked up JAVA_TOOL_OPTIONS:\nPicked up _JAVA_OPTIONS:\nopenjdk version \"20.0.2\" 2023-07-18\nOpenJDK Runtime Environment (build 20.0.2+9-78)\nOpenJDK 64-Bit Server VM (build 20.0.2+9-78, mixed mode, sharing)",
+    "launcher": {
+      "path": "$GRADLE_DISTRIBUTION_ROOT/lib/gradle-launcher-9.4.1.jar",
+      "sha256": "541d9a671246033cae467215bdfc16839958888f3808a6aa937ba7fc802945ed"
+    },
+    "localProperties": {
+      "path": "local.properties",
+      "state": "ABSENT"
+    },
+    "officialChecksumContent": {
+      "acquisitionAuth": "NOT_PROVEN",
+      "bodySha256": "bf1e620f915bcde7c1c09738daecfe332fb59a6ca6b550813c8a41e72cb23782",
+      "url": "https://gradle.org/release-checksums/"
+    },
+    "sdkRequired": [
+      {
+        "manifestRef": "sdkPlatform"
+      },
+      {
+        "manifestRef": "sdkBuildTools"
+      },
+      {
+        "manifestRef": "sdkPlatformTools"
+      }
+    ],
+    "versions": {
+      "gradle": "9.4.1",
+      "runtime": "20.0.2+9-78",
+      "vendor": "Oracle Corporation",
+      "version": "20.0.2"
+    },
+    "wrapperDirectory": {
+      "manifestRef": "wrapperDirectory"
+    },
+    "wrapperProperties": "519280ee807cb83ee0f7be30bb3aa51b71d0e14905cb3ecc285a4243b2ce4ac8",
+    "zipExtract": {
+      "equal": true,
+      "sha256": "4f1a5269c964c76d8863388fa9dda293ef69d5e0b99e1909022b9bd2ffa53d31"
+    }
+  }
+}

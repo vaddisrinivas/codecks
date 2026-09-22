@@ -1,0 +1,16 @@
+schemaVersion	2
+button	1-8
+artifact_codec_roundtrip	9-16
+refine_once	17-24
+malformed_output	25-32
+review_metadata	33-40
+deck	41-48
+unsupported_theme	49-56
+prompt_injection	57-64
+oversized_content	65-72
+artifact_conversion	73-80
+automation	81-88
+disabled_automation	89-96
+adversarial_command	97-104
+provider_error	105-112
+regenerate	113-120

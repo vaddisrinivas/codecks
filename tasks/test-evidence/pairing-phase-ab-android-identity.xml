@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.codecks.data.reactive.helper.ReactiveHelperIdentityCodecTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-08-17T22:13:29.850Z" hostname="svaddi-home.local" time="0.125">
+  <properties/>
+  <testcase name="future corrupt and oversized pairing cannot be overwritten" classname="io.codecks.data.reactive.helper.ReactiveHelperIdentityCodecTest" time="0.037"/>
+  <testcase name="current round trip and legacy array migration preserve pairing" classname="io.codecks.data.reactive.helper.ReactiveHelperIdentityCodecTest" time="0.006"/>
+  <testcase name="failed identity commit restores prior secret" classname="io.codecks.data.reactive.helper.ReactiveHelperIdentityCodecTest" time="0.078"/>
+  <testcase name="failed first pairing deletes newly written secret" classname="io.codecks.data.reactive.helper.ReactiveHelperIdentityCodecTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

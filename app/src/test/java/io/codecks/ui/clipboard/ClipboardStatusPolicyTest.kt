@@ -130,4 +130,17 @@ class ClipboardStatusPolicyTest {
             ),
         )
     }
+
+    @Test
+    fun synchronizedClipboardAlwaysHidesSystemPreview() {
+        assertEquals(true, clipboardSystemPreviewMustBeHidden())
+        assertEquals(
+            LEGACY_CLIP_DESCRIPTION_IS_SENSITIVE,
+            clipboardSensitiveExtrasKey(28) { error("API 33 field accessed") },
+        )
+        assertEquals(
+            LEGACY_CLIP_DESCRIPTION_IS_SENSITIVE,
+            clipboardSensitiveExtrasKey(32) { error("API 33 field accessed") },
+        )
+    }
 }

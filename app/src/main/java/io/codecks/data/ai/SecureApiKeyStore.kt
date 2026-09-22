@@ -12,6 +12,8 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import io.codecks.data.persistence.BoundedPayload
+import io.codecks.data.persistence.PersistenceUnavailableException
 
 interface SecureApiKeyStore {
     suspend fun hasKey(providerId: String): Boolean
@@ -40,21 +42,31 @@ private val Context.aiCredentialDataStore by preferencesDataStore(name = "ai_cre
 class AndroidSecureApiKeyStore(
     private val context: Context,
 ) : SecureApiKeyStore {
-    override suspend fun hasKey(providerId: String): Boolean = loadCiphertext(providerId) != null
+    override suspend fun hasKey(providerId: String): Boolean = loadKey(providerId) != null
 
     override suspend fun saveKey(providerId: String, key: SecretValue) {
-        val sealed = EncryptedApiKeyCodec(providerId).encrypt(key.revealForProviderCall())
+        requireProviderId(providerId)
+        val codec = EncryptedApiKeyCodec(providerId)
+        loadCiphertext(providerId)?.let { existing ->
+            runCatching { codec.decrypt(BoundedPayload.utf8(existing, MAX_SEALED_BYTES)) }
+                .getOrElse { throw PersistenceUnavailableException("Saved key cannot be opened; delete it before replacing") }
+        }
+        val raw = BoundedPayload.utf8(key.revealForProviderCall(), MAX_SECRET_BYTES)
+        val sealed = BoundedPayload.utf8(codec.encrypt(raw), MAX_SEALED_BYTES)
         context.aiCredentialDataStore.edit { preferences ->
             preferences[keyFor(providerId)] = sealed
         }
     }
 
     override suspend fun loadKey(providerId: String): SecretValue? {
+        requireProviderId(providerId)
         val sealed = loadCiphertext(providerId) ?: return null
-        return SecretValue.of(EncryptedApiKeyCodec(providerId).decrypt(sealed))
+        if (sealed.toByteArray(Charsets.UTF_8).size > MAX_SEALED_BYTES) return null
+        return runCatching { SecretValue.of(EncryptedApiKeyCodec(providerId).decrypt(sealed)) }.getOrNull()
     }
 
     override suspend fun deleteKey(providerId: String) {
+        requireProviderId(providerId)
         context.aiCredentialDataStore.edit { preferences ->
             preferences.remove(keyFor(providerId))
         }
@@ -64,6 +76,15 @@ class AndroidSecureApiKeyStore(
         context.aiCredentialDataStore.data.first()[keyFor(providerId)]
 
     private fun keyFor(providerId: String) = stringPreferencesKey("api_key_$providerId")
+
+    private fun requireProviderId(providerId: String) {
+        require(providerId.matches(Regex("[a-z0-9_.-]{1,64}"))) { "Invalid provider ID" }
+    }
+
+    private companion object {
+        const val MAX_SECRET_BYTES = 16 * 1024
+        const val MAX_SEALED_BYTES = 32 * 1024
+    }
 }
 
 internal class EncryptedApiKeyCodec(

@@ -10,6 +10,9 @@ import io.codecks.domain.ai.MacVisualEffectCatalog
 import java.security.MessageDigest
 import java.util.Collections
 
+internal const val MAX_AUTOMATION_ACTIONS = 32
+internal const val MAX_AUTOMATION_COMMAND_BYTES = 16 * 1024
+
 enum class AutomationAssertionKind {
     EXIT_CODE_ZERO,
 }
@@ -102,6 +105,10 @@ object AutomationExecutionPlanCompiler {
     fun compile(recipe: AutomationRecipe): Result<NormalizedAutomationPlan> = runCatching {
         require(recipe.id.isNotBlank()) { "Automation recipe id is empty" }
         require(recipe.steps.isNotEmpty()) { "Automation has no executable actions" }
+        val executableActionCount = recipe.steps.size + if (recipe.cleanupDefinition.action == null) 0 else 1
+        require(executableActionCount <= MAX_AUTOMATION_ACTIONS) {
+            "Automation exceeds $MAX_AUTOMATION_ACTIONS executable actions"
+        }
         require(recipe.steps.map(ActionSpec::id).distinct().size == recipe.steps.size) {
             "Automation action ids must be unique"
         }
@@ -144,6 +151,9 @@ private fun ActionSpec.toNormalizedAction(index: Int): NormalizedAutomationActio
             error("Unsupported automation action $id: unresolved catalog action")
         is ActionSpec.LocalRoute ->
             error("Unsupported automation action $id: local route")
+    }
+    require(rawCommand.toByteArray(Charsets.UTF_8).size <= MAX_AUTOMATION_COMMAND_BYTES) {
+        "Automation command $id exceeds $MAX_AUTOMATION_COMMAND_BYTES UTF-8 bytes"
     }
     val normalizedCommand = rawCommand.normalizeCommand()
     RawCommandPolicy.firstViolation(normalizedCommand)?.let { reason ->

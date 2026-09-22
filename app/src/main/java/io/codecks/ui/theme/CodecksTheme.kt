@@ -9,11 +9,13 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import io.codecks.ui.designsystem.CodecksMaterialShapes
+import io.codecks.ui.designsystem.CodecksMaterialTypography
+import io.codecks.ui.designsystem.LocalCodecksMotionPolicy
+import io.codecks.ui.designsystem.rememberCodecksMotionPolicy
 
 private val DeckLightColors = lightColorScheme(
     primary = Color(0xFF087F3F),
@@ -111,21 +113,51 @@ private val DeckOledColors = darkColorScheme(
     surfaceContainerHighest = Color(0xFF171D19),
 )
 
-private val DeckTypography = Typography(
-    titleLarge = TextStyle(fontWeight = FontWeight.Bold, fontSize = 23.sp, lineHeight = 29.sp),
-    titleMedium = TextStyle(fontWeight = FontWeight.Bold, fontSize = 16.sp, lineHeight = 23.sp),
-    titleSmall = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 20.sp),
-    labelLarge = TextStyle(fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 20.sp),
-    labelMedium = TextStyle(fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 16.sp),
+data class CodecksScopedAppearance(val bundle: ThemeBundle) {
+    fun scheme(target: ThemeTarget): ThemeScheme = bundle.resolve(target)
+    fun semantic(role: ThemeColorRole): ThemeArgb = bundle.semantic(role)
+}
+
+data class CodecksSemanticColors(
+    val success: Color,
+    val warning: Color,
+    val glow: Color,
+    val glowStrength: Float,
 )
 
-private val DeckShapes = Shapes(
-    extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
-    small = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-    medium = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-    large = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
-)
+val LocalCodecksScopedAppearance = staticCompositionLocalOf {
+    CodecksScopedAppearance(ThemeBundle(ThemePresetCatalog.default))
+}
+
+val LocalCodecksSemanticColors = staticCompositionLocalOf {
+    val scheme = ThemePresetCatalog.default
+    CodecksSemanticColors(
+        success = Color(scheme[ThemeColorRole.Success].value.toInt()),
+        warning = Color(scheme[ThemeColorRole.Warning].value.toInt()),
+        glow = Color(scheme[ThemeColorRole.Glow].value.toInt()),
+        glowStrength = scheme.opacity.glow,
+    )
+}
+
+/** Applies a Deck/Trackpad palette only inside that surface; global danger semantics remain authoritative. */
+@Composable
+fun CodecksScopedTheme(target: ThemeTarget, content: @Composable () -> Unit) {
+    val appearance = LocalCodecksScopedAppearance.current
+    val targetScheme = appearance.scheme(target)
+    val scoped = MaterialTheme.colorScheme.applyThemeScheme(targetScheme)
+    val global = appearance.scheme(ThemeTarget.Global)
+    CompositionLocalProvider(LocalCodecksSemanticColors provides targetScheme.semanticColors()) {
+        MaterialTheme(
+            colorScheme = scoped.copy(
+                error = Color(global[ThemeColorRole.Danger].value.toInt()),
+                onError = Color(ThemeContrast.readableForeground(global[ThemeColorRole.Danger]).value.toInt()),
+            ),
+            typography = MaterialTheme.typography,
+            shapes = MaterialTheme.shapes,
+            content = content,
+        )
+    }
+}
 
 @Composable
 fun CodecksTheme(
@@ -142,17 +174,58 @@ fun CodecksTheme(
         resolvedMode == CodecksThemeMode.Oled -> DeckOledColors
         darkResolved -> DeckDarkColors
         else -> DeckLightColors
-    }.applyThemeSettings(settings, darkResolved)
+    }.applyThemeSettings(settings, darkResolved).applyThemeScheme(settings.themeBundle.global)
+    val motionPolicy = rememberCodecksMotionPolicy()
 
-    CompositionLocalProvider(LocalCodecksIconPack provides settings.iconPack) {
+    CompositionLocalProvider(
+        LocalCodecksIconPack provides settings.iconPack,
+        LocalCodecksScopedAppearance provides CodecksScopedAppearance(settings.themeBundle),
+        LocalCodecksSemanticColors provides settings.themeBundle.global.semanticColors(),
+        LocalCodecksMotionPolicy provides motionPolicy,
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = DeckTypography,
+            typography = CodecksMaterialTypography,
             shapes = shapesFor(settings.shapeStyle),
             content = content,
         )
     }
 }
+
+private fun ColorScheme.applyThemeScheme(scheme: ThemeScheme): ColorScheme {
+    fun ThemeColorRole.color() = Color(scheme[this].value.toInt())
+    fun ThemeColorRole.onColor() = Color(ThemeContrast.readableForeground(scheme[this]).value.toInt())
+    val backdrop = ThemeArgb.fromColor(background)
+    fun ThemeColorRole.surfaceArgb() = ThemeColorMath.composite(
+        scheme[this],
+        backdrop,
+        if (this == ThemeColorRole.Grid) scheme.opacity.grid else scheme.opacity.surface,
+    )
+    fun ThemeColorRole.surfaceColor() = Color(surfaceArgb().value.toInt())
+    fun ThemeColorRole.onSurfaceColor() = Color(ThemeContrast.readableForeground(surfaceArgb()).value.toInt())
+    return copy(
+        primary = ThemeColorRole.Primary.color(), onPrimary = ThemeColorRole.Primary.onColor(),
+        secondary = ThemeColorRole.Secondary.color(), onSecondary = ThemeColorRole.Secondary.onColor(),
+        tertiary = ThemeColorRole.Tertiary.color(), onTertiary = ThemeColorRole.Tertiary.onColor(),
+        surface = ThemeColorRole.Surface.surfaceColor(), onSurface = ThemeColorRole.Surface.onSurfaceColor(),
+        background = ThemeColorRole.Background.surfaceColor(), onBackground = ThemeColorRole.Background.onSurfaceColor(),
+        outline = ThemeColorRole.Border.color(),
+        error = ThemeColorRole.Danger.color(), onError = ThemeColorRole.Danger.onColor(),
+        primaryContainer = ThemeColorRole.Button.color(), onPrimaryContainer = ThemeColorRole.Button.onColor(),
+        surfaceVariant = ThemeColorRole.Grid.surfaceColor(), onSurfaceVariant = ThemeColorRole.Grid.onSurfaceColor(),
+    )
+}
+
+private fun ThemeScheme.semanticColors() = CodecksSemanticColors(
+    success = Color(this[ThemeColorRole.Success].value.toInt()),
+    warning = Color(this[ThemeColorRole.Warning].value.toInt()),
+    glow = Color(this[ThemeColorRole.Glow].value.toInt()),
+    glowStrength = opacity.glow,
+)
+
+private fun ThemeArgb.Companion.fromColor(color: Color): ThemeArgb = requireNotNull(
+    ThemeArgb.fromRgb(color.red, color.green, color.blue),
+)
 
 private fun ColorScheme.applyThemeSettings(
     settings: CodecksThemeSettings,
@@ -264,7 +337,7 @@ private fun Color.darken(amount: Float): Color =
     copy(red = red * (1f - amount), green = green * (1f - amount), blue = blue * (1f - amount))
 
 private fun shapesFor(style: CodecksShapeStyle): Shapes = when (style) {
-    CodecksShapeStyle.Native -> DeckShapes
+    CodecksShapeStyle.Native -> CodecksMaterialShapes
     CodecksShapeStyle.Compact -> Shapes(
         extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
         small = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),

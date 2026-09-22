@@ -89,6 +89,15 @@ fun SupportBundleDialog(
                         )
                         Text("Included:")
                         state.includedSections.forEach { Text("• $it") }
+                        state.summary?.let { summary ->
+                            Text("Build: ${summary.build}")
+                            Text("Connection: ${summary.connection} · Bluetooth input: ${summary.hid}")
+                            Text(
+                                "Permissions: Bluetooth ${summary.bluetoothPermission}; " +
+                                    "notifications ${summary.notificationPermission}",
+                            )
+                            Text("Battery: ${summary.batteryPolicy}")
+                        }
                         Text(state.prohibitedDataStatement)
                         Text("Codecks opens Android’s share picker. It never uploads this bundle.")
                     }

@@ -69,7 +69,7 @@ class AccessibilityRuntimeInstrumentedTest {
             }
         }
 
-        compose.onNodeWithText("More").fetchSemanticsNode()
+        compose.onNodeWithText("App navigation").fetchSemanticsNode()
         compose.onNodeWithText("Deck").fetchSemanticsNode()
     }
 }

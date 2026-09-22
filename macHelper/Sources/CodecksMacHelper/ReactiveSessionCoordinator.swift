@@ -23,9 +23,12 @@ public struct ClosureReactiveHelperActionHandler: ReactiveHelperActionHandler {
 }
 
 public final class ReactiveSessionCoordinator {
+    private let stateLock = NSRecursiveLock()
     private let macId: String
     private let helperIdentity: HelperIdentityPin
     private let pairingStore: PairingStore
+    private let credentialStore: PairingCredentialStore?
+    private let allowUnknownLegacyEnrollment: Bool
     private let supportedActionIds: Set<String>
     private let advertisedCapabilities: [String]
     private let actionHandlers: [String: ReactiveHelperActionHandler]
@@ -38,12 +41,16 @@ public final class ReactiveSessionCoordinator {
         macId: String,
         helperIdentity: HelperIdentityPin,
         pairingStore: PairingStore,
+        credentialStore: PairingCredentialStore? = nil,
+        allowUnknownLegacyEnrollment: Bool = false,
         supportedActionIds: Set<String> = [],
         actionHandlers: [String: ReactiveHelperActionHandler] = [:]
     ) {
         self.macId = macId
         self.helperIdentity = helperIdentity
         self.pairingStore = pairingStore
+        self.credentialStore = credentialStore
+        self.allowUnknownLegacyEnrollment = allowUnknownLegacyEnrollment
         self.actionHandlers = actionHandlers
         self.supportedActionIds = supportedActionIds.union(actionHandlers.keys)
         self.advertisedCapabilities = Array(
@@ -53,9 +60,12 @@ public final class ReactiveSessionCoordinator {
     }
 
     public func handleHello(_ hello: ReactiveHello, nowMillis: Int64 = nowMillis()) throws -> ReactiveChallenge {
+        stateLock.lock(); defer { stateLock.unlock() }
         try validateHello(hello)
-        if let record = try pairingStore.load(deviceId: hello.deviceId), record.isRevoked {
-            throw ReactiveValidationError("helper identity revoked")
+        if let record = try pairingStore.load(deviceId: hello.deviceId) {
+            if record.isRevoked { throw ReactiveValidationError("helper identity revoked") }
+        } else if !allowUnknownLegacyEnrollment {
+            throw ReactiveValidationError("unknown helper device")
         }
         try helperIdentity.validate()
         let challenge = ReactiveChallenge(
@@ -72,7 +82,8 @@ public final class ReactiveSessionCoordinator {
         return challenge
     }
 
-    public func handleProof(_ proof: ReactiveProof, secret: Data, nowMillis: Int64 = nowMillis()) throws -> ReactiveAuthResult {
+    public func handleProof(_ proof: ReactiveProof, secret legacySecret: Data, nowMillis: Int64 = nowMillis()) throws -> ReactiveAuthResult {
+        stateLock.lock(); defer { stateLock.unlock() }
         guard let pendingSession = pending[proof.sessionId] else {
             return rejected(sessionId: proof.sessionId, code: ReactiveErrorCode.authenticationRequired.rawValue, nowMillis: nowMillis)
         }
@@ -80,9 +91,25 @@ public final class ReactiveSessionCoordinator {
             pending.removeValue(forKey: proof.sessionId)
             return rejected(sessionId: proof.sessionId, code: ReactiveErrorCode.clockSkew.rawValue, nowMillis: nowMillis)
         }
-        if let record = try pairingStore.load(deviceId: pendingSession.hello.deviceId), record.isRevoked {
+        let existingRecord = try pairingStore.load(deviceId: pendingSession.hello.deviceId)
+        if let existingRecord, existingRecord.isRevoked {
             pending.removeValue(forKey: proof.sessionId)
             return rejected(sessionId: proof.sessionId, code: ReactiveErrorCode.pinMismatch.rawValue, nowMillis: nowMillis)
+        }
+
+        let secret: Data
+        if let existingRecord, PairingCredentialKind.parse(existingRecord.credentialId) == .v2(deviceId: existingRecord.deviceId) {
+            guard let stored = try credentialStore?.load(deviceId: existingRecord.deviceId) else {
+                return rejected(sessionId: proof.sessionId, code: ReactiveErrorCode.authenticationRequired.rawValue, nowMillis: nowMillis)
+            }
+            secret = stored
+        } else if existingRecord.map({ PairingCredentialKind.parse($0.credentialId) == .legacy }) == true || (existingRecord == nil && allowUnknownLegacyEnrollment) {
+            guard existingRecord != nil || allowUnknownLegacyEnrollment else {
+                return rejected(sessionId: proof.sessionId, code: ReactiveErrorCode.authenticationRequired.rawValue, nowMillis: nowMillis)
+            }
+            secret = legacySecret
+        } else {
+            return rejected(sessionId: proof.sessionId, code: ReactiveErrorCode.authenticationRequired.rawValue, nowMillis: nowMillis)
         }
 
         let auth = ReactiveAuthenticator(secret: secret)
@@ -92,16 +119,18 @@ public final class ReactiveSessionCoordinator {
             return rejected(sessionId: proof.sessionId, code: ReactiveErrorCode.pinMismatch.rawValue, nowMillis: nowMillis)
         }
 
-        let record = ReactivePairingRecord(
-            deviceId: pendingSession.hello.deviceId,
-            helperIdentity: helperIdentity,
-            credentialId: "hmac-local-pairing",
-            createdAtMillis: nowMillis,
-            lastUsedAtMillis: nowMillis
-        )
-        try pairingStore.save(record)
+        if existingRecord == nil {
+            let record = ReactivePairingRecord(
+                deviceId: pendingSession.hello.deviceId,
+                helperIdentity: helperIdentity,
+                credentialId: "hmac-local-pairing",
+                createdAtMillis: nowMillis,
+                lastUsedAtMillis: nowMillis
+            )
+            try pairingStore.save(record)
+        }
         pending.removeValue(forKey: proof.sessionId)
-        sessions[proof.sessionId] = AuthenticatedSession(secret: secret, expiresAtMillis: nowMillis + ReactiveConstants.replayWindowMillis)
+        sessions[proof.sessionId] = AuthenticatedSession(deviceId: pendingSession.hello.deviceId, secret: secret, expiresAtMillis: nowMillis + ReactiveConstants.replayWindowMillis)
         return ReactiveAuthResult(
             schema: ReactiveConstants.schema,
             sessionId: proof.sessionId,
@@ -113,7 +142,14 @@ public final class ReactiveSessionCoordinator {
         )
     }
 
+    public func evictSessions(deviceId: String) {
+        stateLock.lock(); defer { stateLock.unlock() }
+        sessions = sessions.filter { $0.value.deviceId != deviceId }
+        pending = pending.filter { $0.value.hello.deviceId != deviceId }
+    }
+
     public func handleRequest(_ envelope: ReactiveRequestEnvelope, nowMillis: Int64 = nowMillis()) throws -> ReactiveResponseEnvelope {
+        stateLock.lock(); defer { stateLock.unlock() }
         guard var session = sessions[envelope.sessionId], session.expiresAtMillis >= nowMillis else {
             return response(for: envelope, status: .denied, code: ReactiveErrorCode.authenticationRequired.rawValue, secret: Data())
         }
@@ -267,18 +303,33 @@ public final class ReactiveSessionCoordinator {
     }
 }
 
+private enum PairingCredentialKind: Equatable {
+    case legacy
+    case v2(deviceId: String)
+
+    static func parse(_ raw: String) -> PairingCredentialKind? {
+        if raw == "hmac-local-pairing" { return .legacy }
+        guard raw.hasPrefix("pairing-v2:") else { return nil }
+        let deviceId = String(raw.dropFirst("pairing-v2:".count))
+        guard deviceId.data(using: .utf8)?.count == 22 else { return nil }
+        return .v2(deviceId: deviceId)
+    }
+}
+
 private struct PendingSession {
     var hello: ReactiveHello
     var challenge: ReactiveChallenge
 }
 
 private struct AuthenticatedSession {
+    var deviceId: String
     var secret: Data
     var expiresAtMillis: Int64
     private var highestSequence: Int64 = 0
     private var completedRequests: Set<String> = []
 
-    init(secret: Data, expiresAtMillis: Int64) {
+    init(deviceId: String, secret: Data, expiresAtMillis: Int64) {
+        self.deviceId = deviceId
         self.secret = secret
         self.expiresAtMillis = expiresAtMillis
     }

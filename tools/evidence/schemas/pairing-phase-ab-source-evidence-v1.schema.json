@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codecks.pairing.phase-ab.source-evidence.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "scope", "status", "sourceCommit", "phaseCommits", "sources", "executions", "commands", "lanes", "boundaries", "limitations", "receiptDigest"],
+  "properties": {
+    "schema": {"const": "codecks.pairing.phase-ab.source-evidence.v1"},
+    "scope": {"const": "EXACT_PHASE_B_SOURCE_AND_CPU_UNIT"},
+    "status": {"const": "PASS_WITH_NOT_RUN_BOUNDARIES"},
+    "sourceCommit": {"$ref": "#/$defs/commit"},
+    "phaseCommits": {
+      "type": "object", "additionalProperties": false, "required": ["phaseA", "phaseB"],
+      "properties": {"phaseA": {"$ref": "#/$defs/commit"}, "phaseB": {"$ref": "#/$defs/commit"}}
+    },
+    "sources": {"type": "array", "minItems": 35, "maxItems": 35, "items": {"$ref": "#/$defs/source"}},
+    "executions": {"type": "array", "minItems": 5, "maxItems": 5, "items": {"$ref": "#/$defs/execution"}},
+    "commands": {"type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true, "items": {"type": "string", "minLength": 30}},
+    "lanes": {"type": "array", "minItems": 14, "maxItems": 14, "items": {"$ref": "#/$defs/lane"}},
+    "boundaries": {
+      "type": "object", "additionalProperties": false,
+      "required": ["signedArtifactBuilt", "signingIdentityAccessed", "keychainEntitlementProven", "runtimePairingProven", "physicalPhoneTouched", "tcpPayloadEncrypted"],
+      "properties": {
+        "signedArtifactBuilt": {"const": false}, "signingIdentityAccessed": {"const": false},
+        "keychainEntitlementProven": {"const": false}, "runtimePairingProven": {"const": false},
+        "physicalPhoneTouched": {"const": false}, "tcpPayloadEncrypted": {"const": false}
+      }
+    },
+    "limitations": {"type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true, "items": {"type": "string", "minLength": 20, "maxLength": 180}},
+    "receiptDigest": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source": {"type": "object", "additionalProperties": false, "required": ["path", "commit", "sha256"], "properties": {"path": {"type": "string", "pattern": "^(app|macHelper|shared)/[A-Za-z0-9_./-]+\\.(kt|swift|sh)$"}, "commit": {"$ref": "#/$defs/commit"}, "sha256": {"$ref": "#/$defs/sha256"}}},
+    "execution": {"type": "object", "additionalProperties": false, "required": ["id", "path", "sha256", "tests", "failures", "errors", "skipped"], "properties": {"id": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]+$"}, "path": {"type": "string", "pattern": "^tasks/test-evidence/pairing-phase-ab-[A-Za-z0-9_.-]+\\.(xml|log)$"}, "sha256": {"$ref": "#/$defs/sha256"}, "tests": {"type": "integer", "minimum": 1}, "failures": {"const": 0}, "errors": {"const": 0}, "skipped": {"const": 0}}},
+    "lane": {"type": "object", "additionalProperties": false, "required": ["id", "status", "evidence"], "properties": {"id": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]+$"}, "status": {"enum": ["PASS", "NOT_RUN"]}, "evidence": {"enum": ["EXACT_PHASE_B_BLOB_AND_CPU_UNIT", "EXTERNAL_OR_ARTIFACT"]}}}
+  }
+}

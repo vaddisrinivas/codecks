@@ -18,8 +18,16 @@ import io.codecks.domain.execution.ExecutionPlanner
 import io.codecks.domain.execution.ExecutionResult
 import io.codecks.domain.execution.ExecutionStatus
 import io.codecks.domain.ai.MacVisualEffectCatalog
+import io.codecks.domain.assurance.ActionAssuranceAdapter
+import io.codecks.domain.assurance.ActionAssuranceEngine
+import io.codecks.domain.assurance.AssurancePreflightCode
+import io.codecks.domain.assurance.AssuranceRequest
+import io.codecks.domain.assurance.AssuranceComponentExecution
+import io.codecks.domain.assurance.AssuranceComponentReceipt
+import io.codecks.domain.assurance.AssuranceComponentStatus
 import javax.inject.Inject
 import javax.inject.Singleton
+import java.security.MessageDigest
 
 @Singleton
 class DefaultActionRunner @Inject constructor(
@@ -55,29 +63,54 @@ class DefaultActionRunner @Inject constructor(
         authorization: ExecutionAuthorization,
     ): ActionResult {
         val revision = resolved.dangerousConfirmationRevision()
-        if (resolved.dangerous && authorization.dangerousRevisionConfirmed != revision) {
-            return ActionResult(
-                actionId = resolved.id,
-                title = resolved.title,
-                status = ActionResultStatus.RequiresConfirmation,
-                message = "Confirmation required",
-            )
+        val assuranceRequest = resolved.assuranceRequest(
+            confirmationGranted = !resolved.dangerous || authorization.dangerousRevisionConfirmed == revision,
+        )
+        var transportResult: ActionResult? = null
+        val adapter = object : ActionAssuranceAdapter {
+            override suspend fun execute(
+                request: AssuranceRequest,
+                componentIds: Set<String>?,
+            ): List<AssuranceComponentExecution> {
+                val result = executeResolvedTransport(resolved)
+                transportResult = result
+                return result.toAssuranceExecutions(assuranceRequest)
+            }
         }
-        if (resolved.requiresReview()) {
-            return ActionResult(
-                actionId = resolved.id,
-                title = resolved.title,
-                status = ActionResultStatus.RequiresReview,
-                message = "Review this command before running",
-            )
-        }
-        return when (resolved) {
+        val receipt = ActionAssuranceEngine(adapter).execute(
+            request = assuranceRequest,
+            currentRevision = assuranceRequest.revision,
+        )
+        return transportResult?.copy(assuranceReceipt = receipt) ?: ActionResult(
+            actionId = resolved.id,
+            title = resolved.title,
+            status = when {
+                receipt.preflight.any { it.code == AssurancePreflightCode.Confirmation && !it.passed } ->
+                    ActionResultStatus.RequiresConfirmation
+                receipt.preflight.any {
+                    it.code in setOf(AssurancePreflightCode.Review, AssurancePreflightCode.CurrentRevision) && !it.passed
+                } -> ActionResultStatus.RequiresReview
+                else -> ActionResultStatus.Failed
+            },
+            message = when {
+                receipt.preflight.any { it.code == AssurancePreflightCode.Confirmation && !it.passed } ->
+                    "Confirmation required"
+                receipt.preflight.any { it.code == AssurancePreflightCode.Review && !it.passed } ->
+                    "Review this command before running"
+                receipt.preflight.any { it.code == AssurancePreflightCode.Policy && !it.passed } ->
+                    resolved.policyFailureMessage()
+                else -> "Action assurance preflight failed"
+            },
+            assuranceReceipt = receipt,
+        )
+    }
+
+    private suspend fun executeResolvedTransport(resolved: ActionSpec): ActionResult = when (resolved) {
             is ActionSpec.DeckActionSpec -> runDeckAction(resolved)
             is ActionSpec.CatalogAction -> error("Catalog action was not resolved")
             is ActionSpec.ShellCommand -> runCommandSpec(resolved)
             is ActionSpec.LocalRoute -> resolved.failure(LocalActionException(resolved.route).message ?: "Open ${resolved.route}")
         }
-    }
 
     private suspend fun runDeckAction(spec: ActionSpec.DeckActionSpec): ActionResult {
         val action = spec.action
@@ -212,7 +245,81 @@ private fun ActionSpec.toActionResult(result: ExecutionResult): ActionResult {
         message = message,
         logs = logs,
         target = if (targetCount == 1) result.results.first().deviceId.value else "$targetCount targets",
+        componentReceipts = result.results.map { perDevice ->
+            AssuranceComponentReceipt(
+                componentId = "target_${assuranceFingerprint(perDevice.deviceId.value)}",
+                status = when (perDevice.status) {
+                    ExecutionStatus.Succeeded -> AssuranceComponentStatus.Succeeded
+                    ExecutionStatus.Canceled -> AssuranceComponentStatus.Canceled
+                    is ExecutionStatus.Failed,
+                    is ExecutionStatus.TimedOut,
+                    is ExecutionStatus.Incompatible,
+                    -> AssuranceComponentStatus.Failed
+                },
+                code = when (perDevice.status) {
+                    ExecutionStatus.Succeeded -> "completed"
+                    ExecutionStatus.Canceled -> "canceled"
+                    is ExecutionStatus.Failed -> "transport_failed"
+                    is ExecutionStatus.TimedOut -> "timed_out"
+                    is ExecutionStatus.Incompatible -> "incompatible"
+                },
+                retryable = perDevice.status is ExecutionStatus.Failed || perDevice.status is ExecutionStatus.TimedOut,
+                undoAvailable = false,
+            )
+        },
     )
+}
+
+private fun assuranceFingerprint(value: String): String = MessageDigest.getInstance("SHA-256")
+    .digest(value.toByteArray(Charsets.UTF_8))
+    .joinToString("") { byte -> "%02x".format(byte) }
+    .take(16)
+
+private fun ActionResult.toAssuranceExecutions(request: AssuranceRequest): List<AssuranceComponentExecution> =
+    componentReceipts.map { component ->
+        AssuranceComponentExecution(
+            componentId = component.componentId,
+            status = component.status,
+            code = component.code,
+            retryable = component.retryable,
+        )
+    }.ifEmpty {
+        listOf(
+            AssuranceComponentExecution(
+                componentId = request.transport.name.lowercase(),
+                status = when (status) {
+                    ActionResultStatus.Succeeded -> AssuranceComponentStatus.Succeeded
+                    ActionResultStatus.Failed -> AssuranceComponentStatus.Failed
+                    ActionResultStatus.RequiresConfirmation,
+                    ActionResultStatus.RequiresReview,
+                    -> AssuranceComponentStatus.Skipped
+                },
+                code = when (status) {
+                    ActionResultStatus.Succeeded -> "completed"
+                    ActionResultStatus.Failed -> "execution_failed"
+                    ActionResultStatus.RequiresConfirmation -> "confirmation_required"
+                    ActionResultStatus.RequiresReview -> "review_required"
+                },
+                retryable = status == ActionResultStatus.Failed,
+            ),
+        )
+    }
+
+private fun ActionSpec.policyFailureMessage(): String {
+    val command = when (this) {
+        is ActionSpec.DeckActionSpec -> action.command.orEmpty()
+        is ActionSpec.ShellCommand -> command
+        is ActionSpec.CatalogAction,
+        is ActionSpec.LocalRoute,
+        -> ""
+    }
+    val reason = if (commandOrigin == CommandOrigin.AiGenerated) {
+        command.takeUnless(MacVisualEffectCatalog::isKnownCommand)
+            ?.let(RawCommandPolicy::firstAllowlistViolation)
+    } else {
+        RawCommandPolicy.firstViolation(command)
+    }
+    return "Command blocked: ${reason ?: "policy rejected"}"
 }
 
 private fun ExecutionStatus.failureMessage(): String? = when (this) {

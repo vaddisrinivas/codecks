@@ -50,6 +50,9 @@ val playInternalKeyPassword = providers.environmentVariable("CODECKS_PLAY_INTERN
     .orElse("")
 val commercialTestBackendUrl = providers.gradleProperty("commercialTestBackendUrl")
     .orElse("https://codecks.invalid")
+val codecksEvidenceBuild = providers.gradleProperty("codecksEvidenceBuild")
+    .map { value -> value.toBooleanStrict() }
+    .orElse(false)
 
 val validateOssReleaseSigning by tasks.registering {
     group = "verification"
@@ -257,6 +260,12 @@ val validateReleaseSurface by tasks.registering {
 android {
     testBuildType = instrumentedTestBuildType.get()
 
+    dependenciesInfo {
+        // Production/default builds retain SDK dependency metadata. Exact-byte
+        // evidence builds opt out of its randomized encrypted signing-block payload.
+        includeInApk = !codecksEvidenceBuild.get()
+    }
+
     namespace = "io.codecks"
     compileSdk = 37
     flavorDimensions += "distribution"
@@ -381,6 +390,20 @@ android {
     testOptions {
         managedDevices {
             localDevices {
+                val m10Profiles = listOf(
+                    "Compact" to "Small Phone",
+                    "Standard" to "Pixel 6",
+                    "Tablet" to "Pixel Tablet",
+                )
+                (31..36).forEach { api ->
+                    m10Profiles.forEach { (profileName, hardwareProfile) ->
+                        create("m10${profileName}Api$api") {
+                            device = hardwareProfile
+                            apiLevel = api
+                            systemImageSource = "aosp"
+                        }
+                    }
+                }
                 create("pixel6Api35") {
                     device = "Pixel 6"
                     apiLevel = 35

@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -31,7 +30,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,9 +43,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
@@ -55,12 +57,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.dp
+import io.codecks.core.design.CodecksDesignTokens
+import io.codecks.core.design.CodecksHapticToken
 import kotlin.math.roundToInt
-
-private const val DeckButtonStyleSchemaVersion = 1
 
 enum class DeckKeyVisualState {
     Idle,
@@ -76,171 +76,87 @@ enum class DeckKeyVisualState {
     Selected,
 }
 
-@Immutable
-data class DeckButtonStyle(
-    val id: String = "luminous-glass",
-    val schemaVersion: Int = DeckButtonStyleSchemaVersion,
-    val name: String = "Luminous Glass",
-    val material: DeckButtonMaterialTokens = DeckButtonMaterialTokens(),
-    val geometry: DeckButtonGeometryTokens = DeckButtonGeometryTokens(),
-    val light: DeckButtonLightTokens = DeckButtonLightTokens(),
-    val motion: DeckButtonMotionTokens = DeckButtonMotionTokens(),
-) {
-    fun clamped(): DeckButtonStyle = copy(
-        schemaVersion = DeckButtonStyleSchemaVersion,
-        material = material.clamped(),
-        geometry = geometry.clamped(),
-        light = light.clamped(),
-        motion = motion.clamped(),
-    )
-}
-
-@Immutable
-data class DeckButtonMaterialTokens(
-    val glassTint: Color = Color(0xFF101317),
-    val glassFaceAlpha: Float = 0.86f,
-    val frostDiffusion: Float = 0.78f,
-    val concaveWellTint: Color = Color(0xFF1A1F25),
-    val sideWallTint: Color = Color(0xFF050608),
-    val rimHighlightAlpha: Float = 0.36f,
-    val bottomOcclusionAlpha: Float = 0.34f,
-    val glyph: Color = Color(0xFFF6F7F8),
-) {
-    fun clamped(): DeckButtonMaterialTokens = copy(
-        glassFaceAlpha = glassFaceAlpha.coerceIn(0.45f, 0.92f),
-        frostDiffusion = frostDiffusion.coerceIn(0f, 1f),
-        rimHighlightAlpha = rimHighlightAlpha.coerceIn(0f, 0.85f),
-        bottomOcclusionAlpha = bottomOcclusionAlpha.coerceIn(0f, 0.55f),
-    )
-}
-
-@Immutable
-data class DeckButtonGeometryTokens(
-    val minKeySize: Dp = 64.dp,
-    val maxKeySize: Dp = 104.dp,
-    val cornerRadius: Dp = 20.dp,
-    val concaveWellInset: Dp = 9.dp,
-    val sideDepth: Dp = 7.dp,
-    val rimWidth: Dp = 2.dp,
-    val glyphSize: Dp = 25.dp,
-) {
-    fun clamped(): DeckButtonGeometryTokens = copy(
-        minKeySize = minKeySize.coerceIn(48.dp, 80.dp),
-        maxKeySize = maxKeySize.coerceIn(80.dp, 128.dp),
-        cornerRadius = cornerRadius.coerceIn(12.dp, 24.dp),
-        concaveWellInset = concaveWellInset.coerceIn(6.dp, 16.dp),
-        sideDepth = sideDepth.coerceIn(2.dp, 8.dp),
-        rimWidth = rimWidth.coerceIn(1.dp, 4.dp),
-        glyphSize = glyphSize.coerceIn(22.dp, 30.dp),
-    )
-}
-
-@Immutable
-data class DeckButtonLightTokens(
-    val idleUnderglowAlpha: Float = 0.16f,
-    val idleApertureAlpha: Float = 0.10f,
-    val idleInnerTransmissionAlpha: Float = 0.09f,
-    val activeUnderglowAlpha: Float = 0.34f,
-    val activeApertureAlpha: Float = 0.28f,
-    val activeInnerBloomAlpha: Float = 0.18f,
-    val glowIntensity: Float = 0.88f,
-) {
-    fun clamped(): DeckButtonLightTokens = copy(
-        idleUnderglowAlpha = idleUnderglowAlpha.coerceIn(0f, 0.22f),
-        idleApertureAlpha = idleApertureAlpha.coerceIn(0f, 0.28f),
-        idleInnerTransmissionAlpha = idleInnerTransmissionAlpha.coerceIn(0f, 0.24f),
-        activeUnderglowAlpha = activeUnderglowAlpha.coerceIn(0f, 0.54f),
-        activeApertureAlpha = activeApertureAlpha.coerceIn(0f, 0.64f),
-        activeInnerBloomAlpha = activeInnerBloomAlpha.coerceIn(0f, 0.38f),
-        glowIntensity = glowIntensity.coerceIn(0f, 1.35f),
-    )
-}
-
-@Immutable
-data class DeckButtonMotionTokens(
-    val pressTravel: Dp = 3.dp,
-    val motionIntensity: Float = 1f,
-) {
-    fun clamped(): DeckButtonMotionTokens = copy(
-        pressTravel = pressTravel.coerceIn(1.dp, 4.dp),
-        motionIntensity = motionIntensity.coerceIn(0f, 1f),
-    )
-}
-
-object DeckButtonStyles {
-    val LuminousGlass = DeckButtonStyle()
-}
+val CodecksFocusRingWidthSemantics = SemanticsPropertyKey<Float>("CodecksFocusRingWidthDp")
+val CodecksFocusRingColorSemantics = SemanticsPropertyKey<Long>("CodecksFocusRingArgb")
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CkDeckKey(
     label: String,
-    icon: ImageVector,
+    icon: ImageVector?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     state: DeckKeyVisualState = DeckKeyVisualState.Idle,
     enabled: Boolean = state !in setOf(DeckKeyVisualState.Unavailable, DeckKeyVisualState.DisabledByPolicy),
     dangerous: Boolean = false,
-    style: DeckButtonStyle = DeckButtonStyles.LuminousGlass,
     showLabel: Boolean = true,
     onLongClick: (() -> Unit)? = null,
 ) {
-    val resolved = style.clamped()
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     var focused by remember { mutableStateOf(false) }
     val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
+    val semantic = codecksSemanticColorTokens()
     val effectiveState = if (enabled) state else DeckKeyVisualState.Unavailable
     val lightColor = deckKeyStateColor(effectiveState, dangerous)
+    val motionPolicy = LocalCodecksMotionPolicy.current
     val pressOffsetPx = with(density) {
-        if (pressed) resolved.motion.pressTravel.toPx() * resolved.motion.motionIntensity else 0f
+        if (pressed) CodecksDesignTokens.Spacing.xs.toPx() else CodecksDesignTokens.Opacity.transparent
     }
     val faceTranslation by animateFloatAsState(
         targetValue = pressOffsetPx,
-        animationSpec = tween(durationMillis = if (pressed) 80 else 160),
+        animationSpec = tween(
+            durationMillis = motionPolicy.duration(
+                if (pressed) CodecksDesignTokens.Motion.pressMillis else CodecksDesignTokens.Motion.stateChangeMillis,
+            ),
+        ),
         label = "ckDeckKeyFaceTravel",
     )
-    val runningAlpha = if (effectiveState == DeckKeyVisualState.Running && resolved.motion.motionIntensity > 0.01f) {
+    val runningAlpha = if (
+        effectiveState == DeckKeyVisualState.Running &&
+        motionPolicy.allowsContinuousMotion
+    ) {
         val runningPulse = rememberInfiniteTransition(label = "ckDeckKeyRunning")
         val pulsingAlpha by runningPulse.animateFloat(
-            initialValue = 0.72f,
-            targetValue = 1.0f,
+            initialValue = CodecksDesignTokens.Opacity.emphasized,
+            targetValue = CodecksDesignTokens.Opacity.full,
             animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 1600),
+                animation = tween(durationMillis = CodecksDesignTokens.Motion.screenTransitionMillis * 7),
                 repeatMode = RepeatMode.Reverse,
             ),
             label = "ckDeckKeyRunningAlpha",
         )
         pulsingAlpha
     } else {
-        1f
+        CodecksDesignTokens.Opacity.full
     }
     val stateLightMultiplier = when (effectiveState) {
         DeckKeyVisualState.Running -> runningAlpha
-        DeckKeyVisualState.Success -> 1.16f
-        DeckKeyVisualState.Failure -> 1.12f
-        DeckKeyVisualState.Waiting -> 1.04f
+        DeckKeyVisualState.Success -> CodecksDesignTokens.Motion.restingScale
+        DeckKeyVisualState.Failure -> CodecksDesignTokens.Motion.restingScale
+        DeckKeyVisualState.Waiting -> CodecksDesignTokens.Motion.restingScale
         DeckKeyVisualState.ToggledOn,
-        DeckKeyVisualState.Selected -> 1.02f
-        else -> 1f
+        DeckKeyVisualState.Selected -> CodecksDesignTokens.Motion.restingScale
+        else -> CodecksDesignTokens.Motion.restingScale
     }
     val underglowAlpha = if (effectiveState == DeckKeyVisualState.Idle) {
-        resolved.light.idleUnderglowAlpha
+        CodecksDesignTokens.Opacity.soft
     } else {
-        resolved.light.activeUnderglowAlpha
-    } * resolved.light.glowIntensity * stateLightMultiplier
+        CodecksDesignTokens.Opacity.low
+    } * stateLightMultiplier
     val apertureAlpha = if (effectiveState == DeckKeyVisualState.Idle) {
-        resolved.light.idleApertureAlpha
+        CodecksDesignTokens.Opacity.stateLayer
     } else {
-        resolved.light.activeApertureAlpha
-    } * resolved.light.glowIntensity * stateLightMultiplier
+        CodecksDesignTokens.Opacity.low
+    } * stateLightMultiplier
     val innerBloomAlpha = if (effectiveState == DeckKeyVisualState.Idle) {
-        resolved.light.idleInnerTransmissionAlpha
+        CodecksDesignTokens.Opacity.subtle
     } else {
-        resolved.light.activeInnerBloomAlpha
-    } * resolved.light.glowIntensity * stateLightMultiplier
-    val keyShape = RoundedCornerShape(resolved.geometry.cornerRadius)
-    val wellShape = RoundedCornerShape((resolved.geometry.cornerRadius - 4.dp).coerceAtLeast(10.dp))
+        CodecksDesignTokens.Opacity.selectedContainer
+    } * stateLightMultiplier
+    val keyShape = MaterialTheme.shapes.large
+    val wellShape = MaterialTheme.shapes.medium
     val semanticState = keyStateDescription(effectiveState, dangerous)
     val manageable = onLongClick != null
     val interactive = enabled || manageable
@@ -255,39 +171,57 @@ fun CkDeckKey(
                     semanticState
                 }
                 role = Role.Button
+                this[CodecksFocusRingWidthSemantics] =
+                    if (focused) CodecksDesignTokens.Focus.ringWidth.value else 0f
+                this[CodecksFocusRingColorSemantics] = if (focused) {
+                    semantic.focus.copy(alpha = CodecksDesignTokens.Focus.ringAlpha)
+                        .toArgb().toLong() and 0xffffffffL
+                } else {
+                    0L
+                }
                 if (!interactive) disabled()
             }
-            .focusable(enabled = interactive, interactionSource = interactionSource)
             .onFocusChanged { focused = it.isFocused }
+            .focusable(enabled = interactive, interactionSource = interactionSource)
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = LocalIndication.current,
                 enabled = interactive && effectiveState != DeckKeyVisualState.Running,
                 role = Role.Button,
                 onClickLabel = "Run $label",
-                onClick = { if (enabled) onClick() },
+                onClick = {
+                    if (enabled) {
+                        haptic.performCodecksHaptic(CodecksHapticToken.Confirm)
+                        onClick()
+                    }
+                },
                 onLongClickLabel = onLongClick?.let { "Open $label options" },
-                onLongClick = onLongClick,
+                onLongClick = onLongClick?.let { action ->
+                    {
+                        haptic.performCodecksHaptic(CodecksHapticToken.LongPress)
+                        action()
+                    }
+                },
             ),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(1.dp)
-                .clip(RoundedCornerShape(resolved.geometry.cornerRadius + 8.dp))
+                .padding(CodecksDesignTokens.Stroke.hairline)
+                .clip(MaterialTheme.shapes.extraLarge)
                 .background(
                     Brush.radialGradient(
                         colors = listOf(
-                            lightColor.copy(alpha = underglowAlpha.coerceIn(0f, 0.60f)),
-                            lightColor.copy(alpha = (underglowAlpha * 0.28f).coerceIn(0f, 0.24f)),
-                            Color.Transparent,
+                            lightColor.copy(alpha = underglowAlpha.coerceIn(CodecksDesignTokens.Opacity.transparent, CodecksDesignTokens.Opacity.scrim)),
+                            lightColor.copy(alpha = (underglowAlpha * CodecksDesignTokens.Opacity.low).coerceIn(CodecksDesignTokens.Opacity.transparent, CodecksDesignTokens.Opacity.low)),
+                            semantic.transparent,
                         ),
                     ),
                 )
                 .drawBehind {
                     drawCircle(
-                        color = Color.White.copy(alpha = 0.045f),
+                        color = semantic.content.copy(alpha = CodecksDesignTokens.Opacity.barelyVisible),
                         radius = size.minDimension * 0.62f,
                         center = Offset(size.width / 2f, size.height * 0.60f),
                     )
@@ -297,15 +231,15 @@ fun CkDeckKey(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 4.dp, vertical = 6.dp)
-                .offset { IntOffset(0, (resolved.geometry.sideDepth.toPx() * 0.42f).roundToInt()) }
+                .padding(horizontal = CodecksDesignTokens.Spacing.xs, vertical = CodecksDesignTokens.Spacing.sm)
+                .offset { IntOffset(0, CodecksDesignTokens.Spacing.xs.toPx().roundToInt()) }
                 .clip(keyShape)
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color.White.copy(alpha = 0.10f),
-                            resolved.material.sideWallTint.copy(alpha = 0.96f),
-                            Color.Black.copy(alpha = resolved.material.bottomOcclusionAlpha + 0.28f),
+                            semantic.content.copy(alpha = CodecksDesignTokens.Opacity.stateLayer),
+                            semantic.surface.copy(alpha = CodecksDesignTokens.Opacity.nearlyOpaque),
+                            semantic.canvas.copy(alpha = CodecksDesignTokens.Opacity.scrim),
                         ),
                     ),
                 ),
@@ -314,10 +248,10 @@ fun CkDeckKey(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(5.dp)
+                .padding(CodecksDesignTokens.Spacing.xs)
                 .graphicsLayer {
                     translationY = faceTranslation
-                    shadowElevation = if (pressed) 1f else 7f
+                    shadowElevation = if (pressed) CodecksDesignTokens.Elevation.flat.toPx() else CodecksDesignTokens.Elevation.medium.toPx()
                     this.shape = keyShape
                     clip = false
                 },
@@ -330,24 +264,24 @@ fun CkDeckKey(
                     .background(
                         Brush.radialGradient(
                             colors = listOf(
-                                lightColor.copy(alpha = apertureAlpha.coerceIn(0f, 0.70f)),
-                                lightColor.copy(alpha = (apertureAlpha * 0.36f).coerceIn(0f, 0.34f)),
-                                Color.Transparent,
+                                lightColor.copy(alpha = apertureAlpha.coerceIn(CodecksDesignTokens.Opacity.transparent, CodecksDesignTokens.Opacity.muted)),
+                                lightColor.copy(alpha = (apertureAlpha * CodecksDesignTokens.Opacity.disabled).coerceIn(CodecksDesignTokens.Opacity.transparent, CodecksDesignTokens.Opacity.disabled)),
+                                semantic.transparent,
                             ),
                         ),
                     )
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = resolved.material.rimHighlightAlpha),
-                                resolved.material.glassTint.copy(alpha = resolved.material.glassFaceAlpha),
-                                resolved.material.concaveWellTint.copy(alpha = resolved.material.frostDiffusion),
-                                Color.Black.copy(alpha = resolved.material.bottomOcclusionAlpha),
+                                semantic.content.copy(alpha = CodecksDesignTokens.Opacity.disabled),
+                                semantic.surfaceRaised.copy(alpha = CodecksDesignTokens.Opacity.high),
+                                semantic.surface.copy(alpha = CodecksDesignTokens.Opacity.emphasized),
+                                semantic.canvas.copy(alpha = CodecksDesignTokens.Opacity.disabled),
                             ),
                         ),
                     )
                     .border(
-                        BorderStroke(resolved.geometry.rimWidth, Color.White.copy(alpha = resolved.material.rimHighlightAlpha)),
+                        BorderStroke(CodecksDesignTokens.Stroke.focus, semantic.content.copy(alpha = CodecksDesignTokens.Opacity.disabled)),
                         keyShape,
                     ),
             )
@@ -355,46 +289,48 @@ fun CkDeckKey(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(resolved.geometry.concaveWellInset)
+                    .padding(CodecksDesignTokens.Spacing.sm)
                     .clip(wellShape)
                     .background(
                         Brush.radialGradient(
                             colors = listOf(
-                                lightColor.copy(alpha = innerBloomAlpha.coerceIn(0f, 0.48f)),
-                                resolved.material.concaveWellTint.copy(alpha = 0.72f),
-                                Color.Black.copy(alpha = 0.10f),
+                                lightColor.copy(alpha = innerBloomAlpha.coerceIn(CodecksDesignTokens.Opacity.transparent, CodecksDesignTokens.Opacity.medium)),
+                                semantic.surface.copy(alpha = CodecksDesignTokens.Opacity.emphasized),
+                                semantic.canvas.copy(alpha = CodecksDesignTokens.Opacity.stateLayer),
                             ),
                         ),
                     )
-                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)), wellShape),
+                    .border(BorderStroke(CodecksDesignTokens.Stroke.hairline, semantic.content.copy(alpha = CodecksDesignTokens.Opacity.soft)), wellShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = if (enabled) resolved.material.glyph else resolved.material.glyph.copy(alpha = 0.34f),
-                    modifier = Modifier.size(resolved.geometry.glyphSize),
-                )
+                if (icon != null) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = if (enabled) semantic.content else semantic.content.copy(alpha = CodecksDesignTokens.Opacity.disabled),
+                        modifier = Modifier.size(CodecksDesignTokens.Size.deckGlyph).testTag("deck-control-icon"),
+                    )
+                }
             }
 
             if (showLabel) {
                 Text(
                     text = label,
-                    color = resolved.material.glyph.copy(alpha = if (enabled) 0.72f else 0.34f),
+                    color = semantic.content.copy(alpha = if (enabled) CodecksDesignTokens.Opacity.emphasized else CodecksDesignTokens.Opacity.disabled),
                     style = MaterialTheme.typography.labelSmall,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(horizontal = 8.dp, vertical = 7.dp),
+                        .padding(horizontal = CodecksDesignTokens.Spacing.sm, vertical = CodecksDesignTokens.Spacing.sm),
                 )
             }
 
             DeckKeyStateMarker(
                 state = effectiveState,
                 dangerous = dangerous,
-                modifier = Modifier.align(Alignment.TopEnd).padding(7.dp),
+                modifier = Modifier.align(Alignment.TopEnd).padding(CodecksDesignTokens.Spacing.sm),
             )
         }
 
@@ -402,13 +338,13 @@ fun CkDeckKey(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(1.dp)
+                    .padding(CodecksDesignTokens.Stroke.hairline)
                     .border(
                         BorderStroke(
-                            width = if (focused) 2.dp else 1.dp,
-                            color = if (focused) Color.White else lightColor.copy(alpha = 0.82f),
+                            width = if (focused) CodecksDesignTokens.Focus.ringWidth else CodecksDesignTokens.Stroke.hairline,
+                            color = if (focused) semantic.focus.copy(alpha = CodecksDesignTokens.Focus.ringAlpha) else lightColor.copy(alpha = CodecksDesignTokens.Opacity.high),
                         ),
-                        RoundedCornerShape(resolved.geometry.cornerRadius + 4.dp),
+                        MaterialTheme.shapes.extraLarge,
                     ),
             )
         }
@@ -424,35 +360,40 @@ fun DeckKeyStateMarker(
     val markerIcon = when {
         state == DeckKeyVisualState.Success -> Icons.Outlined.CheckCircle
         state == DeckKeyVisualState.Failure -> Icons.Outlined.ErrorOutline
+        dangerous && state == DeckKeyVisualState.Idle -> Icons.Outlined.PriorityHigh
         state == DeckKeyVisualState.Waiting || state == DeckKeyVisualState.DangerousArmed -> Icons.Outlined.PriorityHigh
         else -> null
     }
     markerIcon ?: return
     Surface(
-        color = deckKeyStateColor(state, dangerous).copy(alpha = 0.92f),
-        contentColor = Color(0xFF0A0A0A),
+        color = deckKeyStateColor(state, dangerous).copy(alpha = CodecksDesignTokens.Focus.ringAlpha),
+        contentColor = codecksSemanticColorTokens().canvas,
         shape = CircleShape,
-        modifier = modifier.size(18.dp),
-        shadowElevation = 0.dp,
+        modifier = modifier.size(CodecksDesignTokens.Size.stateMarker).testTag("deck-key-state-marker"),
+        shadowElevation = CodecksDesignTokens.Elevation.flat,
     ) {
         Icon(
             imageVector = markerIcon,
             contentDescription = null,
-            modifier = Modifier.padding(3.dp),
+            modifier = Modifier.padding(CodecksDesignTokens.Spacing.xxs),
         )
     }
 }
 
+@Composable
 private fun deckKeyStateColor(
     state: DeckKeyVisualState,
     dangerous: Boolean,
-): Color = when {
-    dangerous || state == DeckKeyVisualState.Failure -> Color(0xFFFF7373)
-    state == DeckKeyVisualState.Running || state == DeckKeyVisualState.Selected || state == DeckKeyVisualState.ToggledOn -> Color(0xFF9CD5FE)
-    state == DeckKeyVisualState.Waiting || state == DeckKeyVisualState.DangerousArmed -> Color(0xFFFFD0B8)
-    state == DeckKeyVisualState.Success -> Color(0xFF9BF396)
-    state == DeckKeyVisualState.Unavailable || state == DeckKeyVisualState.DisabledByPolicy -> Color(0xFFC8CDD0)
-    else -> Color.White
+): Color {
+    val semantic = codecksSemanticColorTokens()
+    return when {
+        dangerous || state == DeckKeyVisualState.Failure -> semantic.danger
+        state == DeckKeyVisualState.Running || state == DeckKeyVisualState.Selected || state == DeckKeyVisualState.ToggledOn -> semantic.selected
+        state == DeckKeyVisualState.Waiting || state == DeckKeyVisualState.DangerousArmed -> semantic.warning
+        state == DeckKeyVisualState.Success -> semantic.success
+        state == DeckKeyVisualState.Unavailable || state == DeckKeyVisualState.DisabledByPolicy -> semantic.contentMuted
+        else -> semantic.content
+    }
 }
 
 private fun keyStateDescription(

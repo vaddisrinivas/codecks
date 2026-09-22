@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codecks.local/schemas/m12-current-mac-receipt.schema.json",
+  "title": "Codecks M12 current-Mac receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAtUtc", "sourceCommit", "bindings", "environment", "safety", "lanes", "summary"],
+  "properties": {
+    "schemaVersion": { "const": "m12.current-mac.v1" },
+    "generatedAtUtc": { "type": "string", "format": "date-time" },
+    "sourceCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceParent", "evidenceParentSha256", "harnessSha256", "schemaSha256"],
+      "properties": {
+        "evidenceParent": { "const": "tasks/AUTONOMOUS_MATURITY_PLAN.md#m12-current-mac-automation-matrix" },
+        "evidenceParentSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "harnessSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "schemaSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "architecture", "macosVersion", "evidenceScope"],
+      "properties": {
+        "platform": { "const": "macOS" },
+        "architecture": { "enum": ["arm64", "x86_64"] },
+        "macosVersion": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+){1,2}$" },
+        "evidenceScope": { "const": "CURRENT_MAC_ONLY" }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sleepStateChanged", "serviceRestarted", "accountChanged", "authorizationChanged", "keyMaterialChanged", "hidStateChanged", "clipboardContentRecorded"],
+      "properties": {
+        "sleepStateChanged": { "const": false },
+        "serviceRestarted": { "const": false },
+        "accountChanged": { "const": false },
+        "authorizationChanged": { "const": false },
+        "keyMaterialChanged": { "const": false },
+        "hidStateChanged": { "const": false },
+        "clipboardContentRecorded": { "const": false }
+      }
+    },
+    "lanes": {
+      "type": "array",
+      "minItems": 25,
+      "maxItems": 25,
+      "prefixItems": [
+        { "properties": { "id": { "const": "platform.current" }, "status": { "enum": ["PASS", "FAIL"] }, "evidence": { "const": "LIVE_CURRENT_MAC" }, "code": { "enum": ["platform_identified", "platform_unavailable"] } } },
+        { "properties": { "id": { "const": "ssh.tcp" }, "status": { "enum": ["PASS", "NOT_RUN"] }, "evidence": { "const": "LIVE_CURRENT_MAC" }, "code": { "enum": ["ssh_tcp_reachable", "ssh_server_unavailable"] } } },
+        { "properties": { "id": { "const": "ssh.read_only_command" }, "status": { "enum": ["PASS", "NOT_RUN"] }, "evidence": { "const": "LIVE_CURRENT_MAC" }, "code": { "enum": ["ssh_read_only_verified", "ssh_auth_or_trust_unavailable"] } } },
+        { "properties": { "id": { "const": "ssh.bounded_command" }, "status": { "enum": ["PASS", "NOT_RUN"] }, "evidence": { "const": "LIVE_CURRENT_MAC" }, "code": { "enum": ["ssh_output_bound_verified", "ssh_auth_or_trust_unavailable"] } } },
+        { "properties": { "id": { "const": "helper.config_health" }, "status": { "enum": ["PASS", "FAIL", "NOT_RUN"] }, "evidence": { "const": "LIVE_CURRENT_MAC" }, "code": { "enum": ["helper_config_valid", "helper_config_invalid", "helper_install_unavailable"] } } },
+        { "properties": { "id": { "const": "helper.launchd_health" }, "status": { "enum": ["PASS", "NOT_RUN"] }, "evidence": { "const": "LIVE_CURRENT_MAC" }, "code": { "enum": ["helper_service_running", "helper_service_unavailable"] } } },
+        { "properties": { "id": { "const": "helper.tcp" }, "status": { "enum": ["PASS", "NOT_RUN"] }, "evidence": { "const": "LIVE_CURRENT_MAC" }, "code": { "enum": ["helper_tcp_reachable", "helper_tcp_unavailable"] } } },
+        { "properties": { "id": { "const": "clipboard.read_only_bridge" }, "status": { "enum": ["PASS", "NOT_RUN"] }, "evidence": { "const": "READ_ONLY_PROXY" }, "code": { "enum": ["clipboard_read_discarded", "clipboard_bridge_unavailable"] } } },
+        { "properties": { "id": { "const": "power.read_only_proxy" }, "status": { "enum": ["PASS", "NOT_RUN"] }, "evidence": { "const": "READ_ONLY_PROXY" }, "code": { "enum": ["power_state_queried", "power_query_unavailable"] } } },
+        { "properties": { "id": { "const": "failure.network_refused" }, "status": { "enum": ["PASS", "FAIL"] }, "evidence": { "const": "INJECTED_FAILURE" }, "code": { "enum": ["network_failure_classified", "network_failure_injection_failed"] } } },
+        { "properties": { "id": { "const": "failure.timeout" }, "status": { "enum": ["PASS", "FAIL"] }, "evidence": { "const": "INJECTED_FAILURE" }, "code": { "enum": ["timeout_classified", "timeout_injection_failed"] } } },
+        { "properties": { "id": { "const": "failure.output_bound" }, "status": { "enum": ["PASS", "FAIL"] }, "evidence": { "const": "INJECTED_FAILURE" }, "code": { "enum": ["output_truncated", "output_bound_failed"] } } },
+        { "properties": { "id": { "const": "failure.auth_denied" }, "status": { "enum": ["PASS", "FAIL", "NOT_RUN"] }, "evidence": { "const": "INJECTED_FAILURE" }, "code": { "enum": ["auth_denial_classified", "auth_denial_injection_failed", "ssh_server_unavailable"] } } },
+        { "properties": { "id": { "const": "failure.host_key_mismatch" }, "status": { "enum": ["PASS", "FAIL", "NOT_RUN"] }, "evidence": { "const": "INJECTED_FAILURE" }, "code": { "enum": ["host_key_mismatch_classified", "host_key_mismatch_injection_failed", "ssh_server_unavailable"] } } },
+        { "properties": { "id": { "const": "failure.tool_missing" }, "status": { "enum": ["PASS", "FAIL"] }, "evidence": { "const": "INJECTED_FAILURE" }, "code": { "enum": ["tool_missing_classified", "tool_missing_injection_failed"] } } },
+        { "properties": { "id": { "const": "failure.backoff" }, "status": { "enum": ["PASS", "FAIL"] }, "evidence": { "const": "INJECTED_FAILURE" }, "code": { "enum": ["backoff_bounded", "backoff_invalid"] } } },
+        { "properties": { "id": { "const": "mutation.sleep_wake" }, "status": { "const": "NOT_RUN" }, "evidence": { "const": "READ_ONLY_PROXY" }, "code": { "const": "primary_mac_mutation_not_approved" } } },
+        { "properties": { "id": { "const": "mutation.helper_restart" }, "status": { "const": "NOT_RUN" }, "evidence": { "const": "READ_ONLY_PROXY" }, "code": { "const": "primary_service_mutation_not_approved" } } },
+        { "properties": { "id": { "const": "mutation.account" }, "status": { "const": "NOT_RUN" }, "evidence": { "const": "READ_ONLY_PROXY" }, "code": { "const": "account_mutation_not_approved" } } },
+        { "properties": { "id": { "const": "mutation.host_key" }, "status": { "const": "NOT_RUN" }, "evidence": { "const": "READ_ONLY_PROXY" }, "code": { "const": "host_key_mutation_not_approved" } } },
+        { "properties": { "id": { "const": "mutation.permissions" }, "status": { "const": "NOT_RUN" }, "evidence": { "const": "READ_ONLY_PROXY" }, "code": { "const": "permission_mutation_not_approved" } } },
+        { "properties": { "id": { "const": "external.intel" }, "status": { "const": "NOT_RUN" }, "evidence": { "const": "EXTERNAL" }, "code": { "const": "intel_hardware_unavailable" } } },
+        { "properties": { "id": { "const": "external.other_macos" }, "status": { "const": "NOT_RUN" }, "evidence": { "const": "EXTERNAL" }, "code": { "const": "additional_macos_unavailable" } } },
+        { "properties": { "id": { "const": "external.physical_dex" }, "status": { "const": "NOT_RUN" }, "evidence": { "const": "EXTERNAL" }, "code": { "const": "physical_dex_external" } } },
+        { "properties": { "id": { "const": "external.physical_hid" }, "status": { "const": "NOT_RUN" }, "evidence": { "const": "EXTERNAL" }, "code": { "const": "physical_hid_external" } } }
+      ],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status", "evidence", "code", "durationMs"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9_.-]{3,80}$" },
+          "status": { "enum": ["PASS", "FAIL", "NOT_RUN"] },
+          "evidence": { "enum": ["LIVE_CURRENT_MAC", "INJECTED_FAILURE", "READ_ONLY_PROXY", "EXTERNAL"] },
+          "code": { "type": "string", "pattern": "^[a-z0-9_.-]{3,80}$" },
+          "durationMs": { "type": "integer", "minimum": 0, "maximum": 120000 }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "pass", "fail", "notRun"],
+      "properties": {
+        "result": { "enum": ["PASS", "PASS_WITH_NOT_RUN", "FAIL"] },
+        "pass": { "type": "integer", "minimum": 0, "maximum": 25 },
+        "fail": { "type": "integer", "minimum": 0, "maximum": 25 },
+        "notRun": { "type": "integer", "minimum": 0, "maximum": 25 }
+      }
+    }
+  }
+}

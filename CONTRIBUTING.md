@@ -11,7 +11,7 @@ Codecks welcomes focused bug fixes, tests, accessibility improvements, and devic
 
 ```bash
 python3 tools/secret_surface_check.py
-./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+./gradlew :app:testOssReleaseUnitTest :app:lintOssDebug :app:assembleOssDebug
 ```
 
 Pull requests should explain user impact, include tests for logic changes, and include sanitized phone/DeX screenshots for visual changes.

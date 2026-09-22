@@ -20,6 +20,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import io.codecks.data.persistence.BoundedPayload
+import io.codecks.data.persistence.PersistenceRead
+import io.codecks.data.persistence.valueForMutation
 
 private val Context.aiArtifactsDataStore by preferencesDataStore(name = "ai_artifacts")
 private val AI_ARTIFACTS = stringPreferencesKey("artifacts")
@@ -70,7 +73,7 @@ class DefaultAiArtifactRepository @Inject constructor(
 
     private suspend fun mutate(transform: (List<AiArtifact>) -> List<AiArtifact>) {
         context.aiArtifactsDataStore.edit { preferences ->
-            val current = preferences.decodeArtifacts()
+            val current = preferences.decodeArtifactsForMutation()
             preferences[AI_ARTIFACTS_V2] = ArtifactStorageCodec.encrypt(AiArtifactJsonCodec.encode(transform(current)))
             preferences.remove(AI_ARTIFACTS)
         }
@@ -82,20 +85,36 @@ class DefaultAiArtifactRepository @Inject constructor(
 }
 
 private fun androidx.datastore.preferences.core.Preferences.decodeArtifacts(): List<AiArtifact> =
-    this[AI_ARTIFACTS_V2]
-        ?.let(ArtifactStorageCodec::decryptOrDecode)
-        ?: this[AI_ARTIFACTS]?.let(AiArtifactJsonCodec::decode)
-        ?: emptyList()
+    when (val current = ArtifactStorageCodec.read(this[AI_ARTIFACTS_V2])) {
+        is PersistenceRead.Value -> current.value
+        PersistenceRead.Missing -> (AiArtifactJsonCodec.readLegacy(this[AI_ARTIFACTS]) as? PersistenceRead.Value)?.value.orEmpty()
+        else -> emptyList()
+    }
+
+private fun androidx.datastore.preferences.core.MutablePreferences.decodeArtifactsForMutation(): List<AiArtifact> =
+    ArtifactStorageCodec.read(this[AI_ARTIFACTS_V2]).valueForMutation("AI artifacts") {
+        AiArtifactJsonCodec.readLegacy(this[AI_ARTIFACTS])
+            .valueForMutation("Legacy AI artifacts") { emptyList() }
+    }
 
 private object ArtifactStorageCodec {
     private const val PROVIDER_ID = "ai_artifacts_v2"
+    private const val MAX_PLAINTEXT_BYTES = 1024 * 1024
+    private const val MAX_STORED_BYTES = 1536 * 1024
 
-    fun encrypt(raw: String): String = EncryptedApiKeyCodec(PROVIDER_ID).encrypt(raw)
+    fun encrypt(raw: String): String = BoundedPayload.utf8(
+        EncryptedApiKeyCodec(PROVIDER_ID).encrypt(BoundedPayload.utf8(raw, MAX_PLAINTEXT_BYTES)),
+        MAX_STORED_BYTES,
+    )
 
-    fun decryptOrDecode(value: String): List<AiArtifact> {
-        val raw = runCatching { EncryptedApiKeyCodec(PROVIDER_ID).decrypt(value) }.getOrDefault(value)
-        return AiArtifactJsonCodec.decode(raw)
-    }
+    fun read(value: String?): PersistenceRead<List<AiArtifact>> = BoundedPayload.decodeEncryptedOrLegacy(
+        stored = value,
+        maxStoredBytes = MAX_STORED_BYTES,
+        maxPlaintextBytes = MAX_PLAINTEXT_BYTES,
+        isLegacyPlaintext = { it.trimStart().let { raw -> raw.startsWith("{") || raw.startsWith("[") } },
+        decrypt = EncryptedApiKeyCodec(PROVIDER_ID)::decrypt,
+        decode = AiArtifactJsonCodec::decodeStrict,
+    )
 }
 
 internal object AiArtifactJsonCodec {
@@ -108,9 +127,30 @@ internal object AiArtifactJsonCodec {
         )
 
     fun decode(raw: String): List<AiArtifact> =
-        runCatching { parseArtifactArray(raw) }
+        runCatching { decodeStrict(raw) }
             .getOrDefault(emptyList())
-            .mapNotNull(::parseArtifact)
+
+    fun readLegacy(raw: String?): PersistenceRead<List<AiArtifact>> {
+        if (raw == null) return PersistenceRead.Missing
+        if (raw.isBlank()) return PersistenceRead.Corrupt("blank")
+        if (raw.toByteArray(Charsets.UTF_8).size > 1024 * 1024) return PersistenceRead.Corrupt("oversized")
+        return runCatching { PersistenceRead.Value(decodeStrict(raw), migratedFrom = 1) }
+            .getOrElse { PersistenceRead.Corrupt("decode") }
+    }
+
+    fun decodeStrict(raw: String): List<AiArtifact> {
+        val trimmed = raw.trimStart()
+        val values = if (trimmed.startsWith("[")) {
+            parseJsonArray(trimmed)
+        } else {
+            val root = parseJsonObject(trimmed)
+            require(root.strictInt("schemaVersion") == AI_ARTIFACT_SCHEMA_VERSION) { "Unsupported artifact schema" }
+            require(root.has("items"))
+            root.strictArrayOrEmpty("items")
+        }
+        require(values.size <= 80) { "Too many artifacts" }
+        return values.map(::parseArtifact)
+    }
 
     private fun artifactToMap(artifact: AiArtifact): Map<String, Any?> =
         buildMap {
@@ -191,98 +231,85 @@ internal object AiArtifactJsonCodec {
         }
     }
 
-    private fun parseArtifact(value: JsonValue): AiArtifact? =
-        runCatching {
+    private fun parseArtifact(value: JsonValue): AiArtifact {
             val item = value.asObject()
-            val id = item.optString("id")?.takeIf { it.isNotBlank() } ?: return@runCatching null
-            AiArtifact(
+            val id = requireNotNull(item.optString("id")?.takeIf { it.isNotBlank() })
+            return AiArtifact(
                 id = id,
-                kind = item.optString("kind").orEmpty().toArtifactKind(),
-                title = item.optString("title").orEmpty().ifBlank { "AI draft" },
-                description = item.optString("description").orEmpty(),
-                prompt = item.optString("prompt").orEmpty(),
-                createdAtMillis = item.long("createdAtMillis", System.currentTimeMillis()),
-                catalogSavedAtMillis = item.long(
+                kind = AiArtifactKind.entries.single { it.name == item.string("kind") },
+                title = item.strictStringOr("title", "").ifBlank { "AI draft" },
+                description = item.strictStringOr("description", ""),
+                prompt = item.strictStringOr("prompt", ""),
+                createdAtMillis = item.strictLongOr("createdAtMillis", 0L),
+                catalogSavedAtMillis = item.strictLongOr(
                     "catalogSavedAtMillis",
-                    item.long("createdAtMillis", System.currentTimeMillis()),
+                    item.strictLongOr("createdAtMillis", 0L),
                 ),
-                actions = item.array("actions").mapIndexedNotNull(::parseAction),
-                review = item.optObj("review")?.let(::parseReview) ?: AiArtifactReview(),
-                lastTest = item.optObj("lastTest")?.let(::parseTest),
-                lastPlacementRequest = item.optObj("lastPlacementRequest")?.let(::parsePlacementRequest),
+                actions = item.strictArrayOrEmpty("actions").mapIndexed(::parseAction),
+                review = item.strictOptionalObject("review")?.let(::parseReview) ?: AiArtifactReview(),
+                lastTest = item.strictOptionalObject("lastTest")?.let(::parseTest),
+                lastPlacementRequest = item.strictOptionalObject("lastPlacementRequest")?.let(::parsePlacementRequest),
             )
-        }.getOrNull()
+    }
 
-    private fun parseAction(index: Int, value: JsonValue): AiArtifactAction? =
-        runCatching {
+    private fun parseAction(index: Int, value: JsonValue): AiArtifactAction {
             val action = value.asObject()
             val command = action.optString("command").orEmpty()
-            if (command.isBlank()) return@runCatching null
-            AiArtifactAction(
+            require(command.isNotBlank())
+            return AiArtifactAction(
                 id = action.optString("id").orEmpty().ifBlank { "action_$index" },
-                title = action.optString("title").orEmpty().ifBlank { "Action ${index + 1}" },
+                title = action.strictStringOr("title", "").ifBlank { "Action ${index + 1}" },
                 command = command,
-                dangerous = action.bool("dangerous", false),
+                dangerous = action.strictBoolOr("dangerous", false),
             )
-        }.getOrNull()
+    }
 
     private fun parseReview(review: JsonObject): AiArtifactReview =
         AiArtifactReview(
-            assumptions = review.array("assumptions").mapNotNull { (it as? JsonValue.Str)?.value },
-            riskLevel = review.optString("riskLevel").orEmpty().toRiskLevel(),
-            requiresConfirmation = review.bool("requiresConfirmation", false),
-            riskReason = review.optString("riskReason")?.ifBlank { null },
-            target = review.optString("target").orEmpty().ifBlank { "Any connected Mac" },
-            trigger = review.optString("trigger")?.ifBlank { null },
-            requiredCapabilities = review.array("requiredCapabilities").mapNotNull { (it as? JsonValue.Str)?.value },
-            parameters = review.array("parameters").mapNotNull(::parseReviewParameter),
-            steps = review.array("steps").mapNotNull(::parseReviewStep),
+            assumptions = review.strictArrayOrEmpty("assumptions").map { requireNotNull((it as? JsonValue.Str)?.value) },
+            riskLevel = AiArtifactRiskLevel.entries.single { it.name == review.string("riskLevel") },
+            requiresConfirmation = review.strictBoolOr("requiresConfirmation", false),
+            riskReason = review.strictOptionalString("riskReason")?.ifBlank { null },
+            target = review.strictStringOr("target", "").ifBlank { "Any connected Mac" },
+            trigger = review.strictOptionalString("trigger")?.ifBlank { null },
+            requiredCapabilities = review.strictArrayOrEmpty("requiredCapabilities").map { requireNotNull((it as? JsonValue.Str)?.value) },
+            parameters = review.strictArrayOrEmpty("parameters").map(::parseReviewParameter),
+            steps = review.strictArrayOrEmpty("steps").map(::parseReviewStep),
         )
 
-    private fun parseReviewParameter(value: JsonValue): AiArtifactParameter? =
-        runCatching {
+    private fun parseReviewParameter(value: JsonValue): AiArtifactParameter {
             val item = value.asObject()
-            AiArtifactParameter(
+            return AiArtifactParameter(
                 name = item.optString("name").orEmpty(),
                 label = item.optString("label").orEmpty(),
-                required = item.bool("required", false),
-                defaultValue = item.optString("defaultValue")?.ifBlank { null },
+                required = item.strictBoolOr("required", false),
+                defaultValue = item.strictOptionalString("defaultValue")?.ifBlank { null },
             )
-        }.getOrNull()
+    }
 
-    private fun parseReviewStep(value: JsonValue): AiArtifactStepReview? =
-        runCatching {
+    private fun parseReviewStep(value: JsonValue): AiArtifactStepReview {
             val item = value.asObject()
-            AiArtifactStepReview(
+            return AiArtifactStepReview(
                 id = item.optString("id").orEmpty(),
                 label = item.optString("label").orEmpty(),
                 type = item.optString("type").orEmpty(),
                 summary = item.optString("summary").orEmpty(),
-                requiresConfirmation = item.bool("requiresConfirmation", false),
+                requiresConfirmation = item.strictBoolOr("requiresConfirmation", false),
             )
-        }.getOrNull()
+    }
 
     private fun parseTest(test: JsonObject): AiArtifactTest =
         AiArtifactTest(
-            status = test.optString("status").orEmpty().toTestStatus(),
+            status = AiArtifactTestStatus.entries.single { it.name == test.string("status") },
             message = test.optString("message").orEmpty(),
-            timestampMillis = test.long("timestampMillis", System.currentTimeMillis()),
+            timestampMillis = test.strictLongOr("timestampMillis", 0L),
         )
 
     private fun parsePlacementRequest(request: JsonObject): AiArtifactPlacementRequest =
         AiArtifactPlacementRequest(
-            choice = AiArtifactPlacementChoice.entries.firstOrNull {
+            choice = AiArtifactPlacementChoice.entries.single {
                 it.name == request.optString("choice")
-            } ?: AiArtifactPlacementChoice.ChooseSlot,
-            timestampMillis = request.long("timestampMillis", System.currentTimeMillis()),
+            },
+            timestampMillis = request.strictLongOr("timestampMillis", 0L),
         )
 }
-
-private fun String.toArtifactKind(): AiArtifactKind =
-    AiArtifactKind.entries.firstOrNull { it.name == this } ?: AiArtifactKind.Button
-
-private fun String.toTestStatus(): AiArtifactTestStatus =
-    AiArtifactTestStatus.entries.firstOrNull { it.name == this } ?: AiArtifactTestStatus.Failed
-
-private fun String.toRiskLevel(): AiArtifactRiskLevel =
-    AiArtifactRiskLevel.entries.firstOrNull { it.name == this } ?: AiArtifactRiskLevel.Normal

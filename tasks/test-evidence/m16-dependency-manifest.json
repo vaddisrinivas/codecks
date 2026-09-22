@@ -1,0 +1,13 @@
+{
+  "schema": "codecks.m16.dependencies.v1",
+  "sourceCommit": "e0f8edec7edd8f6bfc87f783b6e5c4b1ef552d40",
+  "dependencies": [
+    {"milestone":"M10","path":"tasks/test-evidence/m10-managed-android-matrix.md","sha256":"c995b012e44e7ed23edd8f4b6a84edd5e7d5d83b35b670e33a1ba5ac5eb204d5","status":"PASS"},
+    {"milestone":"M11","path":"tasks/test-evidence/autonomous-maturity-m11-dex-proxy.json","sha256":"0ba37dd78f2167ac3663fc4c253802fae9a65128427701a05eb93749420065bc","status":"PASS"},
+    {"milestone":"M12","path":"tasks/test-evidence/autonomous-maturity-m12-current-mac.json","sha256":"c9b8946d408e31dd396eaa65dce700b597e4ca82cfd49f65f7f30dc816a47db2","status":"PASS_WITH_NOT_RUN","externalNotRun":11},
+    {"milestone":"M13","path":"tasks/test-evidence/autonomous-maturity-m13-accessibility.json","sha256":"e32b9f8a0c5daf4fc2184b8d5898938ec14839fc869a66d77b33dd04452fe7b1","status":"PASS"},
+    {"milestone":"M14","path":"tasks/test-evidence/autonomous-maturity-m14-first-run.json","sha256":"0c827b1cce1a5b0f5a44c2b560ff1ef51189bd9d99b91ab50c420112c29d9c3e","status":"PASS"},
+    {"milestone":"M15","path":"tasks/test-evidence/autonomous-maturity-m15-clipboard-battery.json","sha256":"88ab5bf191604ea01c52c1d3c54ffb32e4c572f49673dda2a55122ac2eb1cf65","status":"PASS"}
+  ],
+  "boundary": "M12 external hardware lanes remain exactly 11 NOT_RUN; M16 is AUTONOMOUS_PROXY only."
+}

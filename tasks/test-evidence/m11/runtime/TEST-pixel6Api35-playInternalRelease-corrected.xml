@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="4" failures="0" errors="0" skipped="0" time="12.723" timestamp="2026-08-10T23:10:05" hostname="localhost">
+  <testsuite name="io.codecks.internalquality.M11DexProxyInstrumentedTest" tests="4" failures="0" errors="0" skipped="0" time="12.08" timestamp="2026-08-10T23:10:05" hostname="localhost">
+    <properties>
+      <property name="device" value="pixel6Api35" />
+      <property name="flavor" value="playInternal" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="secondaryDisplay1280x720" classname="io.codecks.internalquality.M11DexProxyInstrumentedTest" time="2.492" />
+    <testcase name="freeformWindow1920x1080" classname="io.codecks.internalquality.M11DexProxyInstrumentedTest" time="3.519" />
+    <testcase name="secondaryDisplay1920x1080" classname="io.codecks.internalquality.M11DexProxyInstrumentedTest" time="2.882" />
+    <testcase name="freeformWindow1280x720" classname="io.codecks.internalquality.M11DexProxyInstrumentedTest" time="3.187" />
+  </testsuite>
+</testsuites>

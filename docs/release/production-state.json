@@ -1,0 +1,36 @@
+{
+  "schema": "codecks.production-state.v1",
+  "public_release": {
+    "version": "0.1.37",
+    "version_code": 37,
+    "tag": "v0.1.37",
+    "commit": "0dc3cac1f7e6b02fa4d5f069eda8664789852370",
+    "status": "public_beta",
+    "release_notes": "docs/release/RELEASE_NOTES_v0.1.37.md"
+  },
+  "candidate": {
+    "version_assigned": false,
+    "artifact_admitted": false,
+    "status": "unreleased_working_state"
+  },
+  "commercial": {
+    "sign_in": "OFF",
+    "cloud_sync": "OFF",
+    "play_billing": "OFF",
+    "premium_enforcement": "OFF",
+    "ads": "OFF",
+    "sdk_or_network_startup": "NONE"
+  },
+  "activation": "EXPLICIT_OWNER_APPROVAL_REQUIRED_PER_SURFACE",
+  "evidence": [
+    "app/src/main/java/io/codecks/domain/commercial/CommercialExecutionPolicy.kt",
+    "app/src/main/java/io/codecks/domain/commercial/CompiledCommercialOwnerPolicy.kt",
+    "app/src/main/java/io/codecks/domain/commercial/ProductionDarkCommercialServices.kt",
+    "app/src/test/java/io/codecks/domain/commercial/CommercialExecutionPolicyTest.kt",
+    "app/src/testPlay/java/io/codecks/commercial/auth/ProductionPlayCommercialAdaptersTest.kt",
+    "app/src/testPlay/java/io/codecks/commercial/PlayProductionDarkAdsPrivacyTest.kt",
+    "app/src/androidTestPlay/java/io/codecks/commercialproof/ManagedCommercialDarkInstrumentedTest.kt",
+    "tools/commercial_proof_harness.py",
+    "scripts/run_commercial_static_proof.sh"
+  ]
+}

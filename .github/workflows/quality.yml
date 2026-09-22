@@ -17,6 +17,8 @@ jobs:
     timeout-minutes: 55
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-java@v5.6.0
         with:
           distribution: temurin
@@ -24,6 +26,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
       - name: Public-source privacy check
         run: python3 tools/secret_surface_check.py
+      - name: Release documentation drift check
+        run: |
+          python3 tools/verify_release_documentation.py
+          python3 -m unittest tools.tests.test_verify_release_documentation
       - name: Enforce unshrunk production release
         run: ./scripts/verify_release_no_shrink.sh
       - name: Commercial production-dark static proof

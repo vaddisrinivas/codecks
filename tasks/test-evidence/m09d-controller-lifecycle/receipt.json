@@ -1,0 +1,132 @@
+{
+  "artifacts": [
+    {
+      "path": "tasks/test-evidence/m09d-controller-lifecycle/artifacts.json",
+      "sha256": "802e1bf80e7eba782e315d31fd28f9ed44d98ed7f4def15285abe174e719701c"
+    },
+    {
+      "path": "tasks/test-evidence/m09d-controller-lifecycle/gradle.log",
+      "sha256": "b4291c0195e326dfb48cc8a7112ce8a881ebd181ad3127e9ab8fd880254b9a82"
+    },
+    {
+      "path": "tasks/test-evidence/m09d-controller-lifecycle/junit.xml",
+      "sha256": "918aa79ff330c38b9b8e489fba3f704cd12a87e6d804032d3c969f221337ef23"
+    }
+  ],
+  "claims": {
+    "aiDeleteUndo": "NOT_AVAILABLE",
+    "dependencyCacheOrigin": "NOT_PROVEN",
+    "device": "NOT_RUN",
+    "freshnessAdversaryResistance": "NOT_PROVEN",
+    "ignoredLocalBuildOutputsRetention": "NOT_PROVEN",
+    "longPressUi": "NOT_RUN",
+    "networkDenial": "NOT_PROVEN",
+    "physicalPhone": "NOT_RUN",
+    "postRunLiveRevalidation": "NOT_APPLICABLE",
+    "providerNetwork": "NOT_RUN",
+    "publicRelease": "NOT_RUN",
+    "rawMaterialInCommittedEvidence": "NOT_RETAINED",
+    "rawTransformationRevalidation": "NOT_POSSIBLE",
+    "writableHomeMaterialRetention": "NOT_RETAINED"
+  },
+  "commitChain": {
+    "artifact": "c63e2555afba8739540bd03752100f6d7af339ad",
+    "base": "d49bc52fadded536dad947a3ea76fcd58d7f2a58",
+    "source": "b7579e9d999311bd160510710f3e4a3b3091aeb7"
+  },
+  "evidenceSource": {
+    "c1Paths": [
+      "docs/evidence/M09D_CONTROLLER_LIFECYCLE.md",
+      "docs/evidence/M09D_CONTROLLER_LIFECYCLE_TODO.md",
+      "tools/evidence/collect_m09d_controller_lifecycle.py",
+      "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.schema.json",
+      "tools/evidence/test_m09d_controller_lifecycle.py"
+    ],
+    "files": [
+      {
+        "path": "tools/evidence/collect_m09d_controller_lifecycle.py",
+        "sha256": "13b5bfc6c32b92d3150f0bae457d8b4c109ae9e81ad70ce40ac4b24ce405c720"
+      },
+      {
+        "path": "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.schema.json",
+        "sha256": "a478c9092033333502e71003e9967e5ff0aca14215f8e8ad1ad2f3f4e595cf6f"
+      },
+      {
+        "path": "tools/evidence/validate_m09d_controller_lifecycle.py",
+        "sha256": "0b714887846219b1719ce4df159a802e59f11cfaa95c71a93070fe595d0eaf11"
+      }
+    ],
+    "sourceParent": "d49bc52fadded536dad947a3ea76fcd58d7f2a58"
+  },
+  "schema": "codecks.m09d.controller-lifecycle.v1",
+  "scope": "CURRENT_SOURCE_CPU_CONTROLLER_LIFECYCLE_ONLY",
+  "sourceBinding": {
+    "c1Paths": [
+      "docs/evidence/M09D_CONTROLLER_LIFECYCLE.md",
+      "docs/evidence/M09D_CONTROLLER_LIFECYCLE_TODO.md",
+      "tools/evidence/collect_m09d_controller_lifecycle.py",
+      "tools/evidence/schemas/codecks-m09d-controller-lifecycle-v1.schema.json",
+      "tools/evidence/test_m09d_controller_lifecycle.py"
+    ],
+    "files": [
+      {
+        "path": "app/src/main/java/io/codecks/AppCompositionRoot.kt",
+        "sha256": "f11c95cf2e67dc969e1a8225cc7a94a08d7aedc4e64f2c6c170803eab6ec9ffd"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/ui/home/HomeViewModel.kt",
+        "sha256": "cdf33a7a228a1ad3376e0a02f02bd9c0abb83f39048a883c77568bfeaf1ee7b6"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/ui/ai/AiProviderSettingsController.kt",
+        "sha256": "eb40230f7acc4e9de5692553f6183bf0f2779e49afbee0f69ef51fbed44bcc9a"
+      }
+    ]
+  },
+  "status": "PASS",
+  "test": {
+    "captureRuns": 2,
+    "className": "io.codecks.m09d.M09DControllerLifecycleTest",
+    "command": [
+      "$GRADLE_DISTRIBUTION_ROOT/bin/gradle",
+      ":app:validateReleaseSurface",
+      ":app:testOssReleaseUnitTest",
+      "--tests",
+      "io.codecks.m09d.M09DControllerLifecycleTest",
+      "--rerun-tasks",
+      "--no-build-cache",
+      "--no-configuration-cache",
+      "--no-daemon",
+      "--offline"
+    ],
+    "environment": {
+      "ANDROID_HOME": "$ANDROID_HOME",
+      "GRADLE_OPTS": "",
+      "GRADLE_RO_DEP_CACHE": "$GRADLE_RO_DEP_CACHE",
+      "GRADLE_USER_HOME": "$GRADLE_USER_HOME",
+      "HOME": "$HOME",
+      "JAVA_HOME": "$JAVA_HOME",
+      "JAVA_TOOL_OPTIONS": "",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "$JAVA_HOME/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+      "_JAVA_OPTIONS": ""
+    },
+    "errors": 0,
+    "failures": 0,
+    "methods": [
+      "aiCreateSurvivesRepositoryBackedControllerRecreationProxy",
+      "aiDeleteIsNonUndoableAcrossRepositoryBackedControllerRecreationProxy",
+      "aiRefinePreservesSourceAcrossRepositoryBackedControllerRecreationProxy",
+      "aiSaveOnlySurvivesRepositoryBackedControllerRecreationProxy",
+      "aiTestSurvivesRepositoryBackedControllerRecreationProxy",
+      "compositionPlacementBridgeDrivesHomePreferredSlotAndExactSavePath",
+      "homeEditAssignPersistsExactSavePath",
+      "homeMoveUndoRestoresExactLayoutAndSavePath",
+      "homeReassignClearsPriorUndoPolicy",
+      "homeRemoveUndoRestoresExactActionAndSavePath"
+    ],
+    "skipped": 0,
+    "tests": 10
+  }
+}

@@ -1,5 +1,7 @@
 package io.codecks.ui.keyboard
 
+import io.codecks.ui.connection.ConnectionSupportCode
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -85,8 +87,13 @@ class KeyboardViewModel @Inject constructor(
                 .onSuccess { message ->
                     _uiState.update { it.afterSuccessfulSend(text, message) }
                 }
-                .onFailure { error ->
-                    _uiState.update { it.copy(status = error.message ?: "Send failed") }
+                .onFailure {
+                    val safeStatus = if (hidRepository.state.value.inputAccess != HidInputAccess.Full) {
+                        LOCKED_INPUT_MESSAGE
+                    } else {
+                        "Send failed (${ConnectionSupportCode.HidFailed.value})"
+                    }
+                    _uiState.update { it.copy(status = safeStatus) }
                 }
             _uiState.update { it.copy(isSending = false) }
         }

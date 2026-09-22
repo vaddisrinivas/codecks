@@ -1,0 +1,255 @@
+{
+  "managed_evidence": {
+    "companions": [
+      {
+        "path": "tasks/test-evidence/m13/runtime/device-info.pb",
+        "sha256": "197c6c5a263e276976af71c9238eb2b754109679f562f07efd98b73acce601dd",
+        "type": "GRADLE_MANAGED_DEVICE_INFO_PROTO"
+      },
+      {
+        "path": "tasks/test-evidence/m13/runtime/test-result.pb",
+        "sha256": "8436092a6f91ed89cac306a02220859c0f55cda145256d937ecb121c2360e36a",
+        "type": "GRADLE_MANAGED_TEST_RESULT_PROTO"
+      }
+    ],
+    "device": "pixel6Api35",
+    "flavor": "playInternal",
+    "gradle_task": ":app:pixel6Api35PlayInternalReleaseAndroidTest",
+    "path": "tasks/test-evidence/m13/runtime/TEST-CodecksDesignSystemInstrumentedTest.xml",
+    "required_tests": {
+      "io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest.animatorScaleChangesUpdateMotionPolicyWithoutRecreatingComposition": "PASS",
+      "io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest.blankColorSwatchHasTokenSizedRadioSemantics": "PASS",
+      "io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest.ckDeckKeyFocusRingAndClickLongClickHapticsAreObservable": "PASS",
+      "io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest.compactBottomNavigationKeepsFullAccessibleNamesAtTwoHundredPercentText": "PASS",
+      "io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest.compactHomeReflowsHeaderAndDeckToTwoColumnsAtTwoHundredPercentText": "PASS",
+      "io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest.customThemeAndReducedMotionOverlayRenderWithoutDecorativeSemantics": "PASS",
+      "io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest.deckAndHelperRenderInRtlDexWindowWithHighContrastOledThemeAndHaptics": "PASS",
+      "io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest.firstRunTrackpadSetupRemainsScrollableAtTwoHundredPercentText": "PASS",
+      "io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest.keyboardComposerKeepsNamedFullWidthActionsAtTwoHundredPercentText": "PASS",
+      "io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest.lockscreenCriticalActionsRemainVisibleAndTouchableAtTwoHundredPercentText": "PASS",
+      "io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest.normalFontCompactHomePreservesFourColumnDeck": "PASS",
+      "io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest.smartSuggestionReflowsWithoutTruncatingMeaningAtTwoHundredPercentText": "PASS",
+      "io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest.widgetInitialLayoutInflatesWithTokenOwnedFallbacks": "PASS"
+    },
+    "sha256": "ff3e00f3155abd3bd4eb4b60b0fd03980f1c3bc21df3edd57b9cacb18e995ee6",
+    "type": "GRADLE_MANAGED_DEVICE_JUNIT_XML"
+  },
+  "managed_execution": {
+    "device": {
+      "api": 35,
+      "deviceInfoPath": "tasks/test-evidence/m13/runtime/device-info.pb",
+      "deviceInfoSha256": "197c6c5a263e276976af71c9238eb2b754109679f562f07efd98b73acce601dd",
+      "name": "pixel6Api35",
+      "properties": {
+        "device": "pixel6Api35",
+        "flavor": "playInternal",
+        "project": ":app"
+      },
+      "source": "AOSP_MANAGED_EMULATOR",
+      "textprotoPath": "tasks/test-evidence/m13/runtime/test-result.textproto",
+      "textprotoSha256": "b048e75f837f0055f98687406fca0154783a2d59912547c77bd83dc14924aef5"
+    },
+    "result": {
+      "className": "io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest",
+      "errors": 0,
+      "failures": 0,
+      "methods": [
+        "animatorScaleChangesUpdateMotionPolicyWithoutRecreatingComposition",
+        "blankColorSwatchHasTokenSizedRadioSemantics",
+        "ckDeckKeyFocusRingAndClickLongClickHapticsAreObservable",
+        "compactBottomNavigationKeepsFullAccessibleNamesAtTwoHundredPercentText",
+        "compactHomeReflowsHeaderAndDeckToTwoColumnsAtTwoHundredPercentText",
+        "customThemeAndReducedMotionOverlayRenderWithoutDecorativeSemantics",
+        "deckAndHelperRenderInRtlDexWindowWithHighContrastOledThemeAndHaptics",
+        "firstRunTrackpadSetupRemainsScrollableAtTwoHundredPercentText",
+        "keyboardComposerKeepsNamedFullWidthActionsAtTwoHundredPercentText",
+        "lockscreenCriticalActionsRemainVisibleAndTouchableAtTwoHundredPercentText",
+        "normalFontCompactHomePreservesFourColumnDeck",
+        "smartSuggestionReflowsWithoutTruncatingMeaningAtTwoHundredPercentText",
+        "widgetInitialLayoutInflatesWithTokenOwnedFallbacks"
+      ],
+      "path": "tasks/test-evidence/m13/runtime/TEST-CodecksDesignSystemInstrumentedTest.xml",
+      "properties": {
+        "device": "pixel6Api35",
+        "flavor": "playInternal",
+        "project": ":app"
+      },
+      "sha256": "ff3e00f3155abd3bd4eb4b60b0fd03980f1c3bc21df3edd57b9cacb18e995ee6",
+      "skipped": 0,
+      "tests": 13
+    },
+    "sourceCommit": "0aa92c2b40a0939d78d58d813158051bbea78343",
+    "sourceDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sourceTreeSha256": "0e7e58717ea74228bf606ef8cb37c7f8a13cbdbd91263ff3c87fa4a0da9d36e1",
+    "sources": [
+      {
+        "path": "app/src/androidTest/java/io/codecks/ui/mouse/RawTrackpadViewInstrumentedTest.kt",
+        "sha256": "b35b50bada5fab561bb31918f16ce30a37e03b39f62a1a35043c6262aec9056b"
+      },
+      {
+        "path": "app/src/androidTestPlayInternal/java/io/codecks/ui/designsystem/CodecksDesignSystemInstrumentedTest.kt",
+        "sha256": "5b416e0045999b3fb7f8fdab4eba9f0b9bc63de8d1c11614fb13afa457c0d619"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/AppDestinationSupport.kt",
+        "sha256": "1635cdea155e3999daad987a735d621efb61760c7eb0d860881d36b140dcf9c9"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/ui/designsystem/DeckComponents.kt",
+        "sha256": "253fa65de775cba62cae84009104a52cd93d3d6a965231fdc8ef30b02fb78626"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/ui/keyboard/KeyboardScreen.kt",
+        "sha256": "2d24a180bd3c2f326bbcdf5766de9b544fc04a9c070f3712833a982728493e5a"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/ui/mouse/RawTrackpadAdapter.kt",
+        "sha256": "92883d1a8d770f4d3c877bb54dc7a0437da6cc9749e4681b9c4e53b84baced87"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/ui/mouse/TrackpadHostScreen.kt",
+        "sha256": "4aabcc419f6f6f4e95232461d8457bcf08e721174de0204710e3af05762fbcc5"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/ui/mouse/lockscreen/LockscreenTrackpadScreen.kt",
+        "sha256": "3b5f770eacec4553a8ffc070aa0cce563725aaeccc4ac0f08c0a4cc2bb2202e2"
+      },
+      {
+        "path": "app/src/main/java/io/codecks/ui/settings/SettingsConnectionSections.kt",
+        "sha256": "6dd26ab571b41934cc89fcecbd8f262360dfe5d3213b0ff9b74b3d43d7820314"
+      },
+      {
+        "path": "app/src/main/res/layout/trackpad_widget.xml",
+        "sha256": "013988813657cdecabb49609575115014955284aa8c61af6ec43dfee45719fbb"
+      },
+      {
+        "path": "app/src/main/res/values/accessibility_ids.xml",
+        "sha256": "36fac2652712aad5366ed36b42f7c80c69bd6c735549653c2c261671b8d2364d"
+      },
+      {
+        "path": "app/src/main/res/values/design_tokens.xml",
+        "sha256": "0532440021b0d8a0f70d836bd3782976ebfda8afc627f6dfc0a8ca8f7dcdf4f0"
+      },
+      {
+        "path": "app/src/main/res/values/strings.xml",
+        "sha256": "dd5f645784241e7b8b6d48b623710a589ed3e8d6f83169c99a24df4c8b6857eb"
+      },
+      {
+        "path": "app/src/main/res/xml/trackpad_widget_info.xml",
+        "sha256": "bf94580e60f2ecbba4b3ecfe72867ebcebc48320c923da138c30d7564ed8688f"
+      },
+      {
+        "path": "app/src/test/java/io/codecks/ui/app/AccessibilityCriticalFlowPolicyTest.kt",
+        "sha256": "83e34582951d9ccb845cf98a5df10bebcfdb60211f052c310760b343142da6a8"
+      },
+      {
+        "path": "app/src/test/java/io/codecks/ui/app/AccessibilityPrimitiveTest.kt",
+        "sha256": "4913e3757eda47d1f921e0988b561bb570860b6df45779554848b11bff2186ce"
+      },
+      {
+        "path": "tools/evidence/generate_m13_accessibility_receipt.py",
+        "sha256": "3552d854306364a8e3b47b9c2f69a8e9b3e568db1b940b3ee634fe2ec0afe24f"
+      },
+      {
+        "path": "tools/evidence/managed_execution_binding.py",
+        "sha256": "a297048fc75861c4e896aa2c8deb1932d4197fab331808f440c835241123e837"
+      },
+      {
+        "path": "tools/evidence/schemas/autonomous-maturity-m13-accessibility-v1.schema.json",
+        "sha256": "be942863da2edd964768750e32cc044d4561eb9204e49e7c60916b7c5f01b34d"
+      },
+      {
+        "path": "tools/evidence/test_generate_m13_accessibility_receipt.py",
+        "sha256": "c554f9c8522e002184f715c41374b587d7cd7f1996f020894e29daed1b770958"
+      },
+      {
+        "path": "tools/evidence/validate_m13_accessibility_receipt.py",
+        "sha256": "9c59ebe448507f5df4d4f0ca232f64d046bdb8b25ac15066a47a37f944579b11"
+      }
+    ],
+    "targetApk": {
+      "applicationId": "app.codecks.internal",
+      "path": "tasks/test-evidence/m13/runtime/app-playInternal-release.apk",
+      "sha256": "ed969090ff6e14d9a4c96742e4daedadc6a8c91dd8ce6d011395812dbc55b8ac"
+    },
+    "testApk": {
+      "applicationId": "app.codecks.internal.test",
+      "path": "tasks/test-evidence/m13/runtime/app-playInternal-release-androidTest.apk",
+      "sha256": "d9046a6c20ebb47cf585e7d506fc82241c792253d58a4b6c4d5bef3dcd8190aa"
+    }
+  },
+  "milestone": "M13",
+  "proof_boundary": {
+    "human_talkback_comprehension": "EXTERNAL_EVIDENCE_REQUIRED",
+    "managed_android_api35_accessibility_matrix": "PASS",
+    "physical_device": "NOT_RUN",
+    "unit_contract_matrix": "PASS"
+  },
+  "repository": {
+    "base_commit": "b4562b5b9a770da0ea0f47a66b61ef799463adb2",
+    "base_is_ancestor": true,
+    "source_commit": "0aa92c2b40a0939d78d58d813158051bbea78343",
+    "workspace_content_sha256": "9b34b2c28234037b6d909f56169604181a6d2367b02bbe1112b22741357d6c5c"
+  },
+  "required_unit_tests": {
+    "io.codecks.ui.app.AccessibilityCriticalFlowPolicyTest.keyboardComposerHasPersistentLabelLiveDeliveryStatusAndTwoHundredPercentReflow": "PASS",
+    "io.codecks.ui.app.AccessibilityCriticalFlowPolicyTest.lockscreenHelperOverlayAndWidgetUseNonInteractiveStatusAndNamedSurfaces": "PASS",
+    "io.codecks.ui.app.AccessibilityCriticalFlowPolicyTest.trackpadExposesTalkBackEquivalentsWithoutLeakingRestrictedLockscreenActions": "PASS",
+    "io.codecks.ui.app.AccessibilityPrimitiveTest.supportedTextScaleMatrixKeepsTargetsAndOnlyReflowsAtTwoHundredPercent": "PASS",
+    "io.codecks.ui.app.KeyboardNavigationPolicyTest.highFontScaleRetainsNavigationOrEmergencyStopAcrossRequiredSizes": "PASS",
+    "io.codecks.ui.app.KeyboardNavigationPolicyTest.tabAndShiftTabHaveDeterministicDirection": "PASS",
+    "io.codecks.ui.designsystem.CodecksDesignSystemTest.all offline themes preserve text and semantic feedback contrast": "PASS",
+    "io.codecks.ui.designsystem.CodecksDesignSystemTest.reduced motion resolves transitions to instant and stops continuous motion": "PASS"
+  },
+  "schema": "codecks.autonomous-maturity.m13-accessibility.v1",
+  "schema_version": 3,
+  "source_sha256": {
+    "app/src/main/java/io/codecks/AppDestinationSupport.kt": "1635cdea155e3999daad987a735d621efb61760c7eb0d860881d36b140dcf9c9",
+    "app/src/main/java/io/codecks/ui/designsystem/DeckComponents.kt": "253fa65de775cba62cae84009104a52cd93d3d6a965231fdc8ef30b02fb78626",
+    "app/src/main/java/io/codecks/ui/keyboard/KeyboardScreen.kt": "2d24a180bd3c2f326bbcdf5766de9b544fc04a9c070f3712833a982728493e5a",
+    "app/src/main/java/io/codecks/ui/mouse/RawTrackpadAdapter.kt": "92883d1a8d770f4d3c877bb54dc7a0437da6cc9749e4681b9c4e53b84baced87",
+    "app/src/main/java/io/codecks/ui/mouse/TrackpadHostScreen.kt": "4aabcc419f6f6f4e95232461d8457bcf08e721174de0204710e3af05762fbcc5",
+    "app/src/main/java/io/codecks/ui/mouse/lockscreen/LockscreenTrackpadScreen.kt": "3b5f770eacec4553a8ffc070aa0cce563725aaeccc4ac0f08c0a4cc2bb2202e2",
+    "app/src/main/java/io/codecks/ui/settings/SettingsConnectionSections.kt": "6dd26ab571b41934cc89fcecbd8f262360dfe5d3213b0ff9b74b3d43d7820314",
+    "app/src/main/res/layout/trackpad_widget.xml": "013988813657cdecabb49609575115014955284aa8c61af6ec43dfee45719fbb",
+    "app/src/main/res/values/accessibility_ids.xml": "36fac2652712aad5366ed36b42f7c80c69bd6c735549653c2c261671b8d2364d",
+    "app/src/main/res/values/design_tokens.xml": "0532440021b0d8a0f70d836bd3782976ebfda8afc627f6dfc0a8ca8f7dcdf4f0",
+    "app/src/main/res/values/strings.xml": "dd5f645784241e7b8b6d48b623710a589ed3e8d6f83169c99a24df4c8b6857eb",
+    "app/src/main/res/xml/trackpad_widget_info.xml": "bf94580e60f2ecbba4b3ecfe72867ebcebc48320c923da138c30d7564ed8688f"
+  },
+  "status": "PASS",
+  "test_source_sha256": {
+    "app/src/androidTest/java/io/codecks/ui/mouse/RawTrackpadViewInstrumentedTest.kt": "b35b50bada5fab561bb31918f16ce30a37e03b39f62a1a35043c6262aec9056b",
+    "app/src/androidTestPlayInternal/java/io/codecks/ui/designsystem/CodecksDesignSystemInstrumentedTest.kt": "5b416e0045999b3fb7f8fdab4eba9f0b9bc63de8d1c11614fb13afa457c0d619",
+    "app/src/test/java/io/codecks/ui/app/AccessibilityCriticalFlowPolicyTest.kt": "83e34582951d9ccb845cf98a5df10bebcfdb60211f052c310760b343142da6a8",
+    "app/src/test/java/io/codecks/ui/app/AccessibilityPrimitiveTest.kt": "4913e3757eda47d1f921e0988b561bb570860b6df45779554848b11bff2186ce",
+    "tools/evidence/generate_m13_accessibility_receipt.py": "3552d854306364a8e3b47b9c2f69a8e9b3e568db1b940b3ee634fe2ec0afe24f",
+    "tools/evidence/managed_execution_binding.py": "a297048fc75861c4e896aa2c8deb1932d4197fab331808f440c835241123e837",
+    "tools/evidence/schemas/autonomous-maturity-m13-accessibility-v1.schema.json": "be942863da2edd964768750e32cc044d4561eb9204e49e7c60916b7c5f01b34d",
+    "tools/evidence/test_generate_m13_accessibility_receipt.py": "c554f9c8522e002184f715c41374b587d7cd7f1996f020894e29daed1b770958",
+    "tools/evidence/validate_m13_accessibility_receipt.py": "9c59ebe448507f5df4d4f0ca232f64d046bdb8b25ac15066a47a37f944579b11"
+  },
+  "unit_evidence": [
+    {
+      "path": "app/build/test-results/testPlayInternalReleaseUnitTest/TEST-io.codecks.ui.app.AccessibilityCriticalFlowPolicyTest.xml",
+      "sha256": "ec93ec2b327b0b91ba409292f002b4ef4943676ee3a7af50d085c13a719a033e",
+      "type": "GRADLE_JVM_JUNIT_XML"
+    },
+    {
+      "path": "app/build/test-results/testPlayInternalReleaseUnitTest/TEST-io.codecks.ui.app.AccessibilityPrimitiveTest.xml",
+      "sha256": "b811d0bed4c5aabf9744e522d2d76808a83717802e6dcc99934d768721d45562",
+      "type": "GRADLE_JVM_JUNIT_XML"
+    },
+    {
+      "path": "app/build/test-results/testPlayInternalReleaseUnitTest/TEST-io.codecks.ui.app.KeyboardNavigationPolicyTest.xml",
+      "sha256": "9232d02280f402cc0a2d74e95f538c8dc5a04475d3d667eeef556c5d4ebba684",
+      "type": "GRADLE_JVM_JUNIT_XML"
+    },
+    {
+      "path": "app/build/test-results/testPlayInternalReleaseUnitTest/TEST-io.codecks.ui.designsystem.CodecksDesignSystemTest.xml",
+      "sha256": "a61bc71915ca4891feb8c164e5ee4a26d277a4387aa9ed26402e851c9867296a",
+      "type": "GRADLE_JVM_JUNIT_XML"
+    }
+  ],
+  "unit_gradle_task": ":app:testPlayInternalReleaseUnitTest"
+}

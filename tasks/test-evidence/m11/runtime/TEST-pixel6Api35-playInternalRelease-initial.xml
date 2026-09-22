@@ -1,0 +1,102 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="6" failures="4" errors="0" skipped="0" time="39.662" timestamp="2026-08-10T23:06:27" hostname="localhost">
+  <testsuite name="io.codecks.internalquality.M11DexProxyInstrumentedTest" tests="6" failures="4" errors="0" skipped="0" time="38.541" timestamp="2026-08-10T23:06:27" hostname="localhost">
+    <properties>
+      <property name="device" value="pixel6Api35" />
+      <property name="flavor" value="playInternal" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="managedWindow1920x1080" classname="io.codecks.internalquality.M11DexProxyInstrumentedTest" time="11.542" />
+    <testcase name="secondaryDisplay1280x720" classname="io.codecks.internalquality.M11DexProxyInstrumentedTest" time="5.881">
+      <failure>java.lang.RuntimeException: This method can not be called from the main application thread
+at android.app.Instrumentation.validateNotAppThread(Instrumentation.java:2467)
+at android.app.Instrumentation.waitForIdleSync(Instrumentation.java:446)
+at io.codecks.internalquality.M11DexProxyInstrumentedTest.secondaryDisplayProxy$lambda$0$0(M11DexProxyInstrumentedTest.kt:97)
+at io.codecks.internalquality.M11DexProxyInstrumentedTest.$r8$lambda$4xkgxlDJa10GTSbwDTIz7yUm5FQ(Unknown Source:0)
+at io.codecks.internalquality.M11DexProxyInstrumentedTest$$ExternalSyntheticLambda2.perform(D8$$SyntheticClass:0)
+at androidx.test.core.app.ActivityScenario.lambda$onActivity$2$androidx-test-core-app-ActivityScenario(ActivityScenario.java:794)
+at androidx.test.core.app.ActivityScenario$$ExternalSyntheticLambda2.run(D8$$SyntheticClass:0)
+at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:487)
+at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+at android.app.Instrumentation$SyncRunnable.run(Instrumentation.java:2612)
+at android.os.Handler.handleCallback(Handler.java:959)
+at android.os.Handler.dispatchMessage(Handler.java:100)
+at android.os.Looper.loopOnce(Looper.java:232)
+at android.os.Looper.loop(Looper.java:317)
+at android.app.ActivityThread.main(ActivityThread.java:8705)
+at java.lang.reflect.Method.invoke(Native Method)
+at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)
+at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)
+</failure>
+    </testcase>
+    <testcase name="freeformWindow1920x1080" classname="io.codecks.internalquality.M11DexProxyInstrumentedTest" time="9.019">
+      <failure>java.lang.AssertionError
+at org.junit.Assert.fail(Assert.java:87)
+at org.junit.Assert.assertTrue(Assert.java:42)
+at org.junit.Assert.assertTrue(Assert.java:53)
+at io.codecks.internalquality.M11DexProxyInstrumentedTest.freeformWindowProxy$lambda$0$0$0(M11DexProxyInstrumentedTest.kt:79)
+at io.codecks.internalquality.M11DexProxyInstrumentedTest.$r8$lambda$LjaTRk9lyTMlpOIumjJhZvQjhNE(Unknown Source:0)
+at io.codecks.internalquality.M11DexProxyInstrumentedTest$$ExternalSyntheticLambda6.perform(D8$$SyntheticClass:0)
+at androidx.test.core.app.ActivityScenario.lambda$onActivity$2$androidx-test-core-app-ActivityScenario(ActivityScenario.java:794)
+at androidx.test.core.app.ActivityScenario$$ExternalSyntheticLambda2.run(D8$$SyntheticClass:0)
+at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:487)
+at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+at android.app.Instrumentation$SyncRunnable.run(Instrumentation.java:2612)
+at android.os.Handler.handleCallback(Handler.java:959)
+at android.os.Handler.dispatchMessage(Handler.java:100)
+at android.os.Looper.loopOnce(Looper.java:232)
+at android.os.Looper.loop(Looper.java:317)
+at android.app.ActivityThread.main(ActivityThread.java:8705)
+at java.lang.reflect.Method.invoke(Native Method)
+at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)
+at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)
+</failure>
+    </testcase>
+    <testcase name="managedWindow1280x720" classname="io.codecks.internalquality.M11DexProxyInstrumentedTest" time="6.618" />
+    <testcase name="secondaryDisplay1920x1080" classname="io.codecks.internalquality.M11DexProxyInstrumentedTest" time="2.613">
+      <failure>java.lang.RuntimeException: This method can not be called from the main application thread
+at android.app.Instrumentation.validateNotAppThread(Instrumentation.java:2467)
+at android.app.Instrumentation.waitForIdleSync(Instrumentation.java:446)
+at io.codecks.internalquality.M11DexProxyInstrumentedTest.secondaryDisplayProxy$lambda$0$0(M11DexProxyInstrumentedTest.kt:97)
+at io.codecks.internalquality.M11DexProxyInstrumentedTest.$r8$lambda$4xkgxlDJa10GTSbwDTIz7yUm5FQ(Unknown Source:0)
+at io.codecks.internalquality.M11DexProxyInstrumentedTest$$ExternalSyntheticLambda2.perform(D8$$SyntheticClass:0)
+at androidx.test.core.app.ActivityScenario.lambda$onActivity$2$androidx-test-core-app-ActivityScenario(ActivityScenario.java:794)
+at androidx.test.core.app.ActivityScenario$$ExternalSyntheticLambda2.run(D8$$SyntheticClass:0)
+at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:487)
+at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+at android.app.Instrumentation$SyncRunnable.run(Instrumentation.java:2612)
+at android.os.Handler.handleCallback(Handler.java:959)
+at android.os.Handler.dispatchMessage(Handler.java:100)
+at android.os.Looper.loopOnce(Looper.java:232)
+at android.os.Looper.loop(Looper.java:317)
+at android.app.ActivityThread.main(ActivityThread.java:8705)
+at java.lang.reflect.Method.invoke(Native Method)
+at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)
+at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)
+</failure>
+    </testcase>
+    <testcase name="freeformWindow1280x720" classname="io.codecks.internalquality.M11DexProxyInstrumentedTest" time="2.868">
+      <failure>java.lang.AssertionError
+at org.junit.Assert.fail(Assert.java:87)
+at org.junit.Assert.assertTrue(Assert.java:42)
+at org.junit.Assert.assertTrue(Assert.java:53)
+at io.codecks.internalquality.M11DexProxyInstrumentedTest.freeformWindowProxy$lambda$0$0$0(M11DexProxyInstrumentedTest.kt:79)
+at io.codecks.internalquality.M11DexProxyInstrumentedTest.$r8$lambda$LjaTRk9lyTMlpOIumjJhZvQjhNE(Unknown Source:0)
+at io.codecks.internalquality.M11DexProxyInstrumentedTest$$ExternalSyntheticLambda6.perform(D8$$SyntheticClass:0)
+at androidx.test.core.app.ActivityScenario.lambda$onActivity$2$androidx-test-core-app-ActivityScenario(ActivityScenario.java:794)
+at androidx.test.core.app.ActivityScenario$$ExternalSyntheticLambda2.run(D8$$SyntheticClass:0)
+at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:487)
+at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+at android.app.Instrumentation$SyncRunnable.run(Instrumentation.java:2612)
+at android.os.Handler.handleCallback(Handler.java:959)
+at android.os.Handler.dispatchMessage(Handler.java:100)
+at android.os.Looper.loopOnce(Looper.java:232)
+at android.os.Looper.loop(Looper.java:317)
+at android.app.ActivityThread.main(ActivityThread.java:8705)
+at java.lang.reflect.Method.invoke(Native Method)
+at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)
+at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)
+</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

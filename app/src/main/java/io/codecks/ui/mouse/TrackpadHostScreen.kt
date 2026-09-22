@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bluetooth
 import androidx.compose.material.icons.outlined.Mouse
@@ -21,6 +23,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.codecks.HidState
 import io.codecks.ui.keyboard.HidHostHeader
@@ -46,10 +51,12 @@ internal fun TrackpadHostScreen(
             .padding(contentPadding),
     ) {
         val compact = maxHeight < 560.dp
+        val reflowSetup = !hidState.isConnected && LocalDensity.current.fontScale >= 2f
         Column(
             verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp),
             modifier = Modifier
                 .fillMaxSize()
+                .then(if (reflowSetup) Modifier.verticalScroll(rememberScrollState()) else Modifier)
                 .padding(horizontal = 16.dp),
         ) {
             topContent?.invoke()
@@ -115,7 +122,7 @@ private fun TrackpadSetupPanel(
                     else -> "Pair your Mac first"
                 },
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 16.dp),
+                modifier = Modifier.padding(top = 16.dp).semantics { heading() },
             )
             Text(
                 text = when {

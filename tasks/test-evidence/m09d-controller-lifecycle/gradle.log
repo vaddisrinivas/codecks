@@ -1,0 +1,6 @@
+COMMAND	["$GRADLE_DISTRIBUTION_ROOT/bin/gradle",":app:validateReleaseSurface",":app:testOssReleaseUnitTest","--tests","io.codecks.m09d.M09DControllerLifecycleTest","--rerun-tasks","--no-build-cache","--no-configuration-cache","--no-daemon","--offline"]
+CAPTURE RUNS	2
+> Task :app:validateReleaseSurface
+> Task :app:testOssReleaseUnitTest
+50 actionable tasks: 50 executed
+BUILD SUCCESSFUL

@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "milestone": "M02A",
+  "base_commit": "16e07d34be1505b6568e3d7af99caa279193545d",
+  "branch": "codex/maturity-dependency-spikes",
+  "scope": "standalone non-production Android library",
+  "production_files_changed": 0,
+  "protected_package_touched": false,
+  "shared_measurements": {
+    "min_sdk_compile_target": 28,
+    "api_28_runtime": "NOT_RUN",
+    "warm_build_and_test_seconds": 15.95,
+    "standalone_spike_aar_bytes": 64657,
+    "apk_size_delta": "NOT_RUN",
+    "dex_method_delta": "NOT_RUN",
+    "resource_delta": "NOT_RUN",
+    "cold_start": "NOT_RUN",
+    "memory": "NOT_RUN",
+    "shrinking_enabled": false,
+    "reason": "A standalone AAR proves resolution and compilation but cannot honestly isolate production APK, startup, memory, or API 28 runtime deltas."
+  },
+  "test_receipt": {
+    "command": "ANDROID_HOME=$ANDROID_HOME ../../gradlew testDebugUnitTest assembleDebug --no-daemon",
+    "result": "PASS",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0
+  },
+  "candidates": [
+    {
+      "id": "androidx-room",
+      "coordinate": "androidx.room:room-runtime:2.8.4",
+      "decision": "REJECT",
+      "representative_flow": "run history persistence",
+      "loc": {
+        "baseline_source": "app/src/main/java/io/codecks/data/RunHistoryRepository.kt:1-120",
+        "handwritten_baseline": 120,
+        "candidate_adapter": 53,
+        "candidate_tests": 28,
+        "candidate_migrations": 0,
+        "gross_production_removed": 67,
+        "net_removed_after_tests_and_migrations": 39,
+        "net_reduction_percent": 32.5
+      },
+      "artifact_proxy": { "resolved_bytes": 729685, "classes": 412 },
+      "license": "Apache-2.0",
+      "maintenance": { "stable_version": "2.8.4", "released": "2025-11-19", "source": "AndroidX release notes" },
+      "proof": {
+        "dao_compiles": true,
+        "transaction_annotation_compiles": true,
+        "secret_columns_absent_test": true,
+        "reader_writer_refusal_test": true,
+        "zero_data_loss_runtime": "NOT_RUN",
+        "transactional_migration_runtime": "NOT_RUN",
+        "forward_rollback_runtime": "NOT_RUN",
+        "backup_policy_parity": "NOT_RUN"
+      },
+      "threshold": "20% net LOC plus zero data loss, transactional migration/rollback, and no secret/backup regression",
+      "reason": "LOC proxy passes, but mandatory migration, rollback, data-loss, and backup-policy runtime proofs are absent."
+    },
+    {
+      "id": "kstatemachine",
+      "coordinate": "io.github.nsk90:kstatemachine:0.38.1",
+      "decision": "REJECT",
+      "representative_flow": "automation execution lifecycle",
+      "loc": {
+        "baseline_source": "app/src/main/java/io/codecks/data/automation/AutomationExecutionCoordinator.kt:200-222",
+        "handwritten_baseline": 23,
+        "candidate_adapter": 52,
+        "candidate_tests": 41,
+        "candidate_migrations": 0,
+        "gross_production_removed": -29,
+        "net_removed_after_tests_and_migrations": -70,
+        "net_reduction_percent": -126.09
+      },
+      "artifact_proxy": { "resolved_bytes": 813534, "classes": 492 },
+      "license": "BSL-1.0",
+      "maintenance": { "stable_version": "0.38.1", "released": "2026-06-17", "last_push": "2026-08-03", "open_issues": 2, "archived": false },
+      "proof": {
+        "accepted_transition_paths_tested": 5,
+        "stable_state_serialization_test": true,
+        "hidden_side_effects": "none in spike",
+        "production_transition_table_equivalence": "NOT_RUN",
+        "license_review": "REQUIRED"
+      },
+      "threshold": "20% net transition LOC, exhaustive transitions, no hidden side effects, serializable stable state",
+      "reason": "Representative production LOC grows, complete invalid-event matrix was not proven, and BSL-1.0 requires policy/legal review."
+    },
+    {
+      "id": "compose-settings",
+      "coordinates": [
+        "com.github.alorma.compose-settings:ui-tiles:3.1.0",
+        "com.github.alorma.compose-settings:ui-tiles-extended:3.1.0"
+      ],
+      "decision": "REJECT",
+      "representative_flow": "trackpad haptics switch and pointer-speed slider",
+      "loc": {
+        "baseline_source": "app/src/main/java/io/codecks/ui/settings/SettingsScreen.kt:1408-1433",
+        "handwritten_baseline": 26,
+        "candidate_adapter": 26,
+        "candidate_tests": 0,
+        "candidate_migrations": 0,
+        "gross_production_removed": 0,
+        "net_removed_after_tests_and_migrations": 0
+      },
+      "artifact_proxy": { "resolved_bytes": 68283, "classes": 14 },
+      "license": "MIT",
+      "maintenance": { "stable_version": "3.1.0", "released": "2026-03-05", "last_push": "2026-08-10", "open_issues": 5, "archived": false },
+      "proof": {
+        "codecks_tokens_compile": true,
+        "semantics_compile": true,
+        "focus_order": "NOT_RUN",
+        "text_200_percent": "NOT_RUN",
+        "screenshot_parity": "NOT_RUN"
+      },
+      "threshold": "300 net lines removed plus token, semantics, focus, 200% text, and screenshot parity",
+      "reason": "Measured representative rows remove 0 net lines; mandatory UI parity gates were not run."
+    },
+    {
+      "id": "colorpicker-compose",
+      "coordinate": "com.github.skydoves:colorpicker-compose:1.2.0",
+      "decision": "REJECT",
+      "representative_flow": "bounded deck-key HSV color selection",
+      "loc": {
+        "existing_custom_picker_baseline": 0,
+        "candidate_adapter": 22,
+        "candidate_tests": 5,
+        "net_new_lines": 27
+      },
+      "artifact_proxy": { "resolved_bytes": 131887, "classes": 39 },
+      "license": "Apache-2.0",
+      "maintenance": { "stable_version": "1.2.0", "released": "2026-06-06", "last_push": "2026-08-10", "open_issues": 21, "archived": false },
+      "proof": {
+        "bounded_color_test": true,
+        "contrast_warning_test": true,
+        "content_description_compiles": true,
+        "keyboard": "NOT_RUN",
+        "talkback": "NOT_RUN",
+        "crash_jank": "NOT_RUN"
+      },
+      "threshold": "no crash/jank, keyboard/TalkBack usable, bounded state, contrast warnings, less code than custom accessible picker",
+      "reason": "Bound and contrast logic pass, but there is no existing custom-picker LOC to replace and mandatory runtime/accessibility gates were not run."
+    },
+    {
+      "id": "compose-icons-additional-modules",
+      "coordinates": [
+        "br.com.devsrsouza.compose.icons:font-awesome:1.1.1",
+        "br.com.devsrsouza.compose.icons:simple-icons:1.1.1"
+      ],
+      "decision": "REJECT",
+      "representative_flow": "semantic automation and source-repository icon facade",
+      "loc": { "existing_custom_vector_baseline": 0, "candidate_facade": 10, "net_new_lines": 10 },
+      "artifact_proxy": { "resolved_bytes": 12547812, "classes": 3477 },
+      "license": "MIT library; bundled glyph licenses require per-pack notices",
+      "maintenance": { "stable_version": "1.1.1", "released": "2024-09-15", "last_push": "2024-09-15", "open_issues": 21, "archived": false },
+      "proof": {
+        "theme_vectors_compile": true,
+        "semantic_content_descriptions_compile": true,
+        "production_apk_delta": "NOT_RUN",
+        "api_28_runtime": "NOT_RUN"
+      },
+      "threshold": "lower net code and acceptable binary/theme/accessibility/maintenance cost",
+      "reason": "No handwritten vectors are removed; raw artifacts add 12,547,812 bytes and 3,477 classes before production APK measurement."
+    }
+  ],
+  "rollback": {
+    "production": "No production change to roll back.",
+    "spike": "Delete spikes/dependency-replacements and this M02A evidence set."
+  }
+}

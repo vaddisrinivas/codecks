@@ -1,0 +1,110 @@
+{
+  "artifact": {
+    "apkName": "codecks-release.apk",
+    "apkSha256": "8c8eca1b3e4b0f56a2128185c42a062687011e68a9d3fd16fe24851616baa9f2",
+    "apkSizeBytes": 60122081,
+    "checksumFile": "SHA256SUMS.txt",
+    "checksumFileSha256": "6735f62e4f1169a8cdb075a2dc603899c8af9e315455a559aa0468090e489399",
+    "minSdk": 28,
+    "package": "app.codecks",
+    "signerCertificateSha256": "07a642e758f394b6aeaecfe35c64ca84d891ca4e6de4b6cc010702c0e52e2df6",
+    "targetSdk": 37,
+    "versionCode": 37,
+    "versionName": "0.1.37"
+  },
+  "completedAtUtc": "2026-08-18T18:22:39Z",
+  "limitations": [
+    "Public GitHub verification only; no candidate, update, device, protected-package, private-key, Play, publication, or installation proof.",
+    "The exact APK is downloaded to an auto-deleted temporary directory and is never retained by this collector."
+  ],
+  "release": {
+    "assets": [
+      {
+        "contentType": "text/plain; charset=utf-8",
+        "digest": "sha256:6735f62e4f1169a8cdb075a2dc603899c8af9e315455a559aa0468090e489399",
+        "name": "SHA256SUMS.txt",
+        "size": 86,
+        "state": "uploaded",
+        "url": "https://github.com/vaddisrinivas/codecks/releases/download/v0.1.37/SHA256SUMS.txt"
+      },
+      {
+        "contentType": "application/vnd.android.package-archive",
+        "digest": "sha256:8c8eca1b3e4b0f56a2128185c42a062687011e68a9d3fd16fe24851616baa9f2",
+        "name": "codecks-release.apk",
+        "size": 60122081,
+        "state": "uploaded",
+        "url": "https://github.com/vaddisrinivas/codecks/releases/download/v0.1.37/codecks-release.apk"
+      }
+    ],
+    "draft": false,
+    "prerelease": false,
+    "publishedAt": "2026-08-08T20:05:08Z",
+    "repository": "vaddisrinivas/codecks",
+    "tag": "v0.1.37",
+    "targetCommitish": "main",
+    "url": "https://github.com/vaddisrinivas/codecks/releases/tag/v0.1.37"
+  },
+  "requests": {
+    "apk": {
+      "headers": {
+        "contentLength": "60122081",
+        "contentType": "application/vnd.android.package-archive",
+        "date": "Tue, 18 Aug 2026 18:22:37 GMT",
+        "etag": "\"0x8DEF58858906F90\"",
+        "lastModified": "Sat, 08 Aug 2026 20:05:08 GMT"
+      },
+      "requestUrl": "https://github.com/vaddisrinivas/codecks/releases/download/v0.1.37/codecks-release.apk",
+      "status": 200
+    },
+    "checksum": {
+      "headers": {
+        "contentLength": "86",
+        "contentType": "application/octet-stream",
+        "date": "Tue, 18 Aug 2026 18:22:37 GMT",
+        "etag": "\"0x8DEF588573EB03D\"",
+        "lastModified": "Sat, 08 Aug 2026 20:05:06 GMT"
+      },
+      "requestUrl": "https://github.com/vaddisrinivas/codecks/releases/download/v0.1.37/SHA256SUMS.txt",
+      "status": 200
+    },
+    "releaseMetadata": {
+      "headers": {
+        "contentLength": "9649",
+        "contentType": "application/json; charset=utf-8",
+        "date": "Tue, 18 Aug 2026 18:22:03 GMT",
+        "etag": "W/\"14cdba1210a4d036e525361b0e7ace8be80adfa4a4a5c3456b983f62c1acd5f7\"",
+        "lastModified": "Sat, 08 Aug 2026 20:05:08 GMT"
+      },
+      "requestUrl": "https://api.github.com/repos/vaddisrinivas/codecks/releases/tags/v0.1.37",
+      "status": 200
+    }
+  },
+  "schema": "codecks.m21.public-release-live.v2",
+  "sourceBindings": {
+    "tools/evidence/collect_m21_public_release_live.py": "460cad87fb460b015bc5b183250d7b25a287093687261e5a125faf646681f5ed",
+    "tools/evidence/validate_m21_m23_local_readiness.py": "5d55e8e8ee55d0043bd8eb32aa8aab9e93d7addd5e98585722b06a60868ac038"
+  },
+  "startedAtUtc": "2026-08-18T18:22:35Z",
+  "tagLookup": {
+    "peeledCommitSha": "0dc3cac1f7e6b02fa4d5f069eda8664789852370",
+    "peeledRef": "refs/tags/v0.1.37^{}",
+    "rawOutput": "3d21b395d49fa87d8fa04ba1f06f917acee5d081\trefs/tags/v0.1.37\n0dc3cac1f7e6b02fa4d5f069eda8664789852370\trefs/tags/v0.1.37^{}\n",
+    "repositoryUrl": "https://github.com/vaddisrinivas/codecks.git",
+    "tagObjectSha": "3d21b395d49fa87d8fa04ba1f06f917acee5d081",
+    "tagRef": "refs/tags/v0.1.37"
+  },
+  "tooling": {
+    "aapt2": {
+      "buildToolsVersion": "36.0.0",
+      "reportedVersion": "Android Asset Packaging Tool (aapt) 2.20-13193326",
+      "sdkRelativePath": "build-tools/36.0.0/aapt2",
+      "sha256": "a8844d4089b442b034aed8953deee1893253053c900e03141ae7173e3edd8157"
+    },
+    "apksigner": {
+      "buildToolsVersion": "36.0.0",
+      "reportedVersion": "0.9",
+      "sdkRelativePath": "build-tools/36.0.0/apksigner",
+      "sha256": "b47549e373b895ce6ca620d0c7887e674d9615ffa837a86ac601dcfd04adb0f0"
+    }
+  }
+}

@@ -1,7 +1,9 @@
 package io.codecks
 
 import java.io.File
+import io.codecks.ui.app.ShellDrawerMode
 import io.codecks.ui.app.ShellNavigationMode
+import io.codecks.ui.app.shellDrawerMode
 import io.codecks.ui.app.shellAccessibilityLayout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -34,15 +36,16 @@ class DexAdaptivePolicyTest {
         assertTrue(values.contains("smallestScreenSize"))
         assertTrue(values.contains("screenLayout"))
 
-        val mainSource = File("src/main/java/io/codecks/MainActivity.kt").readText()
+        val mainSource = File("src/main/java/io/codecks/AppCompositionRoot.kt").readText()
+        val coordinator = File("src/main/java/io/codecks/AppCoordinators.kt").readText()
         assertTrue(mainSource.contains("restoredTopRouteName"))
-        assertTrue(mainSource.contains("navRouteFromStateKey"))
+        assertTrue(coordinator.contains("restoredRouteFromStateKey(restoredStateKey, flags, exposure)"))
         assertTrue(mainSource.contains("routeStateKey(currentRoute)"))
     }
 
     @Test
     fun trackpadOnlyUsesImmersiveSystemBarsAfterExplicitToggle() {
-        val source = File("src/main/java/io/codecks/MainActivity.kt").readText()
+        val source = File("src/main/java/io/codecks/AppCompositionRoot.kt").readText()
 
         assertTrue(source.contains("val fullscreen = fullscreenOverride == true"))
         assertFalse(source.contains("currentRoute == MouseRoute && !desktopSurface"))
@@ -62,6 +65,8 @@ class DexAdaptivePolicyTest {
     @Test
     fun largeWindowShellUsesDedicatedRailThreshold() {
         val shell = File("src/main/java/io/codecks/ui/app/CodecksAppShell.kt").readText()
+        val drawer = File("src/main/java/io/codecks/ui/app/CodecksNavigationDrawer.kt").readText()
+        val routeRegistry = File("src/main/java/io/codecks/ui/app/RouteRegistry.kt").readText()
         assertEquals(
             ShellNavigationMode.BottomBar,
             shellAccessibilityLayout(839, 720, 1f, fullscreen = false).navigationMode,
@@ -76,8 +81,17 @@ class DexAdaptivePolicyTest {
         )
         assertTrue(shell.contains("val accessibilityLayout = shellAccessibilityLayout("))
         assertTrue(shell.contains(".verticalScroll(rememberScrollState())"))
-        assertTrue(shell.contains("ModalBottomSheet(onDismissRequest"))
-        assertTrue(shell.contains(""") "AI Builder" else currentRoute.title()"""))
-        assertTrue(shell.contains("AiBuilderRoute -> 0"))
+        assertTrue(shell.contains("ModalNavigationDrawer("))
+        assertTrue(shell.contains("PermanentNavigationDrawer("))
+        assertTrue(shell.contains("gesturesEnabled = false"))
+        assertTrue(shell.contains("shellDrawerMode("))
+        assertTrue(drawer.contains("take(8)"))
+        assertTrue(drawer.contains("groupedNavigationDestinations"))
+        assertEquals(ShellDrawerMode.Modal, shellDrawerMode(1199, 1f, fullscreen = false))
+        assertEquals(ShellDrawerMode.Permanent, shellDrawerMode(1200, 1f, fullscreen = false))
+        assertEquals(ShellDrawerMode.Modal, shellDrawerMode(1200, 2f, fullscreen = false))
+        assertTrue(shell.contains("Text(currentRoute.title())"))
+        assertTrue(routeRegistry.contains("AiBuilderRoute, \"ai_builder\", \"AI Builder\""))
+        assertTrue(routeRegistry.contains("navigationOrder = 5"))
     }
 }

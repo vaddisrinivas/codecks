@@ -22,58 +22,17 @@ import io.codecks.domain.ai.AiArtifact
 import io.codecks.domain.ai.AiArtifactKind
 import io.codecks.domain.ai.GeneratedDraft
 import io.codecks.domain.deck.DeckLayout
-import io.codecks.domain.deck.DeckTemplate
+import io.codecks.domain.contextdeck.ContextDeckPolicy
+import io.codecks.domain.contextdeck.AnalogControlKind
+import io.codecks.domain.contextdeck.ModifierLayer
+import io.codecks.domain.device.DeviceId
+import io.codecks.domain.device.TargetSelector
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-data class HomeUiState(
-    val actions: List<DeckAction> = emptyList(),
-    val deckLayout: DeckLayout = DeckLayout.Empty,
-    val allActions: List<DeckAction> = emptyList(),
-    val deckTemplates: List<DeckTemplate> = emptyList(),
-    val activeTemplateId: String = CUSTOM_TEMPLATE_ID,
-    val activeMacApp: String? = null,
-    val dynamicDeckEnabled: Boolean = false,
-    val activity: List<ActionEvent> = emptyList(),
-    val actionStatus: ActionStatus = ActionStatus.Idle,
-    val connectionReady: Boolean = false,
-    val pendingDeckUndo: PendingDeckUndo? = null,
-    val pendingDeckPlacement: PendingDeckPlacement? = null,
-)
-
-data class ActionEvent(
-    val actionId: String,
-    val label: String,
-    val message: String,
-    val succeeded: Boolean,
-    val timestampMillis: Long = System.currentTimeMillis(),
-    val logs: String = message,
-    val target: String? = null,
-    val status: ActionResultStatus = if (succeeded) ActionResultStatus.Succeeded else ActionResultStatus.Failed,
-)
-
-data class PendingDeckUndo(
-    val slot: Int,
-    val action: DeckAction,
-    val layoutBefore: DeckLayout? = null,
-    val artifact: AiArtifact? = null,
-)
-
-data class PendingDeckPlacement(
-    val actions: List<DeckAction>,
-    val statusId: String,
-    val statusLabel: String,
-)
-
-sealed interface HomeActionDispatchResult {
-    data object Accepted : HomeActionDispatchResult
-    data object Busy : HomeActionDispatchResult
-    data class Rejected(val reason: String) : HomeActionDispatchResult
-}
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -90,6 +49,7 @@ class HomeViewModel @Inject constructor(
             deckLayout = actionRepository.layout(),
             allActions = actionRepository.allActions(),
             deckTemplates = actionRepository.deckTemplates(),
+            modifierLayer = contextModifierLayer(actionRepository.allActions()),
         ),
     )
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -99,6 +59,16 @@ class HomeViewModel @Inject constructor(
     private var aiArtifactsById: Map<String, AiArtifact> = emptyMap()
     private var terminalProofReady = false
     private var connectionConfigured = false
+    private val contextDeck = HomeContextDeckCoordinator(
+        scope = viewModelScope,
+        connectionRepository = connectionRepository,
+        actionRunner = actionRunner,
+        state = { _uiState.value },
+        stateFlow = _uiState,
+        templateForApp = { app -> actionRepository.templateForActiveApp(app)?.let { it.id to it.title } },
+        applyTemplate = ::applyTemplate,
+        recordRun = ::recordRun,
+    )
 
     init {
         viewModelScope.launch {
@@ -151,8 +121,7 @@ class HomeViewModel @Inject constructor(
     }
 
     fun setDynamicDeckEnabled(enabled: Boolean) {
-        _uiState.update { it.copy(dynamicDeckEnabled = enabled) }
-        if (!enabled) applyTemplate(CUSTOM_TEMPLATE_ID)
+        _uiState.update { it.copy(dynamicDeckEnabled = enabled, appDeckOffer = if (enabled) it.appDeckOffer else null) }
     }
 
     fun applyTemplate(templateId: String) {
@@ -169,6 +138,7 @@ class HomeViewModel @Inject constructor(
                 activeTemplateId = templateId,
                 actions = layout.actions,
                 deckLayout = layout,
+                appDeckOffer = null,
                 actionStatus = ActionStatus.Succeeded(
                     templateId,
                     if (templateId == CUSTOM_TEMPLATE_ID) "Custom deck active" else "${templateTitle(templateId)} deck active",
@@ -177,48 +147,22 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun refreshActiveMacApp() {
-        if (!_uiState.value.connectionReady) return
-        viewModelScope.launch {
-            connectionRepository.runCommand(
-                "osascript -e 'tell application \"System Events\" to get name of first application process whose frontmost is true'",
-            ).onSuccess { appName ->
-                val activeApp = appName.trim().lineSequence().firstOrNull().orEmpty()
-                val matchedTemplate = actionRepository.templateForActiveApp(activeApp)
-                _uiState.update { state ->
-                    val nextTemplateId = if (state.dynamicDeckEnabled) {
-                        matchedTemplate?.id ?: state.activeTemplateId
-                    } else {
-                        state.activeTemplateId
-                    }
-                    val nextActions = if (state.dynamicDeckEnabled && matchedTemplate != null) {
-                        actionRepository.actionsForTemplate(nextTemplateId).ifEmpty { state.actions }
-                    } else {
-                        state.actions
-                    }
-                    state.copy(
-                        activeMacApp = activeApp.ifBlank { null },
-                        activeTemplateId = nextTemplateId,
-                        actions = nextActions,
-                        deckLayout = if (state.dynamicDeckEnabled && matchedTemplate != null) {
-                            DeckLayout.fromActions(nextActions)
-                        } else {
-                            state.deckLayout
-                        },
-                    )
-                }
-            }.onFailure { error ->
-                _uiState.update {
-                    it.copy(
-                        activeMacApp = null,
-                        activity = listOf(
-                            ActionEvent("active_app", "Dynamic deck", error.message ?: "Could not read active app", false),
-                        ) + it.activity.take(49),
-                    )
-                }
-            }
-        }
-    }
+    fun refreshActiveMacApp() = contextDeck.refreshActiveMacApp()
+    fun refreshContextDeckLiveState() = contextDeck.refreshLiveState()
+    fun setAnalogControl(kind: AnalogControlKind, valuePercent: Int) = contextDeck.setAnalog(kind, valuePercent)
+    fun setModifierLayerPressed(pressed: Boolean) = contextDeck.setModifierPressed(pressed)
+    fun refreshWindowSpaceMap() = contextDeck.refreshWindows()
+    fun focusWindow(windowId: String) = contextDeck.focusWindow(windowId)
+    fun refreshMacTargets() = contextDeck.refreshTargets()
+    fun runOnTargets(action: DeckAction, targetIds: List<DeviceId>, explicitMultiTargetConfirmation: Boolean, allowDangerous: Boolean = false) =
+        contextDeck.runOnTargets(action, targetIds, explicitMultiTargetConfirmation, allowDangerous)
+    fun startWorkflowRecording() = contextDeck.startRecording()
+    fun stopWorkflowRecording() = contextDeck.stopRecording()
+    fun discardWorkflowDraft() = contextDeck.discardDraft()
+    fun renameWorkflowDraft(title: String) = contextDeck.renameDraft(title)
+    fun removeWorkflowDraftStep(index: Int) = contextDeck.removeDraftStep(index)
+    fun applyAppDeckOffer() = contextDeck.applyOffer()
+    fun dismissAppDeckOffer() = contextDeck.dismissOffer()
 
     fun run(action: DeckAction, allowDangerous: Boolean = false): HomeActionDispatchResult {
         if (_uiState.value.actionStatus is ActionStatus.Running) return HomeActionDispatchResult.Busy
@@ -242,6 +186,11 @@ class HomeViewModel @Inject constructor(
                 ActionResultStatus.Succeeded -> {
                     _uiState.update {
                         it.copy(
+                            workflowRecording = ContextDeckPolicy.recordSuccessfulAction(
+                                it.workflowRecording,
+                                action,
+                                succeeded = true,
+                            ),
                             actionStatus = ActionStatus.Succeeded(action.id, result.message),
                             activity = listOf(result.toActionEvent()) + it.activity.take(49),
                         )
@@ -1025,58 +974,8 @@ class HomeViewModel @Inject constructor(
 
 const val CUSTOM_TEMPLATE_ID = "custom"
 
-private fun actionResult(
-    id: String,
-    title: String,
-    message: String,
-    succeeded: Boolean,
-): ActionResult = ActionResult(
-    actionId = id,
-    title = title,
-    status = if (succeeded) ActionResultStatus.Succeeded else ActionResultStatus.Failed,
-    message = message,
-    logs = message,
-)
-
-private fun ActionResult.toActionEvent(): ActionEvent = ActionEvent(
-    actionId = actionId,
-    label = title,
-    message = message,
-    succeeded = succeeded,
-    timestampMillis = timestampMillis,
-    logs = logs,
-    target = target,
-    status = status,
-)
-
-private fun DeckAction.withUniqueId(existingIds: Set<String>, suffix: String): DeckAction {
-    if (id !in existingIds) return this
-    val base = "${id}_${suffix}"
-    var candidate = base
-    var index = 2
-    while (candidate in existingIds) {
-        candidate = "${base}_$index"
-        index += 1
-    }
-    return copy(id = candidate)
+private fun contextModifierLayer(actions: List<DeckAction>): ModifierLayer? {
+    val preferredIds = listOf("copy", "paste", "screenshot", "spotlight", "mute", "vol_down", "vol_up", "play_pause")
+    val secondary = preferredIds.mapNotNull { id -> actions.firstOrNull { it.id == id } }
+    return secondary.takeIf { it.isNotEmpty() }?.let { ModifierLayer("context_fn", it) }
 }
-
-private fun List<DeckAction>.withUniqueIds(
-    existingIds: Set<String>,
-    suffixForIndex: (Int) -> String,
-): List<DeckAction> {
-    val usedIds = existingIds.toMutableSet()
-    return mapIndexed { index, action ->
-        val uniqueAction = action.withUniqueId(usedIds, suffixForIndex(index))
-        usedIds += uniqueAction.id
-        uniqueAction
-    }
-}
-
-private fun List<DeckAction>.firstOpenDeckSlot(): Int? =
-    indexOfFirst { it.id in OPEN_DECK_SLOT_IDS }.takeIf { it >= 0 }
-
-private fun List<DeckAction>.openDeckSlots(required: Int): List<Int> =
-    mapIndexedNotNull { index, action -> index.takeIf { action.id in OPEN_DECK_SLOT_IDS } }.take(required)
-
-private val OPEN_DECK_SLOT_IDS = setOf("add_button", "blank")

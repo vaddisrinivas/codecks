@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codecks.dev/schemas/autonomous-maturity-m24-preflight-v2.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "milestone", "evidenceLevel", "verdict", "generatedAtUtc", "sourceCommit", "provenance", "sources", "adbClassification", "phone", "publishedBaseline", "m16", "m20Closure", "m21Closure", "m23", "signing", "candidate", "dependencies", "gates", "safeInPlaceUpdate", "privacy", "blockers", "limitations"],
+  "properties": {
+    "schema": {"const": "codecks.autonomous-maturity.m24-preflight.v2"},
+    "milestone": {"const": "M24"},
+    "evidenceLevel": {"const": "PREFLIGHT_ONLY"},
+    "verdict": {"const": "NO_GO"},
+    "generatedAtUtc": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"},
+    "sourceCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "provenance": {"type": "object", "additionalProperties": false, "required": ["baseCommit", "implementationCommit", "implementationPaths", "implementationDiffSha256", "receiptPath", "receiptCommitRequired"], "properties": {"baseCommit": {"const": "9eb4bcd86a95440ee28c0e3191761c1c5725f5bc"}, "implementationCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"}, "implementationPaths": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"type": "object", "additionalProperties": false, "required": ["path", "change", "baseSha256", "implementationSha256", "patchSha256"], "properties": {"path": {"type": "string"}, "change": {"enum": ["ADDED", "MODIFIED"]}, "baseSha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}, "implementationSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "patchSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}}, "implementationDiffSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "receiptPath": {"const": "tasks/test-evidence/autonomous-maturity-m24-preflight.json"}, "receiptCommitRequired": {"const": true}}},
+    "sources": {
+      "type": "array", "minItems": 20, "maxItems": 20,
+      "items": {"type": "object", "additionalProperties": false, "required": ["path", "status", "sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "status": {"enum": ["PRESENT", "ABSENT"]}, "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}}}
+    },
+    "adbClassification": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "endpoint", "protocol", "request", "responseSha256", "devices", "physicalDeviceCount", "emulatorCount", "unknownDeviceCount", "adbCliInvoked", "rawSerialRecorded", "packageQueryRun", "apkPullRun"],
+      "properties": {
+        "status": {"const": "PASS"},
+        "endpoint": {"type": "object", "additionalProperties": false, "required": ["host", "port"], "properties": {"host": {"const": "127.0.0.1"}, "port": {"const": 5037}}},
+        "protocol": {"const": "ADB_SERVER_HOST_PROTOCOL_V1"},
+        "request": {"const": "host:devices-l"},
+        "responseSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "devices": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["serialSha256", "state", "classification", "metadata"], "properties": {"serialSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "state": {"const": "device"}, "classification": {"enum": ["EMULATOR", "PHYSICAL"]}, "metadata": {"type": "object", "additionalProperties": false, "required": ["product", "model", "device", "transportId"], "properties": {"product": {"type": "string", "minLength": 1}, "model": {"type": "string", "minLength": 1}, "device": {"type": "string", "minLength": 1}, "transportId": {"type": "string", "minLength": 1}}}}}},
+        "physicalDeviceCount": {"const": 0}, "emulatorCount": {"type": "integer", "minimum": 0}, "unknownDeviceCount": {"type": "integer", "minimum": 0},
+        "adbCliInvoked": {"const": false}, "rawSerialRecorded": {"const": false}, "packageQueryRun": {"const": false}, "apkPullRun": {"const": false}
+      }
+    },
+    "phone": {"type": "object", "additionalProperties": false, "required": ["status", "physicalDeviceCount", "installedIdentityStatus"], "properties": {"status": {"const": "NOT_RUN"}, "physicalDeviceCount": {"const": 0}, "installedIdentityStatus": {"const": "NOT_RUN"}}},
+    "publishedBaseline": {"type": "object"},
+    "m16": {"type": "object", "additionalProperties": false, "required": ["status", "capacityStatus", "timeStatus", "plannedAvds", "plannedProfilesPerAvd", "plannedProfiles", "observedProfiles", "requiredHours", "observedHours", "requiredEligibleProfileHours", "observedEligibleProfileHours", "requiredAcknowledgedOperations", "observedAcknowledgedOperations", "receiptPath", "receiptPresent", "controllerPath", "controllerSha256", "validatorPath", "validatorSha256", "schemaPath", "schemaSha256"], "properties": {"status": {"const": "NOT_RUN"}, "capacityStatus": {"const": "NOT_RUN"}, "timeStatus": {"const": "NOT_RUN"}, "plannedAvds": {"const": 4}, "plannedProfilesPerAvd": {"const": 5}, "plannedProfiles": {"const": 20}, "observedProfiles": {"const": 0}, "requiredHours": {"const": 168}, "observedHours": {"const": 0}, "requiredEligibleProfileHours": {"const": 3360}, "observedEligibleProfileHours": {"const": 0}, "requiredAcknowledgedOperations": {"const": 336000}, "observedAcknowledgedOperations": {"const": 0}, "receiptPath": {"const": "tasks/test-evidence/autonomous-maturity-m16-soak.json"}, "receiptPresent": {"const": false}, "controllerPath": {"const": "scripts/m16_autonomous_soak.py"}, "controllerSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "validatorPath": {"const": "tools/evidence/validate_m16_autonomous_soak.py"}, "validatorSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "schemaPath": {"const": "tools/evidence/schemas/autonomous-maturity-m16-soak-v1.schema.json"}, "schemaSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
+    "m20Closure": {"$ref": "#/$defs/closure"},
+    "m21Closure": {"$ref": "#/$defs/closure"},
+    "m23": {"type": "object", "additionalProperties": false, "required": ["status", "preflightPath", "preflightSha256", "versionAssigned", "artifactAdmitted"], "properties": {"status": {"const": "NOT_A_CANDIDATE"}, "preflightPath": {"type": "string"}, "preflightSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "versionAssigned": {"const": false}, "artifactAdmitted": {"const": false}}},
+    "signing": {"type": "object", "additionalProperties": false, "required": ["status", "source", "names", "presentNames", "valuesRecorded"], "properties": {"status": {"const": "UNSET"}, "source": {"const": "CANONICAL_AGENT_ENV_NAME_PRESENCE_ONLY"}, "names": {"type": "array", "minItems": 4, "maxItems": 4}, "presentNames": {"type": "array", "maxItems": 0}, "valuesRecorded": {"const": false}}},
+    "candidate": {"type": "object", "additionalProperties": false, "required": ["status", "reason", "expectedArtifactPath", "artifactPresent", "sourceSha", "versionCode", "apkSha256", "signerSha256"], "properties": {"status": {"const": "ABSENT"}, "reason": {"const": "M23_NOT_A_CANDIDATE"}, "expectedArtifactPath": {"const": "release-candidate/codecks-release.apk"}, "artifactPresent": {"const": false}, "sourceSha": {"type": "null"}, "versionCode": {"type": "null"}, "apkSha256": {"type": "null"}, "signerSha256": {"type": "null"}}},
+    "dependencies": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "object", "additionalProperties": false, "required": ["milestone", "status"], "properties": {"milestone": {"enum": ["M16", "M20", "M21", "M23"]}, "status": {"enum": ["NOT_RUN", "COMPLETE", "LOCAL_COMPLETE", "NOT_A_CANDIDATE"]}}}},
+    "gates": {"type": "array", "minItems": 10, "maxItems": 10, "items": {"type": "object", "additionalProperties": false, "required": ["id", "status", "code"], "properties": {"id": {"type": "string"}, "status": {"enum": ["PASS", "NOT_RUN"]}, "code": {"type": "string"}}}},
+    "safeInPlaceUpdate": {"type": "object", "additionalProperties": false, "required": ["authorizedNow", "forbidden"], "properties": {"authorizedNow": {"const": false}, "forbidden": {"type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true}}},
+    "privacy": {"type": "object", "additionalProperties": false, "required": ["rawDeviceSerialRecorded", "privateKeyInspected", "credentialRecorded", "appDataRead"], "properties": {"rawDeviceSerialRecorded": {"const": false}, "privateKeyInspected": {"const": false}, "credentialRecorded": {"const": false}, "appDataRead": {"const": false}}},
+    "blockers": {"type": "array", "minItems": 6, "maxItems": 6, "uniqueItems": true},
+    "limitations": {"type": "array", "minItems": 3, "maxItems": 3, "uniqueItems": true, "items": {"enum": ["Read-only ADB classification used one raw host:devices-l server request; no adb CLI, package query, pull, install, or instrumentation ran.", "M21 local distribution/support preparation is complete; physical update and external publication remain outside this preflight.", "M16 capacity execution and 168-hour evidence remain NOT_RUN; planned source capacity is not runtime proof."]}}
+  },
+  "$defs": {
+    "closure": {"type": "object", "additionalProperties": false, "required": ["status", "integrationCommit", "receiptPath", "receiptSha256", "receiptSchema", "collectorPath", "collectorSha256", "validatorPath", "validatorSha256"], "properties": {"status": {"type": "string"}, "integrationCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"}, "receiptPath": {"type": "string"}, "receiptSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "receiptSchema": {"type": "string"}, "collectorPath": {"type": "string"}, "collectorSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "validatorPath": {"type": "string"}, "validatorSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}
+  }
+}

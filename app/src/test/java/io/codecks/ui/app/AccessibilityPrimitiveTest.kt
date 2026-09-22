@@ -105,4 +105,14 @@ class AccessibilityPrimitiveTest {
         assertEquals(48, policy.minimumTargetDp)
     }
 
+    @Test
+    fun supportedTextScaleMatrixKeepsTargetsAndOnlyReflowsAtTwoHundredPercent() {
+        listOf(1f, 1.3f, 1.5f).forEach { fontScale ->
+            val policy = accessibilityReflowPolicy(fontScale)
+            assertFalse("$fontScale must preserve compact layout", policy.stackControls)
+            assertEquals(48, policy.minimumTargetDp)
+        }
+        assertTrue(accessibilityReflowPolicy(2f).stackControls)
+    }
+
 }

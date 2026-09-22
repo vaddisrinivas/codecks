@@ -33,6 +33,7 @@ data class LockscreenControlState(
     val bluetoothPermissionGranted: Boolean,
     val featureEnabled: Boolean,
     val entryOrigin: TrackpadEntryOrigin,
+    val miniDeckEnabled: Boolean = false,
 )
 
 sealed interface LockscreenDecision {
@@ -57,10 +58,12 @@ object LockscreenTrackpadPolicy {
         }
 
     fun allows(capability: LockscreenCapability, state: LockscreenControlState): Boolean =
-        decision(state) == LockscreenDecision.AllowRestrictedPointer &&
-            capability in setOf(
+        decision(state) == LockscreenDecision.AllowRestrictedPointer && when (capability) {
+            LockscreenCapability.HidShortcut -> state.miniDeckEnabled
+            else -> capability in setOf(
                 LockscreenCapability.PointerMove,
                 LockscreenCapability.PointerScroll,
                 LockscreenCapability.MouseButton,
             )
+        }
 }

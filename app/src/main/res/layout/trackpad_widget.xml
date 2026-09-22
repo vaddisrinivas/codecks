@@ -3,24 +3,44 @@
     android:id="@+id/trackpad_widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/black"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:background="@color/codecks_widget_canvas_fallback"
+    android:contentDescription="@string/widget_trackpad_action"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="@dimen/codecks_space_sm">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Trackpad"
-        android:textColor="@android:color/white"
-        android:textSize="18sp"
-        android:textStyle="bold" />
+    <ImageView
+        android:id="@+id/trackpad_widget_icon"
+        android:layout_width="@dimen/codecks_widget_icon_size"
+        android:layout_height="@dimen/codecks_widget_icon_size"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_widget_robot_face" />
 
-    <TextView
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="@dimen/codecks_layout_weight_width"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:text="Open pointer surface"
-        android:textColor="#CCFFFFFF"
-        android:textSize="12sp" />
+        android:layout_marginStart="@dimen/codecks_space_sm"
+        android:layout_weight="1"
+        android:importantForAccessibility="noHideDescendants"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/trackpad_widget_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/widget_trackpad_title"
+            android:textColor="@color/codecks_widget_content_fallback"
+            android:textSize="@dimen/codecks_widget_title_text"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/trackpad_widget_detail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/codecks_space_xs"
+            android:text="@string/widget_trackpad_detail"
+            android:textColor="@color/codecks_widget_content_fallback"
+            android:textSize="@dimen/codecks_widget_detail_text" />
+    </LinearLayout>
 </LinearLayout>

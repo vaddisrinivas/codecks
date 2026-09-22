@@ -1,0 +1,234 @@
+import copy
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+import unittest
+
+MODULE_PATH=Path(__file__).with_name("validate_m16_autonomous_soak.py")
+SPEC=importlib.util.spec_from_file_location("validate_m16",MODULE_PATH); validator=importlib.util.module_from_spec(SPEC); SPEC.loader.exec_module(validator)
+SOURCE_REPO=Path(__file__).resolve().parents[2]
+os.environ.setdefault("ANDROID_HOME",str(Path.home()/"Library/Android/sdk"))
+
+def digest(data: bytes)->str: return hashlib.sha256(data).hexdigest()
+
+class ValidatorIntegrationTests(unittest.TestCase):
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory(); self.repo=Path(self.temp.name).resolve(); self.run=self.repo/"run"; self.run.mkdir()
+        (self.repo/"scripts").mkdir(); shutil.copy2(SOURCE_REPO/"scripts/m16_autonomous_soak.py",self.repo/"scripts/m16_autonomous_soak.py")
+        targets=list((SOURCE_REPO/"app/build/outputs/apk/playInternal/release").glob("*.apk"))
+        tests=list((SOURCE_REPO/"app/build/outputs/apk/androidTest/playInternal/release").glob("*.apk"))
+        if len(targets)!=1 or len(tests)!=1: self.fail("exact current target/test APKs must be assembled")
+        app=self.repo/"artifacts"; app.mkdir(); target=app/"target.apk"; test=app/"test.apk"
+        shutil.copy2(targets[0],target); shutil.copy2(tests[0],test)
+        fingerprint="b"*64
+        methods=("exactTwentyImmutableIdentitiesAreDisjoint","profileContextsCannotReadEachOthersStores","manifestCarriesFiveExactNamedProcesses","fiveLiveServicesOwnFivePidsLocksAndRealRepositoryStores")
+        cases="".join(f'<testcase classname="io.codecks.internalquality.m16.M16ProfileIsolationInstrumentedTest" name="{name}"/>' for name in methods)
+        xml=app/"result.xml"; xml.write_text(f'<testsuite tests="4" failures="0" errors="0">{cases}<system-out>M16_BINDING package=app.codecks.internal flavor=playInternal project=:app api=35 fingerprintSha256={fingerprint}</system-out></testsuite>')
+        deps=[]
+        for milestone in validator.MILESTONES:
+            path=self.repo/"tasks/test-evidence"/f"{milestone.lower()}.json"; path.parent.mkdir(parents=True,exist_ok=True); path.write_text(milestone)
+            item={"milestone":milestone,"path":str(path.relative_to(self.repo)),"sha256":digest(path.read_bytes()),"status":"PASS"}
+            if milestone=="M12": item.update(status="PASS_WITH_NOT_RUN",externalNotRun=11)
+            deps.append(item)
+        (self.repo/"tasks/test-evidence/m16-dependency-manifest.json").write_text(json.dumps({"dependencies":deps}))
+        subprocess.run(["git","init","-q"],cwd=self.repo,check=True); subprocess.run(["git","add","."],cwd=self.repo,check=True)
+        subprocess.run(["git","-c","user.name=M16 Test","-c","user.email=m16@example.invalid","commit","-qm","fixture"],cwd=self.repo,check=True)
+        commit=subprocess.check_output(["git","rev-parse","HEAD"],cwd=self.repo,text=True).strip()
+        self.host=validator.load_host(self.repo)
+        isolation=self.host.verify_isolation_xml(xml)
+        binding={"sourceCommit":commit,"targetApkPath":"artifacts/target.apk","targetApkSha256":digest(target.read_bytes()),
+                 "testApkPath":"artifacts/test.apk","testApkSha256":digest(test.read_bytes()),"xmlResultPath":"artifacts/result.xml",
+                 "xmlResultSha256":digest(xml.read_bytes()),"targetSignerSha256":self.host.apk_signer(target),
+                 "testSignerSha256":self.host.apk_signer(test),"isolation":isolation}
+        profiles=[]
+        for avd in range(1,5):
+            for slot in range(1,6): profiles.append(self.make_profile(avd,slot))
+        host_ledger=self.make_host_ledger()
+        proof=self.host.verify_host_ledger(host_ledger.read_bytes(),1000,7_201_000)
+        avd_home=self.run/"avd-home"; avd_home.mkdir(); provision_entries=[]
+        for i in range(1,5):
+            name=f"m16Soak0{i}Api35"; root=avd_home/f"{name}.avd"; root.mkdir()
+            config=root/"config.ini"; config.write_text("image.sysdir.1=system-images/android-35/default/arm64-v8a/\n")
+            provision_entries.append({"name":name,"port":5578+i*2,"configPath":str(config),"configSha256":digest(config.read_bytes())})
+        provision={"schema":"codecks.m16.avd-provision.v1","avdHome":str(avd_home),
+                   "systemImage":"system-images;android-35;default;arm64-v8a","avds":provision_entries}
+        provision_path=self.run/"provision.json"; provision_path.write_text(json.dumps(provision,sort_keys=True,separators=(",", ":")))
+        identity_logs=[]
+        for item in provision_entries:
+            log=self.run/f"emulator-{item['name']}-{'1'*32}.log"; log.write_text("fixture\n"); identity_logs.append(log)
+        devices=[{"avd":f"m16Soak0{i}Api35","serial":f"emulator-{5578+i*2}","api":35,"fingerprintSha256":fingerprint,"uid":10100,
+          "dataDir":"/data/user/0/app.codecks.internal","targetApkSha256":binding["targetApkSha256"],"observedWallMillis":1,"observedUptimeMillis":1,
+          "qemu":{"pid":100+i,"rssKiB":1024,"cmdlineSha256":"c"*64,"configPath":provision_entries[i-1]["configPath"],
+                  "configSha256":provision_entries[i-1]["configSha256"],"identityLogPath":str(identity_logs[i-1]),
+                  "identityLogCanonical":str(identity_logs[i-1].resolve()),"identityLogOwnerUid":identity_logs[i-1].stat().st_uid}} for i in range(1,5)]
+        self.receipt={"schema":validator.SCHEMA,"milestone":"M16","status":"PASS","evidence":"AUTONOMOUS_PROXY","package":"app.codecks.internal","sourceCommit":commit,
+          "binding":binding,"devices":devices,"runtime":{"isolatedAdb":{"port":5039,"endpoint":"tcp:127.0.0.1:5039","serverPid":99,"cmdlineSha256":"9"*64},"runIdentity":"1"*32,
+          "emulatorPids":{f"m16Soak0{i}Api35":100+i for i in range(1,5)},"defaultAdbAudit":{"status":"absent","sanitizedNonM16EmulatorCount":0,
+          "authorizedAvds":[],"serverPid":0,"serverCmdlineSha256":"0"*64},"avdProvision":{"avdHomeLexical":str(avd_home),
+          "avdHomeCanonical":str(avd_home.resolve()),"manifestPath":"provision.json","manifestSha256":digest(provision_path.read_bytes()),
+          "systemImage":"system-images;android-35;default;arm64-v8a","avds":[{**item,"runIdentity":"1"*32} for item in provision_entries]}},
+          "profiles":profiles,"dependencies":deps,"failureArtifacts":[],
+          "burninAdmission":self.host.burnin_not_required(),
+          "summary":{"admittedSessions":40,"eligibleSessions":40,"acknowledgedOperations":4840,"crashOrAnrSessions":0,"p0":0,"p1":0,"classifiedFailures":0},
+          "wall":{"startedWallMillis":1000,"finishedWallMillis":7_201_000,"hostLedgerSha256":digest(host_ledger.read_bytes()),**proof},"limitations":["AUTONOMOUS_PROXY only"]}
+
+    def tearDown(self): self.temp.cleanup()
+
+    def event(self, lines, previous, profile, process, nonce, body):
+        pid=body.pop("_pid",123)
+        body.update(profileId=profile,processName=process,pid=pid,originNonce=nonce,previousHash=previous)
+        value=digest(json.dumps(body,separators=(",", ":")).encode()); body["eventHash"]=value; lines.append(json.dumps(body,separators=(",", ":"))); return value
+
+    def make_profile(self,avd,slot,recovery=False,same_pid=False):
+        profile=f"avd{avd:02d}-p{slot:02d}"; process=f"app.codecks.internal:m16p{slot:02d}"; nonce=digest(f"codecks-m16-nonce-v1:{profile}".encode())[:32]
+        seed=digest(f"codecks-m16-seed-v1:{profile}".encode())[:16]; previous="0"*64; lines=[]; total=0
+        categories=sorted(self.host.CATEGORIES)
+        current_pid=123
+        for window in (1,2):
+            start=(window-1)*3_700_000+1
+            previous=self.event(lines,previous,profile,process,nonce,{"type":"admitted","elapsedRealtimeMillis":start,"wallTimeMillis":start,"windowIndex":window,"bootId":"boot","eligibleTarget":2,"profileRoot":f"m16/profiles/{profile}","seed":seed})
+            for sequence in range(1,122):
+                elapsed=start+(sequence-1)*30_000; total+=1
+                if recovery and window==1 and sequence==61:
+                    new_pid=123 if same_pid else 124
+                    previous=self.event(lines,previous,profile,process,nonce,{"type":"resumed","elapsedRealtimeMillis":elapsed-1,"wallTimeMillis":elapsed-1,
+                        "windowIndex":window,"sequence":60,"priorPid":123,"newPid":new_pid,"_pid":new_pid})
+                    current_pid=new_pid
+                previous=self.event(lines,previous,profile,process,nonce,{"type":"ack","elapsedRealtimeMillis":elapsed,"wallTimeMillis":elapsed,"windowIndex":window,"sequence":sequence,"_pid":current_pid,
+                  "ackId":digest(f"{nonce}:{window}:{sequence}".encode()),"category":categories[(sequence-1)%len(categories)],"operationLatencyMillis":1,"totalPssKb":1,"batteryPercentProxy":90,
+                  "applicationExitReasons":{"crash":0,"nativeCrash":0,"anr":0,"self":0,"other":0},"crashOrAnr":False})
+            previous=self.event(lines,previous,profile,process,nonce,{"type":"window_complete","elapsedRealtimeMillis":start+3_600_000,"wallTimeMillis":start+3_600_000,"windowIndex":window,
+              "sequence":121,"elapsedMillis":3_600_000,"activeMillis":3_600_000,"categories":categories,"eligible":True})
+        previous=self.event(lines,previous,profile,process,nonce,{"type":"profile_complete","elapsedRealtimeMillis":7_300_002,"wallTimeMillis":7_300_002,"attemptedWindows":2,"eligibleWindows":2,"acknowledgedOperations":total})
+        directory=self.run/"profiles"/profile; directory.mkdir(parents=True,exist_ok=True); ledger=directory/"ledger.jsonl"; ledger.write_text("\n".join(lines)+"\n"); checkpoint=directory/"checkpoint.json"; checkpoint.write_text(json.dumps({"ledgerHeadHash":previous}))
+        result=self.host.verify_worker_ledger(ledger.read_bytes(),checkpoint.read_bytes(),profile,process,nonce)
+        return {**result,"avd":f"m16Soak0{avd}Api35","process":process,"ledgerPath":str(ledger.relative_to(self.run)),"checkpointPath":str(checkpoint.relative_to(self.run))}
+
+    def make_host_ledger(self,recovery=False,stale_ack=False,wrong_profile=False,wrong_probe=False,missing_event=False,probe_hash=None):
+        path=self.run/"host-ledger.jsonl"; previous="0"*64; lines=[]
+        def add(wall,mono,body):
+            nonlocal previous
+            event={"schema":"codecks.m16.host-event.v1","previousHash":previous,"hostWallMillis":wall,"hostMonotonicNanos":mono,**body}
+            previous=digest(json.dumps(event,sort_keys=True,separators=(",", ":")).encode()); event["eventHash"]=previous; lines.append(json.dumps(event,sort_keys=True,separators=(",", ":")))
+        add(1000,1_000_000_000,{"type":"controller_start","mode":"burnin2h","profiles":20}); add(1001,1_001_000_000,{"type":"twenty_workers_admitted","workers":20})
+        if recovery:
+            profile="avd01-p02" if wrong_profile else "avd01-p01"; old_ack=digest(f"{digest('codecks-m16-nonce-v1:avd01-p01'.encode())[:32]}:1:60".encode())
+            packet="failures/1000-avd01-p01"
+            if not missing_event: add(1100,1_100_000_000,{"type":"unexpected_worker_missing","profileId":"avd01-p01","failurePacket":packet,"oldPid":123,"lastAckId":old_ack})
+            fresh=old_ack if stale_ack else digest(f"{digest('codecks-m16-nonce-v1:avd01-p01'.encode())[:32]}:1:61".encode())
+            add(1200,1_200_000_000,{"type":"worker_restarted","profileId":profile,"oldPid":123,"newPid":124,"freshAckId":fresh,
+                "repoProbePath":f"restart-probes/{profile}-124.json","repoProbeSha256":"0"*64 if wrong_probe else (probe_hash or "a"*64)})
+        health={"swapUsedMiB":0.0,"memoryFreePercent":50,"availableGiB":16.0,"load1":1.0,"thermal":"nominal"}
+        for index in range(1,481): add(1000+index*15000,1_000_000_000+index*15_000_000_000,{"type":"monitor","workers":20,"complete":0,"qemuRssKiB":1,"freeGiB":99.0,"health":health})
+        path.write_text("\n".join(lines)+"\n"); return path
+
+    def validate(self,value=None):
+        path=self.run/"receipt.json"; path.write_text(json.dumps(value or self.receipt)); validator.validate(path,self.repo)
+
+    def test_repo_real_positive(self): self.validate()
+
+    def test_end_to_end_mutations_fail(self):
+        mutations=[]
+        for edit in (
+            lambda x:x["binding"].update(targetSignerSha256="0"*64), lambda x:x["binding"]["isolation"].update(api=34),
+            lambda x:x["profiles"][0].update(eligibleSessions=1), lambda x:x["wall"].update(monitoredMillis=1),
+            lambda x:x["summary"].update(classifiedFailures=1), lambda x:x.update(extra=1)):
+            value=copy.deepcopy(self.receipt); edit(value); mutations.append(value)
+        for value in mutations:
+            with self.assertRaises((ValueError,self.host.SafetyStop)): self.validate(value)
+
+    def test_new_provision_and_audit_shapes_are_closed(self):
+        edits=(
+            lambda x:x["devices"][0]["qemu"].pop("configPath"),
+            lambda x:x["devices"][0]["qemu"].update(extra=True),
+            lambda x:x["devices"][0]["qemu"].update(identityLogPath=x["devices"][1]["qemu"]["identityLogPath"]),
+            lambda x:x["runtime"].pop("avdProvision"),
+            lambda x:x["runtime"]["avdProvision"].update(extra=True),
+            lambda x:x["runtime"].update(defaultAdbAudit={"status":"present","sanitizedNonM16EmulatorCount":1,
+                "authorizedAvds":[{"avd":"Utopia_GL_1","hostPid":1,"cmdlineSha256":"a"*64}],"serverPid":1,"serverCmdlineSha256":"b"*64}),
+        )
+        for edit in edits:
+            value=copy.deepcopy(self.receipt); edit(value)
+            with self.assertRaises((ValueError,self.host.SafetyStop)): self.validate(value)
+
+    def test_repaired_recovery_cross_binding_and_mutations(self):
+        worker=self.make_profile(1,1,recovery=True)
+        probe=self.run/"restart-probes/avd01-p01-124.json"; probe.parent.mkdir(); probe.write_text('{"profileId":"avd01-p01"}')
+        ledger=self.make_host_ledger(recovery=True,probe_hash=digest(probe.read_bytes()))
+        proof=self.host.verify_host_ledger(ledger.read_bytes(),1000,7_201_000)
+        validator.cross_bind_recoveries([worker],proof); validator.verify_recovery_probes(self.run,proof,self.host)
+        with self.assertRaises(self.host.SafetyStop): self.make_profile(1,1,recovery=True,same_pid=True)
+        for options in ({"stale_ack":True},{"wrong_profile":True},{"missing_event":True}):
+            with self.assertRaises(self.host.SafetyStop):
+                self.host.verify_host_ledger(self.make_host_ledger(recovery=True,**options).read_bytes(),1000,7_201_000)
+        bad=copy.deepcopy(proof); bad["recoveries"][0]["repoProbeSha256"]="0"*64
+        with self.assertRaises(ValueError): validator.verify_recovery_probes(self.run,bad,self.host)
+
+    def test_soak_admission_revalidates_exact_burnin_and_rejects_mutations(self):
+        soak_run=self.repo/"soak-run"; soak_run.mkdir()
+        (soak_run/"phase.json").write_text(json.dumps(self.host.phase_manifest_value(soak_run,self.run),sort_keys=True,separators=(",", ":")))
+        burnin_path=self.run/self.host.BURNIN_RECEIPT_NAME
+        burnin_path.write_text(json.dumps(self.receipt,sort_keys=True,separators=(",", ":")))
+        finished=self.receipt["wall"]["finishedWallMillis"]
+        state={"schema":"codecks.m16.host-state.v1","mode":"burnin2h","durationHours":2,"status":"complete","cleanupStatus":"complete",
+               "completedWallMillis":finished,"receiptSha256":digest(burnin_path.read_bytes()),
+               "binding":self.receipt["binding"],"deviceBindings":self.receipt["devices"],
+               "runToken":self.receipt["runtime"]["runIdentity"],
+               "devices":{item["avd"]:item["serial"] for item in self.receipt["devices"]},
+               "startedWallMillis":1000,"startedMonotonicNanos":1_000_000_000,"profiles":20,
+               "baselineHealth":{"swapUsedMiB":0.0,"memoryFreePercent":50,"availableGiB":16.0,"load1":1.0,"thermal":"nominal"},
+               "isolatedAdb":self.receipt["runtime"]["isolatedAdb"],"emulatorPids":self.receipt["runtime"]["emulatorPids"],
+               "defaultAdbAudit":self.receipt["runtime"]["defaultAdbAudit"],
+               "avdHome":self.receipt["runtime"]["avdProvision"]["avdHomeLexical"],
+               "burninAdmission":self.host.burnin_not_required()}
+        state_path=self.run/self.host.BURNIN_STATE_NAME
+        state_path.write_text(json.dumps(state,sort_keys=True,separators=(",", ":")))
+        final=copy.deepcopy(self.receipt)
+        soak_home=soak_run/"avd-home"; soak_home.mkdir(); soak_entries=[]
+        for entry in self.receipt["runtime"]["avdProvision"]["avds"]:
+            path=soak_home/f"{entry['name']}.avd"/"config.ini"; path.parent.mkdir(); path.write_bytes(Path(entry["configPath"]).read_bytes())
+            soak_entries.append({**entry,"configPath":str(path)})
+        wrong_suffix=soak_home/"wrong.avd"/"config.ini"; wrong_suffix.parent.mkdir(); wrong_suffix.write_bytes(Path(soak_entries[0]["configPath"]).read_bytes())
+        final["runtime"]["avdProvision"].update(avdHomeLexical=str(soak_home),avdHomeCanonical=str(soak_home.resolve()),avds=soak_entries)
+        for device,entry in zip(final["devices"],soak_entries): device["qemu"]["configPath"]=entry["configPath"]
+        validated=finished+1_000
+        final["wall"]["startedWallMillis"]=validated
+        topology=self.host.burnin_topology(self.receipt)
+        final["burninAdmission"]={"status":"PASS","receiptPath":self.host.BURNIN_RECEIPT_NAME,
+          "receiptSha256":digest(burnin_path.read_bytes()),"statePath":self.host.BURNIN_STATE_NAME,
+          "stateSha256":digest(state_path.read_bytes()),"finishedWallMillis":finished,
+          "validatedWallMillis":validated,"maxBurninAgeHours":24,
+          "bindingSha256":self.host.canonical_sha256(final["binding"]),
+          "topologySha256":self.host.canonical_sha256(topology),
+          **self.host.phase_path_identity(soak_run,self.run),
+          "externalValidator":"PASS M16 AUTONOMOUS_PROXY receipt"}
+        validator.validate_burnin_admission(soak_run/"receipt.json",self.repo,final,168,self.host)
+        mutations=[]
+        for edit in (
+            lambda x:x["burninAdmission"].update(receiptSha256="0"*64),
+            lambda x:x["burninAdmission"].update(validatedWallMillis=finished+self.host.BURNIN_MAX_AGE_MILLIS+1),
+            lambda x:x["wall"].update(startedWallMillis=finished+self.host.BURNIN_MAX_AGE_MILLIS+1),
+            lambda x:x["burninAdmission"].update(validatedWallMillis=finished-1),
+            lambda x:x["burninAdmission"].update(burninRunDirCanonical=str(soak_run)),
+            lambda x:x["burninAdmission"].update(pathIdentitySha256="0"*64),
+            lambda x:x["runtime"]["avdProvision"]["avds"][0].update(configPath=self.receipt["runtime"]["avdProvision"]["avds"][0]["configPath"]),
+            lambda x:x["runtime"]["avdProvision"]["avds"][0].update(configPath=str(wrong_suffix)),
+            lambda x:x["runtime"]["avdProvision"]["avds"][0].update(configSha256="0"*64),
+            lambda x:x["binding"].update(targetApkSha256="0"*64),
+            lambda x:x["devices"][0].update(fingerprintSha256="0"*64),
+            lambda x:x["profiles"][0].update(process="app.codecks.internal:m16p02"),
+        ):
+            value=copy.deepcopy(final); edit(value); mutations.append(value)
+        for value in mutations:
+            with self.assertRaises((ValueError,self.host.SafetyStop)):
+                validator.validate_burnin_admission(soak_run/"receipt.json",self.repo,value,168,self.host)
+        state_path.write_text(state_path.read_text()+" ")
+        with self.assertRaises(ValueError):
+            validator.validate_burnin_admission(soak_run/"receipt.json",self.repo,final,168,self.host)
+
+if __name__=="__main__": unittest.main()

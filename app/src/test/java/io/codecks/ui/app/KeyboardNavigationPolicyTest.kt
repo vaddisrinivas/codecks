@@ -1,5 +1,8 @@
 package io.codecks.ui.app
 
+import io.codecks.domain.ActionIcon
+import io.codecks.domain.ActionKind
+import io.codecks.domain.DeckAction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -60,6 +63,30 @@ class KeyboardNavigationPolicyTest {
             ShellNavigationMode.BottomBar,
             shellAccessibilityLayout(1280, 720, 2f, fullscreen = false).navigationMode,
         )
+    }
+
+    @Test
+    fun quickDeckActions_areActiveVisibleActionsCappedAtEight() {
+        val actions = listOf(
+            DeckAction("blank", "Blank", ActionKind.Local, ActionIcon.Empty),
+            DeckAction("a", "A", ActionKind.Local, ActionIcon.Play),
+            DeckAction("a", "A duplicate", ActionKind.Local, ActionIcon.Play),
+        ) + (1..9).map { index ->
+            DeckAction("action-$index", "Action $index", ActionKind.Local, ActionIcon.Play)
+        }
+
+        assertEquals(8, quickDeckActions(actions).size)
+        assertEquals("a", quickDeckActions(actions).first().id)
+        assertFalse(quickDeckActions(actions).any { it.id == "blank" })
+    }
+
+    @Test
+    fun drawerIsPermanentOnlyForExpandedNormalText() {
+        assertEquals(ShellDrawerMode.Modal, shellDrawerMode(839, 1f, fullscreen = false))
+        assertEquals(ShellDrawerMode.Modal, shellDrawerMode(1199, 1f, fullscreen = false))
+        assertEquals(ShellDrawerMode.Permanent, shellDrawerMode(1200, 1f, fullscreen = false))
+        assertEquals(ShellDrawerMode.Modal, shellDrawerMode(1200, 2f, fullscreen = false))
+        assertEquals(ShellDrawerMode.Modal, shellDrawerMode(1200, 1f, fullscreen = true))
     }
 
 }

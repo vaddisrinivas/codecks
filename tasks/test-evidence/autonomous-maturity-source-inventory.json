@@ -1,0 +1,4683 @@
+{
+  "schema": "codecks.autonomous-maturity.source-inventory.v1",
+  "method": {
+    "scope": "tracked *.kt, *.java, and *.swift files from git ls-files",
+    "line_definition": "Python str.splitlines physical lines; blank and comment lines included",
+    "generated_policy": "tracked build/generated sources are separate; untracked build outputs are excluded",
+    "classification": "path/source-set rules in tools/evidence/generate_autonomous_maturity_source_inventory.py"
+  },
+  "summary": {
+    "file_count": 515,
+    "physical_lines": 90742,
+    "by_category": {
+      "build_definition": 22,
+      "companion": 3699,
+      "debug_only": 5,
+      "internal_lab": 2474,
+      "public_production": 54900,
+      "tests": 29642
+    },
+    "by_source_set": {
+      "android_androidTest": 624,
+      "android_androidTestDebug": 484,
+      "android_androidTestPlay": 462,
+      "android_androidTestPlayInternal": 61,
+      "android_debug": 5,
+      "android_main": 54708,
+      "android_play_internal": 2474,
+      "android_play_production_dark": 192,
+      "android_test": 23693,
+      "android_testPlay": 243,
+      "android_testPlayInternal": 1791,
+      "backend_main": 868,
+      "backend_test": 721,
+      "mac_helper": 1598,
+      "mac_helper_package_manifest": 22,
+      "mac_helper_tests": 808,
+      "shared_commonMain": 1233,
+      "shared_commonTest": 755
+    },
+    "by_language": {
+      "Java": 918,
+      "Kotlin": 87396,
+      "Swift": 2428
+    }
+  },
+  "files": [
+    {
+      "path": "app/src/androidTest/java/io/codecks/release/HidSystemEventInstrumentedTest.kt",
+      "category": "tests",
+      "source_set": "android_androidTest",
+      "feature_owner": "release/HidSystemEventInstrumentedTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 46,
+      "sha256": "8306e65bc5becc186fa26a3118b1607849d225dd04ea215e6ff24304083f77a0"
+    },
+    {
+      "path": "app/src/androidTest/java/io/codecks/release/ReleaseSshSmokeInstrumentedTest.kt",
+      "category": "tests",
+      "source_set": "android_androidTest",
+      "feature_owner": "release/ReleaseSshSmokeInstrumentedTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 193,
+      "sha256": "284bf4883cb86fd7a7999982062d6fcef2ce102371b0d5b924f68c178928a48d"
+    },
+    {
+      "path": "app/src/androidTest/java/io/codecks/ui/app/MainActivityStartupInstrumentedTest.kt",
+      "category": "tests",
+      "source_set": "android_androidTest",
+      "feature_owner": "ui/app",
+      "language": "Kotlin",
+      "physical_lines": 30,
+      "sha256": "dac3b2750df8a0df47a1a2adae174cc77655a5e6625c09d1ec0ff70f7d93e18f"
+    },
+    {
+      "path": "app/src/androidTest/java/io/codecks/ui/mouse/RawTrackpadViewInstrumentedTest.kt",
+      "category": "tests",
+      "source_set": "android_androidTest",
+      "feature_owner": "ui/mouse",
+      "language": "Kotlin",
+      "physical_lines": 306,
+      "sha256": "3c1b3e6800bb226704b02b2703a5f9b1b2c6c770e7b87a6c05c5886f17c18bf0"
+    },
+    {
+      "path": "app/src/androidTest/java/io/codecks/ui/mouse/lockscreen/LockscreenEntryInstrumentedTest.kt",
+      "category": "tests",
+      "source_set": "android_androidTest",
+      "feature_owner": "ui/mouse",
+      "language": "Kotlin",
+      "physical_lines": 49,
+      "sha256": "63b8a361eaca8fac238d95227f8b315b1b4a04e35477bfc08ca11839ee18c64b"
+    },
+    {
+      "path": "app/src/androidTestDebug/java/io/codecks/data/ConnectionTargetIdentityInstrumentedTest.kt",
+      "category": "tests",
+      "source_set": "android_androidTestDebug",
+      "feature_owner": "data/ConnectionTargetIdentityInstrumentedTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 59,
+      "sha256": "a01da13f2520f232c22f3cff6fe24925473f5a997dea5f6ff4b6fa2bff1594a1"
+    },
+    {
+      "path": "app/src/androidTestDebug/java/io/codecks/data/smart/SmartContextRepositoryTest.kt",
+      "category": "tests",
+      "source_set": "android_androidTestDebug",
+      "feature_owner": "data/smart",
+      "language": "Kotlin",
+      "physical_lines": 62,
+      "sha256": "de3314d72a697b6c311b6cdbe2a98ba02f770e2740cc7ce69b9f053633a8e6e1"
+    },
+    {
+      "path": "app/src/androidTestDebug/java/io/codecks/release/AccessibilityRuntimeInstrumentedTest.kt",
+      "category": "tests",
+      "source_set": "android_androidTestDebug",
+      "feature_owner": "release/AccessibilityRuntimeInstrumentedTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 75,
+      "sha256": "d23e5b9d55e0b0452b0ed1808a428067e4a7682169a6356259becd85ef17eb24"
+    },
+    {
+      "path": "app/src/androidTestDebug/java/io/codecks/ui/app/AccessibleStatusComposeInstrumentedTest.kt",
+      "category": "tests",
+      "source_set": "android_androidTestDebug",
+      "feature_owner": "ui/app",
+      "language": "Kotlin",
+      "physical_lines": 59,
+      "sha256": "43c1e432821827004fd8283ed5449c096a0f0e25a29bacf0676ee35d841ef9f4"
+    },
+    {
+      "path": "app/src/androidTestDebug/java/io/codecks/ui/mouse/MouseScreenGestureInstrumentedTest.kt",
+      "category": "tests",
+      "source_set": "android_androidTestDebug",
+      "feature_owner": "ui/mouse",
+      "language": "Kotlin",
+      "physical_lines": 229,
+      "sha256": "3a30b83cdaa32aa41ec00151df5191ffd0249c967640cef6e9162eb26bf4ea77"
+    },
+    {
+      "path": "app/src/androidTestPlay/java/io/codecks/commercialproof/ManagedCommercialDarkInstrumentedTest.kt",
+      "category": "tests",
+      "source_set": "android_androidTestPlay",
+      "feature_owner": "commercialproof/ManagedCommercialDarkInstrumentedTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 372,
+      "sha256": "bb6d53a1155d22560af056a2c651c736528a24ba6050f7cf024716223ae01a65"
+    },
+    {
+      "path": "app/src/androidTestPlay/java/io/codecks/commercialproof/ManagedCommercialProofReceipt.kt",
+      "category": "tests",
+      "source_set": "android_androidTestPlay",
+      "feature_owner": "commercialproof/ManagedCommercialProofReceipt.kt",
+      "language": "Kotlin",
+      "physical_lines": 90,
+      "sha256": "ff63659257d02833018fe5009cdae8d51c4415ecd69d4151d1b6d4985e255118"
+    },
+    {
+      "path": "app/src/androidTestPlayInternal/java/io/codecks/internalcommercial/labui/CommercialLabActivityTest.kt",
+      "category": "tests",
+      "source_set": "android_androidTestPlayInternal",
+      "feature_owner": "internalcommercial/labui",
+      "language": "Kotlin",
+      "physical_lines": 61,
+      "sha256": "eae7d3697fccbb8cd464921ef854b1071651586cbe0050844a33016c4266fda9"
+    },
+    {
+      "path": "app/src/debug/java/io/codecks/GestureTestActivity.kt",
+      "category": "debug_only",
+      "source_set": "android_debug",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 5,
+      "sha256": "139e46c81fa4cf44a5b521de86d0a597646524b03c797c6296771b082c7cf647"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/CodecksApplication.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 24,
+      "sha256": "1810b681d4d01afd073589f23df916a63c15eb9174c8fa32ba289581cc799280"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/HidController.java",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "root",
+      "language": "Java",
+      "physical_lines": 796,
+      "sha256": "84e02d9c6fab8a7446982685cdc02f1a601498df51471fe63ce1f315b07e0c06"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/HidReports.java",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "root",
+      "language": "Java",
+      "physical_lines": 122,
+      "sha256": "e727bacb82ef9697a04690e1e3828858b199746dabe402d295ad4eacd4789d86"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/HidRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 1198,
+      "sha256": "f45418d9d9d1fcb0fa8b9825c0424d8e65b0bfb720b21f6e37549569d46ae195"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/HidSessionService.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 254,
+      "sha256": "c8bac0ec927e1a445155cb7351515df21427a61e74c81a4335ac17c496a3a8ea"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/IntentDestinationPolicy.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 44,
+      "sha256": "200d1c4e62ab84b37f363aa577e82d63a745ce2cb5f7449c7425b5371189626b"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/MainActivity.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 2237,
+      "sha256": "d7f60379a065b34449a7021bae95a950c058ec21dd6905fafcf91c5a3fc71c0d"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/actions/ActionContracts.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/actions",
+      "language": "Kotlin",
+      "physical_lines": 161,
+      "sha256": "871f619dce1725ad6638b8eeef7de31905f8f9f2a89226bb5a80dfaa4baadcfc"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/actions/AiDraftConverters.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/actions",
+      "language": "Kotlin",
+      "physical_lines": 310,
+      "sha256": "d0ea40998ca2613e45c2b24034cc08235136ead9daa104221e531d7747fefa46"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/actions/AiGeneratedContentPlanner.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/actions",
+      "language": "Kotlin",
+      "physical_lines": 100,
+      "sha256": "16f641963a097638e3a35c1e84378117ed1e85befff38c12a40b7b28a2a72be9"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/actions/CommandRevision.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/actions",
+      "language": "Kotlin",
+      "physical_lines": 75,
+      "sha256": "56c66b69229ca41036df7188dc4e68d530d833d304dd4558853942174dfcf93c"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/actions/DefaultActionRunner.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/actions",
+      "language": "Kotlin",
+      "physical_lines": 259,
+      "sha256": "9ee119ef0a612882d5c45ae4f2a54870afc2525d0db95efa8a3519d92c4c29a8"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/actions/RawCommandPolicy.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/actions",
+      "language": "Kotlin",
+      "physical_lines": 94,
+      "sha256": "3aa1ec7861436f8eec4ddebed5cb3f7d95095dc32e26892ef6a0398a9b3714ac"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/design/CoreDesign.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/design",
+      "language": "Kotlin",
+      "physical_lines": 127,
+      "sha256": "30f95d84c71de323eee9272af85e93d453652e477793951e7112dc117ffb7a40"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/reactive/DefaultReactiveActionExecutor.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/reactive",
+      "language": "Kotlin",
+      "physical_lines": 695,
+      "sha256": "4abec4c738c43a5736ed325ea5bbf610eb60e1e241712fdd67c37ef701b7eacb"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/reactive/ReactiveActionRevision.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/reactive",
+      "language": "Kotlin",
+      "physical_lines": 42,
+      "sha256": "613ef62b85d3897d8614851cff860f3614926a13e79775dde1da5d710109823a"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/reactive/ReactiveHelperActionClient.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/reactive",
+      "language": "Kotlin",
+      "physical_lines": 127,
+      "sha256": "d36da20e62b4722de53f3d05daa9cc05cb476ce13d5e8ed24044284b498a906a"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/reactive/ReactiveSftpTransferClient.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/reactive",
+      "language": "Kotlin",
+      "physical_lines": 40,
+      "sha256": "83f9fa4049d1791ad9556ed8850fef8f109236bd645e6d1d654149fdaa85b173"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/reactive/ReactiveTrackpadDefaults.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/reactive",
+      "language": "Kotlin",
+      "physical_lines": 116,
+      "sha256": "4ac9900ecea401af591d1fbb616fccde48d5f4208a094effa621f90270fcf784"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/settings/SettingsContracts.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/settings",
+      "language": "Kotlin",
+      "physical_lines": 22,
+      "sha256": "be7a9279685943e33c16395a8ee21063d4d5799f88fa01283fc133f8ede0e3a4"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/trackpad/DeskDockTrackpadLaunchPolicy.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 93,
+      "sha256": "914a1d36d087b271a9ffae83c82e2c9a209be55f2d88107f3c41a78f06631cbd"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/trackpad/LockscreenTrackpadPolicy.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 66,
+      "sha256": "1c7e8cfaeeb1b228b3186ef65659b4012f526ad60a4323f8048388835327cafe"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/trackpad/PointerDeltaAccumulator.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 26,
+      "sha256": "3dddafbca4e98903a8354571103eed4138fb57bd5f13d736c3ca74de5036f84f"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/trackpad/TrackpadGestureEngine.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 170,
+      "sha256": "898efe7bc865d057a607d1a2ec3dffbdfca3ca9450a6181bae78bddaaec01944"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/trackpad/TrackpadHoldPolicy.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 13,
+      "sha256": "021a376969bdb0746408ea16f244962c2932f6d7640b6566d709d82bbc1805c0"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/trackpad/TrackpadMultiTapDetector.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 25,
+      "sha256": "401433c238b4e45142030fc29237d6f5b2313615821c8605400bf0b09c52517d"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/trackpad/TrackpadPrecisionScrollAccumulator.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 21,
+      "sha256": "07e22c29fee1d512fd5de5dd98256c51c0329a874764ccbf61c7b77feaad9f01"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/trackpad/TrackpadSessionPolicy.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 43,
+      "sha256": "8f1a6eacc8fed87427db06aea2115bbcfc5f87dc703723f8293ce123572959af"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/trackpad/TrackpadSettingsRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 276,
+      "sha256": "82b7ee752253de081cf88a45586b17e288e26955d12fc5bb7be889b421f84565"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/ActionRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/ActionRepository.kt",
+      "language": "Kotlin",
+      "physical_lines": 588,
+      "sha256": "870a3de69efce1b77321ff393920aa2f6b7fd0ee792239f27c9d0408ecaac6f1"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/BackupRestoreRecovery.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/BackupRestoreRecovery.kt",
+      "language": "Kotlin",
+      "physical_lines": 200,
+      "sha256": "7906dbd9996b971bcdd6c284eeb304737b79b8e59534f05dbd15420a8b3eb4fd"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/CodecksBackupRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/CodecksBackupRepository.kt",
+      "language": "Kotlin",
+      "physical_lines": 676,
+      "sha256": "c2138f72192a98dcceb2120ab41281ecfe3e6a1bad6ca68113885f30441d2256"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/ConnectionRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/ConnectionRepository.kt",
+      "language": "Kotlin",
+      "physical_lines": 1176,
+      "sha256": "d9d30430e79c35163760d50c62cab34f5173799847cbaa24834f067eedad5583"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/MdnsSshDiscovery.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/MdnsSshDiscovery.kt",
+      "language": "Kotlin",
+      "physical_lines": 93,
+      "sha256": "bce4608b16856ab611e9c3d2a7a46399a3b9ff91533823343a63dd033f7843a5"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/PersistedTargetSelectorMigration.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/PersistedTargetSelectorMigration.kt",
+      "language": "Kotlin",
+      "physical_lines": 89,
+      "sha256": "e1f4e1790abcdf77df02df5afed0ffc9255e44bb39be663966bfc9590ff26c79"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/RunHistoryRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/RunHistoryRepository.kt",
+      "language": "Kotlin",
+      "physical_lines": 120,
+      "sha256": "ee4fe17f50365a75229ec70e628bc0062d7f2418f3f880940440bc99e22c180e"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/SshDiscovery.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/SshDiscovery.kt",
+      "language": "Kotlin",
+      "physical_lines": 69,
+      "sha256": "76427eb7c8916a5f6d95619238879e81b06ffb32f859665481d206ef59447405"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/ai/AiArtifactRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/ai",
+      "language": "Kotlin",
+      "physical_lines": 288,
+      "sha256": "63d338f650ac20cd182e4064405166e8122617d951d96ba849827c02acfacc73"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/ai/AiDraftSchemaV2.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/ai",
+      "language": "Kotlin",
+      "physical_lines": 121,
+      "sha256": "fac2384245d8e29941ce4a32e7418a2b14372f31a0af5e1976983947305e204e"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/ai/AiGenerationHistoryRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/ai",
+      "language": "Kotlin",
+      "physical_lines": 115,
+      "sha256": "dab39bd1254e23236b6bcfb011064738131ea67737f89b00bf03eb7ae588d8ef"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/ai/AiProviderAdapters.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/ai",
+      "language": "Kotlin",
+      "physical_lines": 753,
+      "sha256": "0716bf5e177031850cee16a3581495c9a21b91e4b837c0f6d2b53cfb21c4ae84"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/ai/CodecksAiAgentPack.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/ai",
+      "language": "Kotlin",
+      "physical_lines": 36,
+      "sha256": "05fd441a8577822f74eed936f056201d2e40b34ecdeb0ce5948d69330851b383"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/ai/JsonCodec.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/ai",
+      "language": "Kotlin",
+      "physical_lines": 235,
+      "sha256": "c9664807f75a3d1c287b157794592b74e4ae4abbc561085f3f7f3d418031a534"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/ai/SecureApiKeyStore.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/ai",
+      "language": "Kotlin",
+      "physical_lines": 117,
+      "sha256": "c82b70659ef96f8e6d173a80ca6dca17793cb5033e716572e13cd53ef2e55cf9"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/automation/AutomationExecutionCoordinator.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/automation",
+      "language": "Kotlin",
+      "physical_lines": 278,
+      "sha256": "b89ea819e98a9916c06da64345149517b84c8263ab695221950c2f45ef239e97"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/automation/AutomationRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/automation",
+      "language": "Kotlin",
+      "physical_lines": 1134,
+      "sha256": "77d61290169da7800b59e0cf0aec427ebd919cd7d1ff0f3f1b52ca169b6a587d"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/automation/AutomationTriggerStateStore.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/automation",
+      "language": "Kotlin",
+      "physical_lines": 119,
+      "sha256": "cf7b56e5f580277ef283248fd9053ca7e928363661d4e9669201abdc5d0cc797"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/automation/AutomationTriggerWorker.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/automation",
+      "language": "Kotlin",
+      "physical_lines": 173,
+      "sha256": "9e7f6b9c3cc67889fbf8aa3f7d2132137eccbd287a8566bd4f1cb81778c1772b"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/automation/DefaultAutomationTriggerEngine.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/automation",
+      "language": "Kotlin",
+      "physical_lines": 348,
+      "sha256": "193b05ebbcb7ce1b40e1016fb427e49475f2868aa45dc6d2c1778166a4b5c58b"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/catalog/BundledProductCatalog.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/catalog",
+      "language": "Kotlin",
+      "physical_lines": 136,
+      "sha256": "a69a6f5a2c3ab2f00700c3d1dcd27d5d0f0bbed8234ba18fdb6933e0f9bb12b5"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/catalog/ExistingSshActionCatalog.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/catalog",
+      "language": "Kotlin",
+      "physical_lines": 53,
+      "sha256": "f1570d18181bb9229d5abd510d4f88ba57abb4a6a62c5c02b1dd35e76921f65e"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/catalog/InMemoryLocalCatalogStore.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/catalog",
+      "language": "Kotlin",
+      "physical_lines": 20,
+      "sha256": "c66b1bb5c29c12c656843a69f3df5e944b646de5f8d8218cd5fbdb3f41b34dc3"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/clipboard/ClipboardLastSyncStore.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 57,
+      "sha256": "49a3dd644d24a9e7b9511a487c47fa13a513ab3003b973b62404d7656e94ab75"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/clipboard/ClipboardSettingsRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 52,
+      "sha256": "6b6569bb390a814a58caec37f8d5e3244f3d337f3830a5009f2ccf59b3b24c0d"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/context/ContextFeatureStatus.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/context",
+      "language": "Kotlin",
+      "physical_lines": 32,
+      "sha256": "d43cb927ac2c4233213e111b4caef43b1e1349c1716fe1970ea7a47e67b301c2"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/context/DeviceSurfaceContextSource.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/context",
+      "language": "Kotlin",
+      "physical_lines": 76,
+      "sha256": "8bf43a17d6db91dd3c50a10e7c92ef30c823f8020447b551c6bbd1f944893334"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/context/NotificationBackplane.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/context",
+      "language": "Kotlin",
+      "physical_lines": 149,
+      "sha256": "eb4e650696cf78b396a6a4720080aa916af3294ea9d969709e1e370620552c6c"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/context/NotificationPrivacyPolicy.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/context",
+      "language": "Kotlin",
+      "physical_lines": 102,
+      "sha256": "985292197e5fe363fc57d3374ff83a231f378f83fc4d63bc0746baa70e8540cb"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/context/NotificationPrivacySettingsRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/context",
+      "language": "Kotlin",
+      "physical_lines": 58,
+      "sha256": "31798417d8a9dfe50e894cbcb5c9b7418491c4c134eba72bbaabf99e46e0a323"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/device/DefaultTransportRegistry.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/device",
+      "language": "Kotlin",
+      "physical_lines": 8,
+      "sha256": "d299c827d904e316c0295c2d9ea976d6032ada0c6a3d81fdb6ebe500c5d47849"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/device/LocalDeviceRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/device",
+      "language": "Kotlin",
+      "physical_lines": 72,
+      "sha256": "56848f3dd279b7a17232d0a0647058798dc7cad059b09c5060a52251b951f4f0"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/features/LocalFeatureFlagRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/features",
+      "language": "Kotlin",
+      "physical_lines": 66,
+      "sha256": "a7f68e6e0bb0752f18ba3a26e02603eb995cf95ee2ba3811182012cdc7fb1e76"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/observability/CrashAnrReporter.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/observability",
+      "language": "Kotlin",
+      "physical_lines": 55,
+      "sha256": "7f076f7baec42038b86fde274aacd4e20ac7359d61c5fac47e3d1c9dec2e31d0"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/privacy/DiagnosticEventRecorder.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/privacy",
+      "language": "Kotlin",
+      "physical_lines": 25,
+      "sha256": "9a7e634a9453c880dd08c5b90218301861c08c2239cffa038e6f7efbf6ec4b88"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/privacy/DiagnosticEventStore.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/privacy",
+      "language": "Kotlin",
+      "physical_lines": 163,
+      "sha256": "fea835b4f2167867f5439860b95deff9e9d5d9c05893359243f7639e1e43a42b"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/privacy/SupportBundleBuilder.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/privacy",
+      "language": "Kotlin",
+      "physical_lines": 71,
+      "sha256": "fd013b11ae3a0012e220801f45f4521014c26a8c953630873d690bba8a712a92"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/privacy/SupportBundleTempFilePolicy.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/privacy",
+      "language": "Kotlin",
+      "physical_lines": 75,
+      "sha256": "e26331f956226f1921fbd239ac823de2da41937a4b69fbfca5702c09e254a745"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/reactive/LiveMacStateRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/reactive",
+      "language": "Kotlin",
+      "physical_lines": 452,
+      "sha256": "7261e70cf3ecf78722267c1bc8a147b6265a5f7eac4f5c0cb835620c46084a26"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/reactive/helper/AndroidReactiveHelperCredentialStore.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/reactive",
+      "language": "Kotlin",
+      "physical_lines": 111,
+      "sha256": "cf9a492d7476daad12796910f636ee3db9783a13e197d40452adb3e14247edb4"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/reactive/helper/MdnsReactiveHelperDiscovery.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/reactive",
+      "language": "Kotlin",
+      "physical_lines": 108,
+      "sha256": "645be714d5f94c7013d8d8422e7d7fe33b82a61feb6a8806bcf9dab7a8844470"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/reactive/helper/ReactiveHelperPairingImporter.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/reactive",
+      "language": "Kotlin",
+      "physical_lines": 110,
+      "sha256": "a3b913fcc08945c064a82f46799b11d662c0234c1de402cd78179e75f37377db"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/reactive/state/MacStateSources.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/reactive",
+      "language": "Kotlin",
+      "physical_lines": 117,
+      "sha256": "fb92c7a76b6dc67ca617173d75db28e52f0cd36314855853f2e87ac812137b76"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/smart/SmartAppActionMappings.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/smart",
+      "language": "Kotlin",
+      "physical_lines": 64,
+      "sha256": "a553fa6d6c3654f71a5f6c2db67b9e3fb418eebc33ba2e35d7a1509818d8930e"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/smart/SmartContextRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/smart",
+      "language": "Kotlin",
+      "physical_lines": 50,
+      "sha256": "b88a2c1da27a07ad94d122a494c58def02cd2ec5c16d3b28ef9dced8328497e5"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/smart/SmartLearningStore.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/smart",
+      "language": "Kotlin",
+      "physical_lines": 274,
+      "sha256": "3519e73e0dc9a64ed4a57ac09b2b67a179f5454ad01339bf22f2f9db8c5cdf30"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/data/update/GitHubUpdateRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "data/update",
+      "language": "Kotlin",
+      "physical_lines": 223,
+      "sha256": "22f68860ef9dcbae8e586f7ebdcf2dddf6bae7be510f62dab313043165e82879"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/di/AppModule.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "di/AppModule.kt",
+      "language": "Kotlin",
+      "physical_lines": 107,
+      "sha256": "6f513409c36fcbdd54c61a289c03005cf3d93ca0fd36655d5736fc34dc1c1f53"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/CommandTrust.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/CommandTrust.kt",
+      "language": "Kotlin",
+      "physical_lines": 16,
+      "sha256": "073f25a085ee91b3b0c658faccd0bae8479023f3967c2932c7fa02c7ae8d3000"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/DeckAction.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/DeckAction.kt",
+      "language": "Kotlin",
+      "physical_lines": 60,
+      "sha256": "e4bd7e6347722e21ff0c2c68fd000dd1dc62e18326b4be9d2c3068ebea7cdd4a"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/LocalActionCapabilities.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/LocalActionCapabilities.kt",
+      "language": "Kotlin",
+      "physical_lines": 41,
+      "sha256": "14782bf2f1d2b3450e55d5bed336d8795b1a099f632806c1ff2adcaf42213be0"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/LocalActionResult.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/LocalActionResult.kt",
+      "language": "Kotlin",
+      "physical_lines": 7,
+      "sha256": "551d9a88922e7207f112a3286bb6da23bdb95ac99d7673ed5333a5abc01b6538"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/SmartSuggestionSafety.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/SmartSuggestionSafety.kt",
+      "language": "Kotlin",
+      "physical_lines": 16,
+      "sha256": "845d2e30e76c0fce215ed79679bf2165618452308d2896b3912b3db1d7bbfdd8"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/ai/ActionDefinition.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/ai",
+      "language": "Kotlin",
+      "physical_lines": 130,
+      "sha256": "3319e8365de4169517c9c458d5b27c83a049ac7a8561bc308628aa3019222522"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/ai/ActionDraftValidator.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/ai",
+      "language": "Kotlin",
+      "physical_lines": 249,
+      "sha256": "794f9b79aac24d286281887c18da2962bf442a3b056a716d7d9e80f5747ddf45"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/ai/AiArtifact.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/ai",
+      "language": "Kotlin",
+      "physical_lines": 83,
+      "sha256": "c4a7ece9dfa25fa520f1363f915b0c14e6a09f58af2c4d6a8039c84f379778e5"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/ai/AiGenerationRecord.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/ai",
+      "language": "Kotlin",
+      "physical_lines": 23,
+      "sha256": "09b393f452f0ff290e2634e6c8970c955c2581e0b0da298b439b6a8213c68113"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/ai/AiProvider.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/ai",
+      "language": "Kotlin",
+      "physical_lines": 144,
+      "sha256": "102a057323b655db49c0c0e79eddcd23faee17daf4faea39cffcf6854901a994"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/ai/AiProviderCatalog.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/ai",
+      "language": "Kotlin",
+      "physical_lines": 97,
+      "sha256": "183056f2f62c57530448451df9247f0282d08948e530997bcd3c4123a0d6fb31"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/ai/AutomationDraft.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/ai",
+      "language": "Kotlin",
+      "physical_lines": 37,
+      "sha256": "3940b75cb3517ac522dc6b364333833b51fc6a9a10655e42eef29e8021c31769"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/ai/CommandRiskClassifier.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/ai",
+      "language": "Kotlin",
+      "physical_lines": 16,
+      "sha256": "036566b9127df5a992c72a22cac816c5aab84c6c88a96b6979474bb3db1b31ff"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/ai/DraftEnvelopeV2.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/ai",
+      "language": "Kotlin",
+      "physical_lines": 72,
+      "sha256": "a6023a85f725a29aa1682d0039fae7e5c2e7a4fd907c3ad4c084cefc85329a62"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/ai/MacVisualEffectCatalog.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/ai",
+      "language": "Kotlin",
+      "physical_lines": 136,
+      "sha256": "df7ae9255eeb3b2c00a92e7ca36f9719206a6d5d22d8f3018feae8cb9da3ba8e"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/ai/StructuredDraftParser.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/ai",
+      "language": "Kotlin",
+      "physical_lines": 314,
+      "sha256": "09da893fa9e70e8b2a361f6c629e7045acd1336ebd9896ba756a0271abcd73fe"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/automation/AutomationCapability.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 170,
+      "sha256": "b4142415a65609e3d1a7ca0136ce159be163e85bdfa699aebc6a069d849beb73"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/automation/AutomationCatalog.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 109,
+      "sha256": "46aff7a5472929e2ef7e0420b2c1fd490b8be6f8a2895ffae66c007b5c98bf83"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/automation/AutomationExecutionEngine.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 137,
+      "sha256": "91e7bbe0cc5fdeac9edee1dd03f86a4a0d4d61c671c794011728278a543eeea8"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/automation/AutomationExecutionPlan.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 257,
+      "sha256": "0512c1fe0941f8124e2804b0359e7349cb8e7f68f74ecc00c8e8a1c4883f5922"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/automation/AutomationLiveTestEngine.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 370,
+      "sha256": "f7e71738b1ac4987732e99ee285905fd26ae54e6e303b20d692d54cc511e0862"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/automation/AutomationRecipe.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 467,
+      "sha256": "e5d380d2d8b4722e800a2e3bbc75e4b1c1aaf3a1ee7517eba26c821533bf1662"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/automation/AutomationRevisionGate.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 408,
+      "sha256": "885e294af60aa4c8dde3e03b467e290ff4a89abc0bc5d24a96f7a55b0d64e03e"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/automation/AutomationTriggerEngine.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 36,
+      "sha256": "c56dad05a2fed501d5b184c1c06c4be8fb965bbdc014630cff77f805b241bf85"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/automation/AutomationWorkerOutcome.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 139,
+      "sha256": "4562b9dddd84c86e1fc303a6eb877815f0b8365991f2b0b4621289d462266508"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/backup/BackupManifest.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/backup",
+      "language": "Kotlin",
+      "physical_lines": 36,
+      "sha256": "6115b271062a9e3f65b9f16725e644bfc1e7c6f964191c965c87fb1500dee02f"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/backup/RestorePlan.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/backup",
+      "language": "Kotlin",
+      "physical_lines": 36,
+      "sha256": "d4c9c08041da09eb0507a8b4a282ea6b7cd86d2001e8d6f3a3b82d77115cf3f9"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/backup/RestoreReceipt.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/backup",
+      "language": "Kotlin",
+      "physical_lines": 42,
+      "sha256": "48c3604ce9349b17bff8899b91aaf759a3f4c599c3325df73aa1ea4b50ab7c02"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/catalog/CatalogContracts.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/catalog",
+      "language": "Kotlin",
+      "physical_lines": 396,
+      "sha256": "6f1d0484f5f1075c8413b8f77b76b5f43287b6765a1d6734aaf5d7fe14018a68"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/catalog/CatalogInstallEngine.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/catalog",
+      "language": "Kotlin",
+      "physical_lines": 329,
+      "sha256": "a9fb470dee84e767fcb6ea30b16ae0e33870d57e944072d69a6f1cccd51086c4"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/clipboard/ClipboardBatteryPolicy.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 20,
+      "sha256": "9e026b617a05e6140a30a7ec91bcfd74eec59c34833c665f43124c71b58d1227"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/clipboard/ClipboardContentGuard.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 37,
+      "sha256": "5917d85b713da8f2444c4f5757bdc4408a4617b3693f37432bc857caa665c610"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/clipboard/ClipboardReceipt.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 71,
+      "sha256": "128ccafe54473a73e5e8aae610aaa65ec5be3a9ae58482c04be45a64f4ad3532"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/clipboard/ClipboardSessionState.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 71,
+      "sha256": "d67e8d92bd5c0a1be77abf201e57faa0200e3a1581da52f7484065b1dd35c0f8"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/clipboard/ClipboardSyncEngine.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 242,
+      "sha256": "a844e0fefd42dbeb3bc913bd20c16a8667a081616d22689900ee95e693321142"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/commercial/AccountServiceContracts.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/commercial",
+      "language": "Kotlin",
+      "physical_lines": 66,
+      "sha256": "5d033af65ea75cca1ae5173e088272defd7ddd8fb480bb49409eab115edf0b9d"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/commercial/CommercialExecutionPolicy.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/commercial",
+      "language": "Kotlin",
+      "physical_lines": 327,
+      "sha256": "23090e735e365a5bc1ea41a72fdf309257111e6627b51ee9defc765ea2b6c3c7"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/commercial/CommercialServicePrimitives.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/commercial",
+      "language": "Kotlin",
+      "physical_lines": 76,
+      "sha256": "f6b642c65bb1cf1fbab9cc559ea11b37d550bfca443d1ef2812cebd6e34480c1"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/commercial/CompiledCommercialOwnerPolicy.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/commercial",
+      "language": "Kotlin",
+      "physical_lines": 10,
+      "sha256": "e9404241c054389ad563a8e6c011e5ed9570cd04a34e3052cd7b960a21a365eb"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/commercial/EntitlementPurchaseIntegrityContracts.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/commercial",
+      "language": "Kotlin",
+      "physical_lines": 205,
+      "sha256": "ccd429afa96d5db0ab446f1bd5f2af5c8ff15d8dfce9a368d5197a94704bb31a"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/commercial/OperationalConfigContracts.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/commercial",
+      "language": "Kotlin",
+      "physical_lines": 34,
+      "sha256": "1fb7de76b06fb0c695900da4b73d1ce7b3e7ed48bab412cd5269607b64d8ce79"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/commercial/PrivacyAdsContracts.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/commercial",
+      "language": "Kotlin",
+      "physical_lines": 67,
+      "sha256": "4c7b0a75b263204daf362efab07fbc2c587a426f560e138352cbb6f01c724e35"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/commercial/ProductionDarkCommercialServices.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/commercial",
+      "language": "Kotlin",
+      "physical_lines": 98,
+      "sha256": "d4ae20d75fbfb4de002f150ce9c76fccab5164e0070d79b3705e2e00ec2aef70"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/commercial/SnapshotServiceContracts.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/commercial",
+      "language": "Kotlin",
+      "physical_lines": 135,
+      "sha256": "dbdd2ed5be5d290493c002fd4383d3f31e3cc687e35b78d92f16e4a06ead6d60"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/connection/CapabilityCheck.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/connection",
+      "language": "Kotlin",
+      "physical_lines": 46,
+      "sha256": "a40d1c9564e5e13048b38c92eb457d9fa653da6f34be6d59e33ce5c606be3f3e"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/connection/ConnectionIssue.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/connection",
+      "language": "Kotlin",
+      "physical_lines": 130,
+      "sha256": "496fd752491ceaf1af4752cb5147c98af1317040bfeba6ccbec888efa2831b3c"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/connection/SshSetupPolicy.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/connection",
+      "language": "Kotlin",
+      "physical_lines": 134,
+      "sha256": "903e8c9d2e87fe9c20b6f8e09a4792d59323dbbf7199c7922abfb298a9d58076"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/deck/DeckLayout.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/deck",
+      "language": "Kotlin",
+      "physical_lines": 99,
+      "sha256": "77b496c44001486daa24fe34e6714df4f141d581e810dc9bed8f84dc256cbf54"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/deck/DeckTemplate.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/deck",
+      "language": "Kotlin",
+      "physical_lines": 97,
+      "sha256": "87775218ae165f660e2b717ef680fd6bf9bc51bc345f252ab0952f930799e1ba"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/deck/LegacyDeckLayoutImporter.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/deck",
+      "language": "Kotlin",
+      "physical_lines": 96,
+      "sha256": "779b4fac48ca14fde958a84d020173d16aa2a49c900021d84f338970141a539c"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/device/DeviceModels.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/device",
+      "language": "Kotlin",
+      "physical_lines": 70,
+      "sha256": "8907b30138f9a7df1bf472a942cdda5f017fa80ef6e6ef9ac43ee5d8cbb27a74"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/device/DeviceRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/device",
+      "language": "Kotlin",
+      "physical_lines": 8,
+      "sha256": "31bf516cf0e677c076fc8aa30e0eceed2f550aaeb3b076775bb55b2946874598"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/device/TargetSelector.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/device",
+      "language": "Kotlin",
+      "physical_lines": 61,
+      "sha256": "b44c33a69132e6d9e82b13bce9768c41a2a28e3108e4ed77ac821e0f4772e59e"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/device/TransportRegistry.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/device",
+      "language": "Kotlin",
+      "physical_lines": 22,
+      "sha256": "b5ab8e282bcff45f62c942b3c7be2ada7478a9f4dd7b104636bdacca7840f3f0"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/execution/ActionExecutor.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/execution",
+      "language": "Kotlin",
+      "physical_lines": 6,
+      "sha256": "2034bac3c37ef9cbfdabea5ee7dcb93412805f016b8662a7cc60170d47cffc08"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/execution/BoundedParallelExecutor.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/execution",
+      "language": "Kotlin",
+      "physical_lines": 78,
+      "sha256": "59d55f7272afda4de62d34072546ce6c5220e88fb2f3ef92cb98064b49bc586a"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/execution/ExecutionModels.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/execution",
+      "language": "Kotlin",
+      "physical_lines": 74,
+      "sha256": "2af0dcd9cda012c0c15d8b9d24ff01f2c6173f37bde0b9901b3ea79714d68f89"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/execution/ExecutionPlanner.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/execution",
+      "language": "Kotlin",
+      "physical_lines": 47,
+      "sha256": "85b7be196d282867083a733f30502d7d796f951273a1a63958289d54f8142a5c"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/features/FeatureContracts.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/features",
+      "language": "Kotlin",
+      "physical_lines": 50,
+      "sha256": "874592b34355b41dd1dcdefe04eaae7c601d55b7647f1f06ca8686a0003138f2"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/features/FeatureFlagDefaults.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/features",
+      "language": "Kotlin",
+      "physical_lines": 43,
+      "sha256": "305bea4a7e14bf64bbcff306411649c9850087dea2e79dcc1fae71540a9fa606"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/features/LocalOnlyEntitlementRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/features",
+      "language": "Kotlin",
+      "physical_lines": 16,
+      "sha256": "1e9fdefa1e0d2545b7be0e9a69cbb0e708a3a8d14241db4ddbfd30c177f69912"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/features/SubtractiveFeatureOperationalConfig.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/features",
+      "language": "Kotlin",
+      "physical_lines": 141,
+      "sha256": "b8f2327d9d6c4139bcc8e18a0e110bf066c014293e6e63cbdceb1f44eda9b7ca"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/features/TypedFeatureFlagRegistry.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/features",
+      "language": "Kotlin",
+      "physical_lines": 183,
+      "sha256": "9b64a452a9f14b8e2e0c900feb61f750c65c2e94d34f936e1326e1dab54648d9"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/observability/TelemetryPolicy.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/observability",
+      "language": "Kotlin",
+      "physical_lines": 77,
+      "sha256": "4390045c5382ac0fd3e8074c7cd2042f7024a8689bf3bae74e4c7894f81080fa"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/privacy/DiagnosticEvent.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/privacy",
+      "language": "Kotlin",
+      "physical_lines": 71,
+      "sha256": "43fefc43147c609ebf0f2add1d7654fb1ab5e7791ef377ffd1518daaeb01472c"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/privacy/DiagnosticRedactor.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/privacy",
+      "language": "Kotlin",
+      "physical_lines": 32,
+      "sha256": "fa2753a79ffcc92ddcf8d2a8e61f8e06c15f5af01c7969bff66bacd174d54448"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/privacy/SupportBundle.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/privacy",
+      "language": "Kotlin",
+      "physical_lines": 46,
+      "sha256": "d30952564254ed6b8daf6600dda66686888a5a7facf16dff2af25966078e2a50"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/reactive/MacCapabilityAdapterModels.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 66,
+      "sha256": "b2f46d5b7178a10f29f3a00422da05b84dbb7e3a8dbdf688c0aef2c28d11c3ac"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/reactive/MacStateModels.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 501,
+      "sha256": "1568ed0278305a007c78291907161c35421990dd8f0c6472ba05bde17fb34199"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/reactive/MacStateRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 17,
+      "sha256": "fa266d62672ddc6928914c327ade3fd51bd86e51b1e254ff8a16f1832af51ac4"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/reactive/ReactiveControlModels.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 217,
+      "sha256": "f3abcf0c8087bbb3080306ae9cdfbb1fade071f35c567c74f892188e1cbc4953"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/reactive/ReactiveEngine.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 153,
+      "sha256": "3f4b1b6181aa136f3aa870b7242b48f17ddadb9555f9e41579adb9d5fe0c74b4"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/reactive/ReactiveExecutionModels.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 247,
+      "sha256": "cb9369472aaefe30971789a3618ef35d1bcf1c9505a638f873436dd6039bed37"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/reactive/ReactiveProfileModels.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 66,
+      "sha256": "7fc8062c38002e6bd3e57bdc3c2693c2c61b6cb655d7556c7fe3cf4530f6a6b1"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/reactive/SpotlightSftpModels.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 108,
+      "sha256": "ed23a1e0b4016b039763e9321a97d38203ccc73d940747d606398d6bef1d8a3e"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/reactive/deskdock/DeskDockModels.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 83,
+      "sha256": "f41d64c5eebe082a79b08cd7135ada0dea656c92837193c5463bf51cd7a619a4"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/reactive/deskdock/DeskDockScoringEngine.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 158,
+      "sha256": "020c644c22f59b1c4fb92f410450a64cfc288e2ac63c0bfaa7a96be56445d1e9"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/reactive/providers/ActiveAppReactiveControlProvider.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 161,
+      "sha256": "4454672a9fe0fb9818f56f4e4290853856d4d67370b83e190cfe3a4e233fb893"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/reactive/providers/AppleShortcutsReactiveControlProvider.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 136,
+      "sha256": "fdbb201f62aaf5bf551bcbc515764f507009966f2010ef5218bc1f37293f1c94"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/reactive/providers/MacCapabilityReactiveControlProviders.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 136,
+      "sha256": "77b099c298ec9f01e73ad42cf99ea437697d83bda50cb9be5d6dd9d376bf5e5b"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/reactive/providers/ReactiveStateControlProviders.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 220,
+      "sha256": "738f6ace834208a548003f803b68ec798e79c6e5b5a171d419d5e54346b5960d"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/reactive/providers/SpotlightSftpReactiveControlProvider.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 126,
+      "sha256": "679909bc70c56c85bc6903fd76e19de204dcb604e2ed5883c5fa65239491d7b7"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/smart/DeterministicSmartEngine.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/smart",
+      "language": "Kotlin",
+      "physical_lines": 80,
+      "sha256": "a5c7c5da6d38959dadb75f9ecc6af101cc3b572538a84257a56157dc32e127ee"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/smart/SmartCandidateProvider.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/smart",
+      "language": "Kotlin",
+      "physical_lines": 17,
+      "sha256": "d560997566e2f83e09688880ca85e62a78ef53c9e998669d2e96674a865cdda3"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/smart/SmartModels.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/smart",
+      "language": "Kotlin",
+      "physical_lines": 208,
+      "sha256": "058fbfc668ac8e1453d0959565dd6fe8978b3adc69a851823649b2079cc8a113"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/smart/providers/ActiveAppCandidateProvider.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/smart",
+      "language": "Kotlin",
+      "physical_lines": 74,
+      "sha256": "65a21872358b291df375c002ac71447d1ae6ae334021d6cc0b70b09b907e0fae"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/smart/providers/ConnectionRepairCandidateProvider.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/smart",
+      "language": "Kotlin",
+      "physical_lines": 58,
+      "sha256": "9c0bbc0d44b98f9fcf2949458bbc0ccaca6ee81dabe819759b56e41bda60f1f7"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/smart/providers/RecentActionCandidateProvider.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/smart",
+      "language": "Kotlin",
+      "physical_lines": 103,
+      "sha256": "30287d76a75152613489c2b4cca5767665a19597ddf831dfca5799c15bfee2bf"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/smart/providers/TransitionCandidateProvider.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/smart",
+      "language": "Kotlin",
+      "physical_lines": 57,
+      "sha256": "2fba3479eacc25f30c9b25ab70ebbcd5aec05f95b3d2fe1d6021aa7040bc65d9"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/sshpack/SshActionPack.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/sshpack",
+      "language": "Kotlin",
+      "physical_lines": 126,
+      "sha256": "f2e3d721ffaeac199bd1986cf81494440b6b2558415360ba052358845216a661"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/update/SemanticVersion.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/update",
+      "language": "Kotlin",
+      "physical_lines": 54,
+      "sha256": "b83bbc28583c2ce7da8f78bf9e4239da7471e9312a7df566870927e4cab24ca0"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/update/UpdateCheckState.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/update",
+      "language": "Kotlin",
+      "physical_lines": 41,
+      "sha256": "cc2041a02325230dce484a049e6a07e8607a9b41998225b3c275d1cb120a1a30"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/update/UpdateIntentPolicy.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/update",
+      "language": "Kotlin",
+      "physical_lines": 10,
+      "sha256": "321e974d9a33824d8d1c10382eadbace7fb616d9e4269fca3bcdf957f17095ab"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/update/UpdateSourcePolicy.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "domain/update",
+      "language": "Kotlin",
+      "physical_lines": 58,
+      "sha256": "d28d02acb5f78b54de77e6480c774c536651f3015e2adf34c3d79764febf4417"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/navigation/Routes.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "navigation/Routes.kt",
+      "language": "Kotlin",
+      "physical_lines": 52,
+      "sha256": "7b06669f41063702e38240460b0373079ad21c4d4ba28274cefa7a51eb6d70b1"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/platform/helper/ReactiveHelperClient.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "platform/helper",
+      "language": "Kotlin",
+      "physical_lines": 243,
+      "sha256": "ae13a82333b37c01b71b5edc441b0b1515e9a1731981d26da8231c7271298731"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/platform/helper/ReactiveHelperContracts.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "platform/helper",
+      "language": "Kotlin",
+      "physical_lines": 70,
+      "sha256": "238c0f64a4d77a34e47db3680187d0d2d498726778bf8d1ede74d98efafa23bf"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/platform/helper/ReactiveHelperSessionManager.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "platform/helper",
+      "language": "Kotlin",
+      "physical_lines": 164,
+      "sha256": "92c6b9a007d029d3970644a34af9e0448ad337ca61c7cbceee6791be4068964d"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/platform/helper/ReactiveHelperTcpTransport.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "platform/helper",
+      "language": "Kotlin",
+      "physical_lines": 57,
+      "sha256": "8d256aee87de9099cc7a6a97bbd465f9196f68460ce0748cb324a9ac7d2158b3"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/protocol/ActionProtocolJsonCodec.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "protocol/ActionProtocolJsonCodec.kt",
+      "language": "Kotlin",
+      "physical_lines": 274,
+      "sha256": "f32e8338ee464b21e1f74751d147edf7dd146a10fb9bf9d3d77624a9051758a9"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/protocol/ActionProtocolModels.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "protocol/ActionProtocolModels.kt",
+      "language": "Kotlin",
+      "physical_lines": 106,
+      "sha256": "8d3f595711e5ec69c20d757b2761f3b45b1fe7fe3487343be0b0cd98a5d08002"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/protocol/InMemoryActionReceiptStore.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "protocol/InMemoryActionReceiptStore.kt",
+      "language": "Kotlin",
+      "physical_lines": 23,
+      "sha256": "bd03bb2617118ed5fd82ac53e781554c1c334f6efe0ef1a95150dea3fa583796"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/ai/AiDeviceCapabilities.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/ai",
+      "language": "Kotlin",
+      "physical_lines": 37,
+      "sha256": "f5aedff8bdfd33948f8ec4a157c8e5a618445f529b35b7df2f4cc03d3014b6b4"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/ai/AiLocalCommandRouter.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/ai",
+      "language": "Kotlin",
+      "physical_lines": 112,
+      "sha256": "b3938133d5035411a98ed10c7e32c5e21d24bc197190fbd3a884cabfadd629f4"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/ai/AiProviderSettingsContent.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/ai",
+      "language": "Kotlin",
+      "physical_lines": 186,
+      "sha256": "aac6d62d5350067e90374732f8297848733668a9351bc0d6765577aa0ca00f7f"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/ai/AiProviderSettingsController.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/ai",
+      "language": "Kotlin",
+      "physical_lines": 639,
+      "sha256": "eb40230f7acc4e9de5692553f6183bf0f2779e49afbee0f69ef51fbed44bcc9a"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/ai/AiProviderSettingsScreen.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/ai",
+      "language": "Kotlin",
+      "physical_lines": 332,
+      "sha256": "2dfeeda33c40d713f77ed367037fd1d4311651bd9eaab1e07484087d75a704a5"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/ai/AiWorkspaceScreen.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/ai",
+      "language": "Kotlin",
+      "physical_lines": 932,
+      "sha256": "13c1c34d6ad1d397468ded1e9196f61adcd55f90ba225169ca409934c208f95a"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/app/AccessibilityFocusPolicy.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/app",
+      "language": "Kotlin",
+      "physical_lines": 89,
+      "sha256": "055cdde310135928512d27444ccdeb27d0a7d767eb48dbb891301dde277208dd"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/app/AccessibleAction.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/app",
+      "language": "Kotlin",
+      "physical_lines": 82,
+      "sha256": "e70574a75a19c9460934d22bed28ac18e667aa6cd3d82f7b57d3167c03523ee1"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/app/AccessibleStatus.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/app",
+      "language": "Kotlin",
+      "physical_lines": 166,
+      "sha256": "ce99553b8b86aed932b98cba98e8dba2aa71e30c04cc5f05aeb8da067171cf41"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/app/AppNavigator.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/app",
+      "language": "Kotlin",
+      "physical_lines": 102,
+      "sha256": "df568642243187e4ed0dbfe5d8cfab2278ac9e73d415b8cd8b9a79c69cc91e30"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/app/CodecksAppShell.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/app",
+      "language": "Kotlin",
+      "physical_lines": 428,
+      "sha256": "573e7bef92020953a0a15b156cd7e1f517de006127e2e34dc4bd68ded71061b5"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/app/KeyboardNavigationPolicy.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/app",
+      "language": "Kotlin",
+      "physical_lines": 69,
+      "sha256": "0964c945d1285e3cc99c0afd06c3cf28dab2b661f262d74af31b411cb805b19c"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/app/LocalActionDispatcher.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/app",
+      "language": "Kotlin",
+      "physical_lines": 102,
+      "sha256": "782245033836170be6c76eefe30ad459e834f9d4104491b820c2cfdf193014db"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/app/PrimaryTab.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/app",
+      "language": "Kotlin",
+      "physical_lines": 33,
+      "sha256": "88cec9d165d0e6411ddf96c53b384bb3b12de99fbb995a37fd41fc90a5335e8a"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/automations/AutomationModels.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/automations",
+      "language": "Kotlin",
+      "physical_lines": 89,
+      "sha256": "2976d37483849071b857f7c4827ab212e47cf070573c023936ac32702962a447"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/automations/AutomationsScreen.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/automations",
+      "language": "Kotlin",
+      "physical_lines": 1111,
+      "sha256": "76b622ed272909e2194cebc7088dc81205581a2f24e43021ba9e5f44af8ea186"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/automations/AutomationsViewModel.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/automations",
+      "language": "Kotlin",
+      "physical_lines": 1027,
+      "sha256": "7b68e258b5d1eca6b89f0a5533c390c958a01027a411795fb97ec15ebf7fe052"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/clipboard/ClipboardScreen.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 614,
+      "sha256": "341dd2a948d9a5fd92c3f6742dbc4025f9aa03ae592dc2e22e837aed5c7b59a0"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/clipboard/ClipboardViewModel.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 1116,
+      "sha256": "633efd00a511c092d29009c5ca43dd5abe47cf1b8d69323e83388a60d038c4a8"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/connection/BluetoothSetupStatus.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 134,
+      "sha256": "f50bf82a25b64096b7943876c0a7bd285f980b96cb26670f2f4ee88fc0576998"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/connection/CodecksReadiness.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 48,
+      "sha256": "369b217ea9e29c35b6005dcb8f126663c48ca37d4b20199c5e3ebe45d1834fd5"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/connection/ConnectionDiagnosticPresenter.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 180,
+      "sha256": "bcc34cf72e034273ae217aea2124f76a8d9e5c607a38172e5edc59c61e52e7ce"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/connection/ConnectionHealth.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 272,
+      "sha256": "8399c01bd570b8153d3b54c09da28d571352c0d39e4df36e42bb41bb05385a7d"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/connection/ConnectionScreen.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 773,
+      "sha256": "8a3a0a4e2616015c07750dbaaea782a45ac72237b75563ac75117852ee22415b"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/connection/ConnectionSetupController.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 74,
+      "sha256": "82f44974062fa790dc6c08c0f4d6730c20b6d1b88c63de1c8155164d2b0da77c"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/connection/ConnectionViewModel.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 640,
+      "sha256": "c1a694792256d5166dda3c29c6ce11f044b31bfc3ed64ec8e08fc6d7bfeee14c"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/connection/HidConfirmationStore.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 44,
+      "sha256": "3af16d96ce37460ae2caafb2a533ea8eab605e38d2bae8de514f9ddd56e66928"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/connection/HidHealth.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 162,
+      "sha256": "52265ef0cee10264689e02a07c58729f826a16029a10184d6db32afa2c4fc2eb"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/connection/SetupCompletion.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 294,
+      "sha256": "b7c708e5690e9b79d842d11127b72f8f1d8e4dfd189c5f12e6d452fce0a97922"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/connection/SetupSnapshot.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 192,
+      "sha256": "9e529987cb64ba223f177a50123518535fa30a849bdfe03dcb34df879e35f185"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/connection/SetupTerminalProofStore.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 160,
+      "sha256": "6ce50e3e63b604bcf098a30a7e3cff2db4d222637b19270cb4172cbe4fae7d0e"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/connection/TerminalProofExecutionGuard.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 43,
+      "sha256": "cefe50b838ce04e13c2d4f37de901ad14519fe84578cb574214b4f5c903fe927"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/designsystem/CkDeckKey.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/designsystem",
+      "language": "Kotlin",
+      "physical_lines": 475,
+      "sha256": "0cd6722a028a12db7eb7706bf096a8954a54f868ab4ec6b760a1f6ac2dde3efd"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/designsystem/CodecksDeckSurface.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/designsystem",
+      "language": "Kotlin",
+      "physical_lines": 141,
+      "sha256": "2e959f02937baacd928e1f852e34d993cc0b2713018002b0f1d117156d51a677"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/designsystem/DeckComponents.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/designsystem",
+      "language": "Kotlin",
+      "physical_lines": 830,
+      "sha256": "5e41a33131808c0fc5ac26a5309489b204633a25f0dfda570b949fe3765ce88c"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/editor/DeckEditorScreen.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/editor",
+      "language": "Kotlin",
+      "physical_lines": 976,
+      "sha256": "6066c0c30e69af5c20b008b62fcd36acc8d6965360cc3ba2ccd0f8afd369d028"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/home/HomeScreen.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/home",
+      "language": "Kotlin",
+      "physical_lines": 1405,
+      "sha256": "da8e93dada676c07c8360c4c20bedfcbb3099a734900e9624a4368c68a2f673c"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/home/HomeStatusFeedbackPolicy.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/home",
+      "language": "Kotlin",
+      "physical_lines": 47,
+      "sha256": "6cb54aeaa9896de6c7787ceaa4110c404de9900205af870836d935035b63d04b"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/home/HomeViewModel.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/home",
+      "language": "Kotlin",
+      "physical_lines": 1082,
+      "sha256": "cab7bb6240a3107b34f25e9cb6b4d58aa3b0a50b6b1f961aad5c6f942e0df46b"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/home/smart/SmartDeckEffect.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/home",
+      "language": "Kotlin",
+      "physical_lines": 8,
+      "sha256": "62fbba89d5713aaac393d786d967d8822ca9562268b9c9fa26458dd54c706d1a"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/home/smart/SmartDeckModels.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/home",
+      "language": "Kotlin",
+      "physical_lines": 61,
+      "sha256": "8e6d135dc5443454e58d095ba1732654847ffbc5fa6a5aff1ff4c81b1f0d8647"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/home/smart/SmartDeckViewModel.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/home",
+      "language": "Kotlin",
+      "physical_lines": 418,
+      "sha256": "a3b0e9a4533c2c2af2c7e24b94a1d76e7d250849e8413c1eec76c8b18c34c614"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/icons/DeckIconResolver.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/icons",
+      "language": "Kotlin",
+      "physical_lines": 172,
+      "sha256": "70c487a669e940016e186af048d8567a2857f4b7e5da3cc4886a6798e2d82fef"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/keyboard/HidHostHeader.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/keyboard",
+      "language": "Kotlin",
+      "physical_lines": 397,
+      "sha256": "67573b717147ef5d319d7bf3e91e708b117cc95ea61299e4f36f38a18a173875"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/keyboard/KeyboardScreen.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/keyboard",
+      "language": "Kotlin",
+      "physical_lines": 572,
+      "sha256": "53d6c8920dbfa37d24a146173815753376a39948148294119242d0a9104b024e"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/keyboard/KeyboardViewModel.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/keyboard",
+      "language": "Kotlin",
+      "physical_lines": 164,
+      "sha256": "37c6b28f67de47f1740428a240b642cab029fa91c2c7acf3d04d33377fa1e0fa"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/keyboard/MacTextDelivery.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/keyboard",
+      "language": "Kotlin",
+      "physical_lines": 17,
+      "sha256": "3035f86aff47b33633ff4971383784b04f2dc78dfd617483e1c9545dd29614b6"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/mouse/MouseScreen.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/mouse",
+      "language": "Kotlin",
+      "physical_lines": 3329,
+      "sha256": "b7a453c7556590b78d78ae5305ee7f8387b8e26cd9785a093c5c7b2b473917cc"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/mouse/MouseViewModel.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/mouse",
+      "language": "Kotlin",
+      "physical_lines": 62,
+      "sha256": "bef9544815fdc62890b3d1c117450cf8bf242f173d939412d989b6cc6edb8697"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/mouse/TrackpadHostScreen.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/mouse",
+      "language": "Kotlin",
+      "physical_lines": 132,
+      "sha256": "6c6fb99e28481f62dbdd2c883aef41867773ee6c082e93aa77a4b57c7e873ce8"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/mouse/lockscreen/LockscreenTrackpadActivity.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/mouse",
+      "language": "Kotlin",
+      "physical_lines": 84,
+      "sha256": "8345be21b451226fe2618c268c93020fadd678f58e7330d166faecbe51e693c4"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/mouse/lockscreen/LockscreenTrackpadScreen.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/mouse",
+      "language": "Kotlin",
+      "physical_lines": 195,
+      "sha256": "68303136114566b515e42e709f8c6b122eeaf13fb7413cf203b5adf2de3f5f65"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/mouse/lockscreen/LockscreenTrackpadViewModel.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/mouse",
+      "language": "Kotlin",
+      "physical_lines": 206,
+      "sha256": "81b2b31ef91d0a08c34d82ab9d71633eab12a886ed2d2fc7567f60603e2408a6"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/mouse/lockscreen/TrackpadEntryActivity.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/mouse",
+      "language": "Kotlin",
+      "physical_lines": 169,
+      "sha256": "f23e94c4b9b43d06267474c920b8e7abae174e78ddb315fe1ac782d38955b383"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/mouse/reactive/ReactiveTrackpadCard.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/mouse",
+      "language": "Kotlin",
+      "physical_lines": 184,
+      "sha256": "7d4407adfe9f2c20fc1f99568e97bd62819f5526533274d59e1816eac1c7e7a5"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/mouse/reactive/ReactiveTrackpadPresentation.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/mouse",
+      "language": "Kotlin",
+      "physical_lines": 40,
+      "sha256": "b6bcbfaae30a4c23350ea24db58c0ab194763081e5f889320ed116ca11b2dec3"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/mouse/reactive/ReactiveTrackpadViewModel.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/mouse",
+      "language": "Kotlin",
+      "physical_lines": 233,
+      "sha256": "d6b7a0a273835a30e8a7bca5be4fa67a196f7b7702f7a4e3e515a6504d1ad4e6"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/palette/CommandPaletteScreen.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/palette",
+      "language": "Kotlin",
+      "physical_lines": 177,
+      "sha256": "1290b0484c9e4123459fb728d27e8a031cfce09c583cbed36c440eddf324d647"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/quality/AdaptiveSurfacePreviews.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/quality",
+      "language": "Kotlin",
+      "physical_lines": 96,
+      "sha256": "b95f894b66a1518e1619b81eabdf0741ee4148c0ef338bfaf3fd1f6316f2eb64"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/runlog/RunLogScreen.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/runlog",
+      "language": "Kotlin",
+      "physical_lines": 186,
+      "sha256": "bf83294fdbc55e17db578bdd03b28a02f0c3390190b7ee12c7184bf9ded15be8"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/settings/BackupRestoreDialog.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/settings",
+      "language": "Kotlin",
+      "physical_lines": 91,
+      "sha256": "767e8a880a88da5146dc3f7f79639b7f53920728b91a30b06ff7c28136453804"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/settings/CodecksHelperUiState.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/settings",
+      "language": "Kotlin",
+      "physical_lines": 89,
+      "sha256": "6ed314bde67c4bb72e495ac42e7fc8ac4b5599eb7bcb6b629c85cbdaef399216"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/settings/DevicesScreen.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/settings",
+      "language": "Kotlin",
+      "physical_lines": 269,
+      "sha256": "37f00b5203ef72eecc4f8a49d3de097be55d69b6ca7a9fb04f8724982f2724ba"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/settings/DevicesViewModel.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/settings",
+      "language": "Kotlin",
+      "physical_lines": 62,
+      "sha256": "bce97f84a91b63f66e57f40f30d1c7ea182b60eb81b9f7db381280fa7e467587"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/settings/SettingsScreen.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/settings",
+      "language": "Kotlin",
+      "physical_lines": 1965,
+      "sha256": "327184048473cb7d721adff298a45aebe77a90e73c5d7bd29049570445e3c300"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/settings/SupportBundleDialog.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/settings",
+      "language": "Kotlin",
+      "physical_lines": 184,
+      "sha256": "34efc039e4516d00eb60235c36585b1bd4c42f25f6d7d175f7beb40bd23550d7"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/settings/SupportBundleViewModel.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/settings",
+      "language": "Kotlin",
+      "physical_lines": 199,
+      "sha256": "5c66f703c027a889f2c0d5929b7777f893437bd8c15361f9c9e2fbde13755d27"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/settings/SupportScreens.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/settings",
+      "language": "Kotlin",
+      "physical_lines": 100,
+      "sha256": "761d575c917cd69510b6c889e198f3c949becc4c758fa22860c4f462a6ce49d2"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/settings/UpdateViewModel.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/settings",
+      "language": "Kotlin",
+      "physical_lines": 116,
+      "sha256": "aa611951a3915b633849c330a9d67f1063acd49d6a60c490deb7e3361763a8bc"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/theme/CodecksIconPack.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/theme",
+      "language": "Kotlin",
+      "physical_lines": 23,
+      "sha256": "1a74a6bb1c902908bd3321534228f777eebc1f0f87e8724014968d94459202d3"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/theme/CodecksTheme.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/theme",
+      "language": "Kotlin",
+      "physical_lines": 282,
+      "sha256": "bc496e3bf9b87d9599c360653fb432448e29a11ffb0950a922b96d3365e199aa"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/ui/theme/ThemeSettingsRepository.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "ui/theme",
+      "language": "Kotlin",
+      "physical_lines": 224,
+      "sha256": "269b8c6165f6f79a8bc1db6534bb54a29a3265ebccd6f0d86f569b0550d2abde"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/widget/TrackpadWidgetProvider.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "widget/TrackpadWidgetProvider.kt",
+      "language": "Kotlin",
+      "physical_lines": 23,
+      "sha256": "a48314789c4365b5f6831b197a1a008b72799a706b159fc009a9aed370a69be4"
+    },
+    {
+      "path": "app/src/main/java/io/codex/s23deck/data/automation/AutomationTriggerWorker.kt",
+      "category": "public_production",
+      "source_set": "android_main",
+      "feature_owner": "other",
+      "language": "Kotlin",
+      "physical_lines": 22,
+      "sha256": "2ea0850b8a6c0a1f1ffb47a829f21e3d7b26f9a1cafa22a8e44dd05fe826c5d2"
+    },
+    {
+      "path": "app/src/play/java/io/codecks/commercial/ads/PlayProductionDarkAds.kt",
+      "category": "public_production",
+      "source_set": "android_play_production_dark",
+      "feature_owner": "commercial/ads",
+      "language": "Kotlin",
+      "physical_lines": 11,
+      "sha256": "cdca86405430066373c8329b864634cf0d89990b12560b87dd355d0f9990b523"
+    },
+    {
+      "path": "app/src/play/java/io/codecks/commercial/auth/ProductionPlayAuthAdapter.kt",
+      "category": "public_production",
+      "source_set": "android_play_production_dark",
+      "feature_owner": "commercial/auth",
+      "language": "Kotlin",
+      "physical_lines": 74,
+      "sha256": "c5a5bc73d0a2f65b8f1153b556a8efb399256dd277e8d6b0af617a400b012996"
+    },
+    {
+      "path": "app/src/play/java/io/codecks/commercial/billing/PlayReleaseBillingAdapter.kt",
+      "category": "public_production",
+      "source_set": "android_play_production_dark",
+      "feature_owner": "commercial/billing",
+      "language": "Kotlin",
+      "physical_lines": 27,
+      "sha256": "2c71969e11a4f291b75423d2a3104796efedaf73127eb92d478478b83ed8b43a"
+    },
+    {
+      "path": "app/src/play/java/io/codecks/commercial/entitlement/PlayReleaseEntitlementAdapter.kt",
+      "category": "public_production",
+      "source_set": "android_play_production_dark",
+      "feature_owner": "commercial/entitlement",
+      "language": "Kotlin",
+      "physical_lines": 19,
+      "sha256": "52cee258ff6aa665705b2cc59f88f984015d2c80dfd59dd2b7a94f6a8b82ed98"
+    },
+    {
+      "path": "app/src/play/java/io/codecks/commercial/integrity/PlayReleaseIntegrityAdapter.kt",
+      "category": "public_production",
+      "source_set": "android_play_production_dark",
+      "feature_owner": "commercial/integrity",
+      "language": "Kotlin",
+      "physical_lines": 12,
+      "sha256": "4321102a8c862db0084ab8fbc31696669286d92118d10d25558dcd2664d36a0e"
+    },
+    {
+      "path": "app/src/play/java/io/codecks/commercial/privacy/PlayProductionDarkPrivacy.kt",
+      "category": "public_production",
+      "source_set": "android_play_production_dark",
+      "feature_owner": "commercial/privacy",
+      "language": "Kotlin",
+      "physical_lines": 11,
+      "sha256": "a55fecb2a524d73e97e211c51f6ee1fb6f60cb5a4414d273fa81b1c5df57156f"
+    },
+    {
+      "path": "app/src/play/java/io/codecks/commercial/sync/ProductionPlaySnapshotAdapter.kt",
+      "category": "public_production",
+      "source_set": "android_play_production_dark",
+      "feature_owner": "commercial/sync",
+      "language": "Kotlin",
+      "physical_lines": 38,
+      "sha256": "860575cdcf995b1c3a33e80d2445bee5172df7ef73445ed08090e95a79b21791"
+    },
+    {
+      "path": "app/src/playInternal/java/io/codecks/commercial/auth/PlayInternalAccountAdapter.kt",
+      "category": "internal_lab",
+      "source_set": "android_play_internal",
+      "feature_owner": "commercial/auth",
+      "language": "Kotlin",
+      "physical_lines": 406,
+      "sha256": "eeb834aed4e41ed180d5c5b2a3e931bd304a3123515480a6ca0bd2414596ac7b"
+    },
+    {
+      "path": "app/src/playInternal/java/io/codecks/commercial/sync/PlayInternalSnapshotAdapter.kt",
+      "category": "internal_lab",
+      "source_set": "android_play_internal",
+      "feature_owner": "commercial/sync",
+      "language": "Kotlin",
+      "physical_lines": 450,
+      "sha256": "016ff98ec4884f4ad9371005140add4039479e5e5cad8adae620bb06c68a0b1b"
+    },
+    {
+      "path": "app/src/playInternal/java/io/codecks/internalcommercial/CommercialTestOverrideMarker.kt",
+      "category": "internal_lab",
+      "source_set": "android_play_internal",
+      "feature_owner": "internalcommercial/CommercialTestOverrideMarker.kt",
+      "language": "Kotlin",
+      "physical_lines": 16,
+      "sha256": "4bc3f8e2c04ce9a8099a77a048c583a9eec8d9b7e3c2b4ea2f6d883d5f6d3155"
+    },
+    {
+      "path": "app/src/playInternal/java/io/codecks/internalcommercial/ads/InternalAdsAdapters.kt",
+      "category": "internal_lab",
+      "source_set": "android_play_internal",
+      "feature_owner": "internalcommercial/ads",
+      "language": "Kotlin",
+      "physical_lines": 207,
+      "sha256": "9d6fe6a79c9e7c2c02911e9de86c63dc16b48db32f3ba1b9dff74066c377787b"
+    },
+    {
+      "path": "app/src/playInternal/java/io/codecks/internalcommercial/billing/InternalBillingSandbox.kt",
+      "category": "internal_lab",
+      "source_set": "android_play_internal",
+      "feature_owner": "internalcommercial/billing",
+      "language": "Kotlin",
+      "physical_lines": 285,
+      "sha256": "5a000696e97f7ef0d6e3b141cedd8b33d14f7eecb75b3970df803f4e1b25f7fe"
+    },
+    {
+      "path": "app/src/playInternal/java/io/codecks/internalcommercial/entitlement/InternalEntitlementSandbox.kt",
+      "category": "internal_lab",
+      "source_set": "android_play_internal",
+      "feature_owner": "internalcommercial/entitlement",
+      "language": "Kotlin",
+      "physical_lines": 108,
+      "sha256": "90e9c7cb142d61ced72971932971eaf34e4c0bf3111500cb4309850c2b2cc4c9"
+    },
+    {
+      "path": "app/src/playInternal/java/io/codecks/internalcommercial/integrity/InternalIntegritySandbox.kt",
+      "category": "internal_lab",
+      "source_set": "android_play_internal",
+      "feature_owner": "internalcommercial/integrity",
+      "language": "Kotlin",
+      "physical_lines": 69,
+      "sha256": "dbde8d56a1097c154d80d4897719cfc56b76e9f6e9723caa40ab6064f2673cb0"
+    },
+    {
+      "path": "app/src/playInternal/java/io/codecks/internalcommercial/labui/CommercialLabActivity.kt",
+      "category": "internal_lab",
+      "source_set": "android_play_internal",
+      "feature_owner": "internalcommercial/labui",
+      "language": "Kotlin",
+      "physical_lines": 476,
+      "sha256": "dfba9975b0119d743797a6ce2501c65955048f03652ffa241b0e8e15e0a374a9"
+    },
+    {
+      "path": "app/src/playInternal/java/io/codecks/internalcommercial/labui/CommercialLabStateMachine.kt",
+      "category": "internal_lab",
+      "source_set": "android_play_internal",
+      "feature_owner": "internalcommercial/labui",
+      "language": "Kotlin",
+      "physical_lines": 377,
+      "sha256": "7de7abcb3c1d8247abcb7d8c9cf664c2e20c3b6581304986aa60b01e3628765d"
+    },
+    {
+      "path": "app/src/playInternal/java/io/codecks/internalcommercial/privacy/InternalPrivacyAdapters.kt",
+      "category": "internal_lab",
+      "source_set": "android_play_internal",
+      "feature_owner": "internalcommercial/privacy",
+      "language": "Kotlin",
+      "physical_lines": 80,
+      "sha256": "e91511410c6ec1301a54b5df7243763a8709bf110951c18b06c01ffa7c57eab6"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ContextFeatureGatePolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 30,
+      "sha256": "09bc34d4fb391032a97973d5708b06146a5ee8baab2338c57e2fa71a4f1ccda5"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/DexAdaptivePolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 83,
+      "sha256": "bf92a02aef8c66a17670242994b26fd85037876dc3e5e794b0d7b3213d27e1cb"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/HidControllerSafetyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 143,
+      "sha256": "9536a706b3d147cf9f2d84842f7f74ada597cea704260a110dab47949dd60c74"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/HidLifecycleTransitionTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 91,
+      "sha256": "91cb9af6da4d118c098ba56e2fbce15b7fe45b10b5867654475f5b924ba2e6bc"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/HidProcessRecreationTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 124,
+      "sha256": "009a8340d2be9e96d278d7388bedd7aea154801adef94a041f89756482dc7179"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/HidReconnectPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 115,
+      "sha256": "aa69be1f1a5e0a945f0c6d55fd7865f4af2674dd68af4e36ddaeb4366bea61f8"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/HidRepositoryLifecycleTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 111,
+      "sha256": "14917f67a40001135f12b59ebd6aedf9a9917abcd0117aa53daffe98bf588ef7"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/HidRepositoryTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 70,
+      "sha256": "a6579c75ba521435a6b01f587bce0f2367a2dd19a81fc9901fd4826478d0da9d"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/HidSessionServiceOwnershipTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 36,
+      "sha256": "f0bd4d4b7650a033287459b8794344d4c9e187734d2809c85deeb7f0571bacb1"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/HidSessionServicePolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 32,
+      "sha256": "a00bba9f52101eae64c2038fda5912da3d50f2dfcfbc4daaf40657d8ef5c67f2"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/HidSystemEventTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 181,
+      "sha256": "f4ab7f0d3f9f57b19728dcd6aab0d1f27bb678c34331fba91b98f7436c1762d3"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/IntentDestinationPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 110,
+      "sha256": "8a800b9b985d2edfa7446a9c05586c1935aebdc0f1dfb7a54605480a93497597"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/LockscreenInteractionPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "root",
+      "language": "Kotlin",
+      "physical_lines": 57,
+      "sha256": "9644979d0cdc95984728a9996584293ae0509e61f48a51dced24d35a649a3eb1"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/core/actions/ActionRunnerTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "core/actions",
+      "language": "Kotlin",
+      "physical_lines": 360,
+      "sha256": "6f7eea5f4096a9eb6fbbf1b806344daf241e53fe5bbd0616e3a723e6b38d577f"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/core/actions/AiDraftConvertersTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "core/actions",
+      "language": "Kotlin",
+      "physical_lines": 124,
+      "sha256": "01a30711ec65b5a3139a60191daa9204a1eb1c7929a404d66806201651bec2c6"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/core/actions/AiGeneratedContentPlannerTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "core/actions",
+      "language": "Kotlin",
+      "physical_lines": 133,
+      "sha256": "e103f245201b104cc5e80e817d97cf9b19111d0e3c9d6eddce65d8dd4b9649c0"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/core/reactive/DefaultReactiveActionExecutorTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "core/reactive",
+      "language": "Kotlin",
+      "physical_lines": 914,
+      "sha256": "a1ba84d6821160a159c940648a65693ed5f5aaa9471e88373aca5fa4357ad3ca"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/core/trackpad/DeskDockTrackpadLaunchPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 168,
+      "sha256": "aeb331f2abaad9f76978935bc85efd1602ef2d633d8e27e0a957d5fb2089a728"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/core/trackpad/LockscreenTrackpadPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 105,
+      "sha256": "66a774dfe10583ad379f3afda024b3a2b16c00230ab60dce78a1951a9760e92a"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/core/trackpad/PointerDeltaAccumulatorTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 38,
+      "sha256": "7d31b5068d04d5fb4b2c944f852b895ca7166d25213f2292c440f94ea8f43fc9"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/core/trackpad/TrackpadChromeAccessibilityPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 26,
+      "sha256": "b105e194d3fb9152385eb9d401f025b1477a651174d93df06f63c8386065c6a5"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/core/trackpad/TrackpadControlsGesturePolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 17,
+      "sha256": "547b824c24d949a51d7e1d53aa1717aea4e8e9325245ef64fbf6ebe678fbe4c6"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/core/trackpad/TrackpadGestureEngineTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 141,
+      "sha256": "5a4303a1fe258e9fceddca2cfe225c3013fa064943691bcc2d3bca892971b69e"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/core/trackpad/TrackpadHoldPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 20,
+      "sha256": "5e4d04d6ab6c79238aa6d39cb32e3868ab2fef4fe3fbe21f3f8ded597097946b"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/core/trackpad/TrackpadLockTaskPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 34,
+      "sha256": "1df7d823f5b0f70195ba0e8329f31ebcd2884b25e8e273ed836f43544ce3754b"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/core/trackpad/TrackpadMultiTapDetectorTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 33,
+      "sha256": "3f255d81d907446b928b038aafdffb724f7200949050c1dc4c37d02eae61e5c6"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/core/trackpad/TrackpadPrecisionScrollAccumulatorTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 45,
+      "sha256": "7fe8aaa48a0330cfbddad9d2dab0850353f2a009e19dcd4157d151733e49e093"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/core/trackpad/TrackpadSessionPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 27,
+      "sha256": "a6c918ff8f6599d889fbcc9a72b344f2af56199830e221784a816623ecdd581c"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/core/trackpad/TrackpadSettingsTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 30,
+      "sha256": "656d7efece3731d4cd6f1402cdec2e54f928199af774979047a0bf8e1f5ee085"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/core/trackpad/TrackpadTapResolverPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 19,
+      "sha256": "f53d74abd73cfcc0c24ac5851999d8d0fae910a3352d5bb7bb8fdc62d7bcf684"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/core/trackpad/TrackpadTrayOverlayPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "core/trackpad",
+      "language": "Kotlin",
+      "physical_lines": 16,
+      "sha256": "275d62983edd568e5f3aa76131d25dadf1c3f711e2f7dc6170d698fcee7dd0cf"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/BackupArchiveSafetyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/BackupArchiveSafetyTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 98,
+      "sha256": "1019f64dc347effae5c39e81fcf82d7f4b51fc2c103dec281e919465263de062"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/BackupDryRunTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/BackupDryRunTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 112,
+      "sha256": "6e2e2e5963658f82d2a4bbebb2b91c94c83316ace156e0eab8a8b6a3796a3f67"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/BackupManifestCompatibilityTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/BackupManifestCompatibilityTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 159,
+      "sha256": "3ed572dd2d89b5aba7c5f6947213f48be5359f874c4ccf333a1fdf937f4db383"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/BackupMigrationTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/BackupMigrationTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 46,
+      "sha256": "ca89f149acaed58da45a4425e4a7a95c77aa895e75b541ee9d3afc9f89766949"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/BackupPlanBindingTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/BackupPlanBindingTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 50,
+      "sha256": "af113ecd69db6a45159bc7fd2e11f9aa2d37735e98592792178a57d826fab3d9"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/BackupRecoverySafetyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/BackupRecoverySafetyTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 204,
+      "sha256": "a4c499defcda2a7e06b30f57de86ada086aab255cedb80e969cceae881391a15"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/BackupRollbackFailureTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/BackupRollbackFailureTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 45,
+      "sha256": "c5faaeffe9430c5b2f45aa2b3c784bf947f2dd339fefc0b236cc36419cf2d05f"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/BackupTransactionalRestoreTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/BackupTransactionalRestoreTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 70,
+      "sha256": "b300aa38464038b33d719cb05f632ce227fb33f742bbb0ae1d50e8aea4a35c2f"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/CodecksBackupRepositoryTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/CodecksBackupRepositoryTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 105,
+      "sha256": "1ebcde3c8d5d825192bb49eb52d0e708eef56a7f3348f4698ccfbb870b761c4e"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/ConnectionTargetIdentityMigrationTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/ConnectionTargetIdentityMigrationTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 190,
+      "sha256": "0ec5e53218cbfb9d42e44e0524a6bd1cf5a3e262e2537aa3db53d99d906106b9"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/MacAvailabilityClassificationTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/MacAvailabilityClassificationTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 69,
+      "sha256": "0928c292ecf2ae1deb4337eac064260554c70b12ae29c9255aedc3df3c4f6142"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/PersistedTargetSelectorMigrationTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/PersistedTargetSelectorMigrationTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 111,
+      "sha256": "6c33eb8030e84eba098043a1b3adb94f8741c32b063211f377ccaff2c01d911e"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/RawCommandPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/RawCommandPolicyTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 124,
+      "sha256": "ffee3647c45f3cd333ed20475df05a3b4b05e61fdcaa942301029a1ec7f5ee1e"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/ai/AiArtifactJsonCodecTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/ai",
+      "language": "Kotlin",
+      "physical_lines": 134,
+      "sha256": "e9f723800338b40e092eaddebc7704d6eaa8e4f695279808b3b6b3e122c8a0a0"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/ai/AiCreatorV2LiveEvalTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/ai",
+      "language": "Kotlin",
+      "physical_lines": 390,
+      "sha256": "c4cfc6ef0cec1e103b234aab54325bfbc74daf92974f824807b662f61a1482a2"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/ai/AiDraftSchemaV2Test.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/ai",
+      "language": "Kotlin",
+      "physical_lines": 48,
+      "sha256": "7d56946d9aece2465005fe7c9515201a7a67998112d40d2f5ee2d03dc444eeb2"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/ai/AiGenerationHistoryJsonCodecTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/ai",
+      "language": "Kotlin",
+      "physical_lines": 62,
+      "sha256": "8c917e59578cc2b0450769359b9b098ee03ff1bc9311b8069e7dd70672e93761"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/ai/AiProviderContractTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/ai",
+      "language": "Kotlin",
+      "physical_lines": 385,
+      "sha256": "0f55a4b960980966bd9bd14f253b2f7f02a0dabd11ed56d1d29dda70d0111658"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/ai/BundledActionCatalogContractTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/ai",
+      "language": "Kotlin",
+      "physical_lines": 45,
+      "sha256": "181dfb3b6294d43d8d802635ea85f42f7a3a10672197f5a3de20b248a7af7eac"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/ai/FakeAiProvider.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/ai",
+      "language": "Kotlin",
+      "physical_lines": 43,
+      "sha256": "b275d246f4122fa35066cd9087d52451d7f207cafbd044f29572eedf76fac6b8"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/ai/LiveAiProviderEnvTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/ai",
+      "language": "Kotlin",
+      "physical_lines": 30,
+      "sha256": "60bd371011b514470c9ca00ee6df3f2a9ab5a48650e365d8cf0bb8094a831468"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/automation/AutomationExecutionCoordinatorTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/automation",
+      "language": "Kotlin",
+      "physical_lines": 107,
+      "sha256": "fb290e118160e61d4e47019087a8b17449db7e3397f818e2935b58fe989e9d6f"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/automation/AutomationQuarantinePrivacyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/automation",
+      "language": "Kotlin",
+      "physical_lines": 23,
+      "sha256": "315d7757d8ac4fe5d88412ecef602f6dd1bb14a715573e8a07c8ce2c23eba7c1"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/automation/AutomationRepositoryEnablementTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/automation",
+      "language": "Kotlin",
+      "physical_lines": 90,
+      "sha256": "1767f231b56a905d4b62f36881351ce9778c013ffbd6211af469486a721ea775"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/automation/AutomationTriggerWorkerSafetyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/automation",
+      "language": "Kotlin",
+      "physical_lines": 275,
+      "sha256": "a67dfa941f734c21b6979e58f62c314c96a5e77e170db7ae59895a8a8bd2fca9"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/automation/DefaultAutomationTriggerEngineTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/automation",
+      "language": "Kotlin",
+      "physical_lines": 276,
+      "sha256": "222c13ad85654284206a4a31cdf28099f41455fc2f3b7ec13510c2250aa5526a"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/catalog/BundledProductCatalogTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/catalog",
+      "language": "Kotlin",
+      "physical_lines": 101,
+      "sha256": "c26b5217728419ba1582f979c6cc4ebb75a00820cb5170e174812f7e37dee1c2"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/clipboard/ClipboardArchitecturePolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 23,
+      "sha256": "4a1a020f13a119d537833f8f604afbd4f6315ef839b0a7468f090255c7f31e69"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/clipboard/ClipboardBackoffTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 19,
+      "sha256": "6009f0e62c54d27fd0519327ecef972d6faabcfd21023376ab723d5c6a9ddfe7"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/clipboard/ClipboardBatteryPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 34,
+      "sha256": "e289117d205bed5aa6160a12618db20b55de112ee502cfc0782d5421c302d1eb"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/clipboard/ClipboardLastSyncPrivacyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 46,
+      "sha256": "1215be5e55089cca62c19cd7fc9451a3163741a5791f3c20cf279b72e8d727c3"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/context/NotificationPrivacyPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/context",
+      "language": "Kotlin",
+      "physical_lines": 120,
+      "sha256": "dafb0fc27a79e990d463989a8bdb89f331abd52f3f2556ac15fc9ebc9843ed40"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/device/LocalDeviceRepositoryTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/device",
+      "language": "Kotlin",
+      "physical_lines": 54,
+      "sha256": "073d61996d102812bd2346b2cd7b301e10d17660f673db2cd1da1c5dbf9571a2"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/privacy/DiagnosticEventStoreTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/privacy",
+      "language": "Kotlin",
+      "physical_lines": 120,
+      "sha256": "9aa0abea479925c800d653a6a1c237a19932cab8e8ffab028681472a6300fb5f"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/privacy/SupportBundleBuilderTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/privacy",
+      "language": "Kotlin",
+      "physical_lines": 135,
+      "sha256": "bbe79599fe238ea940960aa351de5cf42c43973fa79c9cd4d583936999cac479"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/privacy/SupportBundleShareContractTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/privacy",
+      "language": "Kotlin",
+      "physical_lines": 25,
+      "sha256": "d6523b228568c42c06aa01ee9aebba893108fc7f78ec0e71cd0ec5265282ca8d"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/privacy/SupportBundleTempFilePolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/privacy",
+      "language": "Kotlin",
+      "physical_lines": 51,
+      "sha256": "367bef364ce9a2a71c4f547de56dccf64ec0a996fb07371b5469004b7a3ac01e"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/reactive/LiveMacStateRepositoryTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/reactive",
+      "language": "Kotlin",
+      "physical_lines": 444,
+      "sha256": "63426bf5a5e3726db5d003da829137789ee34297ea3870f1f6d65a3ec58a340c"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/reactive/helper/ReactiveHelperPairingImporterTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/reactive",
+      "language": "Kotlin",
+      "physical_lines": 100,
+      "sha256": "1279000925877c18ab09d2147254de11833f3e0493ad64b55e5dc1b822bc67af"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/smart/SmartAppActionMappingsTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/smart",
+      "language": "Kotlin",
+      "physical_lines": 117,
+      "sha256": "c83700e5e10053be95156f591e3dc8e258faaf630b5090fa1e9da890c5ab6296"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/smart/SmartLearningCodecTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/smart",
+      "language": "Kotlin",
+      "physical_lines": 424,
+      "sha256": "9919af87ebd9e5397a87989191c9be083c866d81f2a1c0fb21fe061c6d228d90"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/update/GitHubUpdateRepositoryTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/update",
+      "language": "Kotlin",
+      "physical_lines": 194,
+      "sha256": "10f85c4079a9ba1410af3ea55bc961df397e553b3d7ef0e940279b4ebc276bdf"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/data/update/UpdateManifestPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "data/update",
+      "language": "Kotlin",
+      "physical_lines": 22,
+      "sha256": "d8f047d254051517678d7914ee0f6c3a39b5747df8f0b3c4614a06ae54aa44e7"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/LocalActionCapabilitiesTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/LocalActionCapabilitiesTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 89,
+      "sha256": "a871688fe6a26cf9b21c0bd82829533bd940db9cc95b4e1157f95a47688914ee"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/LocalActionResultTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/LocalActionResultTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 25,
+      "sha256": "548bc7bf1e972a5c3577b6f91bedc4c530849c17683cdeaf4334e54ab28e99e4"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/SmartSuggestionSafetyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/SmartSuggestionSafetyTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 52,
+      "sha256": "a76fdace03b3dae8cf0a50e9b47c2b6e6763d82578e575e1d524792e73e1f279"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/ai/ActionDraftValidatorTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/ai",
+      "language": "Kotlin",
+      "physical_lines": 94,
+      "sha256": "d1eebc9991c16e6560d79936bfa23b5d6403e59f4dd7d29b69ee7e5a83373e50"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/ai/AiBuilderV2RepairTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/ai",
+      "language": "Kotlin",
+      "physical_lines": 201,
+      "sha256": "bae61d84209c7293e7b446c3a64525de8b8a39b3bc52c96dc1e5a43f67863a26"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/ai/AiCreatorV2AdversarialTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/ai",
+      "language": "Kotlin",
+      "physical_lines": 196,
+      "sha256": "b948faad389d4f23d922f4ac2a93cd3101381fae57dd1760175b358828f6e083"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/ai/AiCreatorV2EvalCorpusTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/ai",
+      "language": "Kotlin",
+      "physical_lines": 26,
+      "sha256": "4e74e881b80ea97df5a8f34374d427e12541087f9c3fd94b96035a5485e36ba6"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/ai/MacVisualEffectCatalogTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/ai",
+      "language": "Kotlin",
+      "physical_lines": 28,
+      "sha256": "76a4e91ba0da98321e528f141158fbcf711b12b7b651644f09fba9a5236f5775"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/ai/StructuredDraftParserTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/ai",
+      "language": "Kotlin",
+      "physical_lines": 97,
+      "sha256": "e6cc08147de0ff64177069519a184e75476d3d7cde95055a5a04359fd38390b0"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/ai/StructuredDraftParserV2Test.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/ai",
+      "language": "Kotlin",
+      "physical_lines": 270,
+      "sha256": "5639370e0fadb434890f24e75b77916eaec2bf0378a5aadc0228f28d0af98942"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/automation/AutomationCapabilityPreflightTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 107,
+      "sha256": "c71a49e937375eaa21ab5213e8f27dd1626748c9af04bf6f3c98eff0e285f6e9"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/automation/AutomationCatalogTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 19,
+      "sha256": "4590d410ec167aec6f5552e1c6ca96f04a9887d2ba991a0afde7fcb4ac86b3c0"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/automation/AutomationCleanupRecoveryTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 201,
+      "sha256": "46ae7fac8be2b9fd605a5ca27c5560e6f5f07cc652a6d8212bf903e91879d3d4"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/automation/AutomationConnectionIdentityTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 31,
+      "sha256": "8e03796e541f064d1db30a1c2c59b47e65ea341209947e099aec5f3c77c2761a"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/automation/AutomationExecutionEngineTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 105,
+      "sha256": "6dff27d74fb83fd6ee2eeb46b7c8e6e949814bde13280861e4f50a37bb42894c"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/automation/AutomationExecutionPlanTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 158,
+      "sha256": "df61c86d41c1b8c299d473e6d4546cb00049a79f19eb9d00a6d87e3788de2e62"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/automation/AutomationLiveTestEngineTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 225,
+      "sha256": "bc07db5309215d11a6083a8fd663c4959232d5dbf0dc69b2482396b6a29394ea"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/automation/AutomationPreflightIsolationTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 28,
+      "sha256": "4479179fe801e326d2d48d84785555cbcd2461bd2bdd5c31779aa09e906c5797"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/automation/AutomationRevisionGateTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 167,
+      "sha256": "60ed3895e6e1c0c916af656dc14a6963bdbd93bf7f34d69f40946b9639b78ae0"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/automation/AutomationWorkerEligibilityTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/automation",
+      "language": "Kotlin",
+      "physical_lines": 173,
+      "sha256": "0f3cc8d359eb0719b398fea5627f07098ffa4380374110fd64ff2c03b0ff6db9"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/catalog/CatalogInstallEngineTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/catalog",
+      "language": "Kotlin",
+      "physical_lines": 325,
+      "sha256": "b4e56a7d45632e530b24f6ef386f0a123fdd3ade342c4c909cace37ef87ec846"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/catalog/ProductCatalogArchitectureTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/catalog",
+      "language": "Kotlin",
+      "physical_lines": 42,
+      "sha256": "b0af3ed3254a89ae55a6e9fd814352f8847f66e98a72c3095faa7d29f44b5339"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/clipboard/ClipboardConflictResolverTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 43,
+      "sha256": "2aa1fa9443d5e41f0725b1b19d5f90903a4df3f0ab2e1ab824900ca7e03db7aa"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/clipboard/ClipboardContentGuardTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 27,
+      "sha256": "d4fefb2bf4ab07edacad104a77cc5ce816e54c0637a52cb7cc4f3c97f66ecbeb"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/clipboard/ClipboardProcessRecreationTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 26,
+      "sha256": "3b908a4b4a051dcc970568dbee77d8bcff02e355a963b5d853a9c77f58b13ca4"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/clipboard/ClipboardReceiptTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 55,
+      "sha256": "308d80a0c2568d6c89ea1ad2e9d058f1efa4bc5300d9aeb31fb0644448c2ef4f"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/clipboard/ClipboardSelfEchoTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 57,
+      "sha256": "53926c072e13d6e73f6192a9dd9d8677fd30b358c4f940c78b2d77ca5adba3d9"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/clipboard/ClipboardSessionLifecycleTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 90,
+      "sha256": "f8a94ce2ae0a6ff4b085e15762384d6fd496368ea73528980329dbe4036ccdc7"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/clipboard/ClipboardSyncEngineTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 135,
+      "sha256": "88e2f8bcc700bd533a36fa127b21d389b191b55c40df4b5687aaa8c6be43e715"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/commercial/CommercialExecutionPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/commercial",
+      "language": "Kotlin",
+      "physical_lines": 158,
+      "sha256": "5351d592178e161da1141f3f1f3b045562fd19a06a36890a3fbc6813de2cffd0"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/commercial/CommercialServiceArchitectureTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/commercial",
+      "language": "Kotlin",
+      "physical_lines": 108,
+      "sha256": "defe7569d28e5980b5e689c36755bdcba63e452c060d655eabf54e5edc631759"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/commercial/CommercialServiceContractsTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/commercial",
+      "language": "Kotlin",
+      "physical_lines": 211,
+      "sha256": "0c0a8debf556649ef7943a540bd4fbf948d0e489e9ed45716cd7c5c86b6c7e2d"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/commercial/PlayReleaseCommercialAdapterArchitectureTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/commercial",
+      "language": "Kotlin",
+      "physical_lines": 49,
+      "sha256": "cc4d241e4bf1a7f902698b26eb306781af6e5da3ba0a5ad1acc7a2d6decd9f9e"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/connection/ConnectionIssueContractTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/connection",
+      "language": "Kotlin",
+      "physical_lines": 134,
+      "sha256": "a0102ae34eca53a89919a1551543358303fad5ea0bba2b7454a12be45e735353"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/connection/SshSetupPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/connection",
+      "language": "Kotlin",
+      "physical_lines": 136,
+      "sha256": "9c344e60e19b8138a44460428cebdc62b6ae1f3cbcaf26750ad3292b5f43df67"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/deck/DeckLayoutTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/deck",
+      "language": "Kotlin",
+      "physical_lines": 58,
+      "sha256": "775a4e654efd643095416e42a0f53860c35cbe676db9a4bcc3bbec55ee71379d"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/deck/LegacyDeckLayoutImporterTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/deck",
+      "language": "Kotlin",
+      "physical_lines": 60,
+      "sha256": "3f38cc49ddaeefce1aa31621c0c1440c5825e18da80b65db36569c60f19d80d7"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/device/TargetSelectorTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/device",
+      "language": "Kotlin",
+      "physical_lines": 86,
+      "sha256": "1ec5e4c943d1ba6bc31157863282fbbb60853b30a8bd74371b5bc950f5a613b1"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/execution/BoundedParallelExecutorTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/execution",
+      "language": "Kotlin",
+      "physical_lines": 115,
+      "sha256": "a40792825e4828dda554f7ee1389480bb825de41224d7cb51d12cfbd430434ce"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/execution/ExecutionPlannerTargetAliasTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/execution",
+      "language": "Kotlin",
+      "physical_lines": 50,
+      "sha256": "2c6569adbc3d50e8db885a720b70ea2f66209ffe29150106eaa609a5885079f1"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/features/FakeFeatureRepositories.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/features",
+      "language": "Kotlin",
+      "physical_lines": 22,
+      "sha256": "8dc308fcce94005d176cc4976184937821a1b042328bfdbf8c1806653c9bea1a"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/features/TypedFeatureFlagRegistryTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/features",
+      "language": "Kotlin",
+      "physical_lines": 182,
+      "sha256": "a7c3b18a95e14075ea6570fad955b856ac2e84c8d6f1e481eb2fd142d5fb0a3a"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/observability/TelemetryPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/observability",
+      "language": "Kotlin",
+      "physical_lines": 28,
+      "sha256": "5603870930098c0a66855fbe6a9bf09f634aaa5299d7d553a33ba973a402f3fe"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/privacy/DiagnosticEventPrivacyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/privacy",
+      "language": "Kotlin",
+      "physical_lines": 80,
+      "sha256": "79c7700095867580b68e53d5b8308771c4a211826591a3cb2407949ce0b1a3fc"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/privacy/DiagnosticRedactorTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/privacy",
+      "language": "Kotlin",
+      "physical_lines": 61,
+      "sha256": "dd839b5456609a6437f3b27137c9cf70f64e9a834679b3a87862742f52f238cd"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/reactive/MacCapabilityAdapterModelsTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 83,
+      "sha256": "b7f373d5705fe23a213d22ede37f49fe651ac0f7b0f75751a17f87213764d78d"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/reactive/MacStateModelsTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 56,
+      "sha256": "d5bfd546ab9573a67e59b0583bac75c44ba432d7d57fb92b21626415075df257"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/reactive/ReactiveEngineTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 303,
+      "sha256": "994eae3bc1cc6a6768de649085addb856e42bfcf9d84dc506eaf6c19cee8d824"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/reactive/ReactiveProfileEngineTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 150,
+      "sha256": "1e41b7fba9577ec53665380cb2aac26fed69d79651c64eb2c790b34ed38bfd87"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/reactive/ReactiveProfileResolverTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 103,
+      "sha256": "ec26fab9fd06f91d813d3de943021db6ed22bb0e05b5f38c059688d40e69dbf1"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/reactive/SpotlightSftpModelsTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 92,
+      "sha256": "c6f7d60c6db5f926ead9ad70534db8021de9c4a9fe0cd3594af31b7cbca29476"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/reactive/deskdock/DeskDockScoringEngineTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 185,
+      "sha256": "74b0dc9db3bff532a225c55e96cf2db07311a1a8f0ebeea0699871da2a4e6dfb"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/reactive/providers/ActiveAppReactiveControlProviderTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 163,
+      "sha256": "a972d7a6b10c42d926d2671440400eb62d90e621848d11ef448ac7863944d639"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/reactive/providers/MacCapabilityReactiveControlProvidersTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 175,
+      "sha256": "4b89a5d55f7d7142bb81daa4228c0a5ad1e447079fb4f9261b2ba1635f5aedef"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/reactive/providers/ReactiveStateControlProvidersTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 254,
+      "sha256": "1c12517af1d990b296b86881c1c0ffcb26445f1b42e6b84718bd208167c664d1"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/reactive/providers/SpotlightSftpReactiveControlProviderTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/reactive",
+      "language": "Kotlin",
+      "physical_lines": 143,
+      "sha256": "3b48303de84e268e59fc5928f8a61272e32ed0beb33b1b998672da373d354522"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/smart/DeterministicSmartEngineTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/smart",
+      "language": "Kotlin",
+      "physical_lines": 313,
+      "sha256": "b477ce48d59156b467134e2c0e2200eb44214b4549d88012c0489f474f12dc13"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/smart/SmartModelsTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/smart",
+      "language": "Kotlin",
+      "physical_lines": 20,
+      "sha256": "7039a80365999bffe62ebe5469b0bf405a8d49633ffb3c9c9f20c33c2bafc265"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/smart/providers/SmartCandidateProviderTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/smart",
+      "language": "Kotlin",
+      "physical_lines": 403,
+      "sha256": "769d837d2234e9a982c3996b9735b28b56fa4541e88a1567e2169314d91a102b"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/sshpack/SshActionPackTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/sshpack",
+      "language": "Kotlin",
+      "physical_lines": 129,
+      "sha256": "6c5bf93d7942a4156ee6241cc0bdc4ad85004eba12b45e417072f202b1e472e8"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/update/UpdateIntentPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/update",
+      "language": "Kotlin",
+      "physical_lines": 24,
+      "sha256": "40fc0492b462ca9ad5e7eae4605cac01609787046406404013800c9fbe57ffa3"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/update/UpdateSourcePolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/update",
+      "language": "Kotlin",
+      "physical_lines": 43,
+      "sha256": "9994dd857eacb566646a0ff31ad9e5b014c3bcb4446bbd27d84231dd931cfddb"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/update/VersionComparisonTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "domain/update",
+      "language": "Kotlin",
+      "physical_lines": 28,
+      "sha256": "0a714519d6cb8d8034ea9133998b3a75025bcf0cae13e52027435b21e22e7dfd"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/platform/helper/ReactiveHelperClientTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "platform/helper",
+      "language": "Kotlin",
+      "physical_lines": 221,
+      "sha256": "c83150fb60ff0c48b2b71398cd4cb61b82f2b87eb4be36f59d2003c2a11e0378"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/platform/helper/ReactiveHelperContractsTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "platform/helper",
+      "language": "Kotlin",
+      "physical_lines": 34,
+      "sha256": "a5d8d1a9dd9324807c48df6c1c3b450fe85fae29f3a182a8bc849ff8d7101aab"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/platform/helper/ReactiveHelperLiveSmokeTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "platform/helper",
+      "language": "Kotlin",
+      "physical_lines": 51,
+      "sha256": "2c9ff6882102b04fa9aa071dd1df2dc6f92492f76a4ad5aa562c359244cddb6a"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/platform/helper/ReactiveHelperSessionManagerTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "platform/helper",
+      "language": "Kotlin",
+      "physical_lines": 267,
+      "sha256": "f6063e3f367f160b1292688226802977d84930d732305204df7e1c73f6f47034"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/platform/helper/ReactiveHelperTcpTransportTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "platform/helper",
+      "language": "Kotlin",
+      "physical_lines": 100,
+      "sha256": "b02cbebcd5f8c7f7f30816dbfa9a89d8f39699794c623b92faaf454d067061a0"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/protocol/ActionProtocolJsonCodecTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "protocol/ActionProtocolJsonCodecTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 89,
+      "sha256": "4b5376a59c641eb73b1c3c6ad40f32e8f271cc00bd8c6bda64f8c8af0a6c1d64"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/protocol/InMemoryActionReceiptStoreTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "protocol/InMemoryActionReceiptStoreTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 47,
+      "sha256": "d1d7eabe0cb2a46bfef2376ac0e6892a6915cb7bb19b90230cb8118edbd97a57"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/ai/AiDeviceCapabilitiesTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/ai",
+      "language": "Kotlin",
+      "physical_lines": 47,
+      "sha256": "2dd5efc0df0f8ca1d95ac7958475e41bfc0c1ce8955e9e489af7625746280569"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/ai/AiLocalCommandRouterTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/ai",
+      "language": "Kotlin",
+      "physical_lines": 59,
+      "sha256": "2b1f6dd0efc15575edb8a1b1a5934cb21ca289793f1c2e3b32d785d18ee1eb8e"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/ai/AiProviderSettingsControllerTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/ai",
+      "language": "Kotlin",
+      "physical_lines": 499,
+      "sha256": "76dcd029733ff9ff14b3aba6748b472d0c6392e8fc30a05f77b43a857bbbf6c9"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/ai/AiWorkspacePlacementPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/ai",
+      "language": "Kotlin",
+      "physical_lines": 23,
+      "sha256": "157d5e66857d7a0d2adf6df6ef37aa9dfffc7b0174f6c11a932f06c89bdaeafa"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/app/AccessibilityCriticalFlowPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/app",
+      "language": "Kotlin",
+      "physical_lines": 46,
+      "sha256": "d04415a0d4c3c1263c776069e00b8fa9fe4ec8f541c6c962bf3455dd910257ef"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/app/AccessibilityPrimitiveTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/app",
+      "language": "Kotlin",
+      "physical_lines": 108,
+      "sha256": "43641f8b9b97389abef39556409eaaeccd18f92cc4edaaa12f2634d83ebc0153"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/app/AppNavigatorTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/app",
+      "language": "Kotlin",
+      "physical_lines": 139,
+      "sha256": "b1cd28ab3503f8e147be6d8cf3d1740a1b06dcd0c29a65d895e4ff36225c1c13"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/app/ContrastTokenTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/app",
+      "language": "Kotlin",
+      "physical_lines": 110,
+      "sha256": "37ab0e07e86fc13023f788989ee1e57707a54fe663e25c2b2b06c254d7b56430"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/app/KeyboardNavigationPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/app",
+      "language": "Kotlin",
+      "physical_lines": 65,
+      "sha256": "b92245c4e56522bc8d776bb385377224ef6152d7c9ed9a6b8dfb4bf687dbc05a"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/app/LocalActionDispatcherTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/app",
+      "language": "Kotlin",
+      "physical_lines": 161,
+      "sha256": "7f45c0fe1ce90579e41aa41c37e1ad42aa59d4e5d432119f9b42884da317f7cf"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/automations/AutomationsUiRecoveryTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/automations",
+      "language": "Kotlin",
+      "physical_lines": 26,
+      "sha256": "f51da197a7a7e41eaf2d8606af4c8a07df7c2c32a5f9f8cf316e188a009042ed"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/automations/AutomationsViewModelTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/automations",
+      "language": "Kotlin",
+      "physical_lines": 878,
+      "sha256": "29cf36bd8d15c2c797bb83f601c03561deb2ffcb125aec69e7a680f29c77eb8b"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/clipboard/ClipboardStatusPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/clipboard",
+      "language": "Kotlin",
+      "physical_lines": 133,
+      "sha256": "73726fbc84671077715c22333da8c5842bb88e824c35269670f5e3978b2bbca2"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/connection/BluetoothSetupStatusTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 98,
+      "sha256": "783938ebe0608e5d574d1d13d06b8a6d60c2ebe28dfeeb51bc8a6b84b289b81a"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/connection/CodecksReadinessTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 36,
+      "sha256": "a0748527d9fab038401eb9076cc3ca9f8d198155e5571a01f0daccfd93e1d4fd"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/connection/ConnectionDiagnosticPresenterTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 127,
+      "sha256": "f996f2b07b8a488bda4b366303f1aea0c1fcbe6987384b385de9ce4c58743e47"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/connection/ConnectionHealthTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 168,
+      "sha256": "8c5c61de9b2ef94bd0234819ebbd951a78ff8186cd6cd7b149115c0eaa3ba590"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/connection/ConnectionUiRecoveryTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 33,
+      "sha256": "8133e9d34d03b35035bce14e5bfba643960b31f5da4d1798cd4e9be2748a54dd"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/connection/ConnectionViewModelTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 381,
+      "sha256": "c9eb3cb55ac45c606a5cb5f5dbbb2d1a8c0cc47e8bf7abaee7bbd934bf40e7e7"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/connection/HidHealthTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 119,
+      "sha256": "2d27f0cd117d44f60d5ac48083556c0903c49ca62e6a0368bb8a5415a7505cd3"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/connection/SetupCompletionTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 196,
+      "sha256": "e7f72dcb416f9a3c8b807b39dd8d742e8faf3a3b84199e351d2a8555cf93e094"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/connection/SetupSnapshotPersistenceTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 147,
+      "sha256": "18fd3ca98236fa6ee8a19e8a8d538e560f2f48a9a57af23020678741b8fca939"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/connection/TerminalProofExecutionGuardTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/connection",
+      "language": "Kotlin",
+      "physical_lines": 104,
+      "sha256": "fee310636bc3b1e53b81b6eed8ec56863e2875f7a9fc7203cfc50acd0b908309"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/home/HomeScreenBehaviorTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/home",
+      "language": "Kotlin",
+      "physical_lines": 88,
+      "sha256": "1697c2734ccf4ad7b7efab19aa8a4113844e4a19f61c8cef2076c69f54fb5b50"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/home/HomeStatusFeedbackPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/home",
+      "language": "Kotlin",
+      "physical_lines": 80,
+      "sha256": "26557b91d66a5c3f4c3c4421133e32afa3db7b54491cfec98099fd7022ac7430"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/home/HomeViewModelTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/home",
+      "language": "Kotlin",
+      "physical_lines": 808,
+      "sha256": "d9584362bf06e52245d0bcd77fb6b5f5ef171090962594d27dc6e6f11c9dd9c2"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/home/smart/SmartDeckModelsTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/home",
+      "language": "Kotlin",
+      "physical_lines": 30,
+      "sha256": "50f55aebb724f0ed71c2b1cf63fe2500b73e6856c776f936f047bd011b74e827"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/home/smart/SmartDeckViewModelBehaviorTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/home",
+      "language": "Kotlin",
+      "physical_lines": 523,
+      "sha256": "6d6343630b2b5d8a1dc8146d84c143d537ffb3d9657daf364a40938983036832"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/home/smart/SmartDeckViewModelSourcePolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/home",
+      "language": "Kotlin",
+      "physical_lines": 35,
+      "sha256": "181d1660e582af5f63621c372ca469ed8e0836573dfbe0c52bef2140d8b69d00"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/keyboard/KeyboardScreenPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/keyboard",
+      "language": "Kotlin",
+      "physical_lines": 19,
+      "sha256": "60e6ed7cd59c25fc9d5f20e7d8ed61d60f02289a5acc03a2d526c59080c2969e"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/keyboard/KeyboardViewModelStateTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/keyboard",
+      "language": "Kotlin",
+      "physical_lines": 23,
+      "sha256": "6be94924f5793eb42b38caa6a45c7aeb1116c77a34e62168d5b304b94bdf677a"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/keyboard/KeyboardViewModelTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/keyboard",
+      "language": "Kotlin",
+      "physical_lines": 207,
+      "sha256": "fca2b39d254b84c6c4115162a2c59c4ff21b08ba1fd006a0f6dd61d40d1d4e8e"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/mouse/lockscreen/LockscreenReactiveExclusionPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/mouse",
+      "language": "Kotlin",
+      "physical_lines": 29,
+      "sha256": "ec3f9521215328de1f9623f2271ee41d5a7f1007a4abc9451cb06cc7fe29ff60"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/mouse/lockscreen/LockscreenTrackpadActivityPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/mouse",
+      "language": "Kotlin",
+      "physical_lines": 26,
+      "sha256": "f7abe6e39d1d086449ac7ecbb29d0d224000b084488a1b3c66c358711f7eea1f"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/mouse/lockscreen/TrackpadEntryActivityPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/mouse",
+      "language": "Kotlin",
+      "physical_lines": 61,
+      "sha256": "433960e254cee6d6784c72db16e3409ddd03ac010d1c61ee54b8ded56172f0e6"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/mouse/reactive/ReactiveTrackpadPresentationTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/mouse",
+      "language": "Kotlin",
+      "physical_lines": 129,
+      "sha256": "4b6e1445263ca558541f297719e94a921b7b70380e5b79489894bf4f57c270d8"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/mouse/reactive/ReactiveTrackpadViewModelTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/mouse",
+      "language": "Kotlin",
+      "physical_lines": 346,
+      "sha256": "9eefa3004956cc22cdfe3475dda2c2889b1605360ba93844729d736d9a5a7dd6"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/settings/CodecksHelperUiStateTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/settings",
+      "language": "Kotlin",
+      "physical_lines": 88,
+      "sha256": "0b28ce94414e45d2819c0ec38ab14baf6c319e89e996395118c0f0df3559e22b"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/settings/DeckStyleGalleryPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/settings",
+      "language": "Kotlin",
+      "physical_lines": 22,
+      "sha256": "244ff1cecc58b637ade70b1ce717b1d6eba6db89cf51ec578c73c74d09f26267"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/settings/FeatureFlagPanelPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/settings",
+      "language": "Kotlin",
+      "physical_lines": 21,
+      "sha256": "5192b7888a6dae2cfcc5c61d26adce559b57e7819454babc5615f0fae9923175"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/settings/SupportBundleViewModelTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/settings",
+      "language": "Kotlin",
+      "physical_lines": 304,
+      "sha256": "9aa644e05f29ecc5643cb8715694b0abe3ab9f984cb9ec927d57d8d2ecd0f3e8"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/settings/UpdateSettingsViewModelTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/settings",
+      "language": "Kotlin",
+      "physical_lines": 181,
+      "sha256": "d00a9f227ed64b8fed6623b1700af0fa17e7c8c97a5cd5529bf5fdf4492339ca"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/ui/theme/ThemeSettingsResolutionTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "ui/theme",
+      "language": "Kotlin",
+      "physical_lines": 96,
+      "sha256": "d85e4a2402fbb43bee3666ddba7ccb3e6e4234cf2ab51b35857aa25ed5428936"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/widget/TrackpadWidgetProviderPolicyTest.kt",
+      "category": "tests",
+      "source_set": "android_test",
+      "feature_owner": "widget/TrackpadWidgetProviderPolicyTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 15,
+      "sha256": "60d8e9c55e65abcc49c2ff0b84403e398a76104e10a1b5fe5e9b53f650fd594f"
+    },
+    {
+      "path": "app/src/testPlay/java/io/codecks/commercial/PlayProductionDarkAdsPrivacyTest.kt",
+      "category": "tests",
+      "source_set": "android_testPlay",
+      "feature_owner": "commercial/PlayProductionDarkAdsPrivacyTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 82,
+      "sha256": "69f92a281766c6d29f3650832f3a957583d5c0f1d01418d4d9bee11f85d56684"
+    },
+    {
+      "path": "app/src/testPlay/java/io/codecks/commercial/PlayReleaseCommercialAdaptersTest.kt",
+      "category": "tests",
+      "source_set": "android_testPlay",
+      "feature_owner": "commercial/PlayReleaseCommercialAdaptersTest.kt",
+      "language": "Kotlin",
+      "physical_lines": 37,
+      "sha256": "09c7690f425bb2156b91549df17f86e0d7eaa918143b8b9d7af960594b7d2df3"
+    },
+    {
+      "path": "app/src/testPlay/java/io/codecks/commercial/auth/ProductionPlayCommercialAdaptersTest.kt",
+      "category": "tests",
+      "source_set": "android_testPlay",
+      "feature_owner": "commercial/auth",
+      "language": "Kotlin",
+      "physical_lines": 124,
+      "sha256": "2958a011fe0e0924148207535505571bbaca4978358d870d8422d8fbf69abbc6"
+    },
+    {
+      "path": "app/src/testPlayInternal/java/io/codecks/commercial/auth/PlayInternalAccountAdapterTest.kt",
+      "category": "tests",
+      "source_set": "android_testPlayInternal",
+      "feature_owner": "commercial/auth",
+      "language": "Kotlin",
+      "physical_lines": 395,
+      "sha256": "e0f26a9b5179c5fb4a7149bda297e06e250ac35183a142f5ce9f2eae6befb5d0"
+    },
+    {
+      "path": "app/src/testPlayInternal/java/io/codecks/commercial/sync/PlayInternalSnapshotAdapterTest.kt",
+      "category": "tests",
+      "source_set": "android_testPlayInternal",
+      "feature_owner": "commercial/sync",
+      "language": "Kotlin",
+      "physical_lines": 394,
+      "sha256": "9012e99eaec7f33d5d9480a143514a8a6fffb071de656c10878e4bf121baae9b"
+    },
+    {
+      "path": "app/src/testPlayInternal/java/io/codecks/internalcommercial/ads/InternalAdsAdaptersTest.kt",
+      "category": "tests",
+      "source_set": "android_testPlayInternal",
+      "feature_owner": "internalcommercial/ads",
+      "language": "Kotlin",
+      "physical_lines": 185,
+      "sha256": "3713379135e90dedf632e7c692f1f44a6a61eb96bb507ed9940557359b599245"
+    },
+    {
+      "path": "app/src/testPlayInternal/java/io/codecks/internalcommercial/billing/InternalBillingSandboxTest.kt",
+      "category": "tests",
+      "source_set": "android_testPlayInternal",
+      "feature_owner": "internalcommercial/billing",
+      "language": "Kotlin",
+      "physical_lines": 481,
+      "sha256": "dc380e360d8b5aac92316d4d82180dd034446b8ee6381d4807c8952ed960ca3d"
+    },
+    {
+      "path": "app/src/testPlayInternal/java/io/codecks/internalcommercial/labui/CommercialLabIsolationTest.kt",
+      "category": "tests",
+      "source_set": "android_testPlayInternal",
+      "feature_owner": "internalcommercial/labui",
+      "language": "Kotlin",
+      "physical_lines": 52,
+      "sha256": "cb979083eb08dfd5c2bf5fbc85871f2286480c8b7462000c4ee13132600c6f62"
+    },
+    {
+      "path": "app/src/testPlayInternal/java/io/codecks/internalcommercial/labui/CommercialLabStateMachineTest.kt",
+      "category": "tests",
+      "source_set": "android_testPlayInternal",
+      "feature_owner": "internalcommercial/labui",
+      "language": "Kotlin",
+      "physical_lines": 161,
+      "sha256": "9533ecb7fd2a781a628080ce89c68ceb91a5a8d282713963e6dc2dd209ed62e9"
+    },
+    {
+      "path": "app/src/testPlayInternal/java/io/codecks/internalcommercial/privacy/InternalPrivacyAdaptersTest.kt",
+      "category": "tests",
+      "source_set": "android_testPlayInternal",
+      "feature_owner": "internalcommercial/privacy",
+      "language": "Kotlin",
+      "physical_lines": 123,
+      "sha256": "a1dcce57633d4ad7eb5de9fb91f4e5ac5c922bdb766a2716943dd622dbaed8bb"
+    },
+    {
+      "path": "backend/src/main/kotlin/io/codecks/backend/contracts/Accounts.kt",
+      "category": "companion",
+      "source_set": "backend_main",
+      "feature_owner": "backend_contracts",
+      "language": "Kotlin",
+      "physical_lines": 282,
+      "sha256": "b5e996ad802009790541a5676c005269a0b67582728c34c7f270bc1c317a3ee9"
+    },
+    {
+      "path": "backend/src/main/kotlin/io/codecks/backend/contracts/Entitlements.kt",
+      "category": "companion",
+      "source_set": "backend_main",
+      "feature_owner": "backend_contracts",
+      "language": "Kotlin",
+      "physical_lines": 279,
+      "sha256": "b77abe3f1a815f3f344fb44dabf09166dd364dd469d79fb66808fb45a39a15f4"
+    },
+    {
+      "path": "backend/src/main/kotlin/io/codecks/backend/contracts/Integrity.kt",
+      "category": "companion",
+      "source_set": "backend_main",
+      "feature_owner": "backend_contracts",
+      "language": "Kotlin",
+      "physical_lines": 64,
+      "sha256": "aec0b6a550f6d754acfa6d71c684a3c2f2ef52b3a514770b2d69fb00fb6c072c"
+    },
+    {
+      "path": "backend/src/main/kotlin/io/codecks/backend/contracts/Primitives.kt",
+      "category": "companion",
+      "source_set": "backend_main",
+      "feature_owner": "backend_contracts",
+      "language": "Kotlin",
+      "physical_lines": 119,
+      "sha256": "a6e625910500eda50e7d3701d06ebe40931cabc8d1efce616683c735b8abf701"
+    },
+    {
+      "path": "backend/src/main/kotlin/io/codecks/backend/contracts/Snapshots.kt",
+      "category": "companion",
+      "source_set": "backend_main",
+      "feature_owner": "backend_contracts",
+      "language": "Kotlin",
+      "physical_lines": 124,
+      "sha256": "9f88b67430a938361e2502c15042a323286d2618708815d48a266f409819cd2c"
+    },
+    {
+      "path": "backend/src/test/kotlin/io/codecks/backend/contracts/AccountServiceTest.kt",
+      "category": "tests",
+      "source_set": "backend_test",
+      "feature_owner": "backend_contracts",
+      "language": "Kotlin",
+      "physical_lines": 157,
+      "sha256": "bb8acc3bd2bb6fd17ae96257d5d7844361655a70fb4cafff9a03eb8987878fb3"
+    },
+    {
+      "path": "backend/src/test/kotlin/io/codecks/backend/contracts/BackendArchitectureTest.kt",
+      "category": "tests",
+      "source_set": "backend_test",
+      "feature_owner": "backend_contracts",
+      "language": "Kotlin",
+      "physical_lines": 60,
+      "sha256": "b2d03ceb0a2c051e380e4721a4dc58c4005b605118cabddd872e3906251b722c"
+    },
+    {
+      "path": "backend/src/test/kotlin/io/codecks/backend/contracts/EntitlementServiceTest.kt",
+      "category": "tests",
+      "source_set": "backend_test",
+      "feature_owner": "backend_contracts",
+      "language": "Kotlin",
+      "physical_lines": 349,
+      "sha256": "06baeda5745e1ea933f1495fac79c3992a0d58e624d1abce7244d224835e5bfb"
+    },
+    {
+      "path": "backend/src/test/kotlin/io/codecks/backend/contracts/SnapshotServiceTest.kt",
+      "category": "tests",
+      "source_set": "backend_test",
+      "feature_owner": "backend_contracts",
+      "language": "Kotlin",
+      "physical_lines": 155,
+      "sha256": "d361e180157d8ddff6338bd63940857ca546979d5a10ea79652b0be116bc73a7"
+    },
+    {
+      "path": "macHelper/Package.swift",
+      "category": "build_definition",
+      "source_set": "mac_helper_package_manifest",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 22,
+      "sha256": "8757d405f39bc4bc4adcaf4059c2879668fb6ac8b3e0cfd75a74ab2a5dbf0b77"
+    },
+    {
+      "path": "macHelper/Sources/CodecksMacHelper/AppleShortcutsCatalog.swift",
+      "category": "companion",
+      "source_set": "mac_helper",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 93,
+      "sha256": "4aec545a2d7286b85d7ef71373b70bd8a27c6a343f6413cc461df852b20b05a8"
+    },
+    {
+      "path": "macHelper/Sources/CodecksMacHelper/AppleShortcutsHandler.swift",
+      "category": "companion",
+      "source_set": "mac_helper",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 216,
+      "sha256": "89ff81aa31b29d422a32643257dedd23a47ce4461de1ea8b769dd738f1fa96ea"
+    },
+    {
+      "path": "macHelper/Sources/CodecksMacHelper/MacCapabilityHandlers.swift",
+      "category": "companion",
+      "source_set": "mac_helper",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 212,
+      "sha256": "c63299331c75dbb0807da09c145025946ddfec3937d5f71d0a0391fd761e2000"
+    },
+    {
+      "path": "macHelper/Sources/CodecksMacHelper/PairingStore.swift",
+      "category": "companion",
+      "source_set": "mac_helper",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 69,
+      "sha256": "bf6ad6ac6a60f8f5534ced9d2fd6a631499a20a669bbd583f5943ba508c45ab8"
+    },
+    {
+      "path": "macHelper/Sources/CodecksMacHelper/ReactiveAuth.swift",
+      "category": "companion",
+      "source_set": "mac_helper",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 95,
+      "sha256": "a288202a60ca76e596446bd07a39d9cad800265ba1306b9a6506d96d6e47ee64"
+    },
+    {
+      "path": "macHelper/Sources/CodecksMacHelper/ReactiveConstants.swift",
+      "category": "companion",
+      "source_set": "mac_helper",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 69,
+      "sha256": "ba09fe264ee1421faf387589000c8a6d3a1630b61ece0dc17c575839e2a30ca4"
+    },
+    {
+      "path": "macHelper/Sources/CodecksMacHelper/ReactiveFrameCodec.swift",
+      "category": "companion",
+      "source_set": "mac_helper",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 23,
+      "sha256": "29a160e3f84b3b4a3adb4d6771ca4b4ccf5ece238386ae4b82cbab358aeaad79"
+    },
+    {
+      "path": "macHelper/Sources/CodecksMacHelper/ReactiveFramedTransportService.swift",
+      "category": "companion",
+      "source_set": "mac_helper",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 58,
+      "sha256": "ab17889869ec0e8c328f6a998e245584588cb307ad973f0fe6a1e842eb481345"
+    },
+    {
+      "path": "macHelper/Sources/CodecksMacHelper/ReactiveMacHelperRuntime.swift",
+      "category": "companion",
+      "source_set": "mac_helper",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 112,
+      "sha256": "50aa8f84cc91d013df03693563a385a4e8e5fe601cc04349297585ad8ecf168e"
+    },
+    {
+      "path": "macHelper/Sources/CodecksMacHelper/ReactiveModels.swift",
+      "category": "companion",
+      "source_set": "mac_helper",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 204,
+      "sha256": "013708d7d6b6acf5708e02bdb828f5eaab070e4a7cc8ea57c73f157483c2153d"
+    },
+    {
+      "path": "macHelper/Sources/CodecksMacHelper/ReactiveSessionCoordinator.swift",
+      "category": "companion",
+      "source_set": "mac_helper",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 294,
+      "sha256": "74edfad5b7d512b4f7b8944be008ef4c96c5333891521982595d2a7585c72e6f"
+    },
+    {
+      "path": "macHelper/Sources/CodecksMacHelper/ReactiveTcpHelperServer.swift",
+      "category": "companion",
+      "source_set": "mac_helper",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 123,
+      "sha256": "17d3c38b6584bb08deea67333e28f10eec62bf3e5f47727df7a25ace47b79c31"
+    },
+    {
+      "path": "macHelper/Sources/CodecksMacHelperCLI/main.swift",
+      "category": "companion",
+      "source_set": "mac_helper",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 30,
+      "sha256": "7b55fb5a71d6d7b3d291df25227ab5cfdbc4d162ba48c888e6e5d4991984aa4f"
+    },
+    {
+      "path": "macHelper/Tests/CodecksMacHelperTests/AppleShortcutsCatalogTests.swift",
+      "category": "tests",
+      "source_set": "mac_helper_tests",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 95,
+      "sha256": "25be92cf3925f64655938e25c32172bdadcfc3f74db6284a5a4bc19bded8edc0"
+    },
+    {
+      "path": "macHelper/Tests/CodecksMacHelperTests/AppleShortcutsHandlerTests.swift",
+      "category": "tests",
+      "source_set": "mac_helper_tests",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 136,
+      "sha256": "3be55cb7e20e4f29bd91a5c49c5729208c91145bcea32d549c650133f9724be5"
+    },
+    {
+      "path": "macHelper/Tests/CodecksMacHelperTests/MacCapabilityHandlersTests.swift",
+      "category": "tests",
+      "source_set": "mac_helper_tests",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 207,
+      "sha256": "81fe9968d6af9a44d6b3e7c6330d61976109dfd73cf46233c15422d441b25c05"
+    },
+    {
+      "path": "macHelper/Tests/CodecksMacHelperTests/ReactiveMacHelperRuntimeTests.swift",
+      "category": "tests",
+      "source_set": "mac_helper_tests",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 83,
+      "sha256": "f252095c7713addf6ef99fc8a468e35ea43783d540da8b969d0e2b8d92079308"
+    },
+    {
+      "path": "macHelper/Tests/CodecksMacHelperTests/ReactiveMacHelperTests.swift",
+      "category": "tests",
+      "source_set": "mac_helper_tests",
+      "feature_owner": "mac_helper",
+      "language": "Swift",
+      "physical_lines": 287,
+      "sha256": "86649b8bc2fc5ea935bfddecde30e3051353a4b4b0506348b82a4980ed9749b0"
+    },
+    {
+      "path": "shared/src/commonMain/kotlin/io/codecks/shared/protocol/ReactiveProtocol.kt",
+      "category": "companion",
+      "source_set": "shared_commonMain",
+      "feature_owner": "shared_protocol",
+      "language": "Kotlin",
+      "physical_lines": 756,
+      "sha256": "4e3adfa99258882574d0c75261d996d04406b765b91aa6b6aef8f78bd10bfa45"
+    },
+    {
+      "path": "shared/src/commonMain/kotlin/io/codecks/shared/snapshot/PortableSnapshot.kt",
+      "category": "companion",
+      "source_set": "shared_commonMain",
+      "feature_owner": "shared_protocol",
+      "language": "Kotlin",
+      "physical_lines": 477,
+      "sha256": "cdeeb741fe0c6931f431bd6d7b88d67ebddc3bbcb52fdad3d885f658afbae4ab"
+    },
+    {
+      "path": "shared/src/commonTest/kotlin/io/codecks/shared/protocol/ReactiveProtocolTest.kt",
+      "category": "tests",
+      "source_set": "shared_commonTest",
+      "feature_owner": "shared_protocol",
+      "language": "Kotlin",
+      "physical_lines": 432,
+      "sha256": "7f4c372eb0a6838efc1842f8c907fef1d8ab587919d80bfcc927443582d020b8"
+    },
+    {
+      "path": "shared/src/commonTest/kotlin/io/codecks/shared/protocol/ReactiveReplayGuardTest.kt",
+      "category": "tests",
+      "source_set": "shared_commonTest",
+      "feature_owner": "shared_protocol",
+      "language": "Kotlin",
+      "physical_lines": 48,
+      "sha256": "fa373dda1b93f886c46fc6842b79b5812c9c7574660e21746007ebbea40e6212"
+    },
+    {
+      "path": "shared/src/commonTest/kotlin/io/codecks/shared/snapshot/PortableSnapshotTest.kt",
+      "category": "tests",
+      "source_set": "shared_commonTest",
+      "feature_owner": "shared_protocol",
+      "language": "Kotlin",
+      "physical_lines": 275,
+      "sha256": "c9689b6cac405d89cb8e214c601b3e0ea370c58002e58489c8b28c7f21afb422"
+    }
+  ]
+}

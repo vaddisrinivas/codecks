@@ -49,11 +49,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import io.codecks.HidCommand
 import io.codecks.HidState
+import io.codecks.core.design.CodecksDesignTokens
 import io.codecks.domain.DeckAction
 import io.codecks.ui.designsystem.DeckActionButton
 import io.codecks.ui.designsystem.DeckFilterPill
@@ -424,6 +430,7 @@ private fun Composer(
     onClearText: () -> Unit,
     onUseSnippet: (String) -> Unit,
 ) {
+    val largeText = LocalDensity.current.fontScale >= 2f
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         shape = MaterialTheme.shapes.large,
@@ -435,7 +442,8 @@ private fun Composer(
             OutlinedTextField(
                 value = text,
                 onValueChange = onTextChange,
-                placeholder = { Text("Text to type on Mac") },
+                label = { Text("Text to type on Mac") },
+                placeholder = { Text("Enter or paste text") },
                 minLines = 2,
                 maxLines = 4,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
@@ -454,6 +462,10 @@ private fun Composer(
                     text = if (connected) status else "Connect Mac first",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.semantics {
+                        stateDescription = if (connected) status else "Connect Mac first"
+                        liveRegion = LiveRegionMode.Polite
+                    },
                 )
             }
             Row(
@@ -482,40 +494,65 @@ private fun Composer(
                 Text("Snippets", style = MaterialTheme.typography.labelLarge)
                 SnippetRow((snippets + recentSends).distinct().take(8), onUseSnippet)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                DeckActionButton(
-                    label = if (deliveryMode == KeyboardDeliveryMode.MacClipboardPaste) "Paste + Enter" else "Send + Enter",
-                    onClick = onTypeText,
-                    enabled = connected && !isSending && text.isNotBlank(),
-                    icon = Icons.AutoMirrored.Outlined.Send,
-                    modifier = Modifier.weight(1f).height(56.dp),
-                )
-                DeckActionButton(
-                    label = "Clear",
-                    onClick = onClearText,
-                    enabled = text.isNotEmpty(),
-                    modifier = Modifier.weight(1f).height(56.dp),
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                DeckActionButton(
-                    label = "Enter",
-                    onClick = onEnter,
-                    enabled = connected && !isSending,
-                    icon = Icons.AutoMirrored.Outlined.KeyboardReturn,
-                    modifier = Modifier.weight(1f).height(56.dp),
-                )
-                DeckActionButton(
-                    label = "⌘ Enter",
-                    onClick = onCommandEnter,
-                    enabled = connected && !isSending,
-                    icon = Icons.AutoMirrored.Outlined.KeyboardReturn,
-                    modifier = Modifier.weight(1f).height(56.dp),
-                )
+            if (largeText) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PrimaryComposerButton(deliveryMode, connected, isSending, text, onTypeText, Modifier.fillMaxWidth())
+                    ClearComposerButton(text, onClearText, Modifier.fillMaxWidth())
+                    EnterComposerButton(label = "Enter", connected = connected, isSending = isSending, onClick = onEnter, modifier = Modifier.fillMaxWidth())
+                    EnterComposerButton(label = "⌘ Enter", connected = connected, isSending = isSending, onClick = onCommandEnter, modifier = Modifier.fillMaxWidth())
+                }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    PrimaryComposerButton(deliveryMode, connected, isSending, text, onTypeText, Modifier.weight(1f))
+                    ClearComposerButton(text, onClearText, Modifier.weight(1f))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    EnterComposerButton(label = "Enter", connected = connected, isSending = isSending, onClick = onEnter, modifier = Modifier.weight(1f))
+                    EnterComposerButton(label = "⌘ Enter", connected = connected, isSending = isSending, onClick = onCommandEnter, modifier = Modifier.weight(1f))
+                }
             }
         }
     }
 }
+
+@Composable
+private fun PrimaryComposerButton(
+    deliveryMode: KeyboardDeliveryMode,
+    connected: Boolean,
+    isSending: Boolean,
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier,
+) = DeckActionButton(
+    label = if (deliveryMode == KeyboardDeliveryMode.MacClipboardPaste) "Paste + Enter" else "Send + Enter",
+    onClick = onClick,
+    enabled = connected && !isSending && text.isNotBlank(),
+    icon = Icons.AutoMirrored.Outlined.Send,
+    modifier = modifier.heightIn(min = CodecksDesignTokens.Size.actionMinHeight),
+)
+
+@Composable
+private fun ClearComposerButton(text: String, onClick: () -> Unit, modifier: Modifier) = DeckActionButton(
+    label = "Clear",
+    onClick = onClick,
+    enabled = text.isNotEmpty(),
+    modifier = modifier.heightIn(min = CodecksDesignTokens.Size.actionMinHeight),
+)
+
+@Composable
+private fun EnterComposerButton(
+    label: String,
+    connected: Boolean,
+    isSending: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier,
+) = DeckActionButton(
+    label = label,
+    onClick = onClick,
+    enabled = connected && !isSending,
+    icon = Icons.AutoMirrored.Outlined.KeyboardReturn,
+    modifier = modifier.heightIn(min = CodecksDesignTokens.Size.actionMinHeight),
+)
 
 @Composable
 private fun SnippetRow(

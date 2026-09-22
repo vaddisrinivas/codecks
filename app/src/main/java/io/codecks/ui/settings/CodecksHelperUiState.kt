@@ -1,5 +1,9 @@
 package io.codecks.ui.settings
 
+import io.codecks.ui.connection.UnifiedConnectionPresentation
+import io.codecks.ui.connection.ConnectionRepair
+import io.codecks.ui.connection.ConnectionSupportCode
+
 enum class CodecksHelperConnectionKind {
     Idle,
     Connecting,
@@ -10,10 +14,14 @@ enum class CodecksHelperConnectionKind {
 data class CodecksHelperUiState(
     val pairedDisplayName: String? = null,
     val statusLabel: String = "Not paired",
-    val statusDetail: String = "Install Codecks Mac helper, then import its pairing JSON.",
+    val statusDetail: String = "Install Codecks Mac helper, then scan its pairing QR code.",
     val discoveredCount: Int = 0,
     val canConnect: Boolean = false,
     val canRunActions: Boolean = false,
+    val supportCode: ConnectionSupportCode? = null,
+    val repairs: List<ConnectionRepair> = emptyList(),
+    val pairingCode: String? = null,
+    val pairingMacName: String? = null,
 ) {
     val hasPairing: Boolean = pairedDisplayName != null
 }
@@ -23,15 +31,15 @@ fun codecksHelperUiState(
     connectionKind: CodecksHelperConnectionKind,
     discoveredCount: Int,
     hasSavedEndpoint: Boolean = false,
-    failureCode: String? = null,
+    presentation: UnifiedConnectionPresentation? = null,
 ): CodecksHelperUiState {
     val cleanName = pairedDisplayName?.takeIf { it.isNotBlank() }
     val hasConnectionTarget = discoveredCount > 0 || hasSavedEndpoint
-    return when {
+    val base = when {
         cleanName == null -> CodecksHelperUiState(
             pairedDisplayName = null,
             statusLabel = "Not paired",
-            statusDetail = "Install Codecks Mac helper, then import its pairing JSON.",
+            statusDetail = "Install Codecks Mac helper, then scan its pairing QR code.",
             discoveredCount = discoveredCount,
             canConnect = false,
             canRunActions = false,
@@ -58,7 +66,7 @@ fun codecksHelperUiState(
         connectionKind == CodecksHelperConnectionKind.Failed -> CodecksHelperUiState(
             pairedDisplayName = cleanName,
             statusLabel = "Needs attention",
-            statusDetail = "Codecks helper could not connect: ${failureCode ?: "unknown error"}.",
+            statusDetail = "Codecks helper could not connect. Retry or review pairing.",
             discoveredCount = discoveredCount,
             canConnect = hasConnectionTarget,
             canRunActions = false,
@@ -86,4 +94,12 @@ fun codecksHelperUiState(
             canRunActions = false,
         )
     }
+    return presentation?.let {
+        base.copy(
+            statusLabel = it.statusLabel,
+            statusDetail = it.detail,
+            supportCode = it.supportCode,
+            repairs = it.repairs,
+        )
+    } ?: base
 }

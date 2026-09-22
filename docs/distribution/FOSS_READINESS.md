@@ -1,12 +1,12 @@
 # Codecks FOSS Readiness
 
-Status: ready for maintainer review. Current public beta is `v0.1.25`.
+Status: ready for maintainer review. Current public beta is `v0.1.37`.
 
 ## What Is Ready
 
 - License: Apache-2.0 detected by GitHub.
 - Source: full Android app source is public.
-- Build: `./gradlew :shared:jvmTest :app:testDebugUnitTest :app:lintDebug :app:assembleDebug`.
+- Build: `./gradlew :shared:jvmTest :app:testOssReleaseUnitTest :app:lintOssDebug :app:assembleOssDebug`.
 - Release: single signed APK and checksum workflow exists.
 - Metadata: Fastlane/Izzy-style metadata and screenshots are present under `fastlane/metadata/android/en-US`.
 - Privacy: no Codecks account, hosted backend, analytics SDK, ads SDK, public database, or cloud sync in the public beta.

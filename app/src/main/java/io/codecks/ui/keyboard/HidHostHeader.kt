@@ -58,8 +58,9 @@ import androidx.core.content.ContextCompat
 import io.codecks.HidHost
 import io.codecks.HidState
 import io.codecks.ui.connection.HidHealthKind
+import io.codecks.ui.connection.ConnectionRepair
 import io.codecks.ui.connection.hidHealth
-import io.codecks.ui.connection.statusLabel
+import io.codecks.ui.connection.toUnifiedConnectionPresentation
 import io.codecks.ui.designsystem.DeckActionButton
 import java.util.regex.Pattern
 
@@ -95,20 +96,21 @@ fun HidHostHeader(
     val selectedHost = state.hosts.firstOrNull { it.address == state.selectedHostAddress }
     val visibleTarget = selectedHost?.label?.cleanHidHostLabel()
     val health = state.hidHealth(permissionGranted)
+    val presentation = health.toUnifiedConnectionPresentation()
     val canConnectSelected = health.kind == HidHealthKind.ReadyToConnect && selectedHost != null
     val statusLabel = when {
         state.isConnected -> visibleTarget ?: connectedTitle
-        !permissionGranted -> health.title
+        !permissionGranted -> presentation.title
         visibleTarget != null -> visibleTarget
         else -> disconnectedTitle
     }
     val statusText = when {
         state.isConnected -> "Connected"
         canConnectSelected -> "Tap to connect"
-        else -> health.statusLabel() + " · " + health.detail
+        else -> "${presentation.statusLabel} · ${presentation.detail} · ${presentation.supportCode.value}"
     }
-    val action: (@Composable () -> Unit)? = when {
-        health.kind == HidHealthKind.PermissionMissing -> {
+    val action: (@Composable () -> Unit)? = when (presentation.repairs.firstOrNull()) {
+        ConnectionRepair.RequestPermission -> {
             {
                 DeckActionButton(
                     label = "Allow Bluetooth",
@@ -117,11 +119,31 @@ fun HidHostHeader(
                 )
             }
         }
-        health.kind == HidHealthKind.Stopped || health.kind == HidHealthKind.Failed -> {
+        ConnectionRepair.RetryNow -> {
             {
                 DeckActionButton(
                     label = "Start input",
                     onClick = onStart,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                )
+            }
+        }
+        ConnectionRepair.OpenBluetoothSettings -> {
+            {
+                DeckActionButton(
+                    label = ConnectionRepair.OpenBluetoothSettings.label,
+                    onClick = {
+                        runCatching { context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }
+                    },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                )
+            }
+        }
+        ConnectionRepair.PairMac -> {
+            {
+                DeckActionButton(
+                    label = ConnectionRepair.PairMac.label,
+                    onClick = { pickerOpen = true },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                 )
             }

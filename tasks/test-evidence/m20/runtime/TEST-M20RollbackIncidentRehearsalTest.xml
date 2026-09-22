@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="io.codecks.data.persistence.M20RollbackIncidentRehearsalTest" tests="7" failures="0" errors="0" skipped="0" timestamp="2026-08-11T03:01:36.911Z" time="1.226"><testcase name="badReleaseRollbackMeansWithdrawalAndForwardFix" classname="io.codecks.data.persistence.M20RollbackIncidentRehearsalTest" /><testcase name="corruptAndFutureDataFailClosed" classname="io.codecks.data.persistence.M20RollbackIncidentRehearsalTest" /><testcase name="failedUpgradePreservesOlderData" classname="io.codecks.data.persistence.M20RollbackIncidentRehearsalTest" /><testcase name="incidentPolicyHasClosedActionableDecisionForEveryIncident" classname="io.codecks.data.persistence.M20RollbackIncidentRehearsalTest" /><testcase name="interruptedTransactionsRecoverExactGeneration" classname="io.codecks.data.persistence.M20RollbackIncidentRehearsalTest" /><testcase name="keyLossNeverFallsBackToCiphertext" classname="io.codecks.data.persistence.M20RollbackIncidentRehearsalTest" /><testcase name="partialUpdateSimulationRejectsEveryIncompleteOrUnverifiedState" classname="io.codecks.data.persistence.M20RollbackIncidentRehearsalTest" /><system-out>M20_OUTCOME|bad_release|WITHDRAW_AND_FORWARD_FIX
+M20_OUTCOME|checksum_failure|REJECT_UNVERIFIED_CANDIDATE
+M20_OUTCOME|committed_update|VERIFIED_UPDATE_COMMITTED
+M20_OUTCOME|compromised_token|TOKEN_REVOKE_ROTATE
+M20_OUTCOME|corrupt_data|REFUSED_MUTATION_PRESERVED_RAW
+M20_OUTCOME|equal_version|REJECT_DOWNGRADE
+M20_OUTCOME|failed_upgrade|REFUSED_MUTATION_PRESERVED_V1
+M20_OUTCOME|future_data|OLDER_READER_REFUSED_PRESERVED_RAW
+M20_OUTCOME|incident_matrix|CLOSED_NO_DOWNGRADE
+M20_OUTCOME|key_loss|REPAIR_REQUIRED_CIPHERTEXT_PRESERVED
+M20_OUTCOME|older_version|REJECT_DOWNGRADE
+M20_OUTCOME|partial_download|DISCARD_PARTIAL_DOWNLOAD
+M20_OUTCOME|partial_install|ABANDON_PARTIAL_INSTALL_SESSION
+M20_OUTCOME|signer_failure|REJECT_UNVERIFIED_CANDIDATE
+M20_OUTCOME|source_failure|REJECT_UNVERIFIED_CANDIDATE
+M20_OUTCOME|ssh_host_key|SSH_IDENTITY_REVERIFY
+M20_OUTCOME|transaction_after_backups|RESTORED_OLD
+M20_OUTCOME|transaction_after_committed_journal|KEPT_NEW
+M20_OUTCOME|transaction_after_first_backup_delete|RESTORED_OLD
+M20_OUTCOME|transaction_after_first_install|RESTORED_OLD
+M20_OUTCOME|transaction_after_first_journal|RESTORED_OLD
+M20_OUTCOME|transaction_after_first_stage_delete|RESTORED_OLD
+M20_OUTCOME|transaction_after_journal_removal|KEPT_NEW
+M20_OUTCOME|transaction_after_prepared_journal|RESTORED_OLD
+M20_OUTCOME|transaction_after_second_backup_delete|RESTORED_OLD
+M20_OUTCOME|transaction_after_second_install|RESTORED_OLD
+M20_OUTCOME|transaction_after_second_journal|KEPT_NEW
+M20_OUTCOME|transaction_after_second_stage_delete|RESTORED_OLD
+M20_OUTCOME|transaction_after_staging|RESTORED_OLD
+</system-out></testsuite>

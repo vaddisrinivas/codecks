@@ -18,6 +18,10 @@ enum class CodecksIconPack(
         "Material",
         "Familiar Android symbols with filled and outlined utility shapes.",
     ),
+    Rounded(
+        "Rounded",
+        "Friendly Material symbols with softer edges and the same semantic actions.",
+    ),
 }
 
 val LocalCodecksIconPack = staticCompositionLocalOf { CodecksIconPack.Tabler }

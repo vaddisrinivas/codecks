@@ -8,7 +8,10 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import io.codecks.data.persistence.PersistenceRead
+import io.codecks.data.persistence.valueForMutation
 
 class ClipboardLastSyncPrivacyTest {
     @Test
@@ -42,5 +45,19 @@ class ClipboardLastSyncPrivacyTest {
             .toString()
 
         assertNull(ClipboardLastSyncCodec.decode(unsafe))
+    }
+
+    @Test
+    fun legacyReceiptIsTypedAndFutureOrCorruptCannotBeOverwritten() {
+        val legacy = """{"direction":"phone_to_mac","terminalResult":"failure","failureCode":"timeout","startedAtMillis":100,"completedAtMillis":200}"""
+        assertEquals(1, (ClipboardLastSyncCodec.read(legacy) as PersistenceRead.Value).migratedFrom)
+
+        val blocked = listOf(
+            ClipboardLastSyncCodec.read("""{"schemaVersion":99}"""),
+            ClipboardLastSyncCodec.read("corrupt"),
+        )
+        blocked.forEach { result ->
+            assertTrue(runCatching { result.valueForMutation("clipboard") { error("unused") } }.isFailure)
+        }
     }
 }

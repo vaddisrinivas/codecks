@@ -1,0 +1,359 @@
+{
+  "schema": "codecks.autonomous-maturity.m24-preflight.v3",
+  "milestone": "M24",
+  "evidenceLevel": "PREFLIGHT_ONLY",
+  "verdict": "NO_GO",
+  "generatedAtUtc": "2026-08-18T19:16:15Z",
+  "sourceCommit": "92452e737b9e03506b24fc62bd041ed40e88e39b",
+  "provenance": {
+    "baseCommit": "3e0e022819a1204a0a07c2db48798d0c2b890d23",
+    "implementationCommit": "92452e737b9e03506b24fc62bd041ed40e88e39b",
+    "implementationPaths": [
+      {
+        "path": "docs/release/M24_CURRENT_PREFLIGHT.md",
+        "change": "MODIFIED",
+        "baseSha256": "7bdb3d454bcc67fc7303be2855ad83ae2093a3cd7871bbb6fea23fcd6f1f10ef",
+        "implementationSha256": "ad70b7c3ea097dcf5aa2fa04753d7232ba69d211abb6edf532a921de2b113a16",
+        "patchSha256": "93fd0a7588fb5eb4b449d1394e3ee38b2720b79c975795802453b19f981e07d7"
+      },
+      {
+        "path": "tools/evidence/collect_m24_release_preflight.py",
+        "change": "MODIFIED",
+        "baseSha256": "9e1be5a437084470c3747102a0e7c798821c0e54535a9a166cb248d0968dde6e",
+        "implementationSha256": "6a7579764ebd507516815bc8f9636749132cdd2377cc4371bc15ee69389b4748",
+        "patchSha256": "9206cd5102618c8582b07826e6d3c8bccc41e19b216521108c7944d155fdb028"
+      },
+      {
+        "path": "tools/evidence/test_m24_release_preflight.py",
+        "change": "MODIFIED",
+        "baseSha256": "5c5514b952a7e6be58d2d8e68ad8568bf318b6d2d8f91dbac3a341c9e7392ec1",
+        "implementationSha256": "9a8c6a0fc94bb174229a682c301ba53104d9ed8627562299bca799f788cedc11",
+        "patchSha256": "e30e4e35f7d7f9999e8cbb268a508bb67a5ea24fc4695910a596774736024401"
+      },
+      {
+        "path": "tools/evidence/validate_m24_release_preflight.py",
+        "change": "MODIFIED",
+        "baseSha256": "81c994b73cace179b8db2f72e8297a3e095d571dd8c46ef24b938d3cb0c5c54e",
+        "implementationSha256": "f1234cceb995d1d71588149d2851742a51d0c23beb606e769b182f4277e77253",
+        "patchSha256": "84d6de896f5c5e5f0303ce9f14b6f1ec134ee39b688c5d450b8612623f2727ad"
+      },
+      {
+        "path": "tools/evidence/schemas/autonomous-maturity-m24-preflight-v3.schema.json",
+        "change": "ADDED",
+        "baseSha256": null,
+        "implementationSha256": "2ec5709994a5c4688f3e1d1d37b7c61e17337b7c2664187e949798b2e5fe3bd4",
+        "patchSha256": "8a5b05a98627444c5379b6f9f3c51aff8a6bf6e1f4934d00f6dc85ec11677cf9"
+      }
+    ],
+    "implementationDiffSha256": "e7589de2f0839a6afc472222e59434465b1c4c5f6b5730e47a2dfcc20f12bb9d",
+    "receiptPath": "tasks/test-evidence/autonomous-maturity-m24-preflight.json",
+    "receiptCommitRequired": true
+  },
+  "sources": [
+    {
+      "path": ".github/workflows/release.yml",
+      "status": "PRESENT",
+      "sha256": "07e18f4ab4c6164f0602b1d0de636d63e30ca31f7481d132c69ae7891c5ecf90"
+    },
+    {
+      "path": "app/build.gradle.kts",
+      "status": "PRESENT",
+      "sha256": "a457c7b5718d7a80fdbe4028ef2289a9ea7323e7065b3bb06a02d9f99b429263"
+    },
+    {
+      "path": "docs/release/M23_LOCAL_PREFLIGHT.md",
+      "status": "PRESENT",
+      "sha256": "12468dfb576a9eff712af75c6a848cfea3536b2a6bb5ef0a0051d010ea484fa8"
+    },
+    {
+      "path": "docs/release/M24_CURRENT_PREFLIGHT.md",
+      "status": "PRESENT",
+      "sha256": "ad70b7c3ea097dcf5aa2fa04753d7232ba69d211abb6edf532a921de2b113a16"
+    },
+    {
+      "path": "docs/release/production-state.json",
+      "status": "PRESENT",
+      "sha256": "4cca496cff13a5b063bb4144bd2ec3a308fde1051aa7571eea44e42d64b0c0a8"
+    },
+    {
+      "path": "scripts/m16_autonomous_soak.py",
+      "status": "PRESENT",
+      "sha256": "81548fa10f67e900b8541037b7c4b6f38ddda22232499605b9a072e4fa95240b"
+    },
+    {
+      "path": "scripts/verify_release_no_shrink.sh",
+      "status": "PRESENT",
+      "sha256": "6fdf7ab044267c38e73777f2b74c2d39ffe883becc1ba0937f6711f5fddd193b"
+    },
+    {
+      "path": "tasks/AUTONOMOUS_MATURITY_TODO.md",
+      "status": "PRESENT",
+      "sha256": "8963ca5dd6b5a8f9a509bdbb09d579e2dc99ac7c98b93d0581e1a1c8428eda40"
+    },
+    {
+      "path": "tasks/test-evidence/autonomous-maturity-m16-soak.json",
+      "status": "ABSENT",
+      "sha256": null
+    },
+    {
+      "path": "tasks/test-evidence/autonomous-maturity-m20-rollback-rehearsal.json",
+      "status": "PRESENT",
+      "sha256": "b6690f51d02995ea9d9dabe7e98144e2c10f301dc4f068d0997c7de37596e5ac"
+    },
+    {
+      "path": "tasks/test-evidence/m21-public-release-live.json",
+      "status": "PRESENT",
+      "sha256": "0ec73d0bec68d91c3933c4963b93ec4fccdb44047587b794af12f5921d202d85"
+    },
+    {
+      "path": "tools/evidence/collect_m20_rollback_rehearsal.py",
+      "status": "PRESENT",
+      "sha256": "aeee48e892c9e1d49c36f40f843141f27c50cfc262adebf706694c24d3e6030a"
+    },
+    {
+      "path": "tools/evidence/collect_m21_public_release_live.py",
+      "status": "PRESENT",
+      "sha256": "460cad87fb460b015bc5b183250d7b25a287093687261e5a125faf646681f5ed"
+    },
+    {
+      "path": "tools/evidence/collect_m24_release_preflight.py",
+      "status": "PRESENT",
+      "sha256": "6a7579764ebd507516815bc8f9636749132cdd2377cc4371bc15ee69389b4748"
+    },
+    {
+      "path": "tools/evidence/validate_m20_rollback_rehearsal.py",
+      "status": "PRESENT",
+      "sha256": "aee6d75733c97d13c9f37a2325df77d5ee8db7f7bbf3b574c4b67871c009e976"
+    },
+    {
+      "path": "tools/evidence/validate_m21_m23_local_readiness.py",
+      "status": "PRESENT",
+      "sha256": "5d55e8e8ee55d0043bd8eb32aa8aab9e93d7addd5e98585722b06a60868ac038"
+    },
+    {
+      "path": "tools/evidence/validate_m24_release_preflight.py",
+      "status": "PRESENT",
+      "sha256": "f1234cceb995d1d71588149d2851742a51d0c23beb606e769b182f4277e77253"
+    },
+    {
+      "path": "tools/evidence/test_m24_release_preflight.py",
+      "status": "PRESENT",
+      "sha256": "9a8c6a0fc94bb174229a682c301ba53104d9ed8627562299bca799f788cedc11"
+    },
+    {
+      "path": "tools/evidence/schemas/autonomous-maturity-m16-soak-v1.schema.json",
+      "status": "PRESENT",
+      "sha256": "29790b59b697d8058129a66da60a4a0589d5548babd46e05ac0591e2c99b112d"
+    },
+    {
+      "path": "tools/evidence/schemas/autonomous-maturity-m24-preflight-v3.schema.json",
+      "status": "PRESENT",
+      "sha256": "2ec5709994a5c4688f3e1d1d37b7c61e17337b7c2664187e949798b2e5fe3bd4"
+    }
+  ],
+  "adbClassification": {
+    "status": "PASS",
+    "endpoint": {
+      "host": "127.0.0.1",
+      "port": 5037
+    },
+    "protocol": "ADB_SERVER_HOST_PROTOCOL_V1",
+    "request": "host:devices-l",
+    "responseSha256": "0b90b9310fbcdba73abbcde47c90c4cc0b07bbc1502577b6e3026d9e8e7d7f4f",
+    "devices": [],
+    "physicalDeviceCount": 0,
+    "emulatorCount": 0,
+    "unknownDeviceCount": 0,
+    "adbCliInvoked": false,
+    "rawSerialRecorded": false,
+    "packageQueryRun": false,
+    "apkPullRun": false
+  },
+  "phone": {
+    "status": "NOT_RUN",
+    "physicalDeviceCount": 0,
+    "installedIdentityStatus": "NOT_RUN"
+  },
+  "publishedBaseline": {
+    "status": "PASS",
+    "tag": "v0.1.37",
+    "package": "app.codecks",
+    "versionCode": 37,
+    "versionName": "0.1.37",
+    "apkSha256": "8c8eca1b3e4b0f56a2128185c42a062687011e68a9d3fd16fe24851616baa9f2",
+    "signerSha256": "07a642e758f394b6aeaecfe35c64ca84d891ca4e6de4b6cc010702c0e52e2df6"
+  },
+  "m16": {
+    "status": "NOT_RUN",
+    "capacityStatus": "NOT_RUN",
+    "timeStatus": "NOT_RUN",
+    "plannedAvds": 4,
+    "plannedProfilesPerAvd": 5,
+    "plannedProfiles": 20,
+    "observedProfiles": 0,
+    "requiredHours": 168,
+    "observedHours": 0,
+    "requiredEligibleProfileHours": 3360,
+    "observedEligibleProfileHours": 0,
+    "requiredAcknowledgedOperations": 336000,
+    "observedAcknowledgedOperations": 0,
+    "receiptPath": "tasks/test-evidence/autonomous-maturity-m16-soak.json",
+    "receiptPresent": false,
+    "controllerPath": "scripts/m16_autonomous_soak.py",
+    "controllerSha256": "81548fa10f67e900b8541037b7c4b6f38ddda22232499605b9a072e4fa95240b",
+    "validatorPath": "tools/evidence/validate_m16_autonomous_soak.py",
+    "validatorSha256": "b4e6587f36b246e0b6412bd295c16f18d9b6aabc6ea0bbfcdbc5ebf081e7a249",
+    "schemaPath": "tools/evidence/schemas/autonomous-maturity-m16-soak-v1.schema.json",
+    "schemaSha256": "29790b59b697d8058129a66da60a4a0589d5548babd46e05ac0591e2c99b112d"
+  },
+  "m20Closure": {
+    "status": "COMPLETE",
+    "integrationCommit": "a5d0cc09d47179d30227369802932f29f1d82a18",
+    "receiptPath": "tasks/test-evidence/autonomous-maturity-m20-rollback-rehearsal.json",
+    "receiptSha256": "b6690f51d02995ea9d9dabe7e98144e2c10f301dc4f068d0997c7de37596e5ac",
+    "receiptSchema": "codecks.autonomous-maturity.m20-rollback-rehearsal.v1",
+    "collectorPath": "tools/evidence/collect_m20_rollback_rehearsal.py",
+    "collectorSha256": "aeee48e892c9e1d49c36f40f843141f27c50cfc262adebf706694c24d3e6030a",
+    "validatorPath": "tools/evidence/validate_m20_rollback_rehearsal.py",
+    "validatorSha256": "aee6d75733c97d13c9f37a2325df77d5ee8db7f7bbf3b574c4b67871c009e976"
+  },
+  "m21Closure": {
+    "status": "LOCAL_COMPLETE",
+    "integrationCommit": "0a8f84faddbe8a1015a85f6431fd14d68b402c73",
+    "receiptPath": "tasks/test-evidence/m21-public-release-live.json",
+    "receiptSha256": "0ec73d0bec68d91c3933c4963b93ec4fccdb44047587b794af12f5921d202d85",
+    "receiptSchema": "codecks.m21.public-release-live.v2",
+    "collectorPath": "tools/evidence/collect_m21_public_release_live.py",
+    "collectorSha256": "460cad87fb460b015bc5b183250d7b25a287093687261e5a125faf646681f5ed",
+    "validatorPath": "tools/evidence/validate_m21_m23_local_readiness.py",
+    "validatorSha256": "5d55e8e8ee55d0043bd8eb32aa8aab9e93d7addd5e98585722b06a60868ac038"
+  },
+  "m23": {
+    "status": "NOT_A_CANDIDATE",
+    "preflightPath": "docs/release/M23_LOCAL_PREFLIGHT.md",
+    "preflightSha256": "12468dfb576a9eff712af75c6a848cfea3536b2a6bb5ef0a0051d010ea484fa8",
+    "versionAssigned": false,
+    "artifactAdmitted": false
+  },
+  "signing": {
+    "status": "UNSET",
+    "source": "CANONICAL_AGENT_ENV_NAME_PRESENCE_ONLY",
+    "names": [
+      "CODECKS_RELEASE_STORE_FILE",
+      "CODECKS_RELEASE_KEY_ALIAS",
+      "CODECKS_RELEASE_STORE_PASSWORD",
+      "CODECKS_RELEASE_KEY_PASSWORD"
+    ],
+    "presentNames": [],
+    "valuesRecorded": false
+  },
+  "candidate": {
+    "status": "ABSENT",
+    "reason": "M23_NOT_A_CANDIDATE",
+    "expectedArtifactPath": "release-candidate/codecks-release.apk",
+    "artifactPresent": false,
+    "sourceSha": null,
+    "versionCode": null,
+    "apkSha256": null,
+    "signerSha256": null
+  },
+  "dependencies": [
+    {
+      "milestone": "M16",
+      "status": "NOT_RUN"
+    },
+    {
+      "milestone": "M20",
+      "status": "COMPLETE"
+    },
+    {
+      "milestone": "M21",
+      "status": "LOCAL_COMPLETE"
+    },
+    {
+      "milestone": "M23",
+      "status": "NOT_A_CANDIDATE"
+    }
+  ],
+  "gates": [
+    {
+      "id": "source.current_head_bound",
+      "status": "PASS",
+      "code": "exact_head_and_sources_bound"
+    },
+    {
+      "id": "adb.read_only_classification",
+      "status": "PASS",
+      "code": "raw_adb_server_devices_l_only"
+    },
+    {
+      "id": "phone.single_physical_connected",
+      "status": "NOT_RUN",
+      "code": "physical_phone_count_zero"
+    },
+    {
+      "id": "m16.capacity_execution",
+      "status": "NOT_RUN",
+      "code": "m16_runtime_receipt_absent"
+    },
+    {
+      "id": "m16.elapsed_168h",
+      "status": "NOT_RUN",
+      "code": "m16_168h_not_started"
+    },
+    {
+      "id": "m21.local_support_package",
+      "status": "PASS",
+      "code": "m21_local_complete"
+    },
+    {
+      "id": "m23.exact_candidate",
+      "status": "NOT_RUN",
+      "code": "m23_not_a_candidate"
+    },
+    {
+      "id": "candidate.source_artifact_signer",
+      "status": "NOT_RUN",
+      "code": "candidate_absent"
+    },
+    {
+      "id": "signing.canonical_inputs",
+      "status": "PASS",
+      "code": "canonical_signing_inputs_unset"
+    },
+    {
+      "id": "update.data_preserving_authorized",
+      "status": "NOT_RUN",
+      "code": "explicit_execution_not_authorized"
+    }
+  ],
+  "safeInPlaceUpdate": {
+    "authorizedNow": false,
+    "forbidden": [
+      "UNINSTALL_PROTECTED_PACKAGE",
+      "CLEAR_PROTECTED_PACKAGE_DATA",
+      "DOWNGRADE_PROTECTED_PACKAGE",
+      "DIFFERENT_SIGNER",
+      "PHYSICAL_INSTRUMENTATION"
+    ]
+  },
+  "privacy": {
+    "rawDeviceSerialRecorded": false,
+    "privateKeyInspected": false,
+    "credentialRecorded": false,
+    "appDataRead": false
+  },
+  "blockers": [
+    "PHYSICAL_PHONE_NOT_CONNECTED",
+    "M16_CAPACITY_NOT_RUN",
+    "M16_168H_NOT_RUN",
+    "M23_NOT_A_CANDIDATE",
+    "CANDIDATE_NOT_BUILT",
+    "PRODUCTION_SIGNING_INPUTS_UNSET"
+  ],
+  "limitations": [
+    "Read-only ADB classification used one raw host:devices-l server request; no adb CLI, package query, pull, install, or instrumentation ran.",
+    "M21 local distribution/support preparation is complete; physical update and external publication remain outside this preflight.",
+    "M16 capacity execution and 168-hour evidence remain NOT_RUN; planned source capacity is not runtime proof."
+  ]
+}

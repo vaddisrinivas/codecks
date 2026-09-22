@@ -1,0 +1,195 @@
+{
+  "schema": "codecks.autonomous-maturity.m02-dead-surfaces.v1",
+  "milestone": "M02",
+  "base_commit": "16e07d34be1505b6568e3d7af99caa279193545d",
+  "captured_at_utc": "2026-08-10T20:57:52Z",
+  "status": "PASS",
+  "deleted_public_production_lines": 1110,
+  "inventory": {
+    "baseline": {
+      "path": "tasks/test-evidence/autonomous-maturity-source-inventory.json",
+      "sha256": "fa4afa40ec297bdc29be2e823118f1349ea7242c0136d1217581ca3494a8f312",
+      "summary": {
+        "file_count": 515,
+        "physical_lines": 90742,
+        "by_category": {"build_definition": 22, "companion": 3699, "debug_only": 5, "internal_lab": 2474, "public_production": 54900, "tests": 29642},
+        "by_source_set": {"android_androidTest": 624, "android_androidTestDebug": 484, "android_androidTestPlay": 462, "android_androidTestPlayInternal": 61, "android_debug": 5, "android_main": 54708, "android_play_internal": 2474, "android_play_production_dark": 192, "android_test": 23693, "android_testPlay": 243, "android_testPlayInternal": 1791, "backend_main": 868, "backend_test": 721, "mac_helper": 1598, "mac_helper_package_manifest": 22, "mac_helper_tests": 808, "shared_commonMain": 1233, "shared_commonTest": 755},
+        "by_language": {"Java": 918, "Kotlin": 87396, "Swift": 2428}
+      }
+    },
+    "after": {
+      "path": "tasks/test-evidence/autonomous-maturity-m02-source-inventory.json",
+      "sha256": "dcd90686f52d0ec96c988e14052309e821ef167dc5c68dfaace42fda9427d207",
+      "summary": {
+        "file_count": 514,
+        "physical_lines": 89718,
+        "by_category": {"build_definition": 22, "companion": 3699, "debug_only": 5, "internal_lab": 2474, "public_production": 53791, "tests": 29727},
+        "by_source_set": {"android_androidTest": 660, "android_androidTestDebug": 484, "android_androidTestPlay": 462, "android_androidTestPlayInternal": 61, "android_debug": 5, "android_main": 53599, "android_play_internal": 2474, "android_play_production_dark": 192, "android_test": 23742, "android_testPlay": 243, "android_testPlayInternal": 1791, "backend_main": 868, "backend_test": 721, "mac_helper": 1598, "mac_helper_package_manifest": 22, "mac_helper_tests": 808, "shared_commonMain": 1233, "shared_commonTest": 755},
+        "by_language": {"Java": 918, "Kotlin": 86372, "Swift": 2428}
+      }
+    },
+    "public_production_line_delta": -1109
+  },
+  "rollback": {
+    "group_id": "M02_ATOMIC",
+    "commit_status": "NOT_RUN",
+    "atomic_after_commit": "git revert <M02_COMMIT_SHA>",
+    "restore_from_base": [
+      "app/src/main/java/io/codecks/MainActivity.kt",
+      "app/src/main/java/io/codecks/ui/app/CodecksAppShell.kt",
+      "app/src/main/java/io/codecks/ui/connection/ConnectionScreen.kt",
+      "app/src/main/java/io/codecks/ui/settings/DevicesScreen.kt",
+      "app/src/main/java/io/codecks/ui/settings/DevicesViewModel.kt",
+      "app/src/main/java/io/codecks/ui/settings/SettingsScreen.kt",
+      "app/src/test/java/io/codecks/ui/connection/ConnectionDiagnosticPresenterTest.kt",
+      "app/src/test/java/io/codecks/ui/connection/SetupSnapshotPersistenceTest.kt",
+      "docs/architecture/CODEBASE_MAP.md",
+      "tools/evidence/validate_autonomous_maturity_evidence.py"
+    ],
+    "remove_added": [
+      "app/src/androidTest/java/io/codecks/ui/settings/SettingsConnectionParityInstrumentedTest.kt",
+      "app/src/test/java/io/codecks/ui/app/DeadSurfaceReachabilityPolicyTest.kt",
+      "tasks/test-evidence/autonomous-maturity-m02-dead-surfaces.json",
+      "tasks/test-evidence/autonomous-maturity-m02-source-inventory.json",
+      "tools/evidence/schemas/autonomous-maturity-m02-dead-surfaces-v1.schema.json",
+      "tools/evidence/test_validate_autonomous_maturity_m02.py",
+      "tools/evidence/validate_autonomous_maturity_m02.py"
+    ]
+  },
+  "candidates": [
+    {
+      "symbols": ["ConnectionScreen"],
+      "removed_files": ["app/src/main/java/io/codecks/ui/connection/ConnectionScreen.kt"],
+      "removed_lines": 773,
+      "classification": "DEAD_CONFIRMED",
+      "reachability": {
+        "production_callers": "zero",
+        "manifest_components": "zero",
+        "navigation_routes": "zero; legacy connection and pairing requests resolve to SettingsRoute",
+        "dependency_injection": "zero",
+        "serialization_and_migrations": "zero",
+        "work_manager": "zero",
+        "reflection_and_jni": "zero",
+        "preview": "zero",
+        "tests": "two source-reading assertions migrated to the active SettingsScreen owner"
+      },
+      "replacement_path": "SettingsRoute -> SettingsScreen.MacConnectionSettingsPanel",
+      "rollback_group_id": "M02_ATOMIC"
+    },
+    {
+      "symbols": ["DevicesScreen", "DevicesUiState", "DevicesViewModel"],
+      "removed_files": [
+        "app/src/main/java/io/codecks/ui/settings/DevicesScreen.kt",
+        "app/src/main/java/io/codecks/ui/settings/DevicesViewModel.kt"
+      ],
+      "removed_lines": 331,
+      "classification": "DEAD_CONFIRMED",
+      "reachability": {
+        "production_callers": "zero",
+        "manifest_components": "zero",
+        "navigation_routes": "zero",
+        "dependency_injection": "DevicesViewModel had only its generated Hilt binding; no viewModel retrieval, factory, route, or consumer",
+        "serialization_and_migrations": "zero",
+        "work_manager": "zero",
+        "reflection_and_jni": "zero",
+        "preview": "zero",
+        "tests": "zero"
+      },
+      "replacement_path": "SettingsRoute -> SettingsScreen.MacConnectionSettingsPanel backed by ConnectionViewModel and ConnectionRepository for active Mac endpoint setup",
+      "rollback_group_id": "M02_ATOMIC"
+    },
+    {
+      "symbols": ["onDevices", "onAppearance", "onAdvanced"],
+      "removed_files": [],
+      "removed_lines": 6,
+      "classification": "DEAD_CONFIRMED",
+      "reachability": {
+        "production_callers": "three MainActivity no-op arguments only",
+        "manifest_components": "not applicable",
+        "navigation_routes": "zero",
+        "dependency_injection": "zero",
+        "serialization_and_migrations": "zero",
+        "work_manager": "zero",
+        "reflection_and_jni": "zero",
+        "preview": "zero",
+        "tests": "zero"
+      },
+      "replacement_path": "Devices and appearance controls are inline in Settings; developer-only advanced controls remain inline behind developerOptionsEnabled",
+      "rollback_group_id": "M02_ATOMIC"
+    },
+    {
+      "symbols": ["AdaptiveSurfacePreviews"],
+      "removed_files": [],
+      "removed_lines": 0,
+      "classification": "RETAINED_TOOLING",
+      "reachability": {
+        "production_runtime": "zero",
+        "preview": "six intentional Compose @Preview entry points across phone, foldable, and tablet"
+      },
+      "replacement_path": "not applicable; retained because preview tooling is intentional reachability, not dead code",
+      "rollback_group_id": "M02_ATOMIC"
+    }
+  ],
+  "verification": [
+    {
+      "status": "PASS",
+      "scope": "focused reachability, setup persistence, and diagnostic presenter unit tests",
+      "argv": "./gradlew :app:testOssReleaseUnitTest --tests io.codecks.ui.app.DeadSurfaceReachabilityPolicyTest --tests io.codecks.ui.connection.SetupSnapshotPersistenceTest --tests io.codecks.ui.connection.ConnectionDiagnosticPresenterTest",
+      "result": "BUILD SUCCESSFUL; 50 tasks"
+    },
+    {
+      "status": "PASS",
+      "scope": "all enabled distribution main-source compilation and full unit suites",
+      "argv": "./gradlew :app:testOssReleaseUnitTest :app:testPlayReleaseUnitTest :app:testPlayInternalReleaseUnitTest :app:compileOssDebugSources :app:validateArchitectureBoundaries :app:validateReleaseSurface :app:validateDistributionMatrix :app:validateCommercialDependencyBoundaries :app:validateCommercialManifests",
+      "result": "BUILD SUCCESSFUL; 122 tasks"
+    },
+    {
+      "status": "PASS",
+      "scope": "secret surface",
+      "argv": "python3 tools/secret_surface_check.py",
+      "result": "secret surface OK"
+    },
+    {
+      "status": "PASS",
+      "scope": "release no-shrink invariant",
+      "argv": "./scripts/verify_release_no_shrink.sh",
+      "result": "Release no-shrink invariant verified"
+    },
+    {
+      "status": "PASS",
+      "scope": "patch whitespace and conflict markers",
+      "argv": "git diff --check",
+      "result": "clean"
+    },
+    {
+      "status": "PASS",
+      "scope": "current source inventory generated and checked through an isolated temporary index representing the uncommitted patch",
+      "argv": "GIT_INDEX_FILE=<isolated-index> python3 tools/evidence/generate_autonomous_maturity_source_inventory.py --output tasks/test-evidence/autonomous-maturity-m02-source-inventory.json --check",
+      "result": "PASS: source inventory matches tracked repository sources"
+    },
+    {
+      "status": "PASS",
+      "scope": "combined immutable Phase 0 structural validation and closed M02 receipt validation through one isolated temporary index representing the full uncommitted patch",
+      "argv": "sh -c 'index=$(mktemp); rm -f \"$index\"; trap '\"'\"'rm -f \"$index\"'\"'\"' EXIT; GIT_INDEX_FILE=\"$index\" git read-tree 16e07d34be1505b6568e3d7af99caa279193545d && GIT_INDEX_FILE=\"$index\" git add -A -- app docs/architecture/CODEBASE_MAP.md tasks/test-evidence/autonomous-maturity-m02-dead-surfaces.json tasks/test-evidence/autonomous-maturity-m02-source-inventory.json tools/evidence/validate_autonomous_maturity_evidence.py tools/evidence/validate_autonomous_maturity_m02.py tools/evidence/test_validate_autonomous_maturity_m02.py tools/evidence/schemas/autonomous-maturity-m02-dead-surfaces-v1.schema.json && GIT_INDEX_FILE=\"$index\" python3 tools/evidence/validate_autonomous_maturity_evidence.py --structural && GIT_INDEX_FILE=\"$index\" python3 tools/evidence/validate_autonomous_maturity_m02.py'",
+      "result": "STRUCTURE_VALID: receipt shape only; run --live for current proof; PASS: M02 receipt, inventory delta, and rollback manifest are closed"
+    },
+    {
+      "status": "PASS",
+      "scope": "live integrated-tree dead-surface reachability, active Settings parity, unified diagnostics, setup persistence, and OSS debug compilation",
+      "argv": "./gradlew --no-daemon :app:testOssReleaseUnitTest --tests 'io.codecks.ui.app.DeadSurfaceReachabilityPolicyTest' --tests 'io.codecks.ui.connection.ConnectionDiagnosticPresenterTest' --tests 'io.codecks.ui.connection.SetupSnapshotPersistenceTest' --tests 'io.codecks.ui.connection.UnifiedConnectionUiSourceTest' :app:compileOssDebugSources",
+      "result": "BUILD SUCCESSFUL in 1m 12s; 60 tasks; 20 tests passed, 0 skipped, 0 failed"
+    },
+    {
+      "status": "PASS",
+      "scope": "OSS, production-dark Play, and isolated playInternal DEX/manifest/SDK-boundary artifact scans",
+      "argv": "./gradlew :app:validateCommercialArtifacts with three distinct disposable one-day signer roles",
+      "result": "validated ossRelease, playRelease, and playInternalRelease; official release-signer continuity remains outside this source-deletion gate"
+    },
+    {
+      "status": "PASS",
+      "scope": "managed-emulator Settings route and active Mac setup UI parity",
+      "argv": "./gradlew --no-daemon --max-workers=1 -PcodecksInstrumentedTestBuildType=debug -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect -Pandroid.testInstrumentationRunnerArguments.class=io.codecks.ui.settings.SettingsConnectionParityInstrumentedTest :app:pixel6Api35OssDebugAndroidTest --console=plain",
+      "result": "BUILD SUCCESSFUL in 3m 10s; managed Pixel 6 API 35 with SwiftShader executed exactly 1 test, 1 passed, 0 skipped, 0 failed; the test followed the real More to Settings route, asserted retained Settings and Mac input UI, and used lazy-list semantics to reach the already-open Connect a Mac panel and Find Macs action without toggling or mutating product state; the runner logged non-fatal permission warnings for its optional /sdcard additional-test-output directory, while the authoritative XML and HTML results were produced under app/build"
+    }
+  ]
+}

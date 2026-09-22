@@ -42,22 +42,22 @@ class ConnectionDiagnosticPresenterTest {
             nowMillis = 10_000L,
         )
 
-        assertEquals(ConnectionDiagnosticState.Connecting, connecting.state)
+        assertEquals(ConnectionPresentationState.Checking, connecting.state)
         assertEquals(3, connecting.attempt)
-        assertEquals(ConnectionDiagnosticState.Backoff, backoff.state)
+        assertEquals(ConnectionPresentationState.Reconnecting, backoff.state)
         assertEquals(4, backoff.attempt)
         assertEquals(15, backoff.retryInSeconds)
-        assertEquals(listOf(ConnectionRepairAction.RetryNow), backoff.repairActions)
+        assertEquals(listOf(ConnectionRepair.RetryNow), backoff.repairActions)
     }
 
     @Test
     fun failuresRemainDistinctAndUnknownFallsBackSafely() {
         val expected = mapOf(
-            ConnectionIssueCode.MAC_OFFLINE_OR_ASLEEP to ConnectionDiagnosticState.Offline,
-            ConnectionIssueCode.SSH_AUTH_FAILED to ConnectionDiagnosticState.AuthenticationFailed,
-            ConnectionIssueCode.SSH_HOST_KEY_MISMATCH to ConnectionDiagnosticState.HostKeyMismatch,
-            ConnectionIssueCode.MAC_TOOL_MISSING to ConnectionDiagnosticState.ToolMissing,
-            ConnectionIssueCode.UNKNOWN to ConnectionDiagnosticState.Unknown,
+            ConnectionIssueCode.MAC_OFFLINE_OR_ASLEEP to ConnectionPresentationState.Sleeping,
+            ConnectionIssueCode.SSH_AUTH_FAILED to ConnectionPresentationState.AuthenticationFailed,
+            ConnectionIssueCode.SSH_HOST_KEY_MISMATCH to ConnectionPresentationState.IdentityMismatch,
+            ConnectionIssueCode.MAC_TOOL_MISSING to ConnectionPresentationState.SetupRequired,
+            ConnectionIssueCode.UNKNOWN to ConnectionPresentationState.Failed,
         )
 
         expected.forEach { (issue, state) ->
@@ -69,13 +69,47 @@ class ConnectionDiagnosticPresenterTest {
     }
 
     @Test
-    fun setupSurfacesDoNotRenderRawExceptionText() {
-        val connectionScreen = File("src/main/java/io/codecks/ui/connection/ConnectionScreen.kt").readText()
-        val settingsScreen = File("src/main/java/io/codecks/ui/settings/SettingsScreen.kt").readText()
+    fun `diagnostic state and repairs are identical to unified presentation`() {
+        ConnectionIssueCode.entries.forEach { issue ->
+            val diagnostic = presentConnectionDiagnostic(readyConfig, ConnectionOperation.Idle, issue)
+            val unified = ConnectionHealth(
+                kind = when (issue) {
+                    ConnectionIssueCode.SSH_AUTH_FAILED,
+                    ConnectionIssueCode.BLUETOOTH_PERMISSION_DENIED,
+                    ConnectionIssueCode.HOST_UNPAIRED,
+                    -> ConnectionHealthKind.AuthFailed
+                    ConnectionIssueCode.SSH_HOST_KEY_MISMATCH -> ConnectionHealthKind.FingerprintMismatch
+                    ConnectionIssueCode.CONNECTING -> ConnectionHealthKind.Connecting
+                    else -> ConnectionHealthKind.Offline
+                },
+                title = "ignored",
+                detail = "ignored",
+                issueOverride = issue,
+            ).toUnifiedConnectionPresentation()
 
-        assertFalse(connectionScreen.contains("Text(error"))
+            assertEquals(unified.state, diagnostic.state)
+            assertEquals(unified.repairs, diagnostic.repairActions)
+            assertEquals(unified.supportCode, diagnostic.supportCode)
+        }
+    }
+
+    @Test
+    fun `production diagnostics expose only typed repair promises`() {
+        ConnectionIssueCode.entries.forEach { issue ->
+            presentConnectionDiagnostic(readyConfig, ConnectionOperation.Idle, issue)
+                .repairActions
+                .forEach { repair -> assertTrue(repair in ConnectionRepair.entries) }
+        }
+        assertFalse(ConnectionRepair.entries.any { it.name.contains("Wake", ignoreCase = true) })
+    }
+
+    @Test
+    fun setupSurfacesDoNotRenderRawExceptionText() {
+        val settingsScreen = File(
+            "src/main/java/io/codecks/ui/settings/SettingsConnectionSections.kt",
+        ).readText()
+
         assertFalse(settingsScreen.contains("state.error?.let { Text(it"))
-        assertTrue(connectionScreen.contains("state.connectionDiagnostic()"))
         assertTrue(settingsScreen.contains("state.connectionDiagnostic()"))
     }
 

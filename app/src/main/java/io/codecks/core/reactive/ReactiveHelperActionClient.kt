@@ -1,9 +1,7 @@
 package io.codecks.core.reactive
 
 import io.codecks.domain.reactive.ActionRevision
-import io.codecks.domain.reactive.ReactiveAction
 import io.codecks.domain.reactive.ReactiveActionResult
-import io.codecks.domain.reactive.ReactiveUndoAction
 import io.codecks.platform.helper.ReactiveHelperClient
 import io.codecks.shared.protocol.ReactiveHelperActionReceipt
 import io.codecks.shared.protocol.ReactiveHelperRequest
@@ -105,18 +103,6 @@ internal fun ReactiveHelperActionExecution.toReactiveActionResult(
     is ReactiveHelperActionExecution.Unsupported -> ReactiveActionResult.Unsupported(reasonCode)
     is ReactiveHelperActionExecution.RequiresReview -> ReactiveActionResult.RequiresReview(actionRevision, reason)
     ReactiveHelperActionExecution.Expired -> ReactiveActionResult.Expired
-}
-
-internal fun ReactiveHelperActionExecution.Succeeded.toUndoAction(nowMillis: Long): ReactiveUndoAction? {
-    val token = undoToken ?: return null
-    return ReactiveUndoAction(
-        label = "Undo helper action",
-        action = ReactiveAction.Helper(
-            actionId = "helper.undo",
-            arguments = mapOf("undoToken" to token),
-        ),
-        expiresAtMillis = nowMillis + 30_000L,
-    )
 }
 
 private fun Throwable.toHelperUnavailableCode(): String = when {

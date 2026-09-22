@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.codecks.ui.connection.FirstRunRepairBenchmarkTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-08-17T23:04:03.427Z" hostname="svaddi-home.local" time="0.087">
+  <properties/>
+  <testcase name="oneHundredDistinctCleanProfilesMeetM14Gate" classname="io.codecks.ui.connection.FirstRunRepairBenchmarkTest" time="0.053"/>
+  <testcase name="corpusHasTenMaterialVariantsPerScenario" classname="io.codecks.ui.connection.FirstRunRepairBenchmarkTest" time="0.002"/>
+  <testcase name="receiptContainsNoSecretOrRawEndpointMaterial" classname="io.codecks.ui.connection.FirstRunRepairBenchmarkTest" time="0.032"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -79,20 +79,7 @@ val ConnectionHealth.issueCode: ConnectionIssueCode?
 val ConnectionHealth.remediations: List<RemediationAction>
     get() = issueCode?.remediations.orEmpty()
 
-fun ConnectionHealth.statusLabel(): String =
-    when (kind) {
-        ConnectionHealthKind.NotConfigured -> "Setup needed"
-        ConnectionHealthKind.Scanning -> "Checking…"
-        ConnectionHealthKind.Verifying -> "Checking…"
-        ConnectionHealthKind.Connecting -> "Connecting…"
-        ConnectionHealthKind.Testing -> "Checking…"
-        ConnectionHealthKind.Ready -> "Ready"
-        ConnectionHealthKind.NeedsFingerprint -> "Setup needed"
-        ConnectionHealthKind.NeedsKey -> "Setup needed"
-        ConnectionHealthKind.AuthFailed -> "Failed"
-        ConnectionHealthKind.FingerprintMismatch -> "Failed"
-        ConnectionHealthKind.Offline -> "Offline"
-    }
+fun ConnectionHealth.statusLabel(): String = toUnifiedConnectionPresentation().statusLabel
 
 fun simpleConnectionHealth(connectionReady: Boolean): ConnectionHealth =
     if (connectionReady) {

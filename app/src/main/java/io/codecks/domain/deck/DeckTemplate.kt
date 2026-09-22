@@ -86,6 +86,47 @@ object DeckTemplateCatalog {
             ),
             appMatchers = listOf("Keynote", "PowerPoint", "Preview", "Slides"),
         ),
+        DeckTemplate(
+            id = "focus",
+            title = "Focus",
+            subtitle = "Start work, mute distractions, and protect a focus block",
+            icon = ActionIcon.Lock,
+            actionIds = listOf(
+                "coding_start", "focus_1h", "mute", "screensaver",
+                "lock_mac", "terminal", "github", "add_button",
+            ),
+            appMatchers = listOf("Things", "Todoist", "Obsidian", "Notion"),
+        ),
+        DeckTemplate(
+            id = "finder",
+            title = "Finder",
+            subtitle = "Files, Spotlight, common folders, and capture",
+            icon = ActionIcon.Finder,
+            actionIds = listOf(
+                "finder", "spotlight", "downloads", "documents",
+                "show_desktop", "screenshot", "copy", "paste", "add_button",
+            ),
+            appMatchers = listOf("Finder"),
+        ),
+        DeckTemplate(
+            id = "accessibility",
+            title = "Accessible controls",
+            subtitle = "Familiar input, volume, search, and screen controls",
+            icon = ActionIcon.Keyboard,
+            actionIds = listOf(
+                "keyboard", "trackpad", "spotlight", "vol_up",
+                "vol_down", "mute", "full_screen", "add_button",
+            ),
+        ),
+        DeckTemplate(
+            id = "safety",
+            title = "Safety",
+            subtitle = "Lock, screensaver, sleep display, and connection checks",
+            icon = ActionIcon.Lock,
+            actionIds = listOf(
+                "lock_mac", "screensaver", "sleep_display", "detect_mac", "add_button",
+            ),
+        ),
     )
 
     fun matchActiveApp(activeApp: String): DeckTemplate? {

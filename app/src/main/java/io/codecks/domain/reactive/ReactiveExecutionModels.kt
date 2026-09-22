@@ -6,6 +6,7 @@ import io.codecks.protocol.ProtocolActionReceiptError
 import io.codecks.protocol.ProtocolActionReceiptStatus
 import java.time.Instant
 import java.util.UUID
+import io.codecks.domain.assurance.ActionAssuranceReceipt
 
 @JvmInline
 value class ReactiveOperationId(val value: String) {
@@ -110,11 +111,13 @@ data class ReactiveActionReceipt(
     val undo: ReactiveUndoAction?,
     val expiresAtMillis: Long?,
     val metadata: Map<String, String> = emptyMap(),
+    val assuranceReceipt: ActionAssuranceReceipt? = null,
 )
 
 data class ReactiveExecutionOutcome(
     val result: ReactiveActionResult,
     val receipt: ReactiveActionReceipt? = null,
+    val assuranceReceipt: ActionAssuranceReceipt? = null,
 )
 
 interface ReactiveActionExecutor {
@@ -156,12 +159,24 @@ class InMemoryReactiveReceiptStore(
         protocolMirror.record(receipt.toProtocolReceipt())
     }
 
-    fun recordIdempotent(signature: String, receipt: ReactiveActionReceipt) {
+    fun recordIdempotent(
+        signature: String,
+        rawIdempotencyKey: ReactiveIdempotencyKey,
+        rawResult: ReactiveActionResult,
+        receipt: ReactiveActionReceipt,
+    ) {
         record(receipt)
-        idempotentReceipts[receipt.idempotencyKey] = IdempotentReceipt(signature, receipt)
+        idempotentReceipts[rawIdempotencyKey] = IdempotentReceipt(signature, rawResult, receipt)
         while (idempotentReceipts.size > maxReceipts) {
             val eldest = idempotentReceipts.keys.firstOrNull() ?: break
             idempotentReceipts.remove(eldest)
+        }
+    }
+
+    fun replaceReceipt(receipt: ReactiveActionReceipt) {
+        record(receipt)
+        idempotentReceipts.replaceAll { _, stored ->
+            if (stored.receipt.id == receipt.id) stored.copy(receipt = receipt) else stored
         }
     }
 
@@ -180,6 +195,7 @@ class InMemoryReactiveReceiptStore(
 
 data class IdempotentReceipt(
     val signature: String,
+    val result: ReactiveActionResult,
     val receipt: ReactiveActionReceipt,
 )
 
@@ -197,15 +213,15 @@ private fun ReactiveActionReceipt.toProtocolReceipt(): ProtocolActionReceipt =
         schemaVersion = "1.0",
         receiptId = id.value,
         invocationId = operationId.value,
-        actionId = metadata["actionId"] ?: controlId.value,
+        actionId = receiptHash(metadata["actionId"] ?: controlId.value),
         status = result.toProtocolStatus(),
         startedAt = Instant.ofEpochMilli(completedAtMillis).toString(),
         finishedAt = Instant.ofEpochMilli(completedAtMillis).toString(),
-        message = result.message(),
-        outputs = metadata + mapOf(
-            "controlId" to controlId.value,
-            "actionRevision" to actionRevision.value,
-            "idempotencyKey" to idempotencyKey.value,
+        message = receiptHash(result.message()),
+        outputs = metadata.mapValues { receiptHash(it.value) } + mapOf(
+            "controlId" to receiptHash(controlId.value),
+            "actionRevision" to receiptHash(actionRevision.value),
+            "idempotencyKey" to receiptHash(idempotencyKey.value),
         ),
         error = result.errorCodeOrNull(),
     )
@@ -230,18 +246,20 @@ private fun ReactiveActionResult.message(): String = when (this) {
 }
 
 private fun ReactiveActionResult.errorCodeOrNull(): ProtocolActionReceiptError? = when (this) {
-    is ReactiveActionResult.Failed -> ProtocolActionReceiptError(errorCode, errorCode, retryable)
-    is ReactiveActionResult.Unsupported -> ProtocolActionReceiptError(reasonCode, reasonCode, retryable = false)
-    ReactiveActionResult.Expired -> ProtocolActionReceiptError("expired", "expired", retryable = false)
+    is ReactiveActionResult.Failed -> receiptHash(errorCode).let { ProtocolActionReceiptError(it, it, retryable) }
+    is ReactiveActionResult.Unsupported -> receiptHash(reasonCode).let { ProtocolActionReceiptError(it, it, retryable = false) }
+    ReactiveActionResult.Expired -> receiptHash("expired").let { ProtocolActionReceiptError(it, it, retryable = false) }
     is ReactiveActionResult.RequiresConfirmation -> ProtocolActionReceiptError(
-        "requires_confirmation",
-        "requires_confirmation",
+        receiptHash("requires_confirmation"),
+        receiptHash("requires_confirmation"),
         retryable = false,
     )
     is ReactiveActionResult.RequiresReview -> ProtocolActionReceiptError(
-        "requires_review",
-        reason,
+        receiptHash("requires_review"),
+        receiptHash(reason),
         retryable = false,
     )
     is ReactiveActionResult.Succeeded -> null
 }
+
+private fun receiptHash(value: String): String = "redacted_${sha256Hex(value).take(12)}"

@@ -38,6 +38,9 @@ import io.codecks.ui.designsystem.DeckPage
 import io.codecks.ui.app.AccessibleStatus
 import io.codecks.ui.app.AccessibleStatusKind
 import io.codecks.ui.app.accessibilityTraversalOrder
+import io.codecks.ui.connection.ConnectionPresentationState
+import io.codecks.ui.connection.ConnectionRepair
+import io.codecks.ui.connection.toUnifiedConnectionPresentation
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -54,6 +57,7 @@ fun ClipboardScreen(
     onStartSession: () -> Unit,
     onStopSession: () -> Unit,
     onForegroundVisibleChange: (Boolean) -> Unit,
+    onOpenBatterySaverSettings: () -> Unit,
     onRetrySharedText: () -> Unit = {},
     onDiscardSharedText: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -66,7 +70,13 @@ fun ClipboardScreen(
         contentPadding = contentPadding,
         modifier = modifier,
     ) {
-        item { ClipboardStatusSummary(state, modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) }
+        item {
+            ClipboardStatusSummary(
+                state = state,
+                onRetry = onPullFromMac,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+            )
+        }
         if (state.pendingSharedText) {
             item {
                 SharedTextPendingPanel(
@@ -75,6 +85,9 @@ fun ClipboardScreen(
                     onDiscard = onDiscardSharedText,
                 )
             }
+        }
+        state.lastSyncReceipt?.let { receipt ->
+            item { ClipboardManualReceiptPanel(receipt = receipt) }
         }
         item {
             ClipboardSessionPanel(
@@ -90,6 +103,7 @@ fun ClipboardScreen(
             ClipboardSyncPolicyPanel(
                 state = state,
                 onModeVisible = state.liveSyncVisible,
+                onOpenBatterySaverSettings = onOpenBatterySaverSettings,
             )
         }
         item {
@@ -107,9 +121,6 @@ fun ClipboardScreen(
                 onModeChange = onModeChange,
                 onIntervalChange = onIntervalChange,
             )
-        }
-        state.lastSyncReceipt?.let { receipt ->
-            item { ClipboardManualReceiptPanel(receipt = receipt) }
         }
         if (state.history.isNotEmpty()) {
             item { ClipboardHistoryPanel(state) }
@@ -157,23 +168,48 @@ private fun SharedTextPendingPanel(
 }
 
 @Composable
-private fun ClipboardStatusSummary(state: ClipboardUiState, modifier: Modifier = Modifier) {
-    val connectionStatus = clipboardConnectionStatus(state)
-    val attention = state.hasConflict ||
-        connectionStatus == ClipboardConnectionStatus.Offline ||
-        connectionStatus == ClipboardConnectionStatus.Failed
-    AccessibleStatus(
-        stateDescription = connectionStatus.label,
-        detail = clipboardStatusDetail(state),
-        kind = if (attention) AccessibleStatusKind.Error else if (state.isRunning) {
-            AccessibleStatusKind.Busy
-        } else {
-            AccessibleStatusKind.Success
-        },
-        announceChanges = !state.isRunning,
-        announcementKey = "${connectionStatus.name}:${state.hasConflict}:${state.lastFailureClass}",
-        modifier = modifier.accessibilityTraversalOrder(0f),
+private fun ClipboardStatusSummary(
+    state: ClipboardUiState,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val presentation = state.toUnifiedConnectionPresentation()
+    val attention = presentation.state in setOf(
+        ConnectionPresentationState.Offline,
+        ConnectionPresentationState.Sleeping,
+        ConnectionPresentationState.AuthenticationFailed,
+        ConnectionPresentationState.IdentityMismatch,
+        ConnectionPresentationState.Conflict,
+        ConnectionPresentationState.Failed,
     )
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = modifier) {
+        AccessibleStatus(
+            stateDescription = presentation.statusLabel,
+            detail = "${presentation.detail} Support code ${presentation.supportCode.value}.",
+            kind = if (attention) AccessibleStatusKind.Error else if (state.isRunning) {
+                AccessibleStatusKind.Busy
+            } else {
+                AccessibleStatusKind.Success
+            },
+            announceChanges = !state.isRunning,
+            announcementKey = "${presentation.state}:${presentation.supportCode.value}",
+            modifier = Modifier.accessibilityTraversalOrder(0f),
+        )
+        val repair = presentation.repairs.firstOrNull { it == ConnectionRepair.RetryNow }
+            ?: presentation.repairs.firstOrNull()
+        repair?.let {
+            if (it == ConnectionRepair.RetryNow) {
+                DeckActionButton(
+                    label = it.label,
+                    onClick = onRetry,
+                    enabled = !state.isRunning,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                )
+            } else {
+                Text("Next: ${it.label}", style = MaterialTheme.typography.labelMedium)
+            }
+        }
+    }
 }
 
 @Composable
@@ -286,28 +322,18 @@ internal enum class ClipboardConnectionStatus(val label: String) {
     Failed("Failed"),
 }
 
-internal fun clipboardConnectionStatus(state: ClipboardUiState): ClipboardConnectionStatus = when {
-    state.isRunning -> ClipboardConnectionStatus.Checking
-    (state.connectionConfigured || state.connectionReady) && state.isRemoteOffline ->
-        ClipboardConnectionStatus.Offline
-    !state.connectionReady -> ClipboardConnectionStatus.SetupNeeded
-    state.hasConflict || state.lastFailureClass != null -> ClipboardConnectionStatus.Failed
-    else -> ClipboardConnectionStatus.Ready
+internal fun clipboardConnectionStatus(state: ClipboardUiState): ClipboardConnectionStatus {
+    val presented = state.toUnifiedConnectionPresentation().state
+    return when {
+        presented == ConnectionPresentationState.Checking -> ClipboardConnectionStatus.Checking
+        presented in setOf(ConnectionPresentationState.Offline, ConnectionPresentationState.Sleeping) -> ClipboardConnectionStatus.Offline
+        presented == ConnectionPresentationState.SetupRequired -> ClipboardConnectionStatus.SetupNeeded
+        presented in setOf(ConnectionPresentationState.Conflict, ConnectionPresentationState.Failed) -> ClipboardConnectionStatus.Failed
+        else -> ClipboardConnectionStatus.Ready
+    }
 }
 
-internal fun clipboardStatusDetail(state: ClipboardUiState): String = when {
-    state.isRunning -> "Checking the phone and Mac clipboards."
-    state.hasConflict -> "Both sides changed. Choose the copy to keep."
-    (state.connectionConfigured || state.connectionReady) && state.isRemoteOffline ->
-        "The Mac is offline. Manual and automatic sync cannot run."
-    !state.connectionReady -> "Connect a Mac in Settings before transferring text."
-    state.lastFailureClass != null -> "The last transfer failed. Try again or check Mac setup."
-    state.mode == ClipboardSyncMode.Off -> "Manual transfer is available. Automatic sync is off."
-    state.batterySaverActive -> "Battery Saver paused automatic sync. Manual refresh remains available."
-    state.liveSyncVisible -> "Automatic sync checks while Clipboard is open."
-    state.staleEndpoints.isNotEmpty() -> "Clipboard information needs another check."
-    else -> "Automatic sync resumes when Clipboard is open."
-}
+internal fun clipboardStatusDetail(state: ClipboardUiState): String = state.toUnifiedConnectionPresentation().detail
 
 @Composable
 private fun ClipboardPreviewCard(
@@ -338,7 +364,11 @@ private fun ClipboardPreviewCard(
 }
 
 @Composable
-private fun ClipboardSyncPolicyPanel(state: ClipboardUiState, onModeVisible: Boolean) {
+private fun ClipboardSyncPolicyPanel(
+    state: ClipboardUiState,
+    onModeVisible: Boolean,
+    onOpenBatterySaverSettings: () -> Unit,
+) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
         shape = MaterialTheme.shapes.medium,
@@ -393,6 +423,18 @@ private fun ClipboardSyncPolicyPanel(state: ClipboardUiState, onModeVisible: Boo
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
+            }
+            if (state.batterySaverActive) {
+                DeckActionButton(
+                    label = "Open Battery Saver settings",
+                    onClick = onOpenBatterySaverSettings,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                )
+                Text(
+                    text = "No battery exemption is required. Codecks only checks the phone clipboard while this screen is visible and unlocked.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codecks.m09d.controller-lifecycle.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "status", "scope", "commitChain", "sourceBinding", "evidenceSource", "artifacts", "test", "claims"],
+  "properties": {
+    "schema": {"const": "codecks.m09d.controller-lifecycle.v1"},
+    "status": {"const": "PASS"},
+    "scope": {"const": "CURRENT_SOURCE_CPU_CONTROLLER_LIFECYCLE_ONLY"},
+    "commitChain": {
+      "type": "object", "additionalProperties": false, "required": ["base", "source", "artifact"],
+      "properties": {
+        "base": {"const": "d49bc52fadded536dad947a3ea76fcd58d7f2a58"},
+        "source": {"$ref": "#/$defs/commit"}, "artifact": {"$ref": "#/$defs/commit"}
+      }
+    },
+    "evidenceSource": {
+      "type": "object", "additionalProperties": false, "required": ["sourceParent", "c1Paths", "files"],
+      "properties": {
+        "sourceParent": {"const": "d49bc52fadded536dad947a3ea76fcd58d7f2a58"},
+        "c1Paths": {"type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true, "items": {"$ref": "#/$defs/path"}},
+        "files": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/file"}}
+      }
+    },
+    "sourceBinding": {
+      "type": "object", "additionalProperties": false, "required": ["files", "c1Paths"],
+      "properties": {
+        "files": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/file"}},
+        "c1Paths": {"type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true, "items": {"$ref": "#/$defs/path"}}
+      }
+    },
+    "artifacts": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/file"}},
+    "test": {
+      "type": "object", "additionalProperties": false,
+      "required": ["className", "methods", "tests", "failures", "errors", "skipped", "captureRuns", "command", "environment"],
+      "properties": {
+        "className": {"const": "io.codecks.m09d.M09DControllerLifecycleTest"},
+        "methods": {"type": "array", "minItems": 10, "maxItems": 10, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "tests": {"type": "integer", "const": 10}, "failures": {"type": "integer", "const": 0}, "errors": {"type": "integer", "const": 0}, "skipped": {"type": "integer", "const": 0}, "captureRuns": {"type": "integer", "const": 2},
+        "command": {
+          "type": "array", "minItems": 10, "maxItems": 10,
+          "prefixItems": [
+            {"const": "$GRADLE_DISTRIBUTION_ROOT/bin/gradle"}, {"const": ":app:validateReleaseSurface"},
+            {"const": ":app:testOssReleaseUnitTest"}, {"const": "--tests"},
+            {"const": "io.codecks.m09d.M09DControllerLifecycleTest"}, {"const": "--rerun-tasks"},
+            {"const": "--no-build-cache"}, {"const": "--no-configuration-cache"}, {"const": "--no-daemon"}, {"const": "--offline"}
+          ],
+          "items": false
+        },
+        "environment": {"$ref": "#/$defs/environment"}
+      }
+    },
+    "claims": {
+      "type": "object", "additionalProperties": false,
+      "required": ["providerNetwork", "networkDenial", "dependencyCacheOrigin", "freshnessAdversaryResistance", "rawMaterialInCommittedEvidence", "ignoredLocalBuildOutputsRetention", "rawTransformationRevalidation", "writableHomeMaterialRetention", "postRunLiveRevalidation", "longPressUi", "device", "physicalPhone", "publicRelease", "aiDeleteUndo"],
+      "properties": {
+        "providerNetwork": {"const": "NOT_RUN"}, "networkDenial": {"const": "NOT_PROVEN"}, "dependencyCacheOrigin": {"const": "NOT_PROVEN"}, "freshnessAdversaryResistance": {"const": "NOT_PROVEN"}, "rawMaterialInCommittedEvidence": {"const": "NOT_RETAINED"}, "ignoredLocalBuildOutputsRetention": {"const": "NOT_PROVEN"}, "rawTransformationRevalidation": {"const": "NOT_POSSIBLE"}, "writableHomeMaterialRetention": {"const": "NOT_RETAINED"}, "postRunLiveRevalidation": {"const": "NOT_APPLICABLE"}, "longPressUi": {"const": "NOT_RUN"},
+        "device": {"const": "NOT_RUN"}, "physicalPhone": {"const": "NOT_RUN"},
+        "publicRelease": {"const": "NOT_RUN"}, "aiDeleteUndo": {"const": "NOT_AVAILABLE"}
+      }
+    }
+  },
+  "$defs": {
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "path": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+    "file": {
+      "type": "object", "additionalProperties": false, "required": ["path", "sha256"],
+      "properties": {"path": {"$ref": "#/$defs/path"}, "sha256": {"$ref": "#/$defs/sha"}}
+    },
+    "environment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["ANDROID_HOME", "JAVA_HOME", "HOME", "GRADLE_USER_HOME", "GRADLE_RO_DEP_CACHE", "PATH", "LANG", "LC_ALL", "GRADLE_OPTS", "JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS"],
+      "properties": {
+        "ANDROID_HOME": {"const": "$ANDROID_HOME"},
+        "JAVA_HOME": {"const": "$JAVA_HOME"},
+        "HOME": {"const": "$HOME"},
+        "GRADLE_USER_HOME": {"const": "$GRADLE_USER_HOME"},
+        "GRADLE_RO_DEP_CACHE": {"const": "$GRADLE_RO_DEP_CACHE"},
+        "PATH": {"const": "$JAVA_HOME/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"},
+        "LANG": {"const": "C.UTF-8"}, "LC_ALL": {"const": "C.UTF-8"},
+        "GRADLE_OPTS": {"const": ""}, "JAVA_TOOL_OPTIONS": {"const": ""}, "_JAVA_OPTIONS": {"const": ""}
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="13" failures="0" errors="0" skipped="0" time="26.271" timestamp="2026-08-18T00:15:54" hostname="localhost">
+  <testsuite name="io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest" tests="13" failures="0" errors="0" skipped="0" time="25.505" timestamp="2026-08-18T00:15:54" hostname="localhost">
+    <properties>
+      <property name="device" value="pixel6Api35" />
+      <property name="flavor" value="playInternal" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="lockscreenCriticalActionsRemainVisibleAndTouchableAtTwoHundredPercentText" classname="io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest" time="2.026" />
+    <testcase name="compactHomeReflowsHeaderAndDeckToTwoColumnsAtTwoHundredPercentText" classname="io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest" time="1.625" />
+    <testcase name="widgetInitialLayoutInflatesWithTokenOwnedFallbacks" classname="io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest" time="1.256" />
+    <testcase name="normalFontCompactHomePreservesFourColumnDeck" classname="io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest" time="1.329" />
+    <testcase name="customThemeAndReducedMotionOverlayRenderWithoutDecorativeSemantics" classname="io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest" time="1.78" />
+    <testcase name="keyboardComposerKeepsNamedFullWidthActionsAtTwoHundredPercentText" classname="io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest" time="1.099" />
+    <testcase name="deckAndHelperRenderInRtlDexWindowWithHighContrastOledThemeAndHaptics" classname="io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest" time="2.597" />
+    <testcase name="ckDeckKeyFocusRingAndClickLongClickHapticsAreObservable" classname="io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest" time="3.417" />
+    <testcase name="smartSuggestionReflowsWithoutTruncatingMeaningAtTwoHundredPercentText" classname="io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest" time="1.153" />
+    <testcase name="blankColorSwatchHasTokenSizedRadioSemantics" classname="io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest" time="1.11" />
+    <testcase name="firstRunTrackpadSetupRemainsScrollableAtTwoHundredPercentText" classname="io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest" time="2.762" />
+    <testcase name="compactBottomNavigationKeepsFullAccessibleNamesAtTwoHundredPercentText" classname="io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest" time="3.223" />
+    <testcase name="animatorScaleChangesUpdateMotionPolicyWithoutRecreatingComposition" classname="io.codecks.ui.designsystem.CodecksDesignSystemInstrumentedTest" time="2.128" />
+  </testsuite>
+</testsuites>

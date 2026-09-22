@@ -25,6 +25,8 @@ class LocalFeatureFlagRepository(
 
     private val state = MutableStateFlow(loadFlags(initialFlags))
     override val flags: Flow<Map<FeatureFlag, Boolean>> = state.asStateFlow()
+    val currentFlags: Map<FeatureFlag, Boolean>
+        get() = state.value
 
     override suspend fun isEnabled(flag: FeatureFlag): Boolean =
         state.value[flag] ?: (initialFlags[flag] == true)

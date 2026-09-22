@@ -6,7 +6,6 @@ import java.io.File
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DiagnosticEventPrivacyTest {
@@ -60,7 +59,7 @@ class DiagnosticEventPrivacyTest {
         canaries.values.forEach { canary ->
             assertFalse("Export leaked $canary", exported.contains(canary))
         }
-        assertTrue(exported.contains("\"unknown\""))
+        assertEquals(0, JSONObject(exported).getJSONArray("events").length())
         writeEvidence(exported, canaries.keys)
     }
 

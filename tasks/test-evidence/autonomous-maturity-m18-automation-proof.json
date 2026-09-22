@@ -1,0 +1,207 @@
+{
+  "schema": "codecks.autonomous-maturity.m18-automation-proof.v1",
+  "milestone": "M18",
+  "status": "PASS",
+  "scope": "CPU_SOURCE_BOUND",
+  "generatedAtUtc": "2026-08-11T01:39:30.463830Z",
+  "sourceCommit": "15fa63e26cc394dbfb458446ad749af57cd253b4",
+  "sources": [
+    {
+      "path": "app/src/main/java/io/codecks/core/actions/ActionContracts.kt",
+      "sha256": "425a3057e992182a7d22fa660bce7893d50b2adff21bbe2da1eb40febfe6688e"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/actions/CommandRevision.kt",
+      "sha256": "56c66b69229ca41036df7188dc4e68d530d833d304dd4558853942174dfcf93c"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/core/actions/RawCommandPolicy.kt",
+      "sha256": "3aa1ec7861436f8eec4ddebed5cb3f7d95095dc32e26892ef6a0398a9b3714ac"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/CommandTrust.kt",
+      "sha256": "073f25a085ee91b3b0c658faccd0bae8479023f3967c2932c7fa02c7ae8d3000"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/assurance/ActionAssurance.kt",
+      "sha256": "57c2be5e19a2022d3f30bdc0d08e079ad3fa659a52fd28c4d8bf949c3f1aa5f3"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/assurance/AssuranceSourceAdapters.kt",
+      "sha256": "7e7d8af2a5ad58ff7c93bc3d3c9770b015c46f016f12fdb2c7cc74f69da54cab"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/automation/AutomationCapability.kt",
+      "sha256": "b4142415a65609e3d1a7ca0136ce159be163e85bdfa699aebc6a069d849beb73"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/automation/AutomationExecutionPlan.kt",
+      "sha256": "c9d00e0d36f86fc317b902003db2eb6e0e6a0905fbd5a08b1f2aee53adb20fb7"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/automation/AutomationLiveTestEngine.kt",
+      "sha256": "f7e71738b1ac4987732e99ee285905fd26ae54e6e303b20d692d54cc511e0862"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/automation/AutomationRecipe.kt",
+      "sha256": "e5d380d2d8b4722e800a2e3bbc75e4b1c1aaf3a1ee7517eba26c821533bf1662"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/automation/AutomationRevisionGate.kt",
+      "sha256": "885e294af60aa4c8dde3e03b467e290ff4a89abc0bc5d24a96f7a55b0d64e03e"
+    },
+    {
+      "path": "app/src/main/java/io/codecks/domain/automation/AutomationWorkerOutcome.kt",
+      "sha256": "4562b9dddd84c86e1fc303a6eb877815f0b8365991f2b0b4621289d462266508"
+    },
+    {
+      "path": "app/src/test/java/io/codecks/domain/automation/M18AutomationAssuranceTest.kt",
+      "sha256": "b072dc6f0b1492d92f23d9c7ccf999440ce4922c9922d89d9d12653167836532"
+    },
+    {
+      "path": "tools/evidence/collect_m18_automation_proof.py",
+      "sha256": "24ba2d9c71659a7d23584bcf4797950a6c6406a3aa2ed3295b0b34f0476c8ad1"
+    },
+    {
+      "path": "tools/evidence/validate_m18_automation_proof.py",
+      "sha256": "5aad892f1787ba688a99d76802406747af950a952b9b83d228ef562a4a45b3bb"
+    },
+    {
+      "path": "tools/evidence/test_m18_automation_proof.py",
+      "sha256": "79a243927528d03471a03d4c8fd69c931fa723a61ab1db6678b5011e7df87ff7"
+    },
+    {
+      "path": "tools/evidence/schemas/autonomous-maturity-m18-automation-proof-v1.schema.json",
+      "sha256": "fdbbc3fe30cad477ac2f56facb67240bf577d93763dac6702e5702c57f816437"
+    },
+    {
+      "path": "scripts/run_m18_automation_proof.sh",
+      "sha256": "7e55b8de1d3ce038b9ff1b181183f95ca167e4c24e9e0bf9b8494f9e9dc6501c"
+    }
+  ],
+  "unitResult": {
+    "path": "tasks/test-evidence/m18-automation-proof-cpu.xml",
+    "sha256": "041de485844361109c448c9787076f43c4cff5925ac4b4f1f28af739259645bd",
+    "timestamp": "2026-08-11T01:39:10.170Z",
+    "className": "io.codecks.domain.automation.M18AutomationAssuranceTest",
+    "methods": [
+      "actionCountAndUtf8CommandSizeAreBoundedBeforeExecution",
+      "cancellationPropagatesWithoutSuccessOrReplayReceipt",
+      "exactIdempotencyReplayReturnsOriginalReceiptButSourceChangeConflicts",
+      "generatedQuotingAndShellMetacharacterCorpusFailsClosed",
+      "importedAutomationLosesEveryExecutionProofAndCannotDispatch",
+      "partialFailureRetryTargetsOnlyRetryableComponentAndIsSingleUse",
+      "partialLiveTestAndFailedCleanupCannotProduceEnablementProof",
+      "receiptAndPlanHashesChangeWithTheirBoundSources",
+      "revisionPermissionAndHostChangesHaveDistinctFailClosedOutcomes",
+      "undoIsReceiptBoundAndSingleUse"
+    ],
+    "tests": 10,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "lanes": [
+    {
+      "id": "cpu.import_policy",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "cpu.preflight_revision_permission_host",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "cpu.adversarial_shell",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "cpu.execution_bounds",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "cpu.idempotency_source_binding",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "cpu.partial_failure_retry",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "cpu.cancellation",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "cpu.undo",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "cpu.cleanup_recovery",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "cpu.receipt_source_binding",
+      "status": "PASS",
+      "evidence": "CPU_UNIT",
+      "code": "exact_test_passed"
+    },
+    {
+      "id": "current_mac.permission_preflight",
+      "status": "NOT_RUN",
+      "evidence": "RUNTIME_OR_EXTERNAL",
+      "code": "held_or_unavailable"
+    },
+    {
+      "id": "current_mac.host_change",
+      "status": "NOT_RUN",
+      "evidence": "RUNTIME_OR_EXTERNAL",
+      "code": "held_or_unavailable"
+    },
+    {
+      "id": "current_mac.tool_unavailable",
+      "status": "NOT_RUN",
+      "evidence": "RUNTIME_OR_EXTERNAL",
+      "code": "held_or_unavailable"
+    },
+    {
+      "id": "physical.end_to_end_automation",
+      "status": "NOT_RUN",
+      "evidence": "RUNTIME_OR_EXTERNAL",
+      "code": "held_or_unavailable"
+    }
+  ],
+  "privacy": {
+    "commandContentRecorded": false,
+    "processOutputRecorded": false,
+    "hostIdentityRecorded": false,
+    "credentialRecorded": false
+  },
+  "summary": {
+    "pass": 10,
+    "fail": 0,
+    "notRun": 4
+  },
+  "limitations": [
+    "CPU tests prove deterministic policy and receipt wiring, not live Mac authorization behavior.",
+    "No emulator was required because M18 has no Android UI or lifecycle behavior.",
+    "Live permission loss, host replacement, and tool removal remain current-Mac NOT_RUN lanes.",
+    "Physical end-to-end automation dispatch remains NOT_RUN and no protected app was touched."
+  ]
+}

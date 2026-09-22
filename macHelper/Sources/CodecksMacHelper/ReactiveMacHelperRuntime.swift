@@ -41,11 +41,17 @@ public struct ReactiveMacHelperRuntimeConfig: Equatable {
         )
     }
 
-    public func makeCoordinator(pairingStore: PairingStore = FilePairingStore()) -> ReactiveSessionCoordinator {
+    public func makeCoordinator(
+        pairingStore: PairingStore = FilePairingStore(),
+        credentialStore: PairingCredentialStore? = nil,
+        allowUnknownLegacyEnrollment: Bool = false
+    ) -> ReactiveSessionCoordinator {
         ReactiveSessionCoordinator(
             macId: macId,
             helperIdentity: helperIdentity,
             pairingStore: pairingStore,
+            credentialStore: credentialStore,
+            allowUnknownLegacyEnrollment: allowUnknownLegacyEnrollment,
             actionHandlers: [
                 "apple_shortcuts.run": AppleShortcutsActionHandler(),
                 "spotlight.search": SpotlightSearchActionHandler(),

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codecks.dev/schemas/autonomous-maturity-m18-automation-proof-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "milestone", "status", "scope", "generatedAtUtc", "sourceCommit", "sources", "unitResult", "lanes", "privacy", "summary", "limitations"],
+  "properties": {
+    "schema": {"const": "codecks.autonomous-maturity.m18-automation-proof.v1"},
+    "milestone": {"const": "M18"},
+    "status": {"const": "PASS"},
+    "scope": {"const": "CPU_SOURCE_BOUND"},
+    "generatedAtUtc": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"},
+    "sourceCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sources": {
+      "type": "array", "minItems": 18, "maxItems": 18,
+      "items": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}
+    },
+    "unitResult": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256", "timestamp", "className", "methods", "tests", "failures", "errors", "skipped"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "timestamp": {"type": "string", "minLength": 1},
+        "className": {"const": "io.codecks.domain.automation.M18AutomationAssuranceTest"},
+        "methods": {"type": "array", "minItems": 10, "maxItems": 10, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "tests": {"const": 10}, "failures": {"const": 0}, "errors": {"const": 0}, "skipped": {"const": 0}
+      }
+    },
+    "lanes": {
+      "type": "array", "minItems": 14, "maxItems": 14,
+      "items": {"type": "object", "additionalProperties": false, "required": ["id", "status", "evidence", "code"], "properties": {"id": {"type": "string", "minLength": 1}, "status": {"enum": ["PASS", "NOT_RUN"]}, "evidence": {"enum": ["CPU_UNIT", "RUNTIME_OR_EXTERNAL"]}, "code": {"enum": ["exact_test_passed", "held_or_unavailable"]}}}
+    },
+    "privacy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["commandContentRecorded", "processOutputRecorded", "hostIdentityRecorded", "credentialRecorded"],
+      "properties": {"commandContentRecorded": {"const": false}, "processOutputRecorded": {"const": false}, "hostIdentityRecorded": {"const": false}, "credentialRecorded": {"const": false}}
+    },
+    "summary": {"type": "object", "additionalProperties": false, "required": ["pass", "fail", "notRun"], "properties": {"pass": {"const": 10}, "fail": {"const": 0}, "notRun": {"const": 4}}},
+    "limitations": {"type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+  }
+}

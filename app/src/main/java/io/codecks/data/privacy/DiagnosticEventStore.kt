@@ -10,6 +10,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import org.json.JSONArray
 import org.json.JSONObject
+import io.codecks.data.persistence.BoundedPayload
+import io.codecks.data.persistence.PersistenceRead
+import io.codecks.data.persistence.valueForMutation
 
 @Singleton
 class DiagnosticEventStore internal constructor(
@@ -29,7 +32,7 @@ class DiagnosticEventStore internal constructor(
     fun record(event: DiagnosticEvent) {
         synchronized(lock) {
             val retained = retain(
-                events = DiagnosticEventCodec.decode(backend.read()) + event,
+                events = DiagnosticEventCodec.read(backend.read()).valueForMutation("Diagnostic journal") { emptyList() } + event,
                 nowEpochMs = nowEpochMs(),
             )
             backend.write(DiagnosticEventCodec.encode(retained))
@@ -38,9 +41,10 @@ class DiagnosticEventStore internal constructor(
 
     fun events(): List<DiagnosticEvent> =
         synchronized(lock) {
-            val decoded = DiagnosticEventCodec.decode(backend.read())
+            val read = DiagnosticEventCodec.read(backend.read())
+            val decoded = (read as? PersistenceRead.Value)?.value.orEmpty()
             val retained = retain(decoded, nowEpochMs())
-            if (retained != decoded) {
+            if (read is PersistenceRead.Value && retained != decoded) {
                 backend.write(DiagnosticEventCodec.encode(retained))
             }
             retained
@@ -53,6 +57,7 @@ class DiagnosticEventStore internal constructor(
 
     fun clear() {
         synchronized(lock) {
+            DiagnosticEventCodec.read(backend.read()).valueForMutation("Diagnostic journal") { emptyList() }
             backend.clear()
         }
     }
@@ -86,11 +91,11 @@ private class SharedPreferencesDiagnosticEventBackend(context: Context) : Diagno
     override fun read(): String? = preferences.getString(EVENTS_KEY, null)
 
     override fun write(value: String) {
-        preferences.edit().putString(EVENTS_KEY, value).apply()
+        check(preferences.edit().putString(EVENTS_KEY, value).commit()) { "Diagnostic journal commit failed" }
     }
 
     override fun clear() {
-        preferences.edit().remove(EVENTS_KEY).apply()
+        check(preferences.edit().remove(EVENTS_KEY).commit()) { "Diagnostic journal clear failed" }
     }
 
     private companion object {
@@ -101,8 +106,9 @@ private class SharedPreferencesDiagnosticEventBackend(context: Context) : Diagno
 
 internal object DiagnosticEventCodec {
     private const val SchemaVersion = 1
+    private const val MaxBytes = 256 * 1024
 
-    fun encode(events: List<DiagnosticEvent>): String =
+    fun encode(events: List<DiagnosticEvent>): String = BoundedPayload.utf8(
         JSONObject()
             .put("schemaVersion", SchemaVersion)
             .put(
@@ -121,27 +127,48 @@ internal object DiagnosticEventCodec {
                     }
                 },
             )
-            .toString()
+            .toString(),
+        MaxBytes,
+    )
 
-    fun decode(value: String?): List<DiagnosticEvent> =
-        runCatching {
-            val root = JSONObject(value?.takeIf(String::isNotBlank) ?: return emptyList())
-            if (root.optInt("schemaVersion", -1) != SchemaVersion) return emptyList()
-            val events = root.optJSONArray("events") ?: return emptyList()
-            List(events.length()) { index -> events.optJSONObject(index) }
-                .mapNotNull(::decodeEvent)
-        }.getOrDefault(emptyList())
+    fun decode(value: String?): List<DiagnosticEvent> = (read(value) as? PersistenceRead.Value)?.value.orEmpty()
+
+    fun read(value: String?): PersistenceRead<List<DiagnosticEvent>> {
+        if (value == null) return PersistenceRead.Missing
+        if (value.isBlank()) return PersistenceRead.Corrupt("blank")
+        if (value.toByteArray(Charsets.UTF_8).size > MaxBytes) return PersistenceRead.Corrupt("oversized")
+        return runCatching {
+            val raw = value
+            val root = JSONObject(raw)
+            val rawVersion = root.opt("schemaVersion") as? Number ?: return PersistenceRead.Corrupt("schema")
+            val version = rawVersion.toInt().takeIf { it.toDouble() == rawVersion.toDouble() }
+                ?: return PersistenceRead.Corrupt("schema")
+            if (version > SchemaVersion) return PersistenceRead.FutureVersion(version, SchemaVersion)
+            if (version != SchemaVersion) return PersistenceRead.Corrupt("schema")
+            val events = root.optJSONArray("events") ?: return PersistenceRead.Corrupt("events")
+            if (events.length() > DiagnosticEventStore.MAX_ENTRIES) return PersistenceRead.Corrupt("count")
+            PersistenceRead.Value(
+                List(events.length()) { index -> requireNotNull(decodeEvent(events.optJSONObject(index))) },
+            )
+        }.getOrElse { PersistenceRead.Corrupt("decode") }
+    }
 
     private fun decodeEvent(value: JSONObject?): DiagnosticEvent? {
         value ?: return null
         val attempt = value.optStrictInt("attempt") ?: return null
         val durationMs = value.optStrictLong("durationMs") ?: return null
         val timestampEpochMs = value.optStrictLong("timestampEpochMs") ?: return null
+        val componentRaw = value.opt("component") as? String ?: return null
+        val eventRaw = value.opt("event") as? String ?: return null
+        val resultRaw = value.opt("result") as? String ?: return null
+        val component = DiagnosticComponent.entries.singleOrNull { it.persistedCode == componentRaw } ?: return null
+        val event = DiagnosticEventCode.entries.singleOrNull { it.persistedCode == eventRaw } ?: return null
+        val result = DiagnosticResultCode.entries.singleOrNull { it.persistedCode == resultRaw } ?: return null
         return runCatching {
             DiagnosticEvent(
-                component = DiagnosticComponent.fromPersistedCode(value.optString("component")),
-                event = DiagnosticEventCode.fromPersistedCode(value.optString("event")),
-                result = DiagnosticResultCode.fromPersistedCode(value.optString("result")),
+                component = component,
+                event = event,
+                result = result,
                 attempt = attempt,
                 durationMs = durationMs,
                 timestampEpochMs = timestampEpochMs,

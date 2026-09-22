@@ -1,6 +1,8 @@
 import Foundation
 
 public enum ReactiveTransportRoute: Equatable {
+    case pairingBegin
+    case pairingFinish
     case hello
     case proof
     case request
@@ -9,12 +11,14 @@ public enum ReactiveTransportRoute: Equatable {
 public final class ReactiveFramedTransportService {
     private let coordinator: ReactiveSessionCoordinator
     private let secret: Data
+    private let pairingController: PairingV2Controller?
     private let jsonDecoder = JSONDecoder()
     private let jsonEncoder = JSONEncoder()
 
-    public init(coordinator: ReactiveSessionCoordinator, secret: Data) {
+    public init(coordinator: ReactiveSessionCoordinator, secret: Data, pairingController: PairingV2Controller? = nil) {
         self.coordinator = coordinator
         self.secret = secret
+        self.pairingController = pairingController
         jsonEncoder.outputFormatting = [.sortedKeys]
     }
 
@@ -26,6 +30,13 @@ public final class ReactiveFramedTransportService {
 
     public func handlePayload(_ payload: Data, nowMillis: Int64 = nowMillis()) throws -> Data {
         switch try route(payload) {
+        case .pairingBegin:
+            guard let pairingController else { throw ReactiveValidationError("pairing unavailable") }
+            return try jsonEncoder.encode(pairingController.begin(jsonDecoder.decode(PairingV2Begin.self, from: payload), nowMillis: nowMillis))
+        case .pairingFinish:
+            guard let pairingController else { throw ReactiveValidationError("pairing unavailable") }
+            let finish = try jsonDecoder.decode(PairingV2Finish.self, from: payload)
+            return try jsonEncoder.encode(pairingController.finish(offerId: finish.offerId, phoneProof: finish.phoneProof, nowMillis: nowMillis))
         case .hello:
             let hello = try jsonDecoder.decode(ReactiveHello.self, from: payload)
             return try jsonEncoder.encode(coordinator.handleHello(hello, nowMillis: nowMillis))
@@ -44,6 +55,8 @@ public final class ReactiveFramedTransportService {
         else {
             throw ReactiveValidationError("transport payload must be a JSON object")
         }
+        if object["pairingType"] as? String == "pairing_begin" { return .pairingBegin }
+        if object["pairingType"] as? String == "pairing_finish" { return .pairingFinish }
         if object["deviceId"] != nil, object["clientNonce"] != nil {
             return .hello
         }

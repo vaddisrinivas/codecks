@@ -56,6 +56,7 @@ class TrackpadEntryActivityPolicyTest {
         val source = File("src/main/java/io/codecks/ui/mouse/lockscreen/TrackpadEntryActivity.kt").readText()
 
         assertTrue(source.contains("""Intent(context, MainActivity::class.java)"""))
-        assertTrue(source.contains("""putExtra(MainActivity.EXTRA_DESTINATION, "mouse")"""))
+        assertTrue(source.contains("putExtra(MainActivity.EXTRA_DESTINATION, RouteRegistry.requestAlias(MouseRoute))"))
+        assertTrue(source.contains("lockscreenPolicy == LockscreenRoutePolicy.RESTRICTED_POINTER"))
     }
 }

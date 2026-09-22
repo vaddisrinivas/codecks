@@ -1,11 +1,12 @@
 # Codecks production launch plan
 
-Updated: August 8, 2026
+Updated: August 10, 2026
 
 ## Release decision
 
-Current release is `v0.1.36`; commit `b6fc0ce` is the protected local-only
-reference baseline. The planned Google Play commercial transition adds optional
+Current public release is `v0.1.37` (`versionCode` 37). The current working
+state has no assigned next version and is not an admitted release artifact. The
+planned Google Play commercial transition adds optional
 account, configuration sync, verified purchases, typed rollout controls, and
 dark ad infrastructure without making account/payment/network access necessary
 for core local control.
@@ -15,12 +16,17 @@ Billing, premium enforcement, and ads. Building and internally validating them
 does not approve activation. Each needs a later explicit owner decision and
 separate staged rollout.
 
-The commercial plan supersedes the prior implementation schedule, not the
-baseline behavior or its evidence. Deferred Reactive work remains separate:
-native Mac helper completion, pinned helper pairing, full helper transport and
+The machine-checked release truth is
+[`production-state.json`](production-state.json). The commercial plan
+supersedes the prior implementation schedule, not the released behavior or its
+evidence. Post-release working source now contains the native Mac helper shell
+and Phase B 120-second, one-use QR pairing with per-phone credentials and
+matching-code confirmation. This is source/unit evidence, not `v0.1.37` or
+release admission. A signed helper artifact, app entitlement/Keychain probe,
+real Mac-to-phone pairing, consumer-scale first run, full helper transport and
 unified live Mac state, provider/receipt/undo completion, full iOS, DeskDock,
 Shortcuts, Spotlight/SFTP, brightness, Accessibility discovery, and complete
-cross-platform validation.
+cross-platform validation remain separate gates.
 
 ## Production-dark execution contract
 
@@ -32,6 +38,25 @@ cross-platform validation.
   Mobile Ads, and commercial operational config expose no UI and perform no
   startup construction or network request.
 - Public `playRelease` contains no internal override parser or verifier.
+
+## Commercial implementation status
+
+Implemented means code and deterministic tests exist. It does **not** mean the
+surface is available, approved, admitted to Play, or safe to describe as
+launched.
+
+| Surface | Public state | Implemented evidence | Activation evidence |
+| --- | --- | --- | --- |
+| Sign-in/account | **OFF** | Typed contracts, production-deny adapter, isolated internal adapter/tests | No owner approval; no public UI or live backend |
+| Cloud snapshot sync | **OFF** | Allowlist contracts, production-deny adapter, isolated internal upload/preview/restore tests | No owner approval; no public UI or live backend |
+| Play Billing/entitlement | **OFF** | Typed purchase/integrity contracts, backend state-machine tests, production-deny adapters, internal sandbox tests | No owner approval; no product catalog or admitted Play artifact |
+| Premium enforcement | **OFF** | Compiled owner policy and monotonic-deny tests | No owner approval; public core remains unrestricted |
+| Ads/consent | **OFF** | Production-deny privacy/ad adapters and tests | No owner approval; no public SDK or request startup |
+| Commercial startup/network | **NONE** | Static proof harness, release architecture tests, managed proof source | Exact future candidate must repeat artifact/device proof |
+
+Canonical evidence paths are closed and validated by
+[`production-state.json`](production-state.json) and
+[`verify_release_documentation.py`](../../tools/verify_release_documentation.py).
 
 ## Artifact matrix
 
@@ -66,7 +91,7 @@ signing migration, and release gates are in
 - [x] Public privacy, security, contribution, and release-signing documentation added.
 - [x] CI runs privacy scan, unit tests, lint, and debug build on every change.
 - [x] Tag/manual workflow rebuilds and publishes signed APK/checksum from public source.
-- [x] `v0.1.25` release workflow publishes a single signed APK with checksum.
+- [x] `v0.1.37` release publishes a single signed, unshrunk APK with checksum.
 
 ## GA gates
 
@@ -82,6 +107,10 @@ signing migration, and release gates are in
 | GA-08 | Release operations | Key backup verified, rollback procedure rehearsed, security-advisory intake tested, release checksum verified on a clean machine. |
 | GA-09 | Store decision | Either remain GitHub-only with documented sideload support, or complete Play listing, Data Safety, screenshots, policy review, and staged rollout. |
 | GA-10 | AI draft reliability | Versioned strict schemas pass every provider contract test; at least 100 representative prompts achieve 99% parse success, 95% safe semantic-validity, and zero generated actions bypass review or deterministic policy checks. |
+
+None of these GA gates is closed merely by a local or emulator test. Current
+known limitations and explicit `NOT_RUN` boundaries are maintained in the
+[feature guide](../product/FEATURE_GUIDE.md#limitations-and-deferred-scope).
 
 ## Commercial GA priorities
 

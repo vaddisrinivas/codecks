@@ -15,9 +15,12 @@ import com.jcraft.jsch.Session
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.codecks.core.actions.RawCommandPolicy
 import io.codecks.data.ai.EncryptedApiKeyCodec
+import io.codecks.data.persistence.AtomicBoundedFileStore
+import io.codecks.data.persistence.BoundedPayload
+import io.codecks.data.persistence.PersistenceRead
+import io.codecks.data.persistence.TransactionalFilePairStore
 import io.codecks.domain.reactive.SafeSftpTransferRequest
 import io.codecks.domain.reactive.TransferDirection
-import io.codecks.domain.connection.ConnectionIssueCode
 import io.codecks.domain.connection.ChangedHostKeyException
 import io.codecks.domain.connection.HostTrustState
 import io.codecks.domain.connection.evaluateHostTrust
@@ -28,7 +31,6 @@ import java.io.File
 import java.io.InputStream
 import java.net.SocketTimeoutException
 import java.util.Properties
-import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
@@ -38,8 +40,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 
 private val Context.connectionDataStore by preferencesDataStore(name = "connection")
 private const val SSH_COMMAND_TIMEOUT_MS = 30_000
@@ -54,6 +54,24 @@ data class ConnectionConfig(
 ) {
     val isConfigured: Boolean get() = host.isNotBlank() && user.isNotBlank() && port in 1..65535
     val isReady: Boolean get() = isConfigured && hasKey && hostKey.isNotBlank()
+}
+
+/** Candidate work is complete before [commit] may touch the live SSH key files. */
+internal fun prepareAndCommitSshKeyPair(
+    generate: () -> Pair<String, String>,
+    encrypt: (String) -> String,
+    validatePlain: (String, String) -> Unit,
+    validateStored: (String, String) -> Unit,
+    commit: (String, String, (String, String) -> Unit) -> Unit,
+    afterCommit: () -> Unit = {},
+): String {
+    val (privateKey, publicKey) = generate()
+    validatePlain(privateKey, publicKey)
+    val encryptedPrivate = encrypt(privateKey)
+    validateStored(encryptedPrivate, publicKey)
+    commit(encryptedPrivate, publicKey, validateStored)
+    afterCommit()
+    return publicKey.trim()
 }
 
 data class ConnectionTarget(
@@ -73,89 +91,6 @@ data class ConnectionTarget(
         user = user,
         hasKey = hasKey,
         hostKey = hostKey,
-    )
-}
-
-enum class MacAvailabilitySignal {
-    BluetoothTransportLost,
-    HostTemporarilyUnavailable,
-    MacSleepingOrOffline,
-    BluetoothReavailable,
-    HostReavailable,
-    MacAwake,
-    PermissionDenied,
-    HostUnpaired,
-    AuthenticationFailed,
-    HostKeyMismatch,
-    RequiredToolMissing,
-}
-
-enum class ConnectionRetryClass {
-    Transient,
-    RepairRequired,
-    Reavailable,
-}
-
-data class MacAvailabilityDecision(
-    val retryClass: ConnectionRetryClass,
-    val issueCode: ConnectionIssueCode?,
-    val automaticRetryAllowed: Boolean,
-    val scheduleHealthCheck: Boolean,
-)
-
-fun classifyMacAvailability(signal: MacAvailabilitySignal): MacAvailabilityDecision = when (signal) {
-    MacAvailabilitySignal.BluetoothTransportLost -> MacAvailabilityDecision(
-        retryClass = ConnectionRetryClass.Transient,
-        issueCode = ConnectionIssueCode.BLUETOOTH_DISABLED,
-        automaticRetryAllowed = true,
-        scheduleHealthCheck = false,
-    )
-    MacAvailabilitySignal.HostTemporarilyUnavailable,
-    MacAvailabilitySignal.MacSleepingOrOffline,
-    -> MacAvailabilityDecision(
-        retryClass = ConnectionRetryClass.Transient,
-        issueCode = ConnectionIssueCode.MAC_OFFLINE_OR_ASLEEP,
-        automaticRetryAllowed = true,
-        scheduleHealthCheck = false,
-    )
-    MacAvailabilitySignal.BluetoothReavailable,
-    MacAvailabilitySignal.HostReavailable,
-    MacAvailabilitySignal.MacAwake,
-    -> MacAvailabilityDecision(
-        retryClass = ConnectionRetryClass.Reavailable,
-        issueCode = null,
-        automaticRetryAllowed = false,
-        scheduleHealthCheck = true,
-    )
-    MacAvailabilitySignal.PermissionDenied -> MacAvailabilityDecision(
-        retryClass = ConnectionRetryClass.RepairRequired,
-        issueCode = ConnectionIssueCode.BLUETOOTH_PERMISSION_DENIED,
-        automaticRetryAllowed = false,
-        scheduleHealthCheck = false,
-    )
-    MacAvailabilitySignal.HostUnpaired -> MacAvailabilityDecision(
-        retryClass = ConnectionRetryClass.RepairRequired,
-        issueCode = ConnectionIssueCode.HOST_UNPAIRED,
-        automaticRetryAllowed = false,
-        scheduleHealthCheck = false,
-    )
-    MacAvailabilitySignal.AuthenticationFailed -> MacAvailabilityDecision(
-        retryClass = ConnectionRetryClass.RepairRequired,
-        issueCode = ConnectionIssueCode.SSH_AUTH_FAILED,
-        automaticRetryAllowed = false,
-        scheduleHealthCheck = false,
-    )
-    MacAvailabilitySignal.HostKeyMismatch -> MacAvailabilityDecision(
-        retryClass = ConnectionRetryClass.RepairRequired,
-        issueCode = ConnectionIssueCode.SSH_HOST_KEY_MISMATCH,
-        automaticRetryAllowed = false,
-        scheduleHealthCheck = false,
-    )
-    MacAvailabilitySignal.RequiredToolMissing -> MacAvailabilityDecision(
-        retryClass = ConnectionRetryClass.RepairRequired,
-        issueCode = ConnectionIssueCode.MAC_TOOL_MISSING,
-        automaticRetryAllowed = false,
-        scheduleHealthCheck = false,
     )
 }
 
@@ -222,6 +157,7 @@ interface ConnectionRepository {
     suspend fun runReviewedCommandOnTarget(targetId: String, command: String): Result<String> =
         runCommandOnTarget(targetId, command)
     suspend fun runBundledCommand(command: String): Result<String> = runCommand(command)
+    suspend fun runBundledCommandRaw(command: String): Result<String> = runBundledCommand(command)
     suspend fun runBundledCommandOnTarget(targetId: String, command: String): Result<String> =
         runCommandOnTarget(targetId, command)
     suspend fun runSftpTransferOnTarget(targetId: String, request: SafeSftpTransferRequest): Result<String> =
@@ -291,15 +227,23 @@ class DefaultConnectionRepository @Inject constructor(
 
     override suspend fun generateKey(): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            if (!hasPrivateKey() || !hasPublicKey()) {
-                val keyPair = KeyPair.genKeyPair(JSch(), KeyPair.RSA, 3072)
-                val privateOutput = ByteArrayOutputStream()
-                val publicOutput = ByteArrayOutputStream()
-                keyPair.writePrivateKey(privateOutput)
-                keyPair.writePublicKey(publicOutput, "codecks")
-                keyPair.dispose()
-                writePrivateKey(privateOutput.toString(Charsets.UTF_8.name()))
-                publicKeyFile().writeBytes(publicOutput.toByteArray())
+            recoverKeyPairTransaction()
+            val hasPrivate = hasPrivateKey()
+            val hasPublic = hasPublicKey()
+            check(hasPrivate == hasPublic) { "Incomplete SSH keypair preserved; repair is required" }
+            if (!hasPrivate) {
+                prepareAndCommitSshKeyPair(
+                    generate = ::generateSshKeyPairCandidate,
+                    encrypt = privateKeyCodec::encrypt,
+                    validatePlain = ::validatePlainKeyPair,
+                    validateStored = ::validateStoredKeyPair,
+                    commit = { privateKey, publicKey, validate ->
+                        keyPairTransaction().commit(privateKey, publicKey, validate)
+                    },
+                )
+                hardenPrivateKeyFile()
+            } else {
+                validatePlainKeyPair(readPrivateKey(), readPublicKey())
             }
             hardenPrivateKeyFile()
             keyRevision.value += 1
@@ -357,12 +301,22 @@ class DefaultConnectionRepository @Inject constructor(
 
     override suspend fun rotateKey(): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            privateKeyFile().delete()
-            legacyPrivateKeyFile().delete()
-            publicKeyFile().delete()
-            legacyPublicKeyFile().delete()
-            val publicKey = generateKey().getOrThrow()
+            recoverKeyPairTransaction()
+            val publicKey = prepareAndCommitSshKeyPair(
+                generate = ::generateSshKeyPairCandidate,
+                encrypt = privateKeyCodec::encrypt,
+                validatePlain = ::validatePlainKeyPair,
+                validateStored = ::validateStoredKeyPair,
+                commit = { privateKey, candidatePublicKey, validate ->
+                    keyPairTransaction().commit(privateKey, candidatePublicKey, validate)
+                },
+                afterCommit = {
+                    legacyPrivateKeyFile().delete()
+                    legacyPublicKeyFile().delete()
+                },
+            )
             hardenPrivateKeyFile()
+            keyRevision.value += 1
             "New SSH key ready. Reinstall it on your Mac.\n$publicKey"
         }
     }
@@ -537,6 +491,19 @@ class DefaultConnectionRepository @Inject constructor(
             val result = runSsh(current, null, readPrivateKey(), command)
             check(result.isSuccess) { result.summary }
             result.summary
+        }
+    }
+
+    override suspend fun runBundledCommandRaw(command: String): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val current = currentConfig()
+            terminalProofExecutionGuard.requireVerified(current)
+            require(current.isReady) { "Connect your Mac first" }
+            require(command.isNotBlank()) { "Command is empty" }
+            RawCommandPolicy.requireAllowed(command)
+            val result = runSsh(current, null, readPrivateKey(), command)
+            check(result.isSuccess) { result.summary }
+            result.stdout.trim()
         }
     }
 
@@ -807,36 +774,66 @@ class DefaultConnectionRepository @Inject constructor(
     private fun legacyPrivateKeyFile() = context.filesDir.resolve("deckbridge_ssh_private")
     private fun publicKeyFile() = context.filesDir.resolve("codecks_ssh_public")
     private fun legacyPublicKeyFile() = context.filesDir.resolve("deckbridge_ssh_public")
+    private fun privateKeyStore() = AtomicBoundedFileStore(privateKeyFile(), MAX_PRIVATE_KEY_BYTES)
+    private fun publicKeyStore() = AtomicBoundedFileStore(publicKeyFile(), MAX_PUBLIC_KEY_BYTES)
+    private fun keyPairTransaction() = TransactionalFilePairStore(
+        privateKeyFile(), publicKeyFile(), MAX_PRIVATE_KEY_BYTES, MAX_PUBLIC_KEY_BYTES,
+    )
 
-    private fun hasPrivateKey(): Boolean = privateKeyFile().exists() || legacyPrivateKeyFile().exists()
-    private fun hasPublicKey(): Boolean = publicKeyFile().exists() || legacyPublicKeyFile().exists()
+    private fun recoverKeyPairTransaction() = keyPairTransaction().recover(::validateStoredKeyPair)
 
-    private fun writePrivateKey(privateKey: String) {
-        privateKeyFile().writeText(privateKeyCodec.encrypt(privateKey))
-        legacyPrivateKeyFile().delete()
+    private fun hasPrivateKey(): Boolean {
+        recoverKeyPairTransaction()
+        migrateLegacyKeyPairIfComplete()
+        return privateKeyFile().exists()
+    }
+    private fun hasPublicKey(): Boolean {
+        recoverKeyPairTransaction()
+        migrateLegacyKeyPairIfComplete()
+        return publicKeyFile().exists()
+    }
+
+    private fun migrateLegacyKeyPairIfComplete() {
+        val hasNewPrivate = privateKeyFile().isFile
+        val hasNewPublic = publicKeyFile().isFile
+        if (hasNewPrivate || hasNewPublic) {
+            check(hasNewPrivate && hasNewPublic) { "Incomplete SSH keypair preserved; repair is required" }
+            return
+        }
+        val hasLegacyPrivate = legacyPrivateKeyFile().isFile
+        val hasLegacyPublic = legacyPublicKeyFile().isFile
+        if (!hasLegacyPrivate && !hasLegacyPublic) return
+        check(hasLegacyPrivate && hasLegacyPublic) { "Incomplete legacy SSH keypair preserved; repair is required" }
+        check(legacyPrivateKeyFile().length() <= MAX_PRIVATE_KEY_PLAINTEXT_BYTES)
+        check(legacyPublicKeyFile().length() <= MAX_PUBLIC_KEY_BYTES)
+        val privateKey = legacyPrivateKeyFile().readText().takeIf(String::isNotBlank)
+            ?: error("Legacy SSH private key is blank")
+        val publicKey = legacyPublicKeyFile().readText().takeIf(String::isNotBlank)
+            ?: error("Legacy SSH public key is blank")
+        validatePlainKeyPair(privateKey, publicKey)
+        keyPairTransaction().commit(privateKeyCodec.encrypt(privateKey), publicKey, ::validateStoredKeyPair)
         hardenPrivateKeyFile()
+        legacyPrivateKeyFile().delete()
+        legacyPublicKeyFile().delete()
     }
 
     private fun readPrivateKeyOrNull(): String? {
+        recoverKeyPairTransaction()
+        migrateLegacyKeyPairIfComplete()
         if (privateKeyFile().exists()) {
-            return privateKeyCodec.decrypt(privateKeyFile().readText())
+            return privateKeyCodec.decrypt(privateKeyStore().read().requiredValue("SSH private key"))
         }
-        val legacy = legacyPrivateKeyFile().takeIf { it.exists() }?.readText()?.takeIf(String::isNotBlank)
-            ?: return null
-        writePrivateKey(legacy)
-        return legacy
+        return null
     }
 
     private fun readPrivateKey(): String =
         requireNotNull(readPrivateKeyOrNull()) { "Generate or install the SSH key first" }
 
     private fun readPublicKeyOrNull(): String? {
-        if (publicKeyFile().exists()) return publicKeyFile().readText()
-        val legacy = legacyPublicKeyFile().takeIf { it.exists() }?.readText()?.takeIf(String::isNotBlank)
-            ?: return null
-        publicKeyFile().writeText(legacy)
-        legacyPublicKeyFile().delete()
-        return legacy
+        recoverKeyPairTransaction()
+        migrateLegacyKeyPairIfComplete()
+        if (publicKeyFile().exists()) return publicKeyStore().read().requiredValue("SSH public key")
+        return null
     }
 
     private fun readPublicKey(): String =
@@ -850,6 +847,49 @@ class DefaultConnectionRepository @Inject constructor(
             setReadable(true, true)
             setWritable(true, true)
         }
+    }
+
+    private fun validateStoredKeyPair(encryptedPrivate: String, publicKey: String) =
+        validatePlainKeyPair(privateKeyCodec.decrypt(encryptedPrivate), publicKey)
+
+    private fun generateSshKeyPairCandidate(): Pair<String, String> {
+        val keyPair = KeyPair.genKeyPair(JSch(), KeyPair.RSA, 3072)
+        return try {
+            val privateOutput = ByteArrayOutputStream()
+            val publicOutput = ByteArrayOutputStream()
+            keyPair.writePrivateKey(privateOutput)
+            keyPair.writePublicKey(publicOutput, "codecks")
+            BoundedPayload.utf8(
+                privateOutput.toString(Charsets.UTF_8.name()),
+                MAX_PRIVATE_KEY_PLAINTEXT_BYTES,
+            ) to BoundedPayload.utf8(
+                publicOutput.toString(Charsets.UTF_8.name()),
+                MAX_PUBLIC_KEY_BYTES,
+            )
+        } finally {
+            keyPair.dispose()
+        }
+    }
+
+    private fun validatePlainKeyPair(privateKey: String, publicKey: String) {
+        val loaded = KeyPair.load(JSch(), privateKey.toByteArray(), null)
+        try {
+            val derived = ByteArrayOutputStream().also { loaded.writePublicKey(it, "codecks") }
+                .toString(Charsets.UTF_8.name())
+            check(publicMaterial(derived) == publicMaterial(publicKey)) { "SSH public/private key mismatch" }
+        } finally {
+            loaded.dispose()
+        }
+    }
+
+    private fun publicMaterial(value: String): String = value.trim().split(Regex("\\s+")).take(2).joinToString(" ")
+
+    private fun PersistenceRead<String>.requiredValue(label: String): String = when (this) {
+        is PersistenceRead.Value -> value
+        PersistenceRead.Missing -> error("$label is missing")
+        is PersistenceRead.Corrupt -> error("$label is corrupt")
+        PersistenceRead.KeyUnavailable -> error("$label key is unavailable")
+        is PersistenceRead.FutureVersion -> error("$label is from a newer app")
     }
 
     private suspend fun rememberHostKey(hostKey: String) {
@@ -924,253 +964,8 @@ class DefaultConnectionRepository @Inject constructor(
         val TARGETS_QUARANTINE = stringPreferencesKey("targets_quarantine")
         val CURRENT_TARGET_ID = stringPreferencesKey("current_target_id")
         const val CONNECT_TIMEOUT_MS = 9_000
+        const val MAX_PRIVATE_KEY_BYTES = 64 * 1024
+        const val MAX_PRIVATE_KEY_PLAINTEXT_BYTES = 32 * 1024
+        const val MAX_PUBLIC_KEY_BYTES = 16 * 1024
     }
-}
-
-private fun ByteArrayOutputStream.writeBounded(buffer: ByteArray, count: Int) {
-    if (size() >= SSH_OUTPUT_LIMIT_BYTES) return
-    val allowed = (SSH_OUTPUT_LIMIT_BYTES - size()).coerceAtMost(count)
-    if (allowed > 0) write(buffer, 0, allowed)
-}
-
-private fun InputStream.readAvailableBounded(output: ByteArrayOutputStream, buffer: ByteArray) {
-    while (available() > 0) {
-        val count = read(buffer)
-        if (count < 0) break
-        output.writeBounded(buffer, count)
-    }
-}
-
-private data class VerifiedHostKey(
-    val line: String,
-    val fingerprint: String,
-)
-
-private fun Preferences.targets(hasKey: Boolean): List<ConnectionTarget> {
-    val decoded = decodeConnectionTargets(
-        raw = this[ConnectionPreferenceKeys.TARGETS].orEmpty(),
-        hasKey = hasKey,
-    )
-    return (decoded as? ConnectionTargetsDecodeResult.Success)
-        ?.targets
-        .orEmpty()
-        .sortedWith(compareByDescending<ConnectionTarget> { it.id == this[ConnectionPreferenceKeys.CURRENT_TARGET_ID] }.thenBy { it.host })
-}
-
-private fun Preferences.currentTarget(hasKey: Boolean): ConnectionTarget? {
-    val targets = targets(hasKey)
-    val currentId = this[ConnectionPreferenceKeys.CURRENT_TARGET_ID]
-    return targets.firstOrNull { it.id == currentId } ?: targets.firstOrNull()
-}
-
-private fun Preferences.legacyTarget(hasKey: Boolean): ConnectionTarget? {
-    val host = this[ConnectionPreferenceKeys.HOST].orEmpty()
-    val user = this[ConnectionPreferenceKeys.USER].orEmpty()
-    val port = this[ConnectionPreferenceKeys.PORT] ?: 22
-    if (host.isBlank() || user.isBlank()) return null
-    return ConnectionTarget(
-        id = this[ConnectionPreferenceKeys.CURRENT_TARGET_ID].orEmpty(),
-        host = host,
-        port = port,
-        user = user,
-        hasKey = hasKey,
-        hostKey = this[ConnectionPreferenceKeys.HOST_KEY].orEmpty(),
-    )
-}
-
-internal sealed interface ConnectionTargetsDecodeResult {
-    data class Success(val targets: List<ConnectionTarget>) : ConnectionTargetsDecodeResult
-    data class Failure(val raw: String) : ConnectionTargetsDecodeResult
-}
-
-internal fun decodeConnectionTargets(
-    raw: String,
-    hasKey: Boolean,
-): ConnectionTargetsDecodeResult {
-    if (raw.isBlank()) return ConnectionTargetsDecodeResult.Success(emptyList())
-    return runCatching {
-        val array = JSONArray(raw)
-        val targets = buildList {
-            repeat(array.length()) { index ->
-                val item = array.getJSONObject(index)
-                val host = item.getString("host")
-                val user = item.getString("user")
-                require(host.isNotBlank() && user.isNotBlank()) {
-                    "Connection target endpoint is incomplete"
-                }
-                val port = if (item.has("port")) item.getInt("port") else 22
-                require(port in 1..65535) { "Connection target port is invalid" }
-                add(
-                    ConnectionTarget(
-                        id = item.optString("id"),
-                        host = host,
-                        port = port,
-                        user = user,
-                        hasKey = hasKey,
-                        hostKey = item.optString("hostKey"),
-                    ),
-                )
-            }
-        }
-        ConnectionTargetsDecodeResult.Success(targets)
-    }.getOrElse {
-        ConnectionTargetsDecodeResult.Failure(raw)
-    }
-}
-
-private fun List<ConnectionTarget>.toJson(): String {
-    val array = JSONArray()
-    forEach { target ->
-        array.put(
-            JSONObject()
-                .put("id", target.id)
-                .put("host", target.host)
-                .put("port", target.port)
-                .put("user", target.user)
-                .put("hostKey", target.hostKey),
-        )
-    }
-    return array.toString()
-}
-
-internal data class ConnectionTargetIdentityMigration(
-    val targets: List<ConnectionTarget>,
-    val currentTargetId: String?,
-)
-
-internal sealed interface ConnectionTargetStorageMigration {
-    data class Ready(
-        val targetsJson: String,
-        val currentTargetId: String?,
-    ) : ConnectionTargetStorageMigration
-
-    data class PreserveUndecodable(
-        val raw: String,
-    ) : ConnectionTargetStorageMigration
-}
-
-internal fun planConnectionTargetStorageMigration(
-    rawTargets: String,
-    hasKey: Boolean,
-    legacyTarget: ConnectionTarget?,
-    currentTargetId: String?,
-    newId: () -> String = ::newOpaqueTargetId,
-): ConnectionTargetStorageMigration =
-    when (val decoded = decodeConnectionTargets(rawTargets, hasKey)) {
-        is ConnectionTargetsDecodeResult.Failure ->
-            ConnectionTargetStorageMigration.PreserveUndecodable(decoded.raw)
-        is ConnectionTargetsDecodeResult.Success -> {
-            val migration = migrateConnectionTargetIdentities(
-                storedTargets = decoded.targets,
-                legacyTarget = legacyTarget,
-                currentTargetId = currentTargetId,
-                newId = newId,
-            )
-            ConnectionTargetStorageMigration.Ready(
-                targetsJson = migration.targets.toJson(),
-                currentTargetId = migration.currentTargetId,
-            )
-        }
-    }
-
-internal fun migrateConnectionTargetIdentities(
-    storedTargets: List<ConnectionTarget>,
-    legacyTarget: ConnectionTarget?,
-    currentTargetId: String?,
-    newId: () -> String = ::newOpaqueTargetId,
-): ConnectionTargetIdentityMigration {
-    val candidates = buildList {
-        addAll(storedTargets)
-        if (legacyTarget != null && none { it.sameEndpoint(legacyTarget) }) {
-            add(legacyTarget)
-        }
-    }.sortedByDescending { it.id == currentTargetId }
-
-    val usedIds = candidates
-        .filterNot { it.id.isBlank() || it.usesLegacyEndpointIdentity() }
-        .mapTo(mutableSetOf(), ConnectionTarget::id)
-    val migratedByOldId = mutableMapOf<String, String>()
-    val migratedTargets = mutableListOf<ConnectionTarget>()
-
-    candidates.forEach { candidate ->
-        val existing = migratedTargets.firstOrNull { it.sameEndpoint(candidate) }
-        if (existing != null) {
-            if (candidate.id.isNotBlank()) migratedByOldId[candidate.id] = existing.id
-            return@forEach
-        }
-
-        val migratedId = if (candidate.id.isBlank() || candidate.usesLegacyEndpointIdentity()) {
-            generateUniqueOpaqueTargetId(usedIds, newId)
-        } else {
-            candidate.id
-        }
-        usedIds += migratedId
-        if (candidate.id.isNotBlank()) migratedByOldId[candidate.id] = migratedId
-        migratedTargets += candidate.copy(id = migratedId)
-    }
-
-    val migratedCurrentId = currentTargetId
-        ?.let(migratedByOldId::get)
-        ?: legacyTarget
-            ?.let { legacy -> migratedTargets.firstOrNull { it.sameEndpoint(legacy) }?.id }
-        ?: migratedTargets.firstOrNull()?.id
-
-    return ConnectionTargetIdentityMigration(
-        targets = migratedTargets,
-        currentTargetId = migratedCurrentId,
-    )
-}
-
-private fun generateUniqueOpaqueTargetId(
-    usedIds: Set<String>,
-    newId: () -> String,
-): String {
-    repeat(10) {
-        val candidate = newId()
-        require(candidate.isNotBlank()) { "Generated target ID must not be blank" }
-        if (candidate !in usedIds) return candidate
-    }
-    error("Could not generate a unique target ID")
-}
-
-private fun newOpaqueTargetId(): String = UUID.randomUUID().toString()
-
-// Recognition-only compatibility for endpoint-derived IDs written by older releases.
-// This value is never returned as a ConnectionTarget ID or written back to storage.
-private fun legacyEndpointTargetId(host: String, user: String, port: Int = 22): String =
-    "mac_${user}_${host}_${port}"
-        .lowercase()
-        .map { if (it.isLetterOrDigit()) it else '_' }
-        .joinToString("")
-        .trim('_')
-        .ifBlank { "mac_current" }
-
-private fun ConnectionTarget.usesLegacyEndpointIdentity(): Boolean =
-    id == legacyEndpointTargetId(host, user, port)
-
-private fun ConnectionTarget.sameEndpoint(other: ConnectionTarget): Boolean =
-    sameEndpoint(other.host, other.port, other.user)
-
-private fun ConnectionTarget.sameEndpoint(host: String, port: Int, user: String): Boolean =
-    this.host == host && this.port == port && this.user == user
-
-internal fun legacyConnectionTargetIdMigrations(
-    targets: List<ConnectionTarget>,
-): Map<String, String> = targets
-    .groupBy { target -> legacyEndpointTargetId(target.host, target.user, target.port) }
-    .mapNotNull { (legacyId, matches) ->
-        matches.map(ConnectionTarget::id)
-            .distinct()
-            .singleOrNull()
-            ?.let { opaqueId -> legacyId to opaqueId }
-    }
-    .toMap()
-
-private object ConnectionPreferenceKeys {
-    val HOST = stringPreferencesKey("host")
-    val PORT = intPreferencesKey("port")
-    val USER = stringPreferencesKey("user")
-    val HOST_KEY = stringPreferencesKey("host_key")
-    val TARGETS = stringPreferencesKey("targets")
-    val CURRENT_TARGET_ID = stringPreferencesKey("current_target_id")
 }
