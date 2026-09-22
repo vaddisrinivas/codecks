@@ -5,6 +5,7 @@ import android.app.LocaleManager
 import android.app.UiModeManager
 import android.content.Context
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
 import android.os.SystemClock
@@ -168,11 +169,14 @@ class M10ManagedMatrixInstrumentedTest {
 
     @Test
     fun offlinePermissionAndBackgroundRestrictionTogglesAreRecoverable() {
+        val hasMobileData = context.packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_DATA)
         try {
             shell("svc wifi disable")
-            shell("svc data disable")
+            if (hasMobileData) shell("svc data disable")
             assertTrue(waitForShell("cmd wifi status") { it.contains("disabled", ignoreCase = true) }.contains("disabled", ignoreCase = true))
-            assertEquals("0", waitForShell("settings get global mobile_data") { it.trim() == "0" }.trim())
+            if (hasMobileData) {
+                assertEquals("0", waitForShell("settings get global mobile_data") { it.trim() == "0" }.trim())
+            }
             shell("cmd appops set $packageName RUN_ANY_IN_BACKGROUND ignore")
             assertTrue(shell("cmd appops get $packageName RUN_ANY_IN_BACKGROUND").contains("ignore"))
 
@@ -194,11 +198,13 @@ class M10ManagedMatrixInstrumentedTest {
             }
         } finally {
             shell("svc wifi enable")
-            shell("svc data enable")
+            if (hasMobileData) shell("svc data enable")
             shell("cmd appops set $packageName RUN_ANY_IN_BACKGROUND default")
         }
         assertTrue(waitForShell("cmd wifi status") { it.contains("enabled", ignoreCase = true) }.contains("enabled", ignoreCase = true))
-        assertEquals("1", waitForShell("settings get global mobile_data") { it.trim() == "1" }.trim())
+        if (hasMobileData) {
+            assertEquals("1", waitForShell("settings get global mobile_data") { it.trim() == "1" }.trim())
+        }
         assertFalse(shell("cmd appops get $packageName RUN_ANY_IN_BACKGROUND").contains("ignore"))
     }
 
